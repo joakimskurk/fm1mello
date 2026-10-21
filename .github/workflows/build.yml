@@ -1,0 +1,19 @@
+name: FM-1 target build
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+jobs:
+  build:
+    uses: zvenson/fm1-build/.github/workflows/build.yml@v1
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    with:
+      build: bash ci/build_target.sh
+      packages: build/skurkymello-*.fwsc
+      test: bash ci/test_host.sh
+      tests-block: true
+      sdk: true

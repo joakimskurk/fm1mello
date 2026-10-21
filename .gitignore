@@ -1,0 +1,11 @@
+build/
+work/
+mello/
+overlay/
+tests/
+tools/
+*.o
+*.wav
+*.ppm
+*.png
+__pycache__/
