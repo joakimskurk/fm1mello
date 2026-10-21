@@ -18,6 +18,7 @@ cp -a work/dinghy work/mello; rm -rf work/mello/.git
 cp overlay/dinghy.c work/mello/firmware/src/dinghy.c; cp mello/* work/mello/firmware/src/
 python3 ci/patch_freestanding_libc.py work/mello/firmware/src
 python3 ci/patch_dinghy_storage_guard.py work/mello/firmware/src/platform.c
+python3 ci/patch_target_memory.py work/mello
 python3 ci/patch_release_identity.py work/mello/tools/build.py
 ( cd work/mello && bash tests/run_host.sh ) 2>&1 | tee build/evidence/mello_dinghy_host.log
 ( cd work/mello && MELLO_PRODUCT="$PRODUCT" bash ./build.sh --release "$VERSION" ) 2>&1 | tee build/evidence/mello_target.log
