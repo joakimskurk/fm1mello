@@ -19,6 +19,7 @@ cp overlay/dinghy.c work/mello/firmware/src/dinghy.c; cp mello/* work/mello/firm
 python3 ci/patch_freestanding_libc.py work/mello/firmware/src
 python3 ci/patch_dinghy_storage_guard.py work/mello/firmware/src/platform.c
 python3 ci/patch_target_memory.py work/mello
+python3 ci/patch_audio_silence_fastpath.py work/mello/firmware/src/mello_audio.c
 python3 ci/patch_target_optimization.py work/mello/tools/build.py
 python3 ci/patch_release_identity.py work/mello/tools/build.py
 ( cd work/mello && bash tests/run_host.sh ) 2>&1 | tee build/evidence/mello_dinghy_host.log
