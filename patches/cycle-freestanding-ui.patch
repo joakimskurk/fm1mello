@@ -1,0 +1,12 @@
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -2005,7 +2005,8 @@
+ static void footer_pair(const MelloUiDrawOps *o, uint8_t k, const char *label, const char *value, uint16_t colour)
+ {
+     int16_t x = (int16_t)(k * 60u);
+-    size_t value_len = value ? strlen(value) : 0u;
++    size_t value_len = 0u;
++    while (value && value[value_len] && value_len < 16u) ++value_len;
+     o->fill(o->ctx, x, 184, 60, 36, UI_PANEL);
+     o->text(o->ctx, x + 2, 188, 56, 0, label, UI_DIM, 0);
+     o->text(o->ctx, x + 2, 203, 56, value_len > 6u ? 0u : 1u, value, colour, 1);
