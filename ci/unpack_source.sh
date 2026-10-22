@@ -36,6 +36,7 @@ base64 -d "$CHORD_B64" > "$CHORD_GZ"
 echo '8cfb9f32f0b9280ab3309b65a21b1c796ab711c1a56f267393e4ffde6decb83a  '"$CHORD_GZ" | sha256sum -c -
 gzip -t "$CHORD_GZ"
 gzip -dc "$CHORD_GZ" | patch --batch --forward -p1
+# Lock the proven experiment before cleanup.
 echo '8e789d05a0c254a31ae38fac71d530534c7bc5714ab65c96fb381d647bc9e904  mello/mello_engine.h' | sha256sum -c -
 echo '2a53b6b6d6e8214e527a742cbad697e0a7d59d37b3327dd214c9905bde94cdef  mello/mello_engine.c' | sha256sum -c -
 echo '3bc1cb1962d8b193c3cd9c1b967d2f065b775c1b3577900c7a50a0b8216f5807  mello/mello_audio.h' | sha256sum -c -
@@ -44,4 +45,7 @@ echo 'ca6f6800bd6d44d7d8ffc767d43a65f811631b832898da7442f71900631fc7dc  mello/me
 echo '2dfc33435e15ba0763910a83bd9ce89a9e557dfc27f32081a0d67a594cf02aac  mello/mello_ui.c' | sha256sum -c -
 echo 'd49ccace38d402dc8ffd678934c20c61f8c9fd6988a53780c03ffd0c2d80e08b  mello/mello_transport.c' | sha256sum -c -
 echo '1fa390edab81f7ea02770ca8dd09965b798f3cf839d2d284bc8bf7db5725d4ee  overlay/dinghy.c' | sha256sum -c -
+# Cleanup is kept separate from the feature patch so the proven experiment remains reproducible.
+echo '44e14365c19a181a12a6e136eb344e9edb7bdc932293847473c1473eeeaa7d63  patches/chord-machine-warning-fix.patch' | sha256sum -c -
+patch --batch --forward -p1 < patches/chord-machine-warning-fix.patch
 echo 'PASS: reconstructed source + exact HTML audio/sub parity + removable experimental chord machine'

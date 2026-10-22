@@ -1,0 +1,11 @@
+--- a/mello/mello_engine.c
++++ b/mello/mello_engine.c
+@@ -1544,7 +1544,7 @@
+ 
+ #if MELLO_FEATURE_CHORD_MACHINE
+ static uint8_t chord_scale_degree_midi(const MelloEngine *e,uint8_t degree,int8_t octave){
+-    int32_t root;MelloScale scale;int8_t lc_oct,lc_pitch;const ScaleDef *sd;int32_t d,idx,oct,midi;
++    int32_t root=60;MelloScale scale=MELLO_SCALE_MINOR;int8_t lc_oct=0,lc_pitch=0;const ScaleDef *sd;int32_t d,idx,oct,midi;
+     current_loop_context(e,&root,&scale,&lc_oct,&lc_pitch,NULL);sd=&SCALES[scale<MELLO_SCALE_COUNT?scale:MELLO_SCALE_MINOR];
+     d=degree;idx=d%sd->n;oct=d/sd->n;midi=root+sd->v[idx]+oct*12+((int32_t)e->project.global_octave+(int32_t)lc_oct+(int32_t)octave)*12+(int32_t)lc_pitch;
+     return clamp_u8_i32(midi,12u,108u);
