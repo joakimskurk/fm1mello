@@ -27,6 +27,18 @@ with sync_playwright() as p:
     before_hash=file_sha(out/'before.png')
     status_before=page.locator('#status').inner_text()
 
+    # Hash an intrinsic panel region directly from the canvas. The FM-1 LCD is at (370,42)
+    # and drawn 2x from its 240x240 framebuffer. The first ~30 LCD rows contain Mello's
+    # RUN/STOP header, isolated from the animated step/status area below.
+    def header_hash():
+        return page.evaluate("""() => {
+          const c=document.getElementById('panel'), d=c.getContext('2d').getImageData(370,42,480,64).data;
+          let h=2166136261>>>0;
+          for (let i=0;i<d.length;i++) { h ^= d[i]; h = Math.imul(h,16777619)>>>0; }
+          return h>>>0;
+        }""")
+    stop_header_before = header_hash()
+
     # Real browser keyboard route in main.js: 0 = SEQ, 7 = HOME. Hold long enough for the
     # emulated 10 kHz matrix scanner to see the state, just like a human press.
     page.keyboard.down('0'); page.wait_for_timeout(120); page.keyboard.up('0'); page.wait_for_timeout(600)
@@ -38,24 +50,31 @@ with sync_playwright() as p:
     key_home_hash=file_sha(out/'after_key_home.png')
 
     # Real pointer route. FM-1 panel intrinsic geometry is 1280x820.
-    # Bottom-row button centres from panel.rs: HOME (931,340), SEQ (1105,340), PLAY (1163,340).
+    # Bottom-row button centres: HOME (931,340), SEQ (1105,340), PLAY (1163,340).
     box=canvas.bounding_box()
     if not box: raise SystemExit('FAIL: panel canvas has no bounding box')
-    def panel_press(x,y):
+    def panel_press(x,y,hold_ms=120,settle_ms=500):
         px=box['x'] + box['width']*x/1280.0
         py=box['y'] + box['height']*y/820.0
         page.mouse.move(px,py)
-        page.mouse.down(); page.wait_for_timeout(120); page.mouse.up(); page.wait_for_timeout(500)
+        page.mouse.down(); page.wait_for_timeout(hold_ms); page.mouse.up(); page.wait_for_timeout(settle_ms)
     panel_press(1105,340)
     canvas.screenshot(path=str(out/'after_pointer_seq.png'))
     ptr_seq_hash=file_sha(out/'after_pointer_seq.png')
     panel_press(931,340)
     canvas.screenshot(path=str(out/'after_pointer_home.png'))
     ptr_home_hash=file_sha(out/'after_pointer_home.png')
-    panel_press(1163,340)
-    page.wait_for_timeout(700)
-    canvas.screenshot(path=str(out/'after_pointer_play.png'))
-    ptr_play_hash=file_sha(out/'after_pointer_play.png')
+
+    # PLAY must be a true toggle on the physical panel: first press RUN, second press STOP.
+    panel_press(1163,340,120,250)
+    run_header = header_hash()
+    canvas.screenshot(path=str(out/'after_pointer_play_run.png'))
+    ptr_play_run_hash=file_sha(out/'after_pointer_play_run.png')
+    page.wait_for_timeout(500)
+    panel_press(1163,340,120,350)
+    stop_header_after = header_hash()
+    canvas.screenshot(path=str(out/'after_pointer_play_stop.png'))
+    ptr_play_stop_hash=file_sha(out/'after_pointer_play_stop.png')
 
     page.keyboard.down('a'); page.wait_for_timeout(120); page.keyboard.up('a'); page.wait_for_timeout(200)
 
@@ -68,12 +87,17 @@ with sync_playwright() as p:
       'keyHomeSha256':key_home_hash,
       'pointerSeqSha256':ptr_seq_hash,
       'pointerHomeSha256':ptr_home_hash,
-      'pointerPlaySha256':ptr_play_hash,
+      'pointerPlayRunSha256':ptr_play_run_hash,
+      'pointerPlayStopSha256':ptr_play_stop_hash,
+      'stopHeaderBefore':stop_header_before,
+      'runHeader':run_header,
+      'stopHeaderAfter':stop_header_after,
       'keyboardSeqChangedCanvas':before_hash != key_seq_hash,
       'keyboardHomeReturnedCanvas':before_hash == key_home_hash,
       'pointerSeqChangedCanvas':key_home_hash != ptr_seq_hash,
       'pointerHomeReturnedCanvas':key_home_hash == ptr_home_hash,
-      'pointerPlayChangedCanvas':ptr_home_hash != ptr_play_hash,
+      'pointerPlayStarted':stop_header_before != run_header,
+      'pointerPlayStopped':run_header != stop_header_after and stop_header_before == stop_header_after,
       'console':console,
       'pageErrors':errors,
     }
@@ -85,7 +109,9 @@ with sync_playwright() as p:
         raise SystemExit('FAIL: real browser keyboard 0/SEQ did not change Mello canvas')
     if key_home_hash == ptr_seq_hash:
         raise SystemExit('FAIL: real held canvas press on SEQ did not change Mello canvas')
-    if ptr_home_hash == ptr_play_hash:
-        raise SystemExit('FAIL: real held canvas press on PLAY did not change Mello canvas')
-    print('PASS: real Chromium keyboard + pointer frontend routes control Mello')
+    if stop_header_before == run_header:
+        raise SystemExit('FAIL: first PLAY press did not switch STOP header to RUN')
+    if run_header == stop_header_after or stop_header_before != stop_header_after:
+        raise SystemExit('FAIL: second PLAY press did not restore STOP header')
+    print('PASS: real Chromium keyboard + pointer routes, including PLAY start-stop toggle')
     browser.close()
