@@ -67,25 +67,54 @@ int main(void)
     mello_ui_attach_sample_bank(&ui, &sample_bank);
 
     if (render_page(&ui, &ops, MELLO_UI_HOME) || fills < 30 || texts < 8) return 2;
-    if (render_page(&ui, &ops, MELLO_UI_SEQ_STEP) || fills < 50 || texts < 12) return 3;
-    if (render_page(&ui, &ops, MELLO_UI_SEQ_SEGMENT) || fills < 50 || texts < 12) return 4;
-    if (render_page(&ui, &ops, MELLO_UI_SEQ_LOOP) || fills < 45 || texts < 15) return 5;
-    if (render_page(&ui, &ops, MELLO_UI_RANDOM) || fills < 30 || texts < 10) return 6;
-    if (render_page(&ui, &ops, MELLO_UI_DOT) || fills < 50 || texts < 8) return 7;
-    if (render_page(&ui, &ops, MELLO_UI_TURING) || fills < 30 || texts < 12) return 8;
-    if (render_page(&ui, &ops, MELLO_UI_SUB) || fills < 35 || texts < 18) return 9;
 
+    for (i = 0u; i < 4u; ++i) {
+        ui.step_subpage = i;
+        if (render_page(&ui, &ops, MELLO_UI_SEQ_STEP) || fills < 50 || texts < 12) return 3;
+    }
+    for (i = 0u; i < 2u; ++i) {
+        ui.segment_subpage = i;
+        if (render_page(&ui, &ops, MELLO_UI_SEQ_SEGMENT) || fills < 50 || texts < 12) return 4;
+    }
+    for (i = 0u; i < 3u; ++i) {
+        ui.loop_subpage = i;
+        if (render_page(&ui, &ops, MELLO_UI_SEQ_LOOP) || fills < 45 || texts < 15) return 5;
+    }
+    if (render_page(&ui, &ops, MELLO_UI_SEQ_SLOTSEQ) || fills < 90 || texts < 14) return 6;
+    if (render_page(&ui, &ops, MELLO_UI_RANDOM) || fills < 30 || texts < 10) return 7;
+    if (render_page(&ui, &ops, MELLO_UI_KEY_SCALE) || fills < 60 || texts < 12) return 8;
+
+    for (i = 0u; i < 2u; ++i) {
+        ui.slots_subpage = i;
+        if (render_page(&ui, &ops, MELLO_UI_SLOTS) || fills < 80 || texts < 25) return 9;
+    }
+    for (i = 0u; i < 4u; ++i) {
+        ui.selected_dot_target = i;
+        if (render_page(&ui, &ops, MELLO_UI_DOT) || fills < 50 || texts < 8) return 10;
+    }
+    for (i = 0u; i < 3u; ++i) {
+        ui.tm_subpage = i;
+        if (render_page(&ui, &ops, MELLO_UI_TURING) || fills < 30 || texts < 12) return 11;
+    }
+    for (i = 0u; i < 5u; ++i) {
+        ui.sub_subpage = i;
+        if (render_page(&ui, &ops, MELLO_UI_SUB) || fills < 35 || texts < 18) return 12;
+    }
+    for (i = 0u; i < 2u; ++i) {
+        ui.global_subpage = i;
+        if (render_page(&ui, &ops, MELLO_UI_GLOBAL) || fills < 8 || texts < 14) return 13;
+    }
     for (i = 0u; i < 5u; ++i) {
         ui.sound_subpage = i;
-        if (render_page(&ui, &ops, MELLO_UI_SOUND_RESERVED) || fills < 35 || texts < 12) return 10;
+        if (render_page(&ui, &ops, MELLO_UI_SOUND_RESERVED) || fills < 35 || texts < 12) return 14;
     }
     for (i = 0u; i < 5u; ++i) {
         ui.fx_subpage = i;
-        if (render_page(&ui, &ops, MELLO_UI_AUDIO_FX) || fills < 25 || texts < 16) return 11;
+        if (render_page(&ui, &ops, MELLO_UI_AUDIO_FX) || fills < 25 || texts < 16) return 15;
     }
     for (i = 0u; i < 4u; ++i) {
         ui.sample_subpage = i;
-        if (render_page(&ui, &ops, MELLO_UI_SAMPLE_RESERVED) || fills < 35 || texts < 18) return 12;
+        if (render_page(&ui, &ops, MELLO_UI_SAMPLE_RESERVED) || fills < 35 || texts < 18) return 16;
     }
 
     mello_ui_set_page(&ui, MELLO_UI_HOME);
@@ -98,10 +127,10 @@ int main(void)
     bounds_error = 0;
     mello_ui_render(&ui, &ops);
 
-    if (bounds_error) return 13;
+    if (bounds_error) return 17;
     if (fills >= 20 || texts >= 4) {
         fprintf(stderr, "HOME playhead redraw too broad: fills=%d texts=%d\n", fills, texts);
-        return 14;
+        return 18;
     }
     printf("PASS: all visual-port pages/subpages stay inside 240x240; HOME incremental redraw fills=%d texts=%d\n", fills, texts);
     return 0;
