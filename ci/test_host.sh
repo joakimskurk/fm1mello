@@ -29,4 +29,5 @@ cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -Imello $ROOT/mello/*.c tools/st
 cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -Imello mello/mello_engine.c mello/mello_transport.c mello/mello_storage.c mello/mello_ui.c mello/mello_audio.c mello/mello_sample.c tools/audio_bench.c -o "$TMP/bench"; "$TMP/bench"
 cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -Imello mello/mello_engine.c mello/mello_transport.c mello/mello_storage.c mello/mello_ui.c mello/mello_audio.c mello/mello_sample.c tools/ui_visual_smoke.c -o "$TMP/ui_visual_smoke"; "$TMP/ui_visual_smoke"
 cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -Imello mello/mello_engine.c mello/mello_transport.c mello/mello_storage.c mello/mello_ui.c mello/mello_audio.c mello/mello_sample.c tools/ui_wave_parity.c -o "$TMP/ui_wave_parity"; "$TMP/ui_wave_parity"
+cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -Imello mello/mello_engine.c mello/mello_transport.c mello/mello_storage.c mello/mello_ui.c mello/mello_audio.c mello/mello_sample.c tools/ui_control_parity.c -o "$TMP/ui_control_parity"; "$TMP/ui_control_parity"
 echo 'PASS: fm1mello host gate'
