@@ -15,6 +15,8 @@ ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_wave_parity.c mello/*
 build/evidence/ui_wave_parity | tee build/evidence/ui_wave_parity.txt
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_control_parity.c mello/*.c -o build/evidence/ui_control_parity
 build/evidence/ui_control_parity | tee build/evidence/ui_control_parity.txt
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/audio_html_parity.c mello/*.c -o build/evidence/audio_html_parity
+build/evidence/audio_html_parity | tee build/evidence/audio_html_parity.txt
 git init -q work/dinghy
 ( cd work/dinghy; git remote add origin https://github.com/zvenson/dinghy.git; git fetch -q --depth 1 origin "$DINGHY_COMMIT"; git checkout -q --detach FETCH_HEAD; [[ $(git rev-parse HEAD) == "$DINGHY_COMMIT" ]]; [[ $(git rev-parse 'HEAD^{tree}') == "$DINGHY_TREE" ]] )
 cp UPSTREAM.lock.json build/evidence/

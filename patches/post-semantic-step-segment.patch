@@ -1,0 +1,211 @@
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -1143,6 +1143,17 @@
+     char *p = copy_s(b, label); *p++ = ' '; put_i32(p, v);
+ }
+ 
++static void midi_note_name(char *b, uint8_t midi)
++{
++    static const char *n[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
++    char *p = copy_s(b, n[midi % 12u]);
++    put_i32(p, (int32_t)(midi / 12u) - 1);
++    /* note octaves read conventionally without a leading '+' */
++    p = b;
++    while (*p && *p != '+') ++p;
++    if (*p == '+') { while (*p) { *p = *(p + 1); ++p; } }
++}
++
+ static const char *gate_name(MelloGateMode g)
+ {
+     return g == MELLO_GATE_HOLD ? "HOLD" : g == MELLO_GATE_REST ? "REST" : g == MELLO_GATE_MULTI ? "MULTI" : "SINGLE";
+@@ -1455,35 +1466,47 @@
+             if (si == ui->selected_step) ui_frame(o, x, 35, 12, 12, UI_SOFT);
+             if (ui->transport->display_step == si) ui_frame(o, x + 1, 36, 10, 10, UI_WHITE);
+         }
+-        value_u(a, "STEP", (uint32_t)ui->selected_step + 1u);
+-        value_u(b, "MIDI", midi);
+-        o->text(o->ctx, 8, 53, 60, 0, a, UI_WHITE, 0);
+-        o->text(o->ctx, 73, 53, 62, 0, b, UI_ACC, 0);
+-        value_i(a, "OCT", s->octave);
+-        o->text(o->ctx, 140, 53, 45, 0, a, UI_MID, 0);
+-        value_u(a, "P", s->pulses);
+-        o->text(o->ctx, 191, 53, 40, 0, a, UI_MID, 2);
++        {
++            static const char *tab[4] = { "TRIG", "NOTE", "FLAGS", "SEQ" };
++            uint16_t tc[4] = { ui_segment_colour(ui_segment_for_step(&e->project, ui->selected_step)), UI_BLUE, UI_CORAL, UI_SOFT };
++            uint8_t seg = ui_segment_for_step(&e->project, ui->selected_step);
++            value_u(a, "STEP", (uint32_t)ui->selected_step + 1u);
++            midi_note_name(b, midi);
++            o->text(o->ctx, 8, 52, 52, 0, a, UI_WHITE, 0);
++            o->text(o->ctx, 64, 50, 42, 0, b, ui_segment_colour(seg), 1);
++            value_i(a, "OCT", s->octave);
++            o->text(o->ctx, 111, 52, 42, 0, a, UI_MID, 0);
++            value_u(a, "P", s->pulses);
++            o->text(o->ctx, 157, 52, 28, 0, a, UI_MID, 1);
++            o->text(o->ctx, 188, 52, 44, 0, tab[ui->step_subpage < 4u ? ui->step_subpage : 0u], tc[ui->step_subpage < 4u ? ui->step_subpage : 0u], 2);
++
++            for (i = 0u; i < 4u; ++i) {
++                x = (int16_t)(8 + i * 56u);
++                ui_frame(o, x, 64, 52, 12, i == ui->step_subpage ? tc[i] : UI_PANEL2);
++                o->text(o->ctx, x + 2, 67, 48, 0, tab[i], i == ui->step_subpage ? tc[i] : UI_DIM, 1);
++            }
++        }
+ 
+-        o->text(o->ctx, 8, 75, 48, 0, "PULSES", UI_DIM, 0);
++        o->text(o->ctx, 8, 83, 48, 0, "PULSES", UI_DIM, 0);
+         for (i = 0u; i < 8u; ++i) {
+             uint16_t c = i < s->pulses ? UI_ACC : UI_PANEL2;
+-            o->fill(o->ctx, (int16_t)(58 + i * 10u), 78, 7, 4, c);
++            o->fill(o->ctx, (int16_t)(58 + i * 10u), 86, 7, 4, c);
+         }
+-        o->text(o->ctx, 145, 75, 46, 0, "RATCH", UI_DIM, 0);
++        o->text(o->ctx, 145, 83, 46, 0, "RATCH", UI_DIM, 0);
+         for (i = 0u; i < 8u; ++i) {
+             uint16_t c = i < s->ratchet ? UI_MAGENTA : UI_PANEL2;
+-            o->fill(o->ctx, (int16_t)(191 + i * 5u), 76, 3, 8, c);
++            o->fill(o->ctx, (int16_t)(191 + i * 5u), 84, 3, 8, c);
+         }
+ 
+-        o->text(o->ctx, 8, 94, 38, 0, "GATE", UI_DIM, 0);
++        o->text(o->ctx, 8, 101, 38, 0, "GATE", UI_DIM, 0);
+         for (i = 0u; i < 4u; ++i) {
+             int16_t gx = (int16_t)(50 + i * 25u);
+             uint16_t c = i == (uint8_t)s->gate ? UI_ACC : UI_PANEL2;
+-            ui_frame(o, gx, 91, 20, 13, c);
+-            if (i == 0u) o->fill(o->ctx, gx + 4, 97, 12, 1, c);
+-            else if (i == 1u) o->fill(o->ctx, gx + 4, 95, 12, 5, c);
+-            else if (i == 2u) { ui_frame(o, gx + 7, 94, 6, 7, c); }
+-            else { o->fill(o->ctx, gx + 4, 94, 12, 1, c); o->fill(o->ctx, gx + 4, 97, 12, 1, c); o->fill(o->ctx, gx + 4, 100, 12, 1, c); }
++            ui_frame(o, gx, 98, 20, 13, c);
++            if (i == 0u) o->fill(o->ctx, gx + 4, 104, 12, 1, c);
++            else if (i == 1u) o->fill(o->ctx, gx + 4, 102, 12, 5, c);
++            else if (i == 2u) { ui_frame(o, gx + 7, 101, 6, 7, c); }
++            else { o->fill(o->ctx, gx + 4, 101, 12, 1, c); o->fill(o->ctx, gx + 4, 104, 12, 1, c); o->fill(o->ctx, gx + 4, 107, 12, 1, c); }
+         }
+ 
+         {
+@@ -1492,16 +1515,16 @@
+             uint16_t fc[4] = { UI_BLUE, UI_CORAL, UI_GOLD, UI_RED };
+             for (i = 0u; i < 4u; ++i) {
+                 x = (int16_t)(8 + i * 55u);
+-                ui_frame(o, x, 112, 49, 16, on[i] ? fc[i] : UI_PANEL2);
+-                o->text(o->ctx, x + 2, 116, 45, 0, fl[i], on[i] ? fc[i] : UI_DIM, 1);
++                ui_frame(o, x, 118, 49, 16, on[i] ? fc[i] : UI_PANEL2);
++                o->text(o->ctx, x + 2, 122, 45, 0, fl[i], on[i] ? fc[i] : UI_DIM, 1);
+             }
+         }
+         value_u(a, "PROB", prob_pct(s->probability));
+-        o->text(o->ctx, 8, 139, 54, 0, a, UI_PURPLE, 0);
+-        ui_hbar(o, 64, 143, 100, s->probability, 65535u, UI_PURPLE);
++        o->text(o->ctx, 8, 146, 54, 0, a, UI_PURPLE, 0);
++        ui_hbar(o, 64, 150, 100, s->probability, 65535u, UI_PURPLE);
+         if (s->sample_slot == 0u) copy_s(b, "SAMP OFF");
+         else { char *q = copy_s(b, "SAMP "); *q++ = (char)('A' + s->sample_slot - 1u); *q = 0; }
+-        o->text(o->ctx, 170, 139, 62, 0, b, s->sample_slot ? UI_BLUE : UI_DIM, 2);
++        o->text(o->ctx, 170, 146, 62, 0, b, s->sample_slot ? UI_BLUE : UI_DIM, 2);
+         break;
+     }
+     case MELLO_UI_SEQ_SEGMENT: {
+@@ -1530,9 +1553,15 @@
+             for (j = 0u; j < sc; ++j) if (i >= bounds[j] && i < bounds[j + 1u]) { seg = j; break; }
+             o->fill(o->ctx, x, 44, 12, 14, i < e->project.seq_len ? UI_PANEL2 : UI_BLACK);
+             if (i < e->project.seq_len && seg != 0xFFu) o->fill(o->ctx, x + 2, 53, 8, 2, ui_segment_colour(seg));
+-            if (seg == s) ui_frame(o, x, 43, 12, 16, UI_SOFT);
++            if (seg == s) o->fill(o->ctx, x + 1, 45, 10, 2, ui_segment_colour(s));
+             if (ui->transport->display_step == i) ui_frame(o, x + 1, 44, 10, 14, UI_WHITE);
+         }
++        if (s < sc && bounds[s] < 16u) {
++            uint8_t be = bounds[s + 1u] > 16u ? 16u : bounds[s + 1u];
++            int16_t sx = (int16_t)(8 + bounds[s] * 14u);
++            int16_t sw = (int16_t)((be - bounds[s]) * 14u - 2);
++            if (sw > 0) ui_frame(o, sx - 1, 42, sw + 2, 18, UI_SOFT);
++        }
+         value_u(a, "SEG", (uint32_t)s + 1u);
+         b[0] = (char)('A' + s); b[1] = 0;
+         o->text(o->ctx, 8, 66, 46, 0, a, UI_WHITE, 0);
+@@ -1542,37 +1571,60 @@
+         o->text(o->ctx, 130, 66, 44, 0, e->project.seg_direction[s] == MELLO_SEG_REV ? "REV" : "FWD", UI_BLUE, 1);
+         o->text(o->ctx, 179, 66, 53, 0, seg_mode_name(e->project.seg_mode[s]), e->project.seg_mode[s] == MELLO_SEG_RANDOM ? UI_PURPLE : UI_BLUE, 1);
+ 
+-        o->text(o->ctx, 8, 90, 42, 0, "REPEAT", UI_DIM, 0);
+-        for (i = 0u; i < 4u; ++i) {
+-            x = (int16_t)(55 + i * 24u);
+-            ui_frame(o, x, 87, 20, 15, i + 1u == e->project.seg_repeats[s] ? UI_MAGENTA : UI_PANEL2);
+-            a[0] = 'x'; a[1] = (char)('1' + i); a[2] = 0;
+-            o->text(o->ctx, x + 1, 91, 18, 0, a, i + 1u == e->project.seg_repeats[s] ? UI_MAGENTA : UI_DIM, 1);
+-        }
+-        ui_frame(o, 157, 87, 34, 15, e->project.seg_direction[s] == MELLO_SEG_FWD ? UI_BLUE : UI_PANEL2);
+-        ui_frame(o, 195, 87, 37, 15, e->project.seg_direction[s] == MELLO_SEG_REV ? UI_BLUE : UI_PANEL2);
+-        o->text(o->ctx, 158, 91, 32, 0, "FWD", e->project.seg_direction[s] == MELLO_SEG_FWD ? UI_BLUE : UI_DIM, 1);
+-        o->text(o->ctx, 196, 91, 35, 0, "REV", e->project.seg_direction[s] == MELLO_SEG_REV ? UI_BLUE : UI_DIM, 1);
++        if (ui->segment_subpage == 0u) {
++            o->text(o->ctx, 8, 90, 42, 0, "REPEAT", UI_DIM, 0);
++            for (i = 0u; i < 4u; ++i) {
++                x = (int16_t)(55 + i * 24u);
++                ui_frame(o, x, 87, 20, 15, i + 1u == e->project.seg_repeats[s] ? UI_MAGENTA : UI_PANEL2);
++                a[0] = 'x'; a[1] = (char)('1' + i); a[2] = 0;
++                o->text(o->ctx, x + 1, 91, 18, 0, a, i + 1u == e->project.seg_repeats[s] ? UI_MAGENTA : UI_DIM, 1);
++            }
++            ui_frame(o, 157, 87, 34, 15, e->project.seg_direction[s] == MELLO_SEG_FWD ? UI_BLUE : UI_PANEL2);
++            ui_frame(o, 195, 87, 37, 15, e->project.seg_direction[s] == MELLO_SEG_REV ? UI_BLUE : UI_PANEL2);
++            o->text(o->ctx, 158, 91, 32, 0, "FWD", e->project.seg_direction[s] == MELLO_SEG_FWD ? UI_BLUE : UI_DIM, 1);
++            o->text(o->ctx, 196, 91, 35, 0, "REV", e->project.seg_direction[s] == MELLO_SEG_REV ? UI_BLUE : UI_DIM, 1);
++
++            o->text(o->ctx, 8, 113, 40, 0, "MODE", UI_DIM, 0);
++            {
++                const char *mn[3] = { "LIN", "P-P", "RND" };
++                for (i = 0u; i < 3u; ++i) {
++                    x = (int16_t)(55 + i * 44u);
++                    uint16_t mc = i == 2u ? UI_PURPLE : UI_BLUE;
++                    ui_frame(o, x, 109, 38, 16, i == (uint8_t)e->project.seg_mode[s] ? mc : UI_PANEL2);
++                    o->text(o->ctx, x + 2, 113, 34, 0, mn[i], i == (uint8_t)e->project.seg_mode[s] ? mc : UI_DIM, 1);
++                }
++            }
++            ui_frame(o, 193, 109, 39, 16, e->project.seg_skip[s] ? UI_RED : UI_PANEL2);
++            o->text(o->ctx, 195, 113, 35, 0, "SKIP", e->project.seg_skip[s] ? UI_RED : UI_DIM, 1);
++        } else {
++            o->text(o->ctx, 8, 89, 50, 0, "COUNT", UI_DIM, 0);
++            for (i = 0u; i < MELLO_MAX_SEGMENTS; ++i) {
++                x = (int16_t)(60 + i * 28u);
++                ui_frame(o, x, 86, 24, 16, i + 1u == e->project.seg_count ? ui_segment_colour(i) : UI_PANEL2);
++                a[0] = (char)('1' + i); a[1] = 0;
++                o->text(o->ctx, x + 2, 90, 20, 0, a, i + 1u == e->project.seg_count ? ui_segment_colour(i) : UI_DIM, 1);
++            }
+ 
+-        o->text(o->ctx, 8, 113, 40, 0, "MODE", UI_DIM, 0);
+-        {
+-            const char *mn[3] = { "LIN", "P-P", "RND" };
+-            for (i = 0u; i < 3u; ++i) {
+-                x = (int16_t)(55 + i * 44u);
+-                uint16_t mc = i == 2u ? UI_PURPLE : UI_BLUE;
+-                ui_frame(o, x, 109, 38, 16, i == (uint8_t)e->project.seg_mode[s] ? mc : UI_PANEL2);
+-                o->text(o->ctx, x + 2, 113, 34, 0, mn[i], i == (uint8_t)e->project.seg_mode[s] ? mc : UI_DIM, 1);
++            o->text(o->ctx, 8, 113, 50, 0, "SELECT", UI_DIM, 0);
++            for (i = 0u; i < e->project.seg_count; ++i) {
++                x = (int16_t)(60 + i * 28u);
++                ui_frame(o, x, 109, 24, 16, i == s ? UI_SOFT : ui_segment_colour_dim(i));
++                a[0] = (char)('A' + i); a[1] = 0;
++                o->text(o->ctx, x + 2, 113, 20, 0, a, i == s ? UI_WHITE : ui_segment_colour(i), 1);
+             }
++            if (s > 0u) {
++                value_u(a, "SPLIT", e->project.seg_splits[s - 1u]);
++                o->text(o->ctx, 8, 132, 70, 0, a, UI_GOLD, 0);
++            } else o->text(o->ctx, 8, 132, 70, 0, "SPLIT --", UI_DIM, 0);
++            ui_frame(o, 193, 129, 39, 16, e->project.seg_skip[s] ? UI_RED : UI_PANEL2);
++            o->text(o->ctx, 195, 133, 35, 0, "SKIP", e->project.seg_skip[s] ? UI_RED : UI_DIM, 1);
+         }
+-        ui_frame(o, 193, 109, 39, 16, e->project.seg_skip[s] ? UI_RED : UI_PANEL2);
+-        o->text(o->ctx, 195, 113, 35, 0, "SKIP", e->project.seg_skip[s] ? UI_RED : UI_DIM, 1);
+ 
+-        o->text(o->ctx, 8, 138, 52, 0, "BOUNDS", UI_DIM, 0);
+         value_u(a, "START", (uint32_t)bounds[s] + 1u);
+         value_u(b, "END", bounds[s + 1u]);
+-        o->text(o->ctx, 62, 138, 70, 0, a, UI_MID, 0);
+-        o->text(o->ctx, 137, 138, 65, 0, b, UI_MID, 0);
+-        o->text(o->ctx, 204, 138, 28, 0, ui->segment_subpage ? "EDIT" : "PLAY", ui->segment_subpage ? UI_GOLD : ui_segment_colour(s), 2);
++        o->text(o->ctx, 82, 140, 60, 0, a, UI_MID, 0);
++        o->text(o->ctx, 145, 140, 52, 0, b, UI_MID, 0);
++        o->text(o->ctx, 8, 140, 68, 0, ui->segment_subpage ? "STRUCT" : "PLAY", ui->segment_subpage ? UI_GOLD : ui_segment_colour(s), 0);
+         break;
+     }
+     case MELLO_UI_SEQ_LOOP: {
