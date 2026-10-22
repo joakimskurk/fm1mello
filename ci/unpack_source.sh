@@ -15,4 +15,5 @@ for p in patches/visual-port-*.patch; do
   [[ -f "$p" ]] || continue
   patch --batch --forward -p1 < "$p"
 done
-echo 'PASS: reconstructed byte-identical target source + deterministic project patches'
+python3 ci/patch_ui_semantics.py
+echo 'PASS: reconstructed byte-identical target source + deterministic project patches + semantic UI transform'

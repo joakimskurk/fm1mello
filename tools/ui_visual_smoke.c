@@ -5,6 +5,9 @@
 static int fills = 0;
 static int texts = 0;
 static int bounds_error = 0;
+static int saw_brand = 0;
+static int saw_sub_5seq = 0;
+static int saw_legacy_xsub = 0;
 
 static void smoke_fill(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t colour)
 {
@@ -19,7 +22,12 @@ static void smoke_fill(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, ui
 static void smoke_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large,
                        const char *text_value, uint16_t colour, uint8_t align)
 {
-    (void)ctx; (void)large; (void)text_value; (void)colour; (void)align;
+    (void)ctx; (void)large; (void)colour; (void)align;
+    if (text_value) {
+        if (strcmp(text_value, "SKURKYMELLO") == 0) saw_brand = 1;
+        if (strcmp(text_value, "SUB 5-SEQ") == 0 || strcmp(text_value, "5-SEQ OFF") == 0) saw_sub_5seq = 1;
+        if (strstr(text_value, "X-SUB") || strcmp(text_value, "X OFF") == 0 || strstr(text_value, "X CONFIG") || strstr(text_value, "X STEP")) saw_legacy_xsub = 1;
+    }
     if (x < 0 || y < 0 || w < 0 || x + w > 240 || y > 239) {
         fprintf(stderr, "bad text %d %d %d\n", x, y, w);
         bounds_error = 1;
@@ -32,6 +40,9 @@ static int render_page(MelloUi *ui, const MelloUiDrawOps *ops, MelloUiPage page)
     fills = 0;
     texts = 0;
     bounds_error = 0;
+    saw_brand = 0;
+    saw_sub_5seq = 0;
+    saw_legacy_xsub = 0;
     mello_ui_set_page(ui, page);
     ui->dirty |= MELLO_UI_DIRTY_ALL;
     mello_ui_render(ui, ops);
@@ -68,6 +79,7 @@ int main(void)
     mello_ui_attach_sample_bank(&ui, &sample_bank);
 
     if (render_page(&ui, &ops, MELLO_UI_HOME) || fills < 30 || texts < 8) return 2;
+    if (!saw_brand) { fprintf(stderr, "HOME missing SKURKYMELLO brand header\n"); return 29; }
 
     for (i = 0u; i < 4u; ++i) {
         ui.step_subpage = i;
@@ -169,9 +181,14 @@ int main(void)
         ui.tm_subpage = i;
         if (render_page(&ui, &ops, MELLO_UI_TURING) || fills < 30 || texts < 12) return 11;
     }
+    transport.engine.sub.x_on = true;
     for (i = 0u; i < 5u; ++i) {
         ui.sub_subpage = i;
         if (render_page(&ui, &ops, MELLO_UI_SUB) || fills < 35 || texts < 18) return 12;
+        if (!saw_sub_5seq || saw_legacy_xsub) {
+            fprintf(stderr, "SUB 5-SEQ naming regression on subpage %u\n", (unsigned)i);
+            return 30;
+        }
     }
     for (i = 0u; i < 2u; ++i) {
         ui.global_subpage = i;
@@ -205,6 +222,6 @@ int main(void)
         fprintf(stderr, "HOME playhead redraw too broad: fills=%d texts=%d\n", fills, texts);
         return 18;
     }
-    printf("PASS: all visual-port pages/subpages stay inside 240x240; STEP length parity works; RANDOM ALL/NONE parity works; HOME incremental redraw fills=%d texts=%d\n", fills, texts);
+    printf("PASS: visual pages stay inside 240x240; branded header + SUB 5-SEQ naming hold; STEP/RANDOM parity holds; HOME incremental redraw fills=%d texts=%d\n", fills, texts);
     return 0;
 }
