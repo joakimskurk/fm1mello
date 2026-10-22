@@ -1,0 +1,162 @@
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -1074,6 +1074,54 @@
+     if (fillw > 0) o->fill(o->ctx, x, y, fillw, 3, colour);
+ }
+ 
++static void ui_wave_icon(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, MelloWaveform wave, uint16_t colour)
++{
++    static const uint8_t sine16[16] = {8u,5u,3u,1u,0u,1u,3u,5u,8u,11u,13u,15u,16u,15u,13u,11u};
++    uint8_t i;
++    if (w < 16 || h < 8) return;
++    o->fill(o->ctx, x, y, w, h, UI_PANEL);
++    ui_frame(o, x, y, w, h, wave == MELLO_WAVE_OFF ? UI_DIM : UI_PANEL2);
++    if (wave == MELLO_WAVE_OFF) return;
++    for (i = 0u; i < 24u; ++i) {
++        int16_t px = (int16_t)(x + 4 + ((int32_t)i * (w - 8)) / 24);
++        int16_t py;
++        uint8_t ph = (uint8_t)((i * 16u) / 24u);
++        if (wave == MELLO_WAVE_SAW) py = (int16_t)(y + 4 + ((int32_t)(i % 12u) * (h - 9)) / 11);
++        else if (wave == MELLO_WAVE_SQUARE) py = (int16_t)(y + ((i % 12u) < 6u ? 5 : h - 6));
++        else if (wave == MELLO_WAVE_TRIANGLE) { uint8_t q=(uint8_t)(i%12u); uint8_t t=q<6u?q:(uint8_t)(11u-q); py=(int16_t)(y+h-5-((int32_t)t*(h-10))/5); }
++        else if (wave == MELLO_WAVE_PULSE) py = (int16_t)(y + ((i % 12u) < 3u ? 5 : h - 6));
++        else py = (int16_t)(y + 4 + ((int32_t)sine16[ph] * (h - 9)) / 16);
++        o->fill(o->ctx, px, py, 3, 2, colour);
++    }
++}
++
++static void ui_env_graph(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h,
++                         uint16_t attack, uint16_t decay, uint16_t sustain, uint16_t release, uint16_t colour)
++{
++    uint32_t total=(uint32_t)attack+decay+release+500u;
++    int16_t ax=(int16_t)(4+((uint32_t)(w-8)*attack)/total);
++    int16_t dx=(int16_t)(4+((uint32_t)(w-8)*decay)/total);
++    int16_t sx=(int16_t)(4+((uint32_t)(w-8)*500u)/total);
++    int16_t rx=(int16_t)(w-8-ax-dx-sx);
++    int16_t peak=(int16_t)(y+4), base=(int16_t)(y+h-5), sus;
++    uint8_t i;
++    if (rx < 2) rx = 2;
++    sus=(int16_t)(base-((int32_t)(base-peak)*(sustain>1000u?1000u:sustain))/1000);
++    o->fill(o->ctx,x,y,w,h,UI_PANEL); ui_frame(o,x,y,w,h,UI_PANEL2);
++    /* Sparse 32-point trace: enough for a 240 px display without a costly per-pixel redraw. */
++    for(i=0u;i<32u;++i){
++        int16_t col=(int16_t)(((int32_t)i*(w-9))/31);
++        int16_t py;
++        if(col<ax) py=(int16_t)(base-((int32_t)(base-peak)*col)/(ax?ax:1));
++        else if(col<ax+dx) py=(int16_t)(peak+((int32_t)(sus-peak)*(col-ax))/(dx?dx:1));
++        else if(col<ax+dx+sx) py=sus;
++        else py=(int16_t)(sus+((int32_t)(base-sus)*(col-ax-dx-sx))/(rx?rx:1));
++        if(py<peak)py=peak;
++        if(py>base)py=base;
++        o->fill(o->ctx,(int16_t)(x+4+col),py,3,2,colour);
++    }
++}
++
+ static uint8_t ui_segment_bounds(const MelloProject *p, uint8_t bounds[MELLO_MAX_SEGMENTS + 1u])
+ {
+     uint8_t n = p->seq_len, sc = p->seg_count, i;
+@@ -1543,32 +1591,81 @@
+         o->text(o->ctx, 12, 108, 100, 0, a, UI_MID, 0); o->text(o->ctx, 120, 108, 108, 0, b, UI_MID, 0);
+         o->text(o->ctx, 12, 140, 216, 0, ui->global_subpage ? "MIDI" : "CLOCK", UI_DIM, 0);
+         break;
+-    case MELLO_UI_SOUND_RESERVED:
+-        o->text(o->ctx, 12, 42, 216, 0, ui->sound_subpage==0u?"OSC / FILTER":ui->sound_subpage==1u?"AMP ENVELOPE":ui->sound_subpage==2u?"AUDIO LFO":ui->sound_subpage==3u?"FOLLOWER SUB":"PLAY / LEVEL", UI_GOLD, 0);
+-        o->text(o->ctx, 12, 76, 216, 1, wave_name(e->sound.osc_wave), e->sound.osc_wave==MELLO_WAVE_OFF?UI_DIM:UI_ACC, 0);
+-        value_u(a,"CUT",e->sound.filter_cut/10u); value_u(b,"RES",e->sound.filter_res/10u);
+-        o->text(o->ctx, 12, 118, 100, 0, a, UI_CYAN, 0); o->text(o->ctx, 120, 118, 108, 0, b, UI_PURPLE, 0);
+-        o->text(o->ctx, 12, 146, 216, 0, e->sound.lfo_on?lfo_target_name(e->sound.lfo_target):"LFO OFF", e->sound.lfo_on?UI_BLUE:UI_DIM, 0);
+-        break;
+-    case MELLO_UI_AUDIO_FX:
+-        o->text(o->ctx, 12, 42, 216, 0, ui->fx_subpage==0u?"DISTORTION":ui->fx_subpage==1u?"DELAY":ui->fx_subpage==2u?"DELAY CONFIG":ui->fx_subpage==3u?"REVERB":"REVERB RETURN", UI_GOLD, 0);
+-        value_u(a,"DIST",e->fx.dist_amount/10u); value_u(b,"DLY",e->fx.delay_wet/10u);
+-        o->text(o->ctx, 12, 78, 100, 0, a, UI_CORAL, 0); o->text(o->ctx, 120, 78, 108, 0, b, UI_CYAN, 0);
+-        value_u(a,"REV",e->fx.reverb_wet/10u); o->text(o->ctx, 12, 112, 100, 0, a, UI_PURPLE, 0);
+-        o->text(o->ctx, 120, 112, 108, 0, e->fx.delay_sync?delay_div_name(e->fx.delay_div):"FREE", UI_MID, 0);
+-        o->text(o->ctx, 12, 146, 216, 0, "FX BUTTON: DOT <-> AUDIO FX", UI_DIM, 0);
+-        break;
++    case MELLO_UI_SOUND_RESERVED: {
++        const char *title=ui->sound_subpage==0u?"OSC / FILTER":ui->sound_subpage==1u?"AMP ENVELOPE":ui->sound_subpage==2u?"AUDIO LFO":ui->sound_subpage==3u?"FOLLOWER SUB":"PLAY / LEVEL";
++        o->text(o->ctx,8,33,122,0,title,UI_GOLD,0);
++        o->text(o->ctx,134,33,98,0,wave_name(e->sound.osc_wave),e->sound.osc_wave==MELLO_WAVE_OFF?UI_DIM:UI_ACC,2);
++        if(ui->sound_subpage==1u) {
++            ui_env_graph(o,8,54,224,72,e->sound.attack_ms,e->sound.decay_ms,e->sound.sustain_permille,e->sound.release_ms,UI_ACC);
++            value_u(a,"SUS",e->sound.sustain_permille/10u); o->text(o->ctx,8,136,68,0,a,UI_ACC,0);
++            value_u(a,"ATK",e->sound.attack_ms); o->text(o->ctx,80,136,70,0,a,UI_MID,0);
++            value_u(a,"REL",e->sound.release_ms); o->text(o->ctx,154,136,78,0,a,UI_MID,2);
++        } else if(ui->sound_subpage==2u) {
++            ui_wave_icon(o,8,54,224,54,MELLO_WAVE_SINE,e->sound.lfo_on?UI_BLUE:UI_DIM);
++            o->text(o->ctx,8,118,70,0,e->sound.lfo_on?"LFO ON":"LFO OFF",e->sound.lfo_on?UI_BLUE:UI_DIM,0);
++            o->text(o->ctx,82,118,76,0,lfo_target_name(e->sound.lfo_target),UI_MID,1);
++            ui_hbar(o,162,122,70,e->sound.lfo_depth,1000u,UI_BLUE);
++            value_u(a,"RATE",e->sound.lfo_rate_millihz); o->text(o->ctx,8,142,104,0,a,UI_MID,0);
++            value_u(a,"DEP",e->sound.lfo_depth/10u); o->text(o->ctx,116,142,116,0,a,UI_BLUE,2);
++        } else if(ui->sound_subpage==3u) {
++            ui_wave_icon(o,8,54,150,64,e->sound.follower_sub_wave,e->sound.follower_sub_on?UI_GOLD:UI_DIM);
++            o->text(o->ctx,164,58,68,0,e->sound.follower_sub_on?"SUB ON":"SUB OFF",e->sound.follower_sub_on?UI_GOLD:UI_DIM,2);
++            value_i(a,"OCT",e->sound.follower_sub_octave); o->text(o->ctx,164,82,68,0,a,UI_CYAN,2);
++            ui_hbar(o,164,108,68,e->sound.follower_sub_level,1000u,UI_GOLD);
++            value_u(a,"LEVEL",e->sound.follower_sub_level/10u); o->text(o->ctx,8,136,224,0,a,UI_GOLD,0);
++        } else {
++            ui_wave_icon(o,8,54,150,64,e->sound.osc_wave,UI_ACC);
++            o->text(o->ctx,164,58,68,0,wave_name(e->sound.osc_wave),UI_ACC,2);
++            if(ui->sound_subpage==0u){
++                o->text(o->ctx,8,128,40,0,"CUT",UI_DIM,0); ui_hbar(o,50,132,108,e->sound.filter_cut,1000u,UI_CYAN);
++                o->text(o->ctx,162,128,34,0,"RES",UI_DIM,0); ui_hbar(o,198,132,34,e->sound.filter_res,1000u,UI_PURPLE);
++                value_u(a,"PWM",e->sound.pwm_permille/10u); o->text(o->ctx,164,88,68,0,a,UI_MID,2);
++            } else {
++                o->text(o->ctx,8,128,44,0,"SLIDE",UI_DIM,0); ui_hbar(o,54,132,78,e->sound.slide_ms,300u,UI_CYAN);
++                o->text(o->ctx,136,128,48,0,"MASTER",UI_DIM,0); ui_hbar(o,186,132,46,e->sound.master_level,1000u,UI_GOLD);
++            }
++        }
++        break; }
++    case MELLO_UI_AUDIO_FX: {
++        uint8_t sel=ui->fx_subpage;
++        uint16_t dist=e->fx.dist_amount, dly=e->fx.delay_wet, rev=e->fx.reverb_wet;
++        o->text(o->ctx,8,33,224,0,sel==0u?"DISTORTION":sel==1u?"DELAY":sel==2u?"DELAY CONFIG":sel==3u?"REVERB":"REVERB RETURN",UI_GOLD,0);
++        /* Three always-visible processors make signal state readable at a glance. */
++        { int16_t xs[3]={8,84,160}; uint16_t vals[3]={dist,dly,rev}; uint16_t cols[3]={UI_CORAL,UI_CYAN,UI_PURPLE}; const char *names[3]={"DIST","DELAY","REVERB"}; uint8_t i;
++          for(i=0u;i<3u;++i){uint8_t active=(i==0u?sel==0u:(i==1u?(sel==1u||sel==2u):(sel==3u||sel==4u)));o->fill(o->ctx,xs[i],54,72,78,UI_PANEL);ui_frame(o,xs[i],54,72,78,active?cols[i]:UI_PANEL2);o->text(o->ctx,xs[i]+3,59,66,0,names[i],active?cols[i]:UI_MID,1);ui_hbar(o,xs[i]+7,86,58,vals[i],1000u,cols[i]);value_u(a,"",vals[i]/10u);o->text(o->ctx,xs[i]+3,101,66,0,a,cols[i],1);}
++        }
++        if(sel==0u){value_u(a,"MIX",e->fx.dist_mix/10u);value_u(b,"CHAR",e->fx.dist_character/10u);o->text(o->ctx,8,142,104,0,a,UI_CORAL,0);o->text(o->ctx,120,142,112,0,b,UI_MID,2);}
++        else if(sel==1u){value_u(a,"FDBK",e->fx.delay_feedback/10u);value_u(b,"TONE",e->fx.delay_tone/10u);o->text(o->ctx,8,142,104,0,a,UI_CYAN,0);o->text(o->ctx,120,142,112,0,b,UI_MID,2);}
++        else if(sel==2u){o->text(o->ctx,8,142,82,0,e->fx.delay_sync?delay_div_name(e->fx.delay_div):"FREE",UI_CYAN,0);value_u(a,"TIME",e->fx.delay_time_ms);o->text(o->ctx,94,142,138,0,a,UI_MID,2);}
++        else if(sel==3u){value_u(a,"SIZE",e->fx.reverb_size/10u);value_u(b,"DEC",e->fx.reverb_decay_ms);o->text(o->ctx,8,142,104,0,a,UI_PURPLE,0);o->text(o->ctx,120,142,112,0,b,UI_MID,2);}
++        else{value_u(a,"PRE",e->fx.reverb_pre_ms);value_u(b,"LEVEL",e->fx.reverb_level/10u);o->text(o->ctx,8,142,104,0,a,UI_PURPLE,0);o->text(o->ctx,120,142,112,0,b,UI_MID,2);}
++        break; }
+     case MELLO_UI_SAMPLE_RESERVED: {
+-        uint8_t si=e->sample.edit_slot<MELLO_SAMPLE_SLOT_COUNT?e->sample.edit_slot:0u;
++        uint8_t si=e->sample.edit_slot<MELLO_SAMPLE_SLOT_COUNT?e->sample.edit_slot:0u, i;
+         MelloSampleSlotConfig *sl=&e->sample.slots[si];
+         const MelloSampleSlotMeta *sm=ui->sample_bank?&ui->sample_bank->meta[si]:0;
+-        char slotline[32],dur[32]; char *p=copy_s(slotline,"SLOT "); *p++=(char)('A'+si); *p++=' '; copy_s(p,(sm&&sm->loaded)?sm->name:"EMPTY");
+-        o->text(o->ctx,12,42,216,0,ui->sample_subpage==0u?"MAIN":ui->sample_subpage==1u?"PITCH":ui->sample_subpage==2u?"TRIM / LOOP":"ENVELOPE",UI_GOLD,0);
+-        o->text(o->ctx,12,72,216,1,slotline,(sm&&sm->loaded)?UI_ACC:UI_DIM,0);
+-        if(sm&&sm->loaded){uint32_t ms=(sm->sample_count*1000u+MELLO_SAMPLE_SOURCE_RATE/2u)/MELLO_SAMPLE_SOURCE_RATE;value_u(dur,"LENGTH MS",ms);o->text(o->ctx,12,108,216,0,dur,UI_CYAN,0);}
+-        else o->text(o->ctx,12,108,216,0,"USB UPLOAD WHILE STOPPED",UI_DIM,0);
+-        o->text(o->ctx,12,136,216,0,e->sample.on?(e->sample.per_step?"ON / PER STEP":"ON / FIXED SLOT"):"SAMPLE LAYER OFF",e->sample.on?UI_GOLD:UI_DIM,0);
+-        (void)sl;
++        uint8_t loaded=(uint8_t)(sm&&sm->loaded);
++        uint32_t ms=loaded?(sm->sample_count*1000u+MELLO_SAMPLE_SOURCE_RATE/2u)/MELLO_SAMPLE_SOURCE_RATE:0u;
++        o->text(o->ctx,8,33,92,0,ui->sample_subpage==0u?"SAMPLE MAIN":ui->sample_subpage==1u?"SAMPLE PITCH":ui->sample_subpage==2u?"TRIM / LOOP":"ENVELOPE",UI_GOLD,0);
++        o->text(o->ctx,104,33,128,0,e->sample.on?(e->sample.per_step?"PER STEP":"FIXED SLOT"):"LAYER OFF",e->sample.on?UI_GOLD:UI_DIM,2);
++        /* A-D occupancy is metadata, not an invented waveform. */
++        for(i=0u;i<MELLO_SAMPLE_SLOT_COUNT;++i){const MelloSampleSlotMeta *mi=ui->sample_bank?&ui->sample_bank->meta[i]:0;int16_t x=(int16_t)(8+i*56u);uint8_t ld=(uint8_t)(mi&&mi->loaded);uint8_t selected=i==si;o->fill(o->ctx,x,51,52,22,ld?UI_PANEL2:UI_PANEL);ui_frame(o,x,51,52,22,selected?UI_WHITE:(ld?UI_ACC:UI_PANEL2));a[0]=(char)('A'+i);a[1]=0;o->text(o->ctx,x+2,55,48,0,a,selected?UI_WHITE:(ld?UI_ACC:UI_DIM),1);}
++        if(loaded){char line[32],*p=copy_s(line,"SLOT ");*p++=(char)('A'+si);*p++=' ';copy_s(p,sm->name);o->text(o->ctx,8,80,150,0,line,UI_ACC,0);value_u(a,"MS",ms);o->text(o->ctx,162,80,70,0,a,UI_CYAN,2);}
++        else{o->text(o->ctx,8,80,224,0,"EMPTY - USB UPLOAD WHILE STOPPED",UI_DIM,0);}
++        if(ui->sample_subpage==3u){
++            ui_env_graph(o,8,101,224,55,sl->attack_ms,sl->decay_ms,sl->sustain_permille,sl->release_ms,UI_ACC);
++        } else {
++            int16_t tx0=(int16_t)(8+((uint32_t)224u*sl->trim_start)/1000u), tx1=(int16_t)(8+((uint32_t)224u*sl->trim_end)/1000u);
++            o->fill(o->ctx,8,104,224,30,UI_PANEL);ui_frame(o,8,104,224,30,UI_PANEL2);
++            if(tx1<tx0+2)tx1=(int16_t)(tx0+2);
++            if(tx1>231)tx1=231;
++            o->fill(o->ctx,tx0,109,(int16_t)(tx1-tx0),20,loaded?UI_ACC:UI_MID);
++            o->fill(o->ctx,tx0,104,2,30,UI_GOLD);o->fill(o->ctx,tx1,104,2,30,UI_GOLD);
++            if(ui->sample_subpage==1u){int16_t center=120+(int16_t)(sl->coarse_semitones*4);if(center<10)center=10;if(center>230)center=230;o->fill(o->ctx,center,101,2,36,UI_CYAN);}
++            if(sl->loop)o->text(o->ctx,12,139,48,0,"LOOP",UI_GOLD,0);
++            if(sl->track)o->text(o->ctx,64,139,56,0,"TRACK",UI_CYAN,0);
++            value_u(a,"LEVEL",sl->level/10u);o->text(o->ctx,124,139,108,0,a,UI_MID,2);
++        }
+         break; }
+     }
+ }
