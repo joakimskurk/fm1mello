@@ -1,0 +1,20 @@
+name: Visual port source export
+on:
+  push:
+    branches: [visual-port-home]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct pinned Mello source
+        run: bash ci/unpack_source.sh
+      - name: Pack source snapshot
+        run: tar -czf visual-port-source.tar.gz mello overlay
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-port-source
+          path: visual-port-source.tar.gz
+          if-no-files-found: error
