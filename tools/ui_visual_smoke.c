@@ -26,6 +26,20 @@ static void smoke_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large
     ++texts;
 }
 
+static int render_page(MelloUi *ui, const MelloUiDrawOps *ops, MelloUiPage page)
+{
+    fills = 0;
+    texts = 0;
+    bounds_error = 0;
+    mello_ui_set_page(ui, page);
+    mello_ui_render(ui, ops);
+    if (bounds_error) {
+        fprintf(stderr, "page %d exceeded 240x240 bounds\n", (int)page);
+        return 1;
+    }
+    return 0;
+}
+
 int main(void)
 {
     MelloProject project;
@@ -39,20 +53,24 @@ int main(void)
     mello_storage_init(&storage, 0, 0);
     mello_ui_init(&ui, &transport, &storage);
 
-    mello_ui_render(&ui, &ops);
-    if (bounds_error || fills < 30 || texts < 8) return 2;
+    if (render_page(&ui, &ops, MELLO_UI_HOME) || fills < 30 || texts < 8) return 2;
+    if (render_page(&ui, &ops, MELLO_UI_SEQ_STEP) || fills < 50 || texts < 12) return 3;
+    if (render_page(&ui, &ops, MELLO_UI_SEQ_SEGMENT) || fills < 50 || texts < 12) return 4;
 
+    mello_ui_set_page(&ui, MELLO_UI_HOME);
+    mello_ui_render(&ui, &ops);
     transport.display_step = 1u;
     mello_ui_tick(&ui);
     fills = 0;
     texts = 0;
+    bounds_error = 0;
     mello_ui_render(&ui, &ops);
 
-    if (bounds_error) return 3;
+    if (bounds_error) return 5;
     if (fills >= 20 || texts >= 4) {
         fprintf(stderr, "HOME playhead redraw too broad: fills=%d texts=%d\n", fills, texts);
-        return 4;
+        return 6;
     }
-    printf("PASS: HOME visual bounds + incremental redraw (fills=%d texts=%d)\n", fills, texts);
+    printf("PASS: HOME/STEP/SEGMENT visual bounds + HOME incremental redraw (fills=%d texts=%d)\n", fills, texts);
     return 0;
 }
