@@ -29,4 +29,6 @@ python3 ci/inspect_target_build.py --log build/evidence/mello_target.log --packa
 sha256sum "build/$(basename "$PKG")" | tee build/SHA256SUMS
 bash ci/emulator_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/emulator_smoke.txt
 cp -a work/emu-smoke build/evidence/emulator-smoke
+bash ci/web_100mhz_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/web_100mhz_smoke.txt
+cp -a work/web100 build/evidence/web-100mhz
 printf 'PASS: target package %s (%s)\n' "$(basename "$PKG")" "$PRODUCT"
