@@ -26,4 +26,6 @@ python3 ci/patch_release_identity.py work/mello/tools/build.py
 PKG="work/mello/build/skurkymello-$VERSION.fwsc"; [[ -f "$PKG" ]]; cp "$PKG" build/
 python3 ci/inspect_target_build.py --log build/evidence/mello_target.log --package "build/$(basename "$PKG")" --product "$PRODUCT" --out build/target_report.json | tee build/evidence/target_report.txt
 sha256sum "build/$(basename "$PKG")" | tee build/SHA256SUMS
+bash ci/emulator_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/emulator_smoke.txt
+cp -a work/emu-smoke build/evidence/emulator-smoke
 printf 'PASS: target package %s (%s)\n' "$(basename "$PKG")" "$PRODUCT"
