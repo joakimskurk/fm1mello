@@ -25,6 +25,11 @@ ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/chord_machine_smoke.c me
 build/evidence/chord_machine_smoke | tee build/evidence/chord_machine_smoke.txt
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/ui_visual_smoke.c mello/*.c -o build/evidence/chord_feature_off_smoke
 build/evidence/chord_feature_off_smoke | tee build/evidence/chord_feature_off_smoke.txt
+# Hardware-first controls are a hard UX contract. Prove both feature-on and compile-out paths.
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/control_grammar_smoke.c mello/*.c -o build/evidence/control_grammar_smoke
+build/evidence/control_grammar_smoke | tee build/evidence/control_grammar_smoke.txt
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_grammar_smoke.c mello/*.c -o build/evidence/control_grammar_feature_off
+build/evidence/control_grammar_feature_off | tee build/evidence/control_grammar_feature_off.txt
 git init -q work/dinghy
 ( cd work/dinghy; git remote add origin https://github.com/zvenson/dinghy.git; git fetch -q --depth 1 origin "$DINGHY_COMMIT"; git checkout -q --detach FETCH_HEAD; [[ $(git rev-parse HEAD) == "$DINGHY_COMMIT" ]]; [[ $(git rev-parse 'HEAD^{tree}') == "$DINGHY_TREE" ]] )
 cp UPSTREAM.lock.json build/evidence/

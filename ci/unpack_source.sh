@@ -47,4 +47,13 @@ echo 'd49ccace38d402dc8ffd678934c20c61f8c9fd6988a53780c03ffd0c2d80e08b  mello/me
 echo '1fa390edab81f7ea02770ca8dd09965b798f3cf839d2d284bc8bf7db5725d4ee  overlay/dinghy.c' | sha256sum -c -
 # Cleanup remains separate so the proven experiment patch stays reproducible.
 patch --batch --forward -p1 < patches/chord-machine-warning-fix.patch
-echo 'PASS: reconstructed source + exact HTML audio/sub parity + removable experimental chord machine'
+# Hardware-first control grammar: keys own steps/cells; knobs stay musical.
+CTRL_GZ=${TMPDIR:-/tmp}/control-grammar.patch.gz
+echo 'd68bf633bd4244f19a1a27d3b3ba3a22af286e894cce50215797ebdbcdadee0e  patches/control-grammar.patch.gz.b64' | sha256sum -c -
+base64 -d patches/control-grammar.patch.gz.b64 > "$CTRL_GZ"
+echo '511e460bf7bc1910a44752d15dcfa6512b321c0d832720b7313c68a5751f47b6  '"$CTRL_GZ" | sha256sum -c -
+gzip -t "$CTRL_GZ"
+gzip -dc "$CTRL_GZ" | patch --batch --forward -p1
+echo '7e120f6328b045ccfe88353318f7f2f5a81c0e0539b3eb51e84108c9b8e82ad2  mello/mello_ui.c' | sha256sum -c -
+echo '21bfce74f58e7375705f7cb8e0d0420f2f14c5239e1e2ef23c682caf86fd205d  mello/mello_ui.h' | sha256sum -c -
+echo 'PASS: reconstructed source + exact HTML audio/sub parity + removable chord machine + hardware-first control grammar'
