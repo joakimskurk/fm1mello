@@ -27,4 +27,5 @@ cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -Imello mello/mello_sample.c too
 "$TMP/verify_sample" "$TMP/cross.mello-sample" 2 CROSS_TEST 22050
 cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -Imello $ROOT/mello/*.c tools/struct_sizes.c -o "$TMP/sizes"; "$TMP/sizes"
 cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -Imello mello/mello_engine.c mello/mello_transport.c mello/mello_storage.c mello/mello_ui.c mello/mello_audio.c mello/mello_sample.c tools/audio_bench.c -o "$TMP/bench"; "$TMP/bench"
+cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -Imello mello/mello_engine.c mello/mello_transport.c mello/mello_storage.c mello/mello_ui.c mello/mello_audio.c mello/mello_sample.c tools/ui_visual_smoke.c -o "$TMP/ui_visual_smoke"; "$TMP/ui_visual_smoke"
 echo 'PASS: fm1mello host gate'
