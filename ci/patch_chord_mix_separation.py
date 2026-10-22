@@ -9,23 +9,24 @@ actual = hashlib.sha256(data.encode()).hexdigest()
 if actual != expected:
     raise SystemExit(f'FAIL: chord mix separation base hash {actual} != {expected}')
 
-chord = '''#if MELLO_FEATURE_CHORD_MACHINE
-    /* Chord keeps its own spectral identity outside the main filter, but shares the main FX. */
-    mix+=chord_mix*800/1000;
-#endif
-'''
-if chord not in data:
-    # Early go/no-go source used the shorter comment; accept that exact structural block only.
-    chord = '''#if MELLO_FEATURE_CHORD_MACHINE
-    mix+=chord_mix*800/1000;
-#endif
-'''
-if chord not in data:
-    raise SystemExit('FAIL: expected pre-distortion chord mix block not found')
+needle = 'mix+=chord_mix*800/1000;'
+pos = data.find(needle)
+if pos < 0 or data.find(needle, pos + 1) >= 0:
+    raise SystemExit('FAIL: expected exactly one chord mix insertion point')
 
-start = data.index(chord)
-after = start + len(chord)
-dist_start = data.find('{int32_t wet=mix;uint16_t ta;', after)
+start = data.rfind('#if MELLO_FEATURE_CHORD_MACHINE', 0, pos)
+if start < 0:
+    raise SystemExit('FAIL: chord mix feature guard start not found')
+end = data.find('#endif', pos)
+if end < 0:
+    raise SystemExit('FAIL: chord mix feature guard end not found')
+end += len('#endif')
+while end < len(data) and data[end] in ' \t':
+    end += 1
+if end < len(data) and data[end] == '\n':
+    end += 1
+
+dist_start = data.find('{int32_t wet=mix;uint16_t ta;', end)
 if dist_start < 0:
     raise SystemExit('FAIL: main distortion block not found after chord mix')
 dist_end_marker = 'mix=a->dist_lp*(int32_t)a->fx.dist_level/1000;}'
@@ -34,15 +35,14 @@ if dist_end < 0:
     raise SystemExit('FAIL: main distortion block end not found')
 dist_end += len(dist_end_marker)
 
-between = data[after:dist_start]
-if between.strip():
+if data[end:dist_start].strip():
     raise SystemExit('FAIL: unexpected code between chord mix and main distortion')
 
-replacement = data[dist_start:dist_end] + '''\n#if MELLO_FEATURE_CHORD_MACHINE
+new_block = '''#if MELLO_FEATURE_CHORD_MACHINE
     /* Chord keeps its own spectral identity and bypasses lead distortion, but shares delay/reverb space. */
     mix+=chord_mix*800/1000;
 #endif'''
-data = data[:start] + replacement + data[dist_end:]
+data = data[:start] + data[dist_start:dist_end] + '\n' + new_block + data[dist_end:]
 
 final = hashlib.sha256(data.encode()).hexdigest()
 expected_final = '0becfec0fd78b3428c82643d96e9aaf0d1a5d48f51156fb2598bef141feffb76'
