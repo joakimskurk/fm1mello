@@ -20,6 +20,11 @@ build/evidence/audio_html_parity | tee build/evidence/audio_html_parity.txt
 # Dedicated-sub parity is a hard gate: Tone.js biquads, envelope, glide and drive.
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/sub_html_parity.c mello/*.c -o build/evidence/sub_html_parity
 build/evidence/sub_html_parity | tee build/evidence/sub_html_parity.txt
+# Experimental chord machine: functional behavior plus compile-out reversibility are hard gates.
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/chord_machine_smoke.c mello/*.c -o build/evidence/chord_machine_smoke
+build/evidence/chord_machine_smoke | tee build/evidence/chord_machine_smoke.txt
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/ui_visual_smoke.c mello/*.c -o build/evidence/chord_feature_off_smoke
+build/evidence/chord_feature_off_smoke | tee build/evidence/chord_feature_off_smoke.txt
 git init -q work/dinghy
 ( cd work/dinghy; git remote add origin https://github.com/zvenson/dinghy.git; git fetch -q --depth 1 origin "$DINGHY_COMMIT"; git checkout -q --detach FETCH_HEAD; [[ $(git rev-parse HEAD) == "$DINGHY_COMMIT" ]]; [[ $(git rev-parse 'HEAD^{tree}') == "$DINGHY_TREE" ]] )
 cp UPSTREAM.lock.json build/evidence/
@@ -42,6 +47,8 @@ bash ci/emulator_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/emulat
 cp -a work/emu-smoke build/evidence/emulator-smoke
 bash ci/web_100mhz_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/web_100mhz_smoke.txt
 cp -a work/web100 build/evidence/web-100mhz
+bash ci/chord_80mhz_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/chord_80mhz_smoke.txt
+cp -a work/chord80 build/evidence/chord-80mhz
 bash ci/frontend_e2e.sh "build/$(basename "$PKG")" | tee build/evidence/frontend_e2e.txt
 cp -a work/frontend-e2e build/evidence/frontend-e2e
 printf 'PASS: target package %s (%s)\n' "$(basename "$PKG")" "$PRODUCT"

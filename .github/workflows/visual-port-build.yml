@@ -1,7 +1,7 @@
 name: Visual port target build
 on:
   push:
-    branches: [visual-port-home]
+    branches: [visual-port-home, chord-machine-exp]
 jobs:
   build:
     uses: zvenson/fm1-build/.github/workflows/build.yml@v1
