@@ -1,11 +1,11 @@
 --- a/mello/mello_ui.c
 +++ b/mello/mello_ui.c
-@@ -922,7 +922,7 @@
-         if ((uint32_t)(now_ms - ui->tap_times_ms[i]) < 3000u) fresh[count++] = ui->tap_times_ms[i];
-     }
-     if (count == 8u) {
--        memmove(&fresh[0], &fresh[1], 7u * sizeof(fresh[0]));
-+        for (i = 1u; i < 8u; ++i) fresh[i - 1u] = fresh[i];
-         count = 7u;
-     }
-     fresh[count++] = now_ms;
+@@ -1584,9 +1584,10 @@
+     case MELLO_UI_GLOBAL:
+         o->text(o->ctx,8,33,70,0,ui->global_subpage?"MIDI":"CLOCK",UI_GOLD,0);o->text(o->ctx,82,33,150,0,sync_name(ui->transport->sync_mode),UI_CYAN,2);
+         if(!ui->global_subpage){uint16_t bpm=mello_transport_effective_bpm(ui->transport);value_u(a,"BPM",bpm);o->text(o->ctx,8,58,72,1,a,UI_ACC,0);ui_hbar(o,84,69,148,bpm>250u?250u:bpm,250u,UI_ACC);value_u(a,"DIV",e->project.clock_div);o->text(o->ctx,8,104,60,0,a,UI_CYAN,0);o->text(o->ctx,72,104,86,0,ui->transport->midi_note_out_enabled?"NOTE OUT ON":"NOTE OUT OFF",ui->transport->midi_note_out_enabled?UI_GOLD:UI_DIM,1);o->text(o->ctx,162,104,70,0,ui->transport->running?"RUN":"STOP",ui->transport->running?UI_ACC:UI_DIM,2);}
+         else{value_u(a,"LEAD",(uint32_t)ui->transport->midi_channel+1u);value_u(b,"SUB",(uint32_t)ui->transport->midi_sub_channel+1u);o->text(o->ctx,8,58,104,1,a,UI_ACC,0);o->text(o->ctx,120,58,112,1,b,UI_GOLD,2);o->text(o->ctx,8,108,96,0,ui->transport->midi_fixed_length?"FIXED LEN":"GATE LEN",ui->transport->midi_fixed_length?UI_CYAN:UI_DIM,0);value_u(a,"MS",ui->transport->midi_fixed_len_ms);o->text(o->ctx,108,108,124,0,a,UI_MID,2);ui_hbar(o,8,137,224,ui->transport->midi_fixed_len_ms>2000u?2000u:ui->transport->midi_fixed_len_ms,2000u,UI_CYAN);}
++        o->text(o->ctx,8,154,224,0,ui->reset_armed?"RESET? OCT-+OCT+ AGAIN":"REC TAP   OCT-+OCT+ RESET",ui->reset_armed?UI_RED:UI_DIM,1);
+         break;
+     case MELLO_UI_SOUND_RESERVED: {
+         const char *title=ui->sound_subpage==0u?"OSC / FILTER":ui->sound_subpage==1u?"AMP ENVELOPE":ui->sound_subpage==2u?"AUDIO LFO":ui->sound_subpage==3u?"FOLLOWER SUB":"PLAY / LEVEL";
