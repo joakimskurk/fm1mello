@@ -11,6 +11,8 @@ if [[ ${GITHUB_REF_TYPE:-} == tag && ${GITHUB_REF_NAME:-} == v* ]]; then VERSION
 rm -rf work build; mkdir -p work build/evidence
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_visual_smoke.c mello/*.c -o build/evidence/ui_visual_smoke
 build/evidence/ui_visual_smoke | tee build/evidence/ui_visual_smoke.txt
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_wave_parity.c mello/*.c -o build/evidence/ui_wave_parity
+build/evidence/ui_wave_parity | tee build/evidence/ui_wave_parity.txt
 git init -q work/dinghy
 ( cd work/dinghy; git remote add origin https://github.com/zvenson/dinghy.git; git fetch -q --depth 1 origin "$DINGHY_COMMIT"; git checkout -q --detach FETCH_HEAD; [[ $(git rev-parse HEAD) == "$DINGHY_COMMIT" ]]; [[ $(git rev-parse 'HEAD^{tree}') == "$DINGHY_TREE" ]] )
 cp UPSTREAM.lock.json build/evidence/
