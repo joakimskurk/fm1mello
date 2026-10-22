@@ -56,6 +56,7 @@ int main(void)
     if (render_page(&ui, &ops, MELLO_UI_HOME) || fills < 30 || texts < 8) return 2;
     if (render_page(&ui, &ops, MELLO_UI_SEQ_STEP) || fills < 50 || texts < 12) return 3;
     if (render_page(&ui, &ops, MELLO_UI_SEQ_SEGMENT) || fills < 50 || texts < 12) return 4;
+    if (render_page(&ui, &ops, MELLO_UI_RANDOM) || fills < 30 || texts < 10) return 5;
 
     mello_ui_set_page(&ui, MELLO_UI_HOME);
     mello_ui_render(&ui, &ops);
@@ -66,11 +67,11 @@ int main(void)
     bounds_error = 0;
     mello_ui_render(&ui, &ops);
 
-    if (bounds_error) return 5;
+    if (bounds_error) return 6;
     if (fills >= 20 || texts >= 4) {
         fprintf(stderr, "HOME playhead redraw too broad: fills=%d texts=%d\n", fills, texts);
-        return 6;
+        return 7;
     }
-    printf("PASS: HOME/STEP/SEGMENT visual bounds + HOME incremental redraw (fills=%d texts=%d)\n", fills, texts);
+    printf("PASS: HOME/STEP/SEGMENT/RANDOM visual bounds + HOME incremental redraw (fills=%d texts=%d)\n", fills, texts);
     return 0;
 }
