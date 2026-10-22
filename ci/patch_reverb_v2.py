@@ -175,10 +175,12 @@ static int32_t reverb_network_step(MelloAudio *a,int32_t send){
     rv=(y[0]+y[1]-y[2]-y[3])/2;
     return clamp32(rv,-32767,32767);
 }
-/* Host regression hook. Intentionally omitted from the public header. */
+#if defined(MELLO_REVERB_TEST_HOOK) && MELLO_REVERB_TEST_HOOK
+/* Host-only regression hook. Never compiled into target firmware. */
 int32_t mello_audio_reverb_ir_probe(MelloAudio *a,int32_t send){
     return reverb_network_step(a,send);
 }
+#endif
 
 '''
 anchor = "static int32_t limiter_minus_1db(int32_t x){"

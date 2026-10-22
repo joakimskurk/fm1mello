@@ -20,9 +20,10 @@ if old not in s:
 s = s.replace(old, new, 1)
 platform.write_text(s)
 
-# Max Mello reverb tap at PRE=120 ms, SIZE=1000 is 23392 samples:
-# ms_samples(120)=5292; B tap = 5292+5100+13000. 24576 preserves the full
-# control/tap range while avoiding unused ring capacity.
+# Reverb V2 full layout uses 23173 samples: 5293 separate pre-delay samples,
+# two all-pass diffuser regions (353 + 521), and four FDN line regions
+# (3001 + 3701 + 4603 + 5701). 24576 preserves the full target layout with
+# 1403 samples of ring headroom while avoiding unused pool capacity.
 s = audio_h.read_text()
 old = '#define MELLO_AUDIO_REVERB_SAMPLES 32768u'
 new = '#define MELLO_AUDIO_REVERB_SAMPLES 24576u'

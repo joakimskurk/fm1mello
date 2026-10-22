@@ -4,9 +4,11 @@ Baseline: `27c76df24101b3c8b99a3895648880d4c0971d3c`.
 
 This iteration is deliberately stabilization-first. No new large feature is added until the steps below are completed in order. Chord Machine remains removable behind `MELLO_FEATURE_CHORD_MACHINE` until the go/no-go step is complete.
 
-## 1. Reverb overhaul — highest priority
+## 1. Reverb overhaul — COMPLETE
 
-Problem: the current FM-1 reverb can sound metallic/ring-mod-like or like a very short delay. This is a stop-ship quality issue for the FX chain.
+Completed in `58ea689b282d00dd436b790be3bcf95b91e913f3`. Reverb V2 uses a separate pre-delay, two all-pass diffusers and a four-line Hadamard FDN, while retaining the HTML-derived send curve, wet tone LPF, 24 Hz HPF and return-level model. The first full target gate measured `corr²=0.00075`, block-energy jump `2.279`, exact 120 ms pre-delay shift of 5292 samples, and `1.833x` steady realtime on the 80 MHz chord/reverb stress path. Target pool remained within limits with 17696 B headroom.
+
+Original problem: the previous FM-1 reverb could sound metallic/ring-mod-like or like a very short delay. This was a stop-ship quality issue for the FX chain.
 
 Source reference: `skurkymello.html` uses `Tone.Reverb` when available, with `Tone.Freeverb` only as fallback. Its wet path is:
 
@@ -39,7 +41,7 @@ Hard gates:
 - 80 MHz worst-case must remain comfortably above realtime; target >=1.35x steady realtime after reverb is enabled in a heavy patch.
 - Pool/RAM must remain within current hard limits.
 
-Decision: do not evaluate Chord Machine sonically until this step is complete, because chord shares the FX space.
+Decision: Reverb V2 has passed these gates. Chord Machine may now proceed to its final go/no-go step.
 
 ## 2. Chord Machine final go/no-go
 

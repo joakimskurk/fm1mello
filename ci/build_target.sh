@@ -15,7 +15,8 @@ ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_wave_parity.c mello/*
 build/evidence/ui_wave_parity | tee build/evidence/ui_wave_parity.txt
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_control_parity.c mello/*.c -o build/evidence/ui_control_parity
 build/evidence/ui_control_parity | tee build/evidence/ui_control_parity.txt
-${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/audio_html_parity.c mello/*.c -o build/evidence/audio_html_parity
+# Reverb IR probe is test-only and must never be present in target firmware.
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_REVERB_TEST_HOOK=1 -I mello tools/audio_html_parity.c mello/*.c -o build/evidence/audio_html_parity
 build/evidence/audio_html_parity | tee build/evidence/audio_html_parity.txt
 # Dedicated-sub parity is a hard gate: Tone.js biquads, envelope, glide and drive.
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/sub_html_parity.c mello/*.c -o build/evidence/sub_html_parity
