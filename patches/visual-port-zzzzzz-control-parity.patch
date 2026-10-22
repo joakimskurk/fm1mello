@@ -111,7 +111,7 @@
 +        if ((uint32_t)(now_ms - ui->tap_times_ms[i]) < 3000u) fresh[count++] = ui->tap_times_ms[i];
 +    }
 +    if (count == 8u) {
-+        memmove(&fresh[0], &fresh[1], 7u * sizeof(fresh[0]));
++        for (i = 1u; i < 8u; ++i) fresh[i - 1u] = fresh[i];
 +        count = 7u;
 +    }
 +    fresh[count++] = now_ms;
@@ -196,15 +196,6 @@
          o->text(o->ctx, 8, 165, 224, 0, "OCT- NONE   OCT+ ALL   MUSICAL WEIGHTS", UI_DIM, 1);
          break;
      }
-@@ -1505,7 +1577,7 @@
-         o->text(o->ctx, 12, 74, 216, 0, sync_name(ui->transport->sync_mode), UI_GOLD, 0);
-         value_u(a, "LEAD CH", (uint32_t)ui->transport->midi_channel + 1u); value_u(b, "SUB CH", (uint32_t)ui->transport->midi_sub_channel + 1u);
-         o->text(o->ctx, 12, 108, 100, 0, a, UI_MID, 0); o->text(o->ctx, 120, 108, 108, 0, b, UI_MID, 0);
--        o->text(o->ctx, 12, 140, 216, 0, ui->global_subpage ? "MIDI" : "CLOCK", UI_DIM, 0);
-+        o->text(o->ctx, 12, 140, 216, 0, ui->reset_armed ? "RESET? OCT- + OCT+ AGAIN" : "REC TAP   OCT- + OCT+ RESET", ui->reset_armed ? UI_RED : UI_DIM, 0);
-         break;
-     case MELLO_UI_SOUND_RESERVED:
-         o->text(o->ctx, 12, 42, 216, 0, ui->sound_subpage==0u?"OSC / FILTER":ui->sound_subpage==1u?"AMP ENVELOPE":ui->sound_subpage==2u?"AUDIO LFO":ui->sound_subpage==3u?"FOLLOWER SUB":"PLAY / LEVEL", UI_GOLD, 0);
 @@ -1580,6 +1652,9 @@
          else if(ui->sub_subpage==3u){l[0]="LEVEL";value_u(v[0],"",e->sub.level/10u);l[1]="WAVE";copy_s(v[1],wave_name(e->sub.wave));l[2]="DEC";value_u(v[2],"",e->sub.decay_ms);l[3]="REL";value_u(v[3],"",e->sub.release_ms);}
          else{l[0]="GLIDE";value_u(v[0],"",e->sub.glide_ms);l[1]="CUT";value_u(v[1],"",e->sub.cut/10u);l[2]="DRIVE";value_u(v[2],"",e->sub.drive/10u);l[3]="OCT";value_i(v[3],"",e->sub.octave);}break;
