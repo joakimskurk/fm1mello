@@ -78,7 +78,7 @@ echo '9bcab43cd4d6d4f224998b543fa531c4bad7a46a2af4008b6a9d8a746ad8777e  mello/me
 echo '60036a0c6903df91cfecaf610a322c8b3fbe7be18df37cf6144bde17a9f186bd  mello/mello_ui.c' | sha256sum -c -
 # Final tiny tone-routing transform: chord bypasses lead distortion as well as lead filter.
 python3 ci/patch_chord_mix_separation.py
-echo '0becfec0fd78b3428c82643d96e9aaf0d1a5d48f51156fb2598bef141feffb76  mello/mello_audio.c' | sha256sum -c -
+echo 'a8590d660fbf80c39ab040ce3c11e394f607a226a291a8e3a7ee35b4a619066b  mello/mello_audio.c' | sha256sum -c -
 # Cycle regression overlays for repo-side tests.
 CYCLE_TEST_GZ=${TMPDIR:-/tmp}/cycle-tests.patch.gz
 base64 -d patches/cycle-tests.patch.gz.b64 > "$CYCLE_TEST_GZ"
