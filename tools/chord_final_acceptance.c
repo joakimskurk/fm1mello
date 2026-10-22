@@ -45,7 +45,7 @@ static int arp_acceptance(void)
     c.on=true;
     c.length=1u;
     c.voices=3u;
-    c.mode=MELLO_CHORD_ARP;
+    c.mode=MELLO_CHORD_ARP_UP;
     c.trigger=MELLO_CHORD_TRIGGER_STEP;
     c.steps[0].degree=0u;
     c.steps[0].shape=MELLO_CHORD_TRIAD;
