@@ -4,6 +4,7 @@ on:
     branches: [visual-port-home, chord-machine-exp]
 jobs:
   build:
+    # Branch-only validation for visual work and removable chord experiments.
     uses: zvenson/fm1-build/.github/workflows/build.yml@v1
     permissions:
       contents: write
