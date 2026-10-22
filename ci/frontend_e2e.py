@@ -27,35 +27,37 @@ with sync_playwright() as p:
     before_hash=file_sha(out/'before.png')
     status_before=page.locator('#status').inner_text()
 
-    # Real browser keyboard route in main.js: 0 = SEQ, 7 = HOME.
-    page.keyboard.press('0'); page.wait_for_timeout(600)
+    # Real browser keyboard route in main.js: 0 = SEQ, 7 = HOME. Hold long enough for the
+    # emulated 10 kHz matrix scanner to see the state, just like a human press.
+    page.keyboard.down('0'); page.wait_for_timeout(120); page.keyboard.up('0'); page.wait_for_timeout(600)
     canvas.screenshot(path=str(out/'after_key_seq.png'))
     key_seq_hash=file_sha(out/'after_key_seq.png')
     status_after=page.locator('#status').inner_text()
-    page.keyboard.press('7'); page.wait_for_timeout(500)
+    page.keyboard.down('7'); page.wait_for_timeout(120); page.keyboard.up('7'); page.wait_for_timeout(500)
     canvas.screenshot(path=str(out/'after_key_home.png'))
     key_home_hash=file_sha(out/'after_key_home.png')
 
-    # Real pointer route on the actual canvas. FM-1 panel geometry is 1280x820.
+    # Real pointer route. FM-1 panel intrinsic geometry is 1280x820.
     # Bottom-row button centres from panel.rs: HOME (931,340), SEQ (1105,340), PLAY (1163,340).
     box=canvas.bounding_box()
     if not box: raise SystemExit('FAIL: panel canvas has no bounding box')
-    def panel_click(x,y):
-        canvas.click(position={'x': box['width']*x/1280.0, 'y': box['height']*y/820.0})
-        page.wait_for_timeout(500)
-    panel_click(1105,340)
+    def panel_press(x,y):
+        px=box['x'] + box['width']*x/1280.0
+        py=box['y'] + box['height']*y/820.0
+        page.mouse.move(px,py)
+        page.mouse.down(); page.wait_for_timeout(120); page.mouse.up(); page.wait_for_timeout(500)
+    panel_press(1105,340)
     canvas.screenshot(path=str(out/'after_pointer_seq.png'))
     ptr_seq_hash=file_sha(out/'after_pointer_seq.png')
-    panel_click(931,340)
+    panel_press(931,340)
     canvas.screenshot(path=str(out/'after_pointer_home.png'))
     ptr_home_hash=file_sha(out/'after_pointer_home.png')
-    panel_click(1163,340)
+    panel_press(1163,340)
     page.wait_for_timeout(700)
     canvas.screenshot(path=str(out/'after_pointer_play.png'))
     ptr_play_hash=file_sha(out/'after_pointer_play.png')
 
-    page.keyboard.down('a'); page.wait_for_timeout(120); page.keyboard.up('a')
-    page.wait_for_timeout(200)
+    page.keyboard.down('a'); page.wait_for_timeout(120); page.keyboard.up('a'); page.wait_for_timeout(200)
 
     report={
       'url':url,
@@ -82,8 +84,8 @@ with sync_playwright() as p:
     if before_hash == key_seq_hash:
         raise SystemExit('FAIL: real browser keyboard 0/SEQ did not change Mello canvas')
     if key_home_hash == ptr_seq_hash:
-        raise SystemExit('FAIL: real canvas click on SEQ did not change Mello canvas')
+        raise SystemExit('FAIL: real held canvas press on SEQ did not change Mello canvas')
     if ptr_home_hash == ptr_play_hash:
-        raise SystemExit('FAIL: real canvas click on PLAY did not change Mello canvas')
+        raise SystemExit('FAIL: real held canvas press on PLAY did not change Mello canvas')
     print('PASS: real Chromium keyboard + pointer frontend routes control Mello')
     browser.close()
