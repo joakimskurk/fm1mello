@@ -1,0 +1,155 @@
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -1219,26 +1219,136 @@
+         break;
+     case MELLO_UI_SEQ_STEP: {
+         MelloStep *s = &e->project.steps[ui->selected_step];
++        uint8_t i, bank_start = (uint8_t)(ui->step_bank * 16u);
++        uint8_t midi = mello_resolve_step_midi(&e->project, s);
++        int16_t x;
++        /* 16-step mini strip: green pitch fill, white edit selection, cyan playhead. */
++        for (i = 0u; i < 16u; ++i) {
++            uint8_t si = (uint8_t)(bank_start + i);
++            uint16_t c = si < e->project.seq_len ? UI_PANEL2 : UI_BLACK;
++            x = (int16_t)(8 + i * 14u);
++            o->fill(o->ctx, x, 36, 12, 10, c);
++            if (si < e->project.seq_len) o->fill(o->ctx, x + 2, 42, 8, 2, e->project.steps[si].skip ? UI_DIM : UI_ACC);
++            if (si == ui->selected_step) ui_frame(o, x, 35, 12, 12, UI_WHITE);
++            if (ui->transport->display_step == si) ui_frame(o, x + 1, 36, 10, 10, UI_CYAN);
++        }
+         value_u(a, "STEP", (uint32_t)ui->selected_step + 1u);
+-        value_i(b, "PITCH", s->pitch);
+-        o->text(o->ctx, 12, 40, 100, 0, a, UI_WHITE, 0);
+-        o->text(o->ctx, 120, 40, 108, 0, b, UI_ACC, 0);
+-        value_u(a, "PULSES", s->pulses); value_u(b, "RATCHET", s->ratchet);
+-        o->text(o->ctx, 12, 68, 100, 0, a, UI_MID, 0); o->text(o->ctx, 120, 68, 108, 0, b, UI_PURPLE, 0);
+-        copy_s(a, gate_name(s->gate)); value_u(b, "PROB", prob_pct(s->probability));
+-        o->text(o->ctx, 12, 96, 100, 0, a, UI_CYAN, 0); o->text(o->ctx, 120, 96, 108, 0, b, UI_PURPLE, 0);
+-        o->text(o->ctx, 12, 126, 216, 0, "WHITE KEYS=STEP  SEL+KEY=PITCH", UI_DIM, 0);
+-        o->text(o->ctx, 12, 148, 216, 0, "EDIT+WHITE=SKIP  OCT=1-16/17-32", UI_DIM, 0);
++        value_u(b, "MIDI", midi);
++        o->text(o->ctx, 8, 53, 60, 0, a, UI_WHITE, 0);
++        o->text(o->ctx, 73, 53, 62, 0, b, UI_ACC, 0);
++        value_i(a, "OCT", s->octave);
++        o->text(o->ctx, 140, 53, 45, 0, a, UI_MID, 0);
++        value_u(a, "P", s->pulses);
++        o->text(o->ctx, 191, 53, 40, 0, a, UI_MID, 2);
++
++        o->text(o->ctx, 8, 75, 48, 0, "PULSES", UI_DIM, 0);
++        for (i = 0u; i < 8u; ++i) {
++            uint16_t c = i < s->pulses ? UI_ACC : UI_PANEL2;
++            o->fill(o->ctx, (int16_t)(58 + i * 10u), 78, 7, 4, c);
++        }
++        o->text(o->ctx, 145, 75, 46, 0, "RATCH", UI_DIM, 0);
++        for (i = 0u; i < 8u; ++i) {
++            uint16_t c = i < s->ratchet ? UI_PURPLE : UI_PANEL2;
++            o->fill(o->ctx, (int16_t)(191 + i * 5u), 76, 3, 8, c);
++        }
++
++        o->text(o->ctx, 8, 94, 38, 0, "GATE", UI_DIM, 0);
++        for (i = 0u; i < 4u; ++i) {
++            int16_t gx = (int16_t)(50 + i * 25u);
++            uint16_t c = i == (uint8_t)s->gate ? UI_CYAN : UI_PANEL2;
++            ui_frame(o, gx, 91, 20, 13, c);
++            if (i == 0u) o->fill(o->ctx, gx + 4, 97, 12, 1, c);
++            else if (i == 1u) o->fill(o->ctx, gx + 4, 95, 12, 5, c);
++            else if (i == 2u) { ui_frame(o, gx + 7, 94, 6, 7, c); }
++            else { o->fill(o->ctx, gx + 4, 94, 12, 1, c); o->fill(o->ctx, gx + 4, 97, 12, 1, c); o->fill(o->ctx, gx + 4, 100, 12, 1, c); }
++        }
++
++        {
++            const char *fl[4] = { "SLD", "ACC", "SUB", "SKIP" };
++            uint8_t on[4] = { s->slide ? 1u : 0u, s->accent ? 1u : 0u, s->sub ? 1u : 0u, s->skip ? 1u : 0u };
++            uint16_t fc[4] = { UI_CYAN, UI_CORAL, UI_GOLD, UI_RED };
++            for (i = 0u; i < 4u; ++i) {
++                x = (int16_t)(8 + i * 55u);
++                ui_frame(o, x, 112, 49, 16, on[i] ? fc[i] : UI_PANEL2);
++                o->text(o->ctx, x + 2, 116, 45, 0, fl[i], on[i] ? fc[i] : UI_DIM, 1);
++            }
++        }
++        value_u(a, "PROB", prob_pct(s->probability));
++        o->text(o->ctx, 8, 139, 54, 0, a, UI_PURPLE, 0);
++        ui_hbar(o, 64, 143, 100, s->probability, 65535u, UI_PURPLE);
++        if (s->sample_slot == 0u) copy_s(b, "SAMP OFF");
++        else { char *q = copy_s(b, "SAMP "); *q++ = (char)('A' + s->sample_slot - 1u); *q = 0; }
++        o->text(o->ctx, 170, 139, 62, 0, b, s->sample_slot ? UI_CYAN : UI_DIM, 2);
+         break;
+     }
+     case MELLO_UI_SEQ_SEGMENT: {
+-        uint8_t s = ui->selected_segment;
+-        value_u(a, "SEG", (uint32_t)s + 1u); value_u(b, "REPEAT", e->project.seg_repeats[s]);
+-        o->text(o->ctx, 12, 42, 100, 0, a, UI_WHITE, 0); o->text(o->ctx, 120, 42, 108, 0, b, UI_GOLD, 0);
+-        o->text(o->ctx, 12, 72, 100, 0, e->project.seg_direction[s] == MELLO_SEG_REV ? "REV" : "FWD", UI_CYAN, 0);
+-        o->text(o->ctx, 120, 72, 108, 0, seg_mode_name(e->project.seg_mode[s]), UI_PURPLE, 0);
+-        o->text(o->ctx, 12, 102, 216, 0, e->project.seg_skip[s] ? "SKIPPED" : "ACTIVE", e->project.seg_skip[s] ? UI_RED : UI_ACC, 0);
+-        o->text(o->ctx, 12, 132, 216, 0, ui->segment_subpage ? "BOUNDS: K1 COUNT K2 SPLIT" : "PLAY: REP DIR MODE SKIP", UI_DIM, 0);
++        uint8_t s = ui->selected_segment, i, bounds[MELLO_MAX_SEGMENTS + 1u], sc;
++        int16_t x;
++        if (s >= e->project.seg_count) s = 0u;
++        sc = ui_segment_bounds(&e->project, bounds);
++        /* A-F brackets over the same 16-cell sequence language used by HOME. */
++        for (i = 0u; i < sc; ++i) {
++            uint8_t bs = bounds[i], be = bounds[i + 1u];
++            int16_t bx, bx2;
++            uint16_t c = i == s ? UI_ACC : UI_DIM;
++            if (bs >= 16u) continue;
++            if (be > 16u) be = 16u;
++            bx = (int16_t)(8 + bs * 14u);
++            bx2 = (int16_t)(8 + be * 14u - 2);
++            o->fill(o->ctx, bx, 35, (int16_t)(bx2 - bx + 1), 1, c);
++            o->fill(o->ctx, bx, 35, 1, 5, c);
++            o->fill(o->ctx, bx2, 35, 1, 5, c);
++            a[0] = (char)('A' + i); a[1] = 0;
++            o->text(o->ctx, bx, 29, (int16_t)(bx2 - bx + 1), 0, a, c, 1);
++        }
++        for (i = 0u; i < 16u; ++i) {
++            uint8_t seg = 0xFFu, j;
++            x = (int16_t)(8 + i * 14u);
++            for (j = 0u; j < sc; ++j) if (i >= bounds[j] && i < bounds[j + 1u]) { seg = j; break; }
++            o->fill(o->ctx, x, 44, 12, 14, i < e->project.seq_len ? UI_PANEL2 : UI_BLACK);
++            if (i < e->project.seq_len) o->fill(o->ctx, x + 2, 53, 8, 2, seg == s ? UI_ACC : UI_DIM);
++            if (seg == s) ui_frame(o, x, 43, 12, 16, UI_ACC);
++            if (ui->transport->display_step == i) ui_frame(o, x + 1, 44, 10, 14, UI_CYAN);
++        }
++        value_u(a, "SEG", (uint32_t)s + 1u);
++        b[0] = (char)('A' + s); b[1] = 0;
++        o->text(o->ctx, 8, 66, 46, 0, a, UI_WHITE, 0);
++        o->text(o->ctx, 55, 66, 20, 0, b, UI_ACC, 1);
++        value_u(a, "x", e->project.seg_repeats[s]);
++        o->text(o->ctx, 84, 66, 40, 0, a, UI_GOLD, 0);
++        o->text(o->ctx, 130, 66, 44, 0, e->project.seg_direction[s] == MELLO_SEG_REV ? "REV" : "FWD", UI_CYAN, 1);
++        o->text(o->ctx, 179, 66, 53, 0, seg_mode_name(e->project.seg_mode[s]), UI_PURPLE, 1);
++
++        o->text(o->ctx, 8, 90, 42, 0, "REPEAT", UI_DIM, 0);
++        for (i = 0u; i < 4u; ++i) {
++            x = (int16_t)(55 + i * 24u);
++            ui_frame(o, x, 87, 20, 15, i + 1u == e->project.seg_repeats[s] ? UI_GOLD : UI_PANEL2);
++            a[0] = 'x'; a[1] = (char)('1' + i); a[2] = 0;
++            o->text(o->ctx, x + 1, 91, 18, 0, a, i + 1u == e->project.seg_repeats[s] ? UI_GOLD : UI_DIM, 1);
++        }
++        ui_frame(o, 157, 87, 34, 15, e->project.seg_direction[s] == MELLO_SEG_FWD ? UI_CYAN : UI_PANEL2);
++        ui_frame(o, 195, 87, 37, 15, e->project.seg_direction[s] == MELLO_SEG_REV ? UI_CYAN : UI_PANEL2);
++        o->text(o->ctx, 158, 91, 32, 0, "FWD", e->project.seg_direction[s] == MELLO_SEG_FWD ? UI_CYAN : UI_DIM, 1);
++        o->text(o->ctx, 196, 91, 35, 0, "REV", e->project.seg_direction[s] == MELLO_SEG_REV ? UI_CYAN : UI_DIM, 1);
++
++        o->text(o->ctx, 8, 113, 40, 0, "MODE", UI_DIM, 0);
++        {
++            const char *mn[3] = { "LIN", "P-P", "RND" };
++            for (i = 0u; i < 3u; ++i) {
++                x = (int16_t)(55 + i * 44u);
++                ui_frame(o, x, 109, 38, 16, i == (uint8_t)e->project.seg_mode[s] ? UI_PURPLE : UI_PANEL2);
++                o->text(o->ctx, x + 2, 113, 34, 0, mn[i], i == (uint8_t)e->project.seg_mode[s] ? UI_PURPLE : UI_DIM, 1);
++            }
++        }
++        ui_frame(o, 193, 109, 39, 16, e->project.seg_skip[s] ? UI_RED : UI_PANEL2);
++        o->text(o->ctx, 195, 113, 35, 0, "SKIP", e->project.seg_skip[s] ? UI_RED : UI_DIM, 1);
++
++        o->text(o->ctx, 8, 138, 52, 0, "BOUNDS", UI_DIM, 0);
++        value_u(a, "START", (uint32_t)bounds[s] + 1u);
++        value_u(b, "END", bounds[s + 1u]);
++        o->text(o->ctx, 62, 138, 70, 0, a, UI_MID, 0);
++        o->text(o->ctx, 137, 138, 65, 0, b, UI_MID, 0);
++        o->text(o->ctx, 204, 138, 28, 0, ui->segment_subpage ? "EDIT" : "PLAY", ui->segment_subpage ? UI_GOLD : UI_ACC, 2);
+         break;
+     }
+     case MELLO_UI_SEQ_LOOP: {
