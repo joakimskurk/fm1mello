@@ -1,0 +1,11 @@
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -922,7 +922,7 @@
+         if ((uint32_t)(now_ms - ui->tap_times_ms[i]) < 3000u) fresh[count++] = ui->tap_times_ms[i];
+     }
+     if (count == 8u) {
+-        memmove(&fresh[0], &fresh[1], 7u * sizeof(fresh[0]));
++        for (i = 1u; i < 8u; ++i) fresh[i - 1u] = fresh[i];
+         count = 7u;
+     }
+     fresh[count++] = now_ms;
