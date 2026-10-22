@@ -1,0 +1,43 @@
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -23,6 +23,7 @@
+ static const uint8_t tm_lengths[] = {3u,4u,5u,6u,7u,8u,9u,10u,11u,12u,13u,14u,15u,16u,20u,24u,28u,32u};
+ static const uint8_t slot_counts[] = {2u,4u,8u,16u,32u,64u};
+ static const uint8_t sequence_lengths[] = {4u,5u,6u,7u,8u,10u,12u,16u,20u,24u,28u,32u};
++static const uint8_t sub_waveforms[] = {MELLO_WAVE_SINE,MELLO_WAVE_TRIANGLE,MELLO_WAVE_SQUARE,MELLO_WAVE_SAW};
+ static const uint16_t master_lengths[] = {0u,16u,32u,64u,128u,256u};
+ static const uint16_t slot_holds[] = {1u,2u,4u,8u,16u,32u,64u};
+ static const char name_chars[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.";
+@@ -62,6 +63,14 @@
+     return 0;
+ }
+ 
++static MelloWaveform step_sub_waveform(MelloWaveform current, int16_t delta)
++{
++    uint8_t i, count = (uint8_t)(sizeof(sub_waveforms) / sizeof(sub_waveforms[0]));
++    for (i = 0u; i < count; ++i) if (sub_waveforms[i] == (uint8_t)current) break;
++    if (i >= count) return (MelloWaveform)(delta > 0 ? sub_waveforms[0] : sub_waveforms[count - 1u]);
++    return (MelloWaveform)sub_waveforms[wrap_u8((int32_t)i + (delta > 0 ? 1 : -1), count)];
++}
++
+ static uint8_t step_current(MelloUi *ui)
+ {
+     if (!ui || !ui->transport) return 0u;
+@@ -657,7 +666,7 @@
+         else if (knob == 3u) ui->selected_sub_x_step = (uint8_t)clamp_i32((int32_t)ui->selected_sub_x_step + (delta > 0 ? 1 : -1), 0, 4);
+     } else if (ui->sub_subpage == 3u) {
+         if (knob == 0u) c.level = (uint16_t)clamp_i32((int32_t)c.level + delta * 10, 0, 1000);
+-        else if (knob == 1u) c.wave = (MelloWaveform)wrap_u8((int32_t)c.wave + (delta > 0 ? 1 : -1), 5u);
++        else if (knob == 1u) c.wave = step_sub_waveform(c.wave, delta);
+         else if (knob == 2u) c.decay_ms = (uint16_t)clamp_i32((int32_t)c.decay_ms + delta * 10, 30, 700);
+         else c.release_ms = (uint16_t)clamp_i32((int32_t)c.release_ms + delta * 10, 30, 1200);
+     } else {
+@@ -695,7 +704,7 @@
+         if (knob == 0u) c.follower_sub_on = !c.follower_sub_on;
+         else if (knob == 1u) c.follower_sub_level = (uint16_t)clamp_i32((int32_t)c.follower_sub_level + delta * 10, 0, 1000);
+         else if (knob == 2u) c.follower_sub_octave = (int8_t)clamp_i32((int32_t)c.follower_sub_octave + delta, -2, 0);
+-        else c.follower_sub_wave = (MelloWaveform)wrap_u8((int32_t)c.follower_sub_wave + (delta > 0 ? 1 : -1), 5u);
++        else c.follower_sub_wave = step_sub_waveform(c.follower_sub_wave, delta);
+     } else {
+         if (knob == 0u) c.slide_ms = (uint16_t)clamp_i32((int32_t)c.slide_ms + delta * 5, 0, 300);
+         else if (knob == 1u) c.master_level = (uint16_t)clamp_i32((int32_t)c.master_level + delta * 10, 0, 1000);
