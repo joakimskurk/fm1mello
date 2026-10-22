@@ -1,0 +1,102 @@
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -1341,12 +1341,42 @@
+     }
+     case MELLO_UI_SEQ_LOOP: {
+         MelloLoopCycleStep *s = &e->loop_cycle.steps[ui->selected_loop_step];
+-        value_u(a, "LOOP STEP", (uint32_t)ui->selected_loop_step + 1u); value_u(b, "HOLD", s->hold);
+-        o->text(o->ctx, 12, 42, 112, 0, a, UI_WHITE, 0); o->text(o->ctx, 126, 42, 102, 0, b, UI_GOLD, 0);
+-        value_i(a, "ROOT OFF", s->root_offset); value_i(b, "OCT", s->octave);
+-        o->text(o->ctx, 12, 72, 112, 0, a, UI_ACC, 0); o->text(o->ctx, 126, 72, 102, 0, b, UI_ACC, 0);
+-        o->text(o->ctx, 12, 104, 216, 0, e->loop_cycle.active ? "LOOP CYCLE ON" : "LOOP CYCLE OFF", e->loop_cycle.active ? UI_GOLD : UI_DIM, 0);
+-        value_u(a, "LENGTH", e->loop_cycle.length); o->text(o->ctx, 12, 132, 216, 0, a, UI_MID, 0);
++        uint8_t i, len = e->loop_cycle.length;
++        if (len < 2u) len = 2u;
++        if (len > MELLO_MAX_LOOP_CYCLE_STEPS) len = MELLO_MAX_LOOP_CYCLE_STEPS;
++        o->text(o->ctx, 8, 33, 104, 0, e->loop_cycle.active ? "LOOP CYCLE" : "LOOP OFF", e->loop_cycle.active ? UI_GOLD : UI_DIM, 0);
++        value_u(a, "LEN", len);
++        o->text(o->ctx, 116, 33, 50, 0, a, UI_MID, 1);
++        o->text(o->ctx, 170, 33, 62, 0, e->loop_cycle.sync ? "SYNC" : "FREE", e->loop_cycle.sync ? UI_GOLD : UI_DIM, 2);
++        /* Eight long-form cells. Height is HOLD; center marker is root offset. */
++        for (i = 0u; i < MELLO_MAX_LOOP_CYCLE_STEPS; ++i) {
++            MelloLoopCycleStep *ls = &e->loop_cycle.steps[i];
++            int16_t x = (int16_t)(8 + i * 28u);
++            int16_t hold_h = (int16_t)(8 + ((uint32_t)(ls->hold > 128u ? 128u : ls->hold) * 48u) / 128u);
++            int16_t root_y = (int16_t)(91 - ((int32_t)ls->root_offset * 2));
++            uint8_t in_len = i < len;
++            uint8_t active = e->loop_cycle.active && i == e->loop_cycle_pos;
++            uint8_t selected = i == ui->selected_loop_step;
++            o->fill(o->ctx, x, 52, 23, 72, in_len ? UI_PANEL : UI_BLACK);
++            ui_frame(o, x, 52, 23, 72, active ? UI_GOLD : (selected ? UI_WHITE : (in_len ? UI_PANEL2 : UI_BLACK)));
++            if (in_len) {
++                o->fill(o->ctx, x + 3, (int16_t)(120 - hold_h), 17, hold_h, active ? UI_GOLD : UI_MID);
++                if (root_y < 56) root_y = 56;
++                if (root_y > 116) root_y = 116;
++                o->fill(o->ctx, x + 3, root_y, 17, 2, UI_GOLD);
++                if (ls->octave) o->fill(o->ctx, x + 3, ls->octave > 0 ? 55 : 118, 17, 2, UI_CYAN);
++            }
++            a[0] = (char)('1' + i); a[1] = 0;
++            o->text(o->ctx, x, 128, 23, 0, a, active ? UI_GOLD : (selected ? UI_WHITE : UI_DIM), 1);
++        }
++        value_u(a, "HOLD", s->hold);
++        value_i(b, "ROOT", s->root_offset);
++        o->text(o->ctx, 8, 146, 52, 0, a, UI_GOLD, 0);
++        o->text(o->ctx, 64, 146, 54, 0, b, UI_MID, 0);
++        value_i(a, "PIT", s->pitch);
++        value_i(b, "OCT", s->octave);
++        o->text(o->ctx, 122, 146, 50, 0, a, UI_ACC, 0);
++        o->text(o->ctx, 176, 146, 56, 0, b, UI_CYAN, 2);
+         break;
+     }
+     case MELLO_UI_SEQ_SLOTSEQ: {
+@@ -1465,12 +1495,44 @@
+         break;
+     }
+     case MELLO_UI_SUB: {
+-        value_u(a, "X STEP", (uint32_t)ui->selected_sub_x_step + 1u); value_u(b, "GATE", e->sub.gate_amount / 10u);
+-        o->text(o->ctx, 12, 42, 100, 0, e->sub.on ? "SUB ON" : "SUB OFF", e->sub.on ? UI_GOLD : UI_DIM, 0);
+-        o->text(o->ctx, 120, 42, 108, 0, sub_mode_name(e->sub.mode), UI_CYAN, 0);
+-        o->text(o->ctx, 12, 74, 100, 0, a, UI_WHITE, 0); o->text(o->ctx, 120, 74, 108, 0, b, UI_MID, 0);
+-        o->text(o->ctx, 12, 110, 216, 0, e->sub.x_on ? "X SUB OVERRIDE ON" : "X SUB OFF", e->sub.x_on ? UI_PURPLE : UI_DIM, 0);
+-        o->text(o->ctx, 12, 140, 216, 0, ui->sub_subpage == 0u ? "MAIN" : ui->sub_subpage == 1u ? "X CONFIG" : ui->sub_subpage == 2u ? "X STEP" : ui->sub_subpage == 3u ? "SUB SOUND" : "SUB TONE", UI_DIM, 0);
++        uint8_t i, xlen = e->sub.x_length;
++        if (xlen != 2u && xlen != 3u && xlen != 5u) xlen = 5u;
++        o->text(o->ctx, 8, 33, 70, 0, e->sub.on ? "SUB ON" : "SUB OFF", e->sub.on ? UI_GOLD : UI_DIM, 0);
++        o->text(o->ctx, 82, 33, 72, 0, sub_mode_name(e->sub.mode), UI_GOLD, 1);
++        value_i(a, "OCT", e->sub.octave); o->text(o->ctx, 158, 33, 74, 0, a, UI_MID, 2);
++        /* Main generator: pulse density + gate length remain visible regardless of X override. */
++        o->text(o->ctx, 8, 53, 42, 0, "PULSE", UI_DIM, 0);
++        ui_hbar(o, 52, 56, 78, e->sub.euclid_pulses, 64u, UI_GOLD);
++        value_u(a, "", e->sub.euclid_pulses); o->text(o->ctx, 134, 53, 24, 0, a, UI_GOLD, 0);
++        o->text(o->ctx, 162, 53, 34, 0, "ROT", UI_DIM, 0);
++        value_u(a, "", e->sub.euclid_rotate); o->text(o->ctx, 198, 53, 34, 0, a, UI_MID, 2);
++        o->text(o->ctx, 8, 69, 42, 0, "GATE", UI_DIM, 0);
++        ui_hbar(o, 52, 72, 106, e->sub.gate_amount > 1200u ? 1200u : e->sub.gate_amount, 1200u, UI_GOLD);
++        value_u(a, "", e->sub.gate_amount / 10u); o->text(o->ctx, 162, 69, 70, 0, a, UI_MID, 2);
++        /* X-SUB is a five-cell yellow sequencer. Disabled cells beyond X LEN stay physically present. */
++        o->text(o->ctx, 8, 87, 58, 0, e->sub.x_on ? "X-SUB" : "X OFF", e->sub.x_on ? UI_GOLD : UI_DIM, 0);
++        value_u(a, "LEN", xlen); o->text(o->ctx, 70, 87, 50, 0, a, UI_MID, 0);
++        o->text(o->ctx, 124, 87, 108, 0, e->sub.x_reset ? "RESET LOOP" : "FREE RUN", e->sub.x_reset ? UI_GOLD : UI_DIM, 2);
++        for (i = 0u; i < MELLO_SUB_X_MAX_STEPS; ++i) {
++            MelloSubXStep *xs = &e->sub.x_steps[i];
++            int16_t x = (int16_t)(8 + i * 45u);
++            int16_t tone_h = (int16_t)(5 + (xs->tone * 4u));
++            uint8_t in_len = i < xlen;
++            uint8_t active = e->sub.x_on && e->sub_x_active_index == (int8_t)i;
++            uint8_t selected = i == ui->selected_sub_x_step;
++            o->fill(o->ctx, x, 104, 40, 42, in_len ? UI_PANEL : UI_BLACK);
++            ui_frame(o, x, 104, 40, 42, active ? UI_GOLD : (selected ? UI_WHITE : (in_len ? UI_PANEL2 : UI_BLACK)));
++            if (in_len && xs->on) {
++                if (tone_h > 28) tone_h = 28;
++                o->fill(o->ctx, x + 4, (int16_t)(139 - tone_h), 32, tone_h, UI_GOLD);
++            } else if (in_len) {
++                o->fill(o->ctx, x + 4, 137, 32, 2, UI_DIM);
++            }
++            if (in_len && xs->octave) o->fill(o->ctx, x + 4, xs->octave > 0 ? 108 : 142, 32, 2, UI_CYAN);
++            a[0] = (char)('1' + i); a[1] = 0;
++            o->text(o->ctx, x, 149, 40, 0, a, active ? UI_GOLD : (selected ? UI_WHITE : UI_DIM), 1);
++        }
++        o->text(o->ctx, 8, 164, 224, 0, ui->sub_subpage == 0u ? "MAIN" : ui->sub_subpage == 1u ? "X CONFIG" : ui->sub_subpage == 2u ? "X STEP" : ui->sub_subpage == 3u ? "SUB SOUND" : "SUB TONE", UI_DIM, 1);
+         break;
+     }
+     case MELLO_UI_GLOBAL:

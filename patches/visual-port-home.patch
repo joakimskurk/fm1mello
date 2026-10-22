@@ -1,0 +1,244 @@
+--- a/mello/mello_ui.h
++++ b/mello/mello_ui.h
+@@ -71,7 +71,8 @@
+     MELLO_UI_DIRTY_STATUS = 1u << 3,
+     MELLO_UI_DIRTY_LEDS   = 1u << 4,
+     MELLO_UI_DIRTY_FULL   = 1u << 5,
+-    MELLO_UI_DIRTY_ALL    = 0x3Fu
++    MELLO_UI_DIRTY_HOME_PLAYHEAD = 1u << 6,
++    MELLO_UI_DIRTY_ALL    = 0x7Fu
+ };
+ 
+ typedef struct {
+@@ -126,6 +127,8 @@
+     int8_t seen_tm_pos;
+     int8_t seen_sub_x_pos;
+     uint8_t seen_running;
++    uint8_t home_old_step;
++    uint8_t home_new_step;
+ } MelloUi;
+ 
+ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage);
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -174,6 +174,8 @@
+     ui->seen_tm_pos = -2;
+     ui->seen_sub_x_pos = -2;
+     ui->seen_running = 2u;
++    ui->home_old_step = 0xFFu;
++    ui->home_new_step = 0xFFu;
+     ui->last_key_led_mask = 0xFFFFFFFFu;
+     ui->last_button_led_mask = 0xFFFFFFFFu;
+     ui->dirty = MELLO_UI_DIRTY_ALL;
+@@ -965,14 +967,23 @@
+ void mello_ui_tick(MelloUi *ui)
+ {
+     MelloEngine *e;
+-    uint8_t run;
++    uint8_t run, step_changed, other_changed;
+     if (!ui || !ui->transport) return;
+     e = &ui->transport->engine;
+     run = ui->transport->running ? 1u : 0u;
+-    if (ui->seen_step != ui->transport->display_step || ui->seen_pulse != ui->transport->display_pulse ||
++    step_changed = ui->seen_step != ui->transport->display_step;
++    other_changed = ui->seen_pulse != ui->transport->display_pulse ||
+         ui->seen_segment != ui->transport->display_segment || ui->seen_loop_pos != e->loop_cycle_pos ||
+         ui->seen_slot_seq_pos != e->slot_seq_pos || ui->seen_tm_pos != e->tm_active_index ||
+-        ui->seen_sub_x_pos != e->sub_x_active_index || ui->seen_running != run) {
++        ui->seen_sub_x_pos != e->sub_x_active_index || ui->seen_running != run;
++    if (step_changed || other_changed) {
++        if (ui->page == MELLO_UI_HOME && step_changed) {
++            ui->home_old_step = ui->seen_step;
++            ui->home_new_step = ui->transport->display_step;
++            ui->dirty |= MELLO_UI_DIRTY_HOME_PLAYHEAD;
++        } else if (ui->page != MELLO_UI_HOME) {
++            ui->dirty |= MELLO_UI_DIRTY_BODY;
++        }
+         ui->seen_step = ui->transport->display_step;
+         ui->seen_pulse = ui->transport->display_pulse;
+         ui->seen_segment = ui->transport->display_segment;
+@@ -981,7 +992,7 @@
+         ui->seen_tm_pos = e->tm_active_index;
+         ui->seen_sub_x_pos = e->sub_x_active_index;
+         ui->seen_running = run;
+-        ui->dirty |= MELLO_UI_DIRTY_STATUS | MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
++        ui->dirty |= MELLO_UI_DIRTY_STATUS | MELLO_UI_DIRTY_LEDS;
+     }
+ }
+ 
+@@ -1043,6 +1054,136 @@
+     return m == MELLO_SYNC_SLAVE ? "SLAVE" : m == MELLO_SYNC_MASTER ? "MASTER" : "OFF";
+ }
+ 
++
++static void ui_frame(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t colour)
++{
++    if (w < 2 || h < 2) return;
++    o->fill(o->ctx, x, y, w, 1, colour);
++    o->fill(o->ctx, x, (int16_t)(y + h - 1), w, 1, colour);
++    o->fill(o->ctx, x, y, 1, h, colour);
++    o->fill(o->ctx, (int16_t)(x + w - 1), y, 1, h, colour);
++}
++
++static void ui_hbar(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, uint16_t value, uint16_t max_value, uint16_t colour)
++{
++    int16_t fillw;
++    o->fill(o->ctx, x, y, w, 3, UI_PANEL2);
++    if (!max_value) return;
++    if (value > max_value) value = max_value;
++    fillw = (int16_t)(((int32_t)w * value) / max_value);
++    if (fillw > 0) o->fill(o->ctx, x, y, fillw, 3, colour);
++}
++
++static uint8_t ui_segment_bounds(const MelloProject *p, uint8_t bounds[MELLO_MAX_SEGMENTS + 1u])
++{
++    uint8_t n = p->seq_len, sc = p->seg_count, i;
++    if (n < 1u) n = 1u;
++    if (sc < 1u) sc = 1u;
++    if (sc > MELLO_MAX_SEGMENTS) sc = MELLO_MAX_SEGMENTS;
++    if (sc > n) sc = n;
++    bounds[0] = 0u;
++    for (i = 0u; i < sc - 1u; ++i) {
++        uint8_t minv = (uint8_t)(bounds[i] + 1u);
++        uint8_t remaining = (uint8_t)((sc - 1u) - i);
++        uint8_t maxv = (uint8_t)(n - remaining);
++        uint8_t v = p->seg_splits[i];
++        if (v < minv) v = minv;
++        if (v > maxv) v = maxv;
++        bounds[i + 1u] = v;
++    }
++    bounds[sc] = n;
++    return sc;
++}
++
++static void home_pitch_range(const MelloProject *p, uint8_t *lo, uint8_t *hi)
++{
++    uint8_t i, n = p->seq_len > 16u ? 16u : p->seq_len;
++    uint8_t mn = 108u, mx = 12u;
++    if (!n) { *lo = 48u; *hi = 72u; return; }
++    for (i = 0u; i < n; ++i) {
++        uint8_t m = mello_resolve_step_midi(p, &p->steps[i]);
++        if (m < mn) mn = m;
++        if (m > mx) mx = m;
++    }
++    if (mx <= mn) { if (mn > 12u) mn = (uint8_t)(mn - 1u); if (mx < 108u) mx = (uint8_t)(mx + 1u); }
++    *lo = mn; *hi = mx;
++}
++
++static void draw_home_step(MelloUi *ui, const MelloUiDrawOps *o, uint8_t i)
++{
++    MelloEngine *e = eng(ui);
++    MelloStep *s;
++    uint8_t lo, hi, midi, active, selected;
++    int16_t x, base_y = 143, top_y, h;
++    uint16_t bar = UI_ACC;
++    if (!e || i >= 16u) return;
++    x = (int16_t)(8 + i * 14u);
++    o->fill(o->ctx, x, 47, 12, 111, UI_BLACK);
++    if (i >= e->project.seq_len) { ui_frame(o, x, 137, 12, 7, UI_PANEL2); return; }
++    s = &e->project.steps[i];
++    home_pitch_range(&e->project, &lo, &hi);
++    midi = mello_resolve_step_midi(&e->project, s);
++    h = (int16_t)(18 + ((int32_t)(midi - lo) * 68) / (hi > lo ? (int32_t)(hi - lo) : 1));
++    top_y = (int16_t)(base_y - h);
++    active = ui->transport->display_step == i;
++    selected = ui->selected_step == i;
++    if (s->skip) bar = UI_DIM;
++    o->fill(o->ctx, (int16_t)(x + 2), top_y, 8, h, bar);
++    if (active) ui_frame(o, x, (int16_t)(top_y - 2), 12, (int16_t)(h + 4), UI_CYAN);
++    else if (selected) ui_frame(o, x, (int16_t)(top_y - 2), 12, (int16_t)(h + 4), UI_WHITE);
++    if (s->pulses <= 4u) {
++        uint8_t d;
++        for (d = 0u; d < s->pulses; ++d) o->fill(o->ctx, (int16_t)(x + 1 + d * 3), 148, 2, 2, UI_MID);
++    } else {
++        o->fill(o->ctx, x + 1, 148, 10, 2, UI_MID);
++    }
++    if (s->ratchet > 1u) o->fill(o->ctx, x + 1, 153, 2, 2, UI_PURPLE);
++    if (s->accent) o->fill(o->ctx, x + 4, 153, 2, 2, UI_CORAL);
++    if (s->sub) o->fill(o->ctx, x + 7, 153, 2, 2, UI_GOLD);
++    if (s->slide) o->fill(o->ctx, x + 10, 153, 2, 2, UI_CYAN);
++}
++
++static void draw_home(MelloUi *ui, const MelloUiDrawOps *o)
++{
++    MelloEngine *e = eng(ui);
++    uint8_t i, bounds[MELLO_MAX_SEGMENTS + 1u], sc;
++    char b[24], *p;
++    if (!e) return;
++    o->fill(o->ctx, 0, 30, 240, 142, UI_BLACK);
++    sc = ui_segment_bounds(&e->project, bounds);
++    for (i = 0u; i < sc; ++i) {
++        uint8_t bs = bounds[i], be = bounds[i + 1u];
++        int16_t x, x2;
++        uint16_t c;
++        if (bs >= 16u) continue;
++        if (be > 16u) be = 16u;
++        x = (int16_t)(8 + bs * 14u);
++        x2 = (int16_t)(8 + be * 14u - 2);
++        c = i == ui->selected_segment ? UI_ACC : UI_DIM;
++        o->fill(o->ctx, x, 38, (int16_t)(x2 - x + 1), 1, c);
++        o->fill(o->ctx, x, 38, 1, 5, c);
++        o->fill(o->ctx, x2, 38, 1, 5, c);
++        b[0] = (char)('A' + i); b[1] = 0;
++        o->text(o->ctx, x, 31, (int16_t)(x2 - x + 1), 0, b, c, 1);
++    }
++    for (i = 0u; i < 16u; ++i) draw_home_step(ui, o, i);
++    {
++        uint8_t si = ui->selected_step < e->project.seq_len ? ui->selected_step : 0u;
++        MelloStep *s = &e->project.steps[si];
++        p = copy_s(b, "S"); p = put_u32(p, (uint32_t)si + 1u); p = copy_s(p, "  MIDI "); put_u32(p, mello_resolve_step_midi(&e->project, s));
++        o->text(o->ctx, 8, 160, 95, 0, b, UI_WHITE, 0);
++        p = copy_s(b, "P"); p = put_u32(p, s->pulses); p = copy_s(p, " R"); p = put_u32(p, s->ratchet); p = copy_s(p, " "); copy_s(p, gate_name(s->gate));
++        o->text(o->ctx, 106, 160, 126, 0, b, UI_MID, 2);
++        ui_hbar(o, 180, 168, 52, s->probability, 65535u, UI_PURPLE);
++    }
++}
++
++static void draw_home_playhead(MelloUi *ui, const MelloUiDrawOps *o)
++{
++    if (ui->home_old_step < 16u) draw_home_step(ui, o, ui->home_old_step);
++    if (ui->home_new_step < 16u && ui->home_new_step != ui->home_old_step) draw_home_step(ui, o, ui->home_new_step);
++}
++
+ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
+ {
+     char b[32], *p;
+@@ -1074,13 +1215,7 @@
+     o->fill(o->ctx, 0, 30, 240, 142, UI_BLACK);
+     switch (ui->page) {
+     case MELLO_UI_HOME:
+-        o->text(o->ctx, 0, 42, 240, 1, "SKURKYMELLO", UI_WHITE, 1);
+-        value_u(a, "STEP", ui->transport->display_step == 0xFFu ? 0u : (uint32_t)ui->transport->display_step + 1u);
+-        value_u(b, "SEG", ui->transport->display_segment == 0xFFu ? 0u : (uint32_t)ui->transport->display_segment + 1u);
+-        o->text(o->ctx, 12, 88, 104, 0, a, UI_MID, 0);
+-        o->text(o->ctx, 124, 88, 104, 0, b, UI_MID, 0);
+-        o->text(o->ctx, 12, 118, 216, 0, "SEQ EDIT SEL SAVE FX LFO ARP GLO", UI_DIM, 0);
+-        o->text(o->ctx, 12, 142, 216, 0, ui->transport->midi_note_out_enabled ? "MIDI NOTES ON" : "MIDI NOTES OFF", UI_CYAN, 0);
++        draw_home(ui, o);
+         break;
+     case MELLO_UI_SEQ_STEP: {
+         MelloStep *s = &e->project.steps[ui->selected_step];
+@@ -1225,6 +1360,15 @@
+     for (k = 0u; k < 4u; ++k) v[k][0] = 0;
+     if (!e) return;
+     switch (ui->page) {
++    case MELLO_UI_HOME: {
++        uint8_t si = ui->selected_step < e->project.seq_len ? ui->selected_step : 0u;
++        MelloStep *s = &e->project.steps[si];
++        l[0]="STEP"; value_u(v[0],"",(uint32_t)si+1u);
++        l[1]="PITCH"; value_i(v[1],"",s->pitch);
++        l[2]="PUL"; value_u(v[2],"",s->pulses);
++        l[3]="GATE"; copy_s(v[3],gate_name(s->gate));
++        break;
++    }
+     case MELLO_UI_SEQ_STEP: {
+         MelloStep *s = &e->project.steps[ui->selected_step];
+         if (ui->step_subpage == 0u) { l[0]="PITCH"; value_i(v[0],"",s->pitch); l[1]="PULSE"; value_u(v[1],"",s->pulses); l[2]="RATCH"; value_u(v[2],"",s->ratchet); l[3]="GATE"; copy_s(v[3],gate_name(s->gate)); }
+@@ -1290,6 +1434,7 @@
+     }
+     if (d & MELLO_UI_DIRTY_HEADER) draw_header(ui, ops);
+     if (d & MELLO_UI_DIRTY_BODY) draw_body(ui, ops);
++    else if ((d & MELLO_UI_DIRTY_HOME_PLAYHEAD) && ui->page == MELLO_UI_HOME) draw_home_playhead(ui, ops);
+     if (d & MELLO_UI_DIRTY_FOOTER) draw_footer(ui, ops);
+     if (d & MELLO_UI_DIRTY_STATUS) draw_status(ui, ops);
+     ui->dirty &= MELLO_UI_DIRTY_LEDS;

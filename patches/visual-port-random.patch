@@ -1,0 +1,42 @@
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -1372,12 +1372,34 @@
+         o->text(o->ctx, 12, 134, 216, 0, "OCT=POSITION BANK", UI_DIM, 0);
+         break;
+     }
+-    case MELLO_UI_RANDOM:
+-        o->text(o->ctx, 12, 42, 216, 0, "WHITE KEYS 1-11 TOGGLE MASK", UI_PURPLE, 0);
+-        o->text(o->ctx, 12, 72, 216, 0, "REC = RANDOMIZE NOW", UI_CORAL, 0);
+-        value_u(a, "MASK", e->randomize.mask); o->text(o->ctx, 12, 110, 216, 0, a, UI_MID, 0);
+-        o->text(o->ctx, 12, 140, 216, 0, "PIT PUL RAT GATE OCT ACC SUB SLD SKIP PROB SAMP", UI_DIM, 0);
++    case MELLO_UI_RANDOM: {
++        static const char *rn[11] = { "PIT", "PUL", "RAT", "GATE", "OCT", "ACC", "SUB", "SLD", "SKIP", "PROB", "SAMP" };
++        static const uint16_t rc[11] = { UI_ACC, UI_ACC, UI_PURPLE, UI_CYAN, UI_GOLD, UI_CORAL, UI_GOLD, UI_CYAN, UI_RED, UI_PURPLE, UI_BLUE };
++        uint8_t i, enabled = 0u;
++        int16_t x, y, w;
++        o->text(o->ctx, 8, 35, 224, 0, "INSPIRATION MASK", UI_PURPLE, 0);
++        for (i = 0u; i < 11u; ++i) {
++            uint8_t on = (e->randomize.mask & (uint16_t)(1u << i)) ? 1u : 0u;
++            uint8_t row = i < 6u ? 0u : 1u;
++            uint8_t col = row == 0u ? i : (uint8_t)(i - 6u);
++            w = row == 0u ? 35 : 42;
++            x = (int16_t)(8 + col * (row == 0u ? 37 : 44));
++            y = (int16_t)(52 + row * 31);
++            if (on) ++enabled;
++            o->fill(o->ctx, x, y, w, 23, on ? UI_PANEL2 : UI_BLACK);
++            ui_frame(o, x, y, w, 23, on ? rc[i] : UI_PANEL2);
++            if (on) o->fill(o->ctx, x + 3, y + 18, w - 6, 2, rc[i]);
++            o->text(o->ctx, x + 2, y + 7, w - 4, 0, rn[i], on ? rc[i] : UI_DIM, 1);
++        }
++        value_u(a, "ACTIVE", enabled);
++        o->text(o->ctx, 8, 117, 62, 0, a, UI_MID, 0);
++        o->text(o->ctx, 74, 117, 158, 0, "WHITE KEYS TOGGLE", UI_DIM, 2);
++        ui_frame(o, 8, 136, 224, 25, UI_CORAL);
++        o->fill(o->ctx, 11, 139, 218, 19, UI_PANEL);
++        o->text(o->ctx, 12, 144, 216, 0, "REC = REROLL", UI_CORAL, 1);
++        o->text(o->ctx, 8, 165, 224, 0, "MUSICAL WEIGHTS  /  SELECTIVE RANDOM", UI_DIM, 1);
+         break;
++    }
+     case MELLO_UI_KEY_SCALE:
+         value_u(a, "ROOT MIDI", e->project.root_note); o->text(o->ctx, 12, 42, 216, 0, a, UI_ACC, 0);
+         o->text(o->ctx, 12, 72, 216, 0, mello_scale_name(e->project.scale), UI_PURPLE, 0);

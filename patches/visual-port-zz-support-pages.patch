@@ -1,0 +1,71 @@
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -1429,13 +1429,12 @@
+     }
+     case MELLO_UI_SEQ_SLOTSEQ: {
+         MelloSlotSeqStep *s = &e->slot_seq.steps[ui->selected_slot_seq_step];
+-        value_u(a, "POS", (uint32_t)ui->selected_slot_seq_step + 1u);
+-        if (s->slot < 0) copy_s(b, "SLOT OFF"); else value_u(b, "SLOT", (uint32_t)s->slot + 1u);
+-        o->text(o->ctx, 12, 42, 100, 0, a, UI_WHITE, 0); o->text(o->ctx, 120, 42, 108, 0, b, UI_CYAN, 0);
+-        value_u(a, "HOLD", s->hold); value_u(b, "LEN", e->slot_seq.length);
+-        o->text(o->ctx, 12, 72, 100, 0, a, UI_GOLD, 0); o->text(o->ctx, 120, 72, 108, 0, b, UI_MID, 0);
+-        o->text(o->ctx, 12, 104, 216, 0, e->slot_seq.active ? "SLOT SEQ ON" : "SLOT SEQ OFF", e->slot_seq.active ? UI_CYAN : UI_DIM, 0);
+-        o->text(o->ctx, 12, 134, 216, 0, "OCT=POSITION BANK", UI_DIM, 0);
++        uint8_t i, start=(uint8_t)(ui->slot_seq_bank*16u), len=e->slot_seq.length;
++        o->text(o->ctx,8,33,94,0,e->slot_seq.active?"SLOT SEQ ON":"SLOT SEQ OFF",e->slot_seq.active?UI_CYAN:UI_DIM,0);
++        value_u(a,"LEN",len);o->text(o->ctx,106,33,52,0,a,UI_MID,1);value_u(a,"BANK",ui->slot_seq_bank+1u);o->text(o->ctx,162,33,70,0,a,UI_GOLD,2);
++        /* 16-position bank: cell fill carries slot identity, bottom bar carries HOLD. */
++        for(i=0u;i<16u;++i){uint8_t idx=(uint8_t)(start+i);MelloSlotSeqStep *ss=&e->slot_seq.steps[idx];int16_t x=(int16_t)(8+(i%8u)*28u),y=(int16_t)(54+(i/8u)*43u);uint8_t in_len=idx<len,active=e->slot_seq.active&&idx==e->slot_seq_pos,selected=idx==ui->selected_slot_seq_step;uint16_t col=ss->slot<0?UI_DIM:UI_CYAN;o->fill(o->ctx,x,y,23,33,in_len?UI_PANEL:UI_BLACK);ui_frame(o,x,y,23,33,active?UI_CYAN:(selected?UI_WHITE:(in_len?UI_PANEL2:UI_BLACK)));if(in_len&&ss->slot>=0){uint8_t shade=(uint8_t)(((uint8_t)ss->slot%4u));o->fill(o->ctx,x+3,y+4,17,16,shade==0u?UI_ACC:shade==1u?UI_CYAN:shade==2u?UI_PURPLE:UI_GOLD);value_u(a,"",(uint32_t)ss->slot+1u);o->text(o->ctx,x+2,y+7,19,0,a,UI_WHITE,1);}if(in_len){int16_t hw=(int16_t)(3+((uint32_t)(ss->hold>256u?256u:ss->hold)*14u)/256u);o->fill(o->ctx,x+3,y+25,hw,3,col);}}
++        if(s->slot<0)copy_s(a,"SLOT OFF");else value_u(a,"SLOT",(uint32_t)s->slot+1u);value_u(b,"HOLD",s->hold);o->text(o->ctx,8,146,104,0,a,s->slot<0?UI_DIM:UI_CYAN,0);o->text(o->ctx,120,146,112,0,b,UI_GOLD,2);
+         break;
+     }
+     case MELLO_UI_RANDOM: {
+@@ -1466,20 +1465,19 @@
+         o->text(o->ctx, 8, 165, 224, 0, "MUSICAL WEIGHTS  /  SELECTIVE RANDOM", UI_DIM, 1);
+         break;
+     }
+-    case MELLO_UI_KEY_SCALE:
+-        value_u(a, "ROOT MIDI", e->project.root_note); o->text(o->ctx, 12, 42, 216, 0, a, UI_ACC, 0);
+-        o->text(o->ctx, 12, 72, 216, 0, mello_scale_name(e->project.scale), UI_PURPLE, 0);
+-        value_i(a, "GLOBAL OCT", e->project.global_octave); value_u(b, "SPAN", e->project.pitch_span_oct);
+-        o->text(o->ctx, 12, 104, 100, 0, a, UI_GOLD, 0); o->text(o->ctx, 120, 104, 108, 0, b, UI_CYAN, 0);
+-        o->text(o->ctx, 12, 140, 216, 0, "SEQ: HOLD SEL + NOTE KEY = FAST PITCH", UI_DIM, 0);
+-        break;
++    case MELLO_UI_KEY_SCALE: {
++        uint8_t i,rootpc=(uint8_t)(e->project.root_note%12u);
++        o->text(o->ctx,8,33,104,0,mello_scale_name(e->project.scale),UI_PURPLE,0);value_u(a,"ROOT",e->project.root_note);o->text(o->ctx,116,33,56,0,a,UI_ACC,1);value_i(a,"OCT",e->project.global_octave);o->text(o->ctx,176,33,56,0,a,UI_GOLD,2);
++        /* Chromatic root locator: black/white key geometry without duplicating engine scale tables. */
++        for(i=0u;i<12u;++i){static const uint8_t black[12]={0,1,0,1,0,0,1,0,1,0,1,0};int16_t x=(int16_t)(8+i*18u);int16_t h=black[i]?40:62;uint8_t root=i==rootpc;o->fill(o->ctx,x,58,15,h,root?UI_ACC:(black[i]?UI_PANEL2:UI_MID));ui_frame(o,x,58,15,h,root?UI_WHITE:(black[i]?UI_DIM:UI_PANEL2));}
++        value_u(a,"SPAN",e->project.pitch_span_oct);o->text(o->ctx,8,132,58,0,a,UI_CYAN,0);o->text(o->ctx,70,132,162,0,"SEL + NOTE = FAST PITCH",UI_DIM,2);
++        break; }
+     case MELLO_UI_SLOTS: {
+-        MelloPatternSlot *s = &e->slots[ui->selected_slot];
+-        value_u(a, "SLOT", (uint32_t)ui->selected_slot + 1u); value_u(b, "VISIBLE", e->visible_slot_count);
+-        o->text(o->ctx, 12, 42, 100, 0, a, UI_WHITE, 0); o->text(o->ctx, 120, 42, 108, 0, b, UI_CYAN, 0);
+-        o->text(o->ctx, 12, 74, 216, 0, s->valid ? s->name : "EMPTY", s->valid ? UI_ACC : UI_DIM, 0);
+-        o->text(o->ctx, 12, 106, 216, 0, "WHITE KEY=LOAD/QUEUE  SAVE=STORE", UI_DIM, 0);
+-        o->text(o->ctx, 12, 136, 216, 0, ui->slots_subpage ? "NAME: K1 CURSOR K2 CHAR" : "LOAD: K1 SLOT K2 VISIBLE", UI_DIM, 0);
++        MelloPatternSlot *s=&e->slots[ui->selected_slot];uint8_t i,start=(uint8_t)(ui->slot_bank*16u);
++        value_u(a,"BANK",ui->slot_bank+1u);o->text(o->ctx,8,33,58,0,a,UI_GOLD,0);value_u(a,"VISIBLE",e->visible_slot_count);o->text(o->ctx,70,33,88,0,a,UI_CYAN,1);o->text(o->ctx,162,33,70,0,ui->slots_subpage?"RENAME":"LOAD",UI_MID,2);
++        for(i=0u;i<16u;++i){uint8_t idx=(uint8_t)(start+i);MelloPatternSlot *ps=&e->slots[idx];int16_t x=(int16_t)(8+(i%8u)*28u),y=(int16_t)(54+(i/8u)*36u);uint8_t selected=idx==ui->selected_slot,active=e->active_slot==(int8_t)idx,queued=e->queued_slot==(int8_t)idx,visible=idx<e->visible_slot_count;uint16_t frame=active?UI_ACC:(queued?UI_CYAN:(selected?UI_WHITE:(visible?UI_PANEL2:UI_BLACK)));o->fill(o->ctx,x,y,23,27,ps->valid?UI_PANEL2:(visible?UI_PANEL:UI_BLACK));ui_frame(o,x,y,23,27,frame);if(ps->valid)o->fill(o->ctx,x+4,y+5,15,10,active?UI_ACC:(queued?UI_CYAN:UI_MID));value_u(a,"",idx+1u);o->text(o->ctx,x+2,y+17,19,0,a,selected?UI_WHITE:(visible?UI_DIM:UI_BLACK),1);}
++        o->text(o->ctx,8,132,224,0,s->valid?s->name:"EMPTY",s->valid?UI_ACC:UI_DIM,0);
++        if(ui->slots_subpage&&s->valid){int16_t cx=(int16_t)(8+((uint32_t)ui->slot_name_cursor*224u)/MELLO_SLOT_NAME_CHARS);o->fill(o->ctx,cx,151,8,2,UI_GOLD);}
+         break;
+     }
+     case MELLO_UI_DOT: {
+@@ -1584,12 +1582,9 @@
+         break;
+     }
+     case MELLO_UI_GLOBAL:
+-        value_u(a, "BPM", mello_transport_effective_bpm(ui->transport)); value_u(b, "DIV", e->project.clock_div);
+-        o->text(o->ctx, 12, 42, 100, 0, a, UI_ACC, 0); o->text(o->ctx, 120, 42, 108, 0, b, UI_CYAN, 0);
+-        o->text(o->ctx, 12, 74, 216, 0, sync_name(ui->transport->sync_mode), UI_GOLD, 0);
+-        value_u(a, "LEAD CH", (uint32_t)ui->transport->midi_channel + 1u); value_u(b, "SUB CH", (uint32_t)ui->transport->midi_sub_channel + 1u);
+-        o->text(o->ctx, 12, 108, 100, 0, a, UI_MID, 0); o->text(o->ctx, 120, 108, 108, 0, b, UI_MID, 0);
+-        o->text(o->ctx, 12, 140, 216, 0, ui->global_subpage ? "MIDI" : "CLOCK", UI_DIM, 0);
++        o->text(o->ctx,8,33,70,0,ui->global_subpage?"MIDI":"CLOCK",UI_GOLD,0);o->text(o->ctx,82,33,150,0,sync_name(ui->transport->sync_mode),UI_CYAN,2);
++        if(!ui->global_subpage){uint16_t bpm=mello_transport_effective_bpm(ui->transport);value_u(a,"BPM",bpm);o->text(o->ctx,8,58,72,1,a,UI_ACC,0);ui_hbar(o,84,69,148,bpm>250u?250u:bpm,250u,UI_ACC);value_u(a,"DIV",e->project.clock_div);o->text(o->ctx,8,104,60,0,a,UI_CYAN,0);o->text(o->ctx,72,104,86,0,ui->transport->midi_note_out_enabled?"NOTE OUT ON":"NOTE OUT OFF",ui->transport->midi_note_out_enabled?UI_GOLD:UI_DIM,1);o->text(o->ctx,162,104,70,0,ui->transport->running?"RUN":"STOP",ui->transport->running?UI_ACC:UI_DIM,2);}
++        else{value_u(a,"LEAD",(uint32_t)ui->transport->midi_channel+1u);value_u(b,"SUB",(uint32_t)ui->transport->midi_sub_channel+1u);o->text(o->ctx,8,58,104,1,a,UI_ACC,0);o->text(o->ctx,120,58,112,1,b,UI_GOLD,2);o->text(o->ctx,8,108,96,0,ui->transport->midi_fixed_length?"FIXED LEN":"GATE LEN",ui->transport->midi_fixed_length?UI_CYAN:UI_DIM,0);value_u(a,"MS",ui->transport->midi_fixed_len_ms);o->text(o->ctx,108,108,124,0,a,UI_MID,2);ui_hbar(o,8,137,224,ui->transport->midi_fixed_len_ms>2000u?2000u:ui->transport->midi_fixed_len_ms,2000u,UI_CYAN);}
+         break;
+     case MELLO_UI_SOUND_RESERVED: {
+         const char *title=ui->sound_subpage==0u?"OSC / FILTER":ui->sound_subpage==1u?"AMP ENVELOPE":ui->sound_subpage==2u?"AUDIO LFO":ui->sound_subpage==3u?"FOLLOWER SUB":"PLAY / LEVEL";
