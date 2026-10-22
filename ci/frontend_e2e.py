@@ -7,7 +7,7 @@ root = Path(__file__).resolve().parents[1]
 pkg = Path(sys.argv[1] if len(sys.argv) > 1 else root / 'build/skurkymello-0.1-dev.fwsc').resolve()
 out = root / 'work/frontend-e2e'
 out.mkdir(parents=True, exist_ok=True)
-url = os.environ.get('MELLO_E2E_URL', 'http://127.0.0.1:8765/?mhz=100&latency=interactive')
+url = os.environ.get('MELLO_E2E_URL', 'http://127.0.0.1:8765/?mhz=80&latency=playback')
 
 def file_sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
