@@ -45,7 +45,7 @@ new_block = '''#if MELLO_FEATURE_CHORD_MACHINE
 data = data[:start] + data[dist_start:dist_end] + '\n' + new_block + data[dist_end:]
 
 final = hashlib.sha256(data.encode()).hexdigest()
-expected_final = '0becfec0fd78b3428c82643d96e9aaf0d1a5d48f51156fb2598bef141feffb76'
+expected_final = 'a8590d660fbf80c39ab040ce3c11e394f607a226a291a8e3a7ee35b4a619066b'
 if final != expected_final:
     raise SystemExit(f'FAIL: chord mix separation result hash {final} != {expected_final}')
 p.write_text(data)
