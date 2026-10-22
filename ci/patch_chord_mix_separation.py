@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import hashlib
+import runpy
 
 p = Path('mello/mello_audio.c')
 data = p.read_text()
@@ -46,3 +47,6 @@ new_block = '''#if MELLO_FEATURE_CHORD_MACHINE
 data = data[:start] + data[dist_start:dist_end] + '\n' + new_block + data[dist_end:]
 p.write_text(data)
 print('PASS: chord bed bypasses lead filter/distortion and joins before shared delay/reverb')
+
+# Next stabilization stage: replace the old two-tap reverb after chord routing is final.
+runpy.run_path(str(Path(__file__).with_name('patch_reverb_v2.py')), run_name='__main__')

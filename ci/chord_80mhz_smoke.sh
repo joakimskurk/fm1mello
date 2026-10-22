@@ -31,9 +31,9 @@ r['rawPeak']=peak
 r['rawNonzeroSamples']=nonzero
 (root/'report.checked.json').write_text(json.dumps(r,indent=2)+'\n')
 print(json.dumps(r))
-if r['emulatedMs'] < 4900: raise SystemExit('FAIL: chord 80 MHz run did not reach requested time')
-if r['audioFrames'] == 0 or peak == 0: raise SystemExit('FAIL: chord stress path produced no audio')
+if r['emulatedMs'] < 4900: raise SystemExit('FAIL: chord/reverb 80 MHz run did not reach requested time')
+if r['audioFrames'] == 0 or peak == 0: raise SystemExit('FAIL: chord/reverb stress path produced no audio')
 steady=r.get('steadyRealtime') or 0
-if steady < 1.20: raise SystemExit(f'FAIL: chord stress leaves too little 80 MHz margin: {steady:.3f}x < 1.20x')
-print(f'PASS: chord machine worst-case path at 80 MHz has {steady:.3f}x steady realtime margin')
+if steady < 1.35: raise SystemExit(f'FAIL: chord + enabled Reverb V2 leaves too little 80 MHz margin: {steady:.3f}x < 1.35x')
+print(f'PASS: chord + enabled Reverb V2 worst-case path at 80 MHz has {steady:.3f}x steady realtime margin')
 PY
