@@ -1,0 +1,208 @@
+--- a/mello/mello_engine.h
++++ b/mello/mello_engine.h
+@@ -559,6 +559,7 @@
+ void mello_engine_capture_working(const MelloEngine *engine, MelloPatternSlot *out);
+ bool mello_engine_restore_working(MelloEngine *engine, const MelloPatternSlot *snapshot);
+ bool mello_engine_import_slot(MelloEngine *engine, uint8_t index, const MelloPatternSlot *slot);
++void mello_engine_clear_pattern(MelloEngine *engine);
+ void mello_engine_clear_slots(MelloEngine *engine);
+ bool mello_engine_save_slot(MelloEngine *engine, uint8_t index, const char *name);
+ bool mello_engine_request_slot(MelloEngine *engine, uint8_t index);
+--- a/mello/mello_engine.c
++++ b/mello/mello_engine.c
+@@ -1055,6 +1055,34 @@
+         else e->segment_pulse_pos=0u;
+         e->segment_repeat_done=rep; set_current_entry(e);
+     }
++}
++
++void mello_engine_clear_pattern(MelloEngine *e) {
++    MelloProject defaults;
++    MelloLoopCycleConfig loop_defaults;
++    bool loop_active, loop_sync;
++    uint8_t loop_length, i;
++    if(!e)return;
++
++    /* Source CLEAR resets only the 32 main steps plus the eight Loop Cycle
++     * step records/position. Global sequence, segment and generator settings stay. */
++    mello_project_defaults(&defaults);
++    for(i=0u;i<MELLO_MAX_STEPS;++i)e->project.steps[i]=defaults.steps[i];
++
++    loop_active=e->loop_cycle.active;
++    loop_sync=e->loop_cycle.sync;
++    loop_length=e->loop_cycle.length;
++    mello_loop_cycle_defaults(&loop_defaults);
++    for(i=0u;i<MELLO_MAX_LOOP_CYCLE_STEPS;++i)e->loop_cycle.steps[i]=loop_defaults.steps[i];
++    e->loop_cycle.active=loop_active;
++    e->loop_cycle.sync=loop_sync;
++    e->loop_cycle.length=loop_length;
++    e->loop_cycle_pos=0u;
++    e->loop_cycle_tick=0u;
++    e->loop_cycle_count=0u;
++
++    if(e->playing)rebuild_preserving_phase(e);
++    else e->runtime_built=false;
+ }
+ 
+ static bool apply_slot(MelloEngine *e, uint8_t index, bool from_slot_seq, uint32_t event_tick) {
+--- a/mello/mello_transport.h
++++ b/mello/mello_transport.h
+@@ -76,6 +76,7 @@
+ 
+ void mello_transport_init(MelloTransport *t, const MelloProject *project, uint32_t seed,
+                           MelloMidiSendFn midi_send, void *midi_ctx);
++void mello_transport_factory_reset(MelloTransport *t, uint32_t seed);
+ void mello_transport_set_sync(MelloTransport *t, MelloSyncMode mode, uint32_t now_us);
+ void mello_transport_set_event_sink(MelloTransport *t, MelloEngineEventSinkFn sink, void *ctx);
+ void mello_transport_set_midi_channel(MelloTransport *t, uint8_t channel_1_to_16);
+--- a/mello/mello_transport.c
++++ b/mello/mello_transport.c
+@@ -196,6 +196,21 @@
+     recalc_timing(t);
+ }
+ 
++void mello_transport_factory_reset(MelloTransport *t, uint32_t seed) {
++    MelloMidiSendFn midi_send;
++    void *midi_ctx;
++    MelloEngineEventSinkFn event_sink;
++    void *event_sink_ctx;
++    if (!t) return;
++    midi_send = t->midi_send;
++    midi_ctx = t->midi_ctx;
++    event_sink = t->event_sink;
++    event_sink_ctx = t->event_sink_ctx;
++    mello_transport_stop(t);
++    mello_transport_init(t, 0, seed, midi_send, midi_ctx);
++    mello_transport_set_event_sink(t, event_sink, event_sink_ctx);
++}
++
+ void mello_transport_set_event_sink(MelloTransport *t, MelloEngineEventSinkFn sink, void *ctx) {
+     if (!t) return;
+     t->event_sink = sink;
+--- a/mello/mello_ui.h
++++ b/mello/mello_ui.h
+@@ -115,6 +115,11 @@
+     uint8_t slot_name_cursor;
+     MelloSampleBank *sample_bank;
+ 
++    uint32_t tap_times_ms[8];
++    uint8_t tap_count;
++    bool reset_armed;
++    uint32_t reset_confirm_until_ms;
++
+     uint16_t dirty;
+     uint32_t last_key_led_mask;
+     uint32_t last_button_led_mask;
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -907,10 +907,80 @@
+     mark_edit(ui);
+ }
+ 
++static void tap_tempo(MelloUi *ui, uint32_t now_ms)
++{
++    uint32_t fresh[8], sum = 0u, numerator;
++    uint8_t count = 0u, i;
++    uint16_t bpm;
++    if (!ui || !ui->transport) return;
++
++    /* Exact source policy: discard taps 3000 ms or older and keep the latest 8. */
++    for (i = 0u; i < ui->tap_count && i < 8u; ++i) {
++        if ((uint32_t)(now_ms - ui->tap_times_ms[i]) < 3000u) fresh[count++] = ui->tap_times_ms[i];
++    }
++    if (count == 8u) {
++        for (i = 1u; i < 8u; ++i) fresh[i - 1u] = fresh[i];
++        count = 7u;
++    }
++    fresh[count++] = now_ms;
++    memcpy(ui->tap_times_ms, fresh, count * sizeof(fresh[0]));
++    ui->tap_count = count;
++    if (count < 2u) return;
++
++    for (i = 1u; i < count; ++i) sum += (uint32_t)(fresh[i] - fresh[i - 1u]);
++    if (!sum) return;
++    numerator = 60000u * (uint32_t)(count - 1u);
++    bpm = (uint16_t)((numerator + sum / 2u) / sum);
++    if (bpm >= 20u && bpm <= 250u) {
++        mello_transport_set_bpm(ui->transport, bpm);
++        persistent_dirty(ui, now_ms);
++        mark_edit(ui);
++    }
++}
++
++static void factory_reset_ui(MelloUi *ui, uint32_t now_ms)
++{
++    MelloTransport *transport;
++    MelloStorage *storage;
++    MelloSampleBank *sample_bank;
++    if (!ui || !ui->transport) return;
++    transport = ui->transport;
++    storage = ui->storage;
++    sample_bank = ui->sample_bank;
++
++    /* Browser RESET ALL stops transport, clears snapshot/slots/slot-seq and reloads
++     * defaults. On FM-1 sample audio lives in a separate flash store, so those bytes
++     * are deliberately preserved while the project/sample configuration resets. */
++    mello_transport_factory_reset(transport, 0x4D454C4Cu);
++    mello_ui_init(ui, transport, storage);
++    mello_ui_attach_sample_bank(ui, sample_bank);
++    manual_save(ui, now_ms);
++}
++
+ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pressed, uint32_t held)
+ {
+     MelloEngine *e = eng(ui);
++    const uint32_t reset_combo = bit_u32(MELLO_UI_BTN_OCT_DOWN) | bit_u32(MELLO_UI_BTN_OCT_UP);
+     if (!e) return;
++
++    if (ui->reset_armed && (int32_t)(now_ms - ui->reset_confirm_until_ms) > 0) {
++        ui->reset_armed = false;
++        mark_edit(ui);
++    }
++    if (ui->page == MELLO_UI_GLOBAL && (held & reset_combo) == reset_combo && (pressed & reset_combo)) {
++        if (ui->reset_armed && (int32_t)(now_ms - ui->reset_confirm_until_ms) <= 0) {
++            factory_reset_ui(ui, now_ms);
++            return;
++        }
++        ui->reset_armed = true;
++        ui->reset_confirm_until_ms = now_ms + 3000u;
++        mark_edit(ui);
++        return;
++    } else if (ui->reset_armed && pressed) {
++        ui->reset_armed = false;
++        mark_edit(ui);
++    }
++
+     if (pressed & bit_u32(MELLO_UI_BTN_PLAY)) {
+         if (ui->transport->running) mello_transport_stop(ui->transport);
+         else mello_transport_start(ui->transport, now_us);
+@@ -952,7 +1022,9 @@
+         else mello_ui_set_page(ui, MELLO_UI_SLOTS);
+     }
+     if (pressed & bit_u32(MELLO_UI_BTN_REC)) {
+-        if (ui->page == MELLO_UI_RANDOM) { mello_engine_randomize_steps(e); rebuild(ui); mark_edit(ui); }
++        if (ui->page == MELLO_UI_RANDOM && (held & bit_u32(MELLO_UI_BTN_EDIT))) { mello_engine_clear_pattern(e); persistent_dirty(ui, now_ms); mark_edit(ui); }
++        else if (ui->page == MELLO_UI_RANDOM) { mello_engine_randomize_steps(e); rebuild(ui); persistent_dirty(ui, now_ms); mark_edit(ui); }
++        else if (ui->page == MELLO_UI_GLOBAL) { tap_tempo(ui, now_ms); }
+         else if (ui->page == MELLO_UI_SEQ_LOOP) { mello_engine_loop_cycle_reset_position(e); mark_edit(ui); }
+         else if (ui->page == MELLO_UI_DOT) { mello_engine_dot_randomize_cells(e, (MelloDotTarget)ui->selected_dot_target); mark_edit(ui); }
+         else if (ui->page == MELLO_UI_TURING) { mello_engine_tm_reroll(e); mark_edit(ui); }
+@@ -1410,7 +1482,7 @@
+         o->text(o->ctx, 74, 117, 158, 0, "WHITE KEYS TOGGLE", UI_DIM, 2);
+         ui_frame(o, 8, 136, 224, 25, UI_CORAL);
+         o->fill(o->ctx, 11, 139, 218, 19, UI_PANEL);
+-        o->text(o->ctx, 12, 144, 216, 0, "REC = REROLL", UI_CORAL, 1);
++        o->text(o->ctx, 12, 144, 216, 0, "REC REROLL   EDIT+REC CLEAR", UI_CORAL, 1);
+         o->text(o->ctx, 8, 165, 224, 0, "OCT- NONE   OCT+ ALL   MUSICAL WEIGHTS", UI_DIM, 1);
+         break;
+     }
+@@ -1580,6 +1652,9 @@
+         else if(ui->sub_subpage==3u){l[0]="LEVEL";value_u(v[0],"",e->sub.level/10u);l[1]="WAVE";copy_s(v[1],wave_name(e->sub.wave));l[2]="DEC";value_u(v[2],"",e->sub.decay_ms);l[3]="REL";value_u(v[3],"",e->sub.release_ms);}
+         else{l[0]="GLIDE";value_u(v[0],"",e->sub.glide_ms);l[1]="CUT";value_u(v[1],"",e->sub.cut/10u);l[2]="DRIVE";value_u(v[2],"",e->sub.drive/10u);l[3]="OCT";value_i(v[3],"",e->sub.octave);}break;
+     case MELLO_UI_KEY_SCALE: l[0]="ROOT";value_u(v[0],"",e->project.root_note);l[1]="SCALE";copy_s(v[1],mello_scale_name(e->project.scale));l[2]="OCT";value_i(v[2],"",e->project.global_octave);l[3]="SPAN";value_u(v[3],"",e->project.pitch_span_oct);break;
++    case MELLO_UI_GLOBAL:
++        if(ui->global_subpage==0u){l[0]="BPM";value_u(v[0],"",mello_transport_effective_bpm(ui->transport));l[1]="DIV";value_u(v[1],"",e->project.clock_div);l[2]="SYNC";copy_s(v[2],sync_name(ui->transport->sync_mode));l[3]="REC";copy_s(v[3],"TAP");}
++        else{l[0]="LEAD";value_u(v[0],"",(uint32_t)ui->transport->midi_channel+1u);l[1]="SUB";value_u(v[1],"",(uint32_t)ui->transport->midi_sub_channel+1u);l[2]="LEN";copy_s(v[2],ui->transport->midi_fixed_length?"FIXED":"STEP");l[3]="MS";value_u(v[3],"",ui->transport->midi_fixed_len_ms);}break;
+     case MELLO_UI_SOUND_RESERVED:
+         if(ui->sound_subpage==0u){l[0]="WAVE";copy_s(v[0],wave_name(e->sound.osc_wave));l[1]="PWM";value_u(v[1],"",e->sound.pwm_permille/10u);l[2]="CUT";value_u(v[2],"",e->sound.filter_cut/10u);l[3]="RES";value_u(v[3],"",e->sound.filter_res/10u);}
+         else if(ui->sound_subpage==1u){l[0]="ATK";value_u(v[0],"",e->sound.attack_ms);l[1]="DEC";value_u(v[1],"",e->sound.decay_ms);l[2]="SUS";value_u(v[2],"",e->sound.sustain_permille/10u);l[3]="REL";value_u(v[3],"",e->sound.release_ms);}
