@@ -46,6 +46,6 @@ echo '2dfc33435e15ba0763910a83bd9ce89a9e557dfc27f32081a0d67a594cf02aac  mello/me
 echo 'd49ccace38d402dc8ffd678934c20c61f8c9fd6988a53780c03ffd0c2d80e08b  mello/mello_transport.c' | sha256sum -c -
 echo '1fa390edab81f7ea02770ca8dd09965b798f3cf839d2d284bc8bf7db5725d4ee  overlay/dinghy.c' | sha256sum -c -
 # Cleanup is kept separate from the feature patch so the proven experiment remains reproducible.
-echo '44e14365c19a181a12a6e136eb344e9edb7bdc932293847473c1473eeeaa7d63  patches/chord-machine-warning-fix.patch' | sha256sum -c -
+echo '168db170b186bd81f4ebaae3aba95d0c93e4a4ead632c879363e78c84b11ac07  patches/chord-machine-warning-fix.patch' | sha256sum -c -
 patch --batch --forward -p1 < patches/chord-machine-warning-fix.patch
 echo 'PASS: reconstructed source + exact HTML audio/sub parity + removable experimental chord machine'
