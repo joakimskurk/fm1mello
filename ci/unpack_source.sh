@@ -72,10 +72,10 @@ echo '7c6ca30391fa7011f1d984c306640d69446454999a7a6055ed995e5cfe532c8d  mello/me
 # Chord go/no-go pass + WAVE random target + full 32-step overview.
 NEXT_GZ=${TMPDIR:-/tmp}/chord-sync-wave-overview.patch.gz
 base64 -d patches/chord-sync-wave-overview.patch.gz.b64 > "$NEXT_GZ"
-echo 'd5f9b11832b6a4ea4bcd043b8200dd5da05f6daf61b04ada1153331f25ecfce8  '"$NEXT_GZ" | sha256sum -c -
+echo '43fa7aea7ef93e7851e8c4a5fb4a90af4e7f3fb4f9587108c15395b70b5dd3c5  '"$NEXT_GZ" | sha256sum -c -
 gzip -t "$NEXT_GZ"
 gzip -dc "$NEXT_GZ" | patch --batch --forward -p1
-echo '6d39c17e02aa3bd3617f8a0c0787a2ff9b99f14e05de91345770420151b73a72  mello/mello_audio.c' | sha256sum -c -
+echo '0becfec0fd78b3428c82643d96e9aaf0d1a5d48f51156fb2598bef141feffb76  mello/mello_audio.c' | sha256sum -c -
 echo 'c4eaa13aec1ca37795968c3884f92db404106031f731ffd7c18dfecfeadf1bc8  mello/mello_audio.h' | sha256sum -c -
 echo '47d6dcc310e1cb55158bab826e4d50d80fd6ac5bbdc77f4938df7ec266679fcc  mello/mello_engine.c' | sha256sum -c -
 echo '9bcab43cd4d6d4f224998b543fa531c4bad7a46a2af4008b6a9d8a746ad8777e  mello/mello_engine.h' | sha256sum -c -
