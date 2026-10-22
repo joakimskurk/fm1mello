@@ -30,6 +30,24 @@ ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/control_grammar_smoke.c 
 build/evidence/control_grammar_smoke | tee build/evidence/control_grammar_smoke.txt
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_grammar_smoke.c mello/*.c -o build/evidence/control_grammar_feature_off
 build/evidence/control_grammar_feature_off | tee build/evidence/control_grammar_feature_off.txt
+# Timing architecture: future releases must never block current attacks in the audio ISR.
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/audio_event_order_smoke.c mello/*.c -o build/evidence/audio_event_order_smoke
+build/evidence/audio_event_order_smoke | tee build/evidence/audio_event_order_smoke.txt
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/audio_timing_stress.c mello/*.c -o build/evidence/audio_timing_stress
+build/evidence/audio_timing_stress | tee build/evidence/audio_timing_stress.txt
+# Chord tone gets one explicit go/no-go pass: independent spectral slot, open default voicing.
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/chord_tone_smoke.c mello/*.c -o build/evidence/chord_tone_smoke
+build/evidence/chord_tone_smoke | tee build/evidence/chord_tone_smoke.txt
+# Randomizer WAVE must stay isolated; all 32 main steps must remain visible in overview UIs.
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/random_wave_overview_smoke.c mello/*.c -o build/evidence/random_wave_overview_smoke
+build/evidence/random_wave_overview_smoke | tee build/evidence/random_wave_overview_smoke.txt
+# Preserve compile-out reversibility with the new timing/overview architecture too.
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/audio_timing_stress.c mello/*.c -o build/evidence/audio_timing_feature_off
+build/evidence/audio_timing_feature_off | tee build/evidence/audio_timing_feature_off.txt
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/random_wave_overview_smoke.c mello/*.c -o build/evidence/random_wave_feature_off
+build/evidence/random_wave_feature_off | tee build/evidence/random_wave_feature_off.txt
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/chord_tone_smoke.c mello/*.c -o build/evidence/chord_tone_feature_off
+build/evidence/chord_tone_feature_off | tee build/evidence/chord_tone_feature_off.txt
 git init -q work/dinghy
 ( cd work/dinghy; git remote add origin https://github.com/zvenson/dinghy.git; git fetch -q --depth 1 origin "$DINGHY_COMMIT"; git checkout -q --detach FETCH_HEAD; [[ $(git rev-parse HEAD) == "$DINGHY_COMMIT" ]]; [[ $(git rev-parse 'HEAD^{tree}') == "$DINGHY_TREE" ]] )
 cp UPSTREAM.lock.json build/evidence/
