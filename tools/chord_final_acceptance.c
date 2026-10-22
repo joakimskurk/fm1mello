@@ -52,7 +52,9 @@ static int arp_acceptance(void)
     c.steps[0].inversion=0u;
     c.steps[0].octave=0;
     c.steps[0].spread=0u;
-    c.steps[0].hold=1u;
+    /* Keep one harmonic step alive while ARP traverses it. hold=1 intentionally
+       retriggers the chord each pulse and therefore resets the ARP cursor. */
+    c.steps[0].hold=16u;
     mello_engine_chord_set_config(&e,&c);
     mello_engine_start(&e);
 
