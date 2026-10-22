@@ -111,8 +111,26 @@ int main(void)
     encoder_delta[MELLO_UI_ENC_KNOB1] = 1;
     mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, 0u, encoder_delta);
     if (transport.engine.project.seq_len != 32u) return 26;
-    transport.engine.project.seq_len = 16u;
     encoder_delta[MELLO_UI_ENC_KNOB1] = 0;
+
+    transport.engine.project.seq_len = 8u;
+    ui.step_bank = 0u;
+    mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, (1u << 14), encoder_delta);
+    if (ui.selected_step != 8u || transport.engine.project.seq_len != 10u) {
+        fprintf(stderr, "STEP select 9 should extend 8 -> 10: selected=%u len=%u\n",
+                (unsigned)ui.selected_step, (unsigned)transport.engine.project.seq_len);
+        return 27;
+    }
+    transport.engine.project.seq_len = 16u;
+    ui.step_bank = 1u;
+    mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, 1u, encoder_delta);
+    if (ui.selected_step != 16u || transport.engine.project.seq_len != 20u) {
+        fprintf(stderr, "STEP select 17 should extend 16 -> 20: selected=%u len=%u\n",
+                (unsigned)ui.selected_step, (unsigned)transport.engine.project.seq_len);
+        return 28;
+    }
+    transport.engine.project.seq_len = 16u;
+    ui.step_bank = 0u;
 
     for (i = 0u; i < 2u; ++i) {
         ui.segment_subpage = i;
