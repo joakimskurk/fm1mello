@@ -31,4 +31,6 @@ bash ci/emulator_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/emulat
 cp -a work/emu-smoke build/evidence/emulator-smoke
 bash ci/web_100mhz_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/web_100mhz_smoke.txt
 cp -a work/web100 build/evidence/web-100mhz
+bash ci/frontend_e2e.sh "build/$(basename "$PKG")" | tee build/evidence/frontend_e2e.txt
+cp -a work/frontend-e2e build/evidence/frontend-e2e
 printf 'PASS: target package %s (%s)\n' "$(basename "$PKG")" "$PRODUCT"
