@@ -3,11 +3,25 @@
 #include <stdio.h>
 #include <string.h>
 
+#define Q24_ONE_TEST (32767 << 8)
+
 static void queue_sub(MelloAudio *a, MelloEventType type, uint8_t note, uint8_t velocity, uint32_t due){
     MelloEvent e;
     memset(&e,0,sizeof e);
     e.type=type;e.note=note;e.velocity=velocity;e.voice=MELLO_VOICE_SUB;
     assert(mello_audio_push_engine_event(a,&e,due));
+}
+
+static void render_frames(MelloAudio *a, uint32_t frames, uint32_t start_us){
+    int32_t out[2*512];
+    uint32_t done=0;
+    while(done<frames){
+        uint32_t n=frames-done;
+        if(n>512u)n=512u;
+        memset(out,0,sizeof out);
+        mello_audio_render(a,out,n,start_us+(done*1000000u)/44100u,80u);
+        done+=n;
+    }
 }
 
 int main(void){
@@ -40,7 +54,7 @@ int main(void){
     mello_audio_render(&a,out,1u,0u,80u);
     assert(a.sub_dist_curve[256] > 11000 && a.sub_dist_curve[256] < 12000);
 
-    /* Fresh note must set pitch directly: Tone.Monophonic does not portamento from silence. */
+    /* Fresh note sets pitch directly; Tone.Monophonic does not portamento from silence. */
     sub.drive=0u;
     mello_audio_set_config(&a,&sound,&fx,&sub,&sample);
     queue_sub(&a,MELLO_EVENT_SUB_NOTE_ON,36u,114u,0u);
@@ -49,19 +63,33 @@ int main(void){
     assert(a.sub.slide_left==0u);
     assert(a.sub.inc==a.sub.target_inc && a.sub.inc!=0u);
     assert(a.sub.env_stage==MELLO_ENV_ATTACK);
-    assert(a.sub.env_q24>0 && a.sub.env_q24<(1<<24));
+    assert(a.sub.env_q24>0 && a.sub.env_q24<Q24_ONE_TEST);
 
-    /* 3 ms attack must transition into decay, and the four LPF stages must become active. */
-    memset(out,0,sizeof out);
-    mello_audio_render(&a,out,160u,200u,80u);
+    /* 3 ms linear attack enters Tone's exponential decay. Two biquad sections must be alive. */
+    render_frames(&a,160u,200u);
     assert(a.sub.env_stage==MELLO_ENV_DECAY || a.sub.env_stage==MELLO_ENV_SUSTAIN);
-    assert(a.sub.filter1!=0 || a.sub.filter2!=0 || a.sub.filter3!=0 || a.sub.filter4!=0);
+    assert(a.sub.biquad1_y1!=0 || a.sub.biquad1_y2!=0);
+    assert(a.sub.biquad2_y1!=0 || a.sub.biquad2_y2!=0);
 
-    /* A legato/retrigger while audible should use the configured portamento. */
+    /* Halfway through the 160 ms decay, exponentialApproach is already near sustain (.24),
+       unlike the old linear ramp which would still be around .62. */
+    render_frames(&a,3528u,5000u);
+    assert(a.sub.env_q24 > (Q24_ONE_TEST*25)/100);
+    assert(a.sub.env_q24 < (Q24_ONE_TEST*36)/100);
+
+    /* A retrigger while audible uses portamento. */
     queue_sub(&a,MELLO_EVENT_SUB_NOTE_ON,43u,114u,0u);
     memset(out,0,sizeof out);
-    mello_audio_render(&a,out,1u,5000u,80u);
+    mello_audio_render(&a,out,1u,90000u,80u);
     assert(a.sub.slide_left>0u);
+
+    /* Let it settle, then verify Tone-style exponential release is already very low halfway in. */
+    render_frames(&a,7200u,91000u);
+    queue_sub(&a,MELLO_EVENT_SUB_NOTE_OFF,43u,0u,0u);
+    mello_audio_render(&a,out,1u,255000u,80u);
+    render_frames(&a,2646u,256000u);
+    assert(a.sub.env_q24 < (Q24_ONE_TEST*5)/100);
+    assert(a.sub.env_stage==MELLO_ENV_RELEASE || a.sub.env_stage==MELLO_ENV_OFF);
 
     /* Engine-side dedicated sub velocity matches HTML triggerSub(..., 0.9) / MIDI export 114. */
     mello_project_defaults(&p);
@@ -74,6 +102,6 @@ int main(void){
     }
     assert(found);
 
-    puts("PASS: HTML sub attack, legato glide, 24 dB filter state, Tone drive curve and velocity parity");
+    puts("PASS: HTML sub biquads, exponential envelope, legato glide, Tone drive and velocity parity");
     return 0;
 }
