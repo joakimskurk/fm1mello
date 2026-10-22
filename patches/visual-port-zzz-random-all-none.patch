@@ -1,0 +1,30 @@
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -936,14 +936,16 @@
+         else mello_ui_set_page(ui, MELLO_UI_SAMPLE_RESERVED);
+     }
+     if (pressed & bit_u32(MELLO_UI_BTN_OCT_DOWN)) {
+-        if (ui->page == MELLO_UI_SEQ_STEP) ui->step_bank = 0u;
++        if (ui->page == MELLO_UI_RANDOM) mello_engine_set_randomize_mask(e, 0u);
++        else if (ui->page == MELLO_UI_SEQ_STEP) ui->step_bank = 0u;
+         else if (ui->page == MELLO_UI_SEQ_SLOTSEQ && ui->slot_seq_bank > 0u) --ui->slot_seq_bank;
+         else if (ui->page == MELLO_UI_SLOTS && ui->slot_bank > 0u) --ui->slot_bank;
+         else if (ui->page == MELLO_UI_TURING) ui->tm_bank = 0u;
+         mark_edit(ui);
+     }
+     if (pressed & bit_u32(MELLO_UI_BTN_OCT_UP)) {
+-        if (ui->page == MELLO_UI_SEQ_STEP) ui->step_bank = 1u;
++        if (ui->page == MELLO_UI_RANDOM) mello_engine_set_randomize_mask(e, MELLO_RAND_ALL);
++        else if (ui->page == MELLO_UI_SEQ_STEP) ui->step_bank = 1u;
+         else if (ui->page == MELLO_UI_SEQ_SLOTSEQ && ui->slot_seq_bank < 3u) ++ui->slot_seq_bank;
+         else if (ui->page == MELLO_UI_SLOTS && ui->slot_bank < 3u) ++ui->slot_bank;
+         else if (ui->page == MELLO_UI_TURING) ui->tm_bank = 1u;
+@@ -1385,7 +1387,7 @@
+         ui_frame(o, 8, 136, 224, 25, UI_CORAL);
+         o->fill(o->ctx, 11, 139, 218, 19, UI_PANEL);
+         o->text(o->ctx, 12, 144, 216, 0, "REC = REROLL", UI_CORAL, 1);
+-        o->text(o->ctx, 8, 165, 224, 0, "MUSICAL WEIGHTS  /  SELECTIVE RANDOM", UI_DIM, 1);
++        o->text(o->ctx, 8, 165, 224, 0, "OCT- NONE   OCT+ ALL   MUSICAL WEIGHTS", UI_DIM, 1);
+         break;
+     }
+     case MELLO_UI_KEY_SCALE:

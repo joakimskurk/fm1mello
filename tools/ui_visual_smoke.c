@@ -51,6 +51,7 @@ int main(void)
     MelloUiDrawOps ops = { smoke_fill, smoke_text, 0, 0, 0 };
     MelloSampleBank sample_bank;
     uint8_t sample_dummy[4][1] = {{0},{0},{0},{0}};
+    int16_t encoder_delta[MELLO_UI_ENCODER_COUNT] = {0};
     uint8_t i;
 
     mello_project_defaults(&project);
@@ -82,6 +83,19 @@ int main(void)
     }
     if (render_page(&ui, &ops, MELLO_UI_SEQ_SLOTSEQ) || fills < 90 || texts < 14) return 6;
     if (render_page(&ui, &ops, MELLO_UI_RANDOM) || fills < 30 || texts < 10) return 7;
+
+    transport.engine.randomize.mask = MELLO_RAND_PITCH | MELLO_RAND_GATE;
+    mello_ui_input(&ui, 0u, 0u, (1u << MELLO_UI_BTN_OCT_DOWN), 0u, 0u, 0u, encoder_delta);
+    if (transport.engine.randomize.mask != 0u) {
+        fprintf(stderr, "RANDOM NONE shortcut failed: mask=%u\n", (unsigned)transport.engine.randomize.mask);
+        return 19;
+    }
+    mello_ui_input(&ui, 0u, 0u, (1u << MELLO_UI_BTN_OCT_UP), 0u, 0u, 0u, encoder_delta);
+    if (transport.engine.randomize.mask != MELLO_RAND_ALL) {
+        fprintf(stderr, "RANDOM ALL shortcut failed: mask=%u\n", (unsigned)transport.engine.randomize.mask);
+        return 20;
+    }
+
     if (render_page(&ui, &ops, MELLO_UI_KEY_SCALE) || fills < 60 || texts < 12) return 8;
 
     for (i = 0u; i < 2u; ++i) {
@@ -132,6 +146,6 @@ int main(void)
         fprintf(stderr, "HOME playhead redraw too broad: fills=%d texts=%d\n", fills, texts);
         return 18;
     }
-    printf("PASS: all visual-port pages/subpages stay inside 240x240; HOME incremental redraw fills=%d texts=%d\n", fills, texts);
+    printf("PASS: all visual-port pages/subpages stay inside 240x240; RANDOM ALL/NONE parity works; HOME incremental redraw fills=%d texts=%d\n", fills, texts);
     return 0;
 }
