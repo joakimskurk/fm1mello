@@ -69,10 +69,21 @@ echo 'de5afca281f725dfba0f982ccbfa25ad06fef7ab1fffead8ce1ad7fd5fe17974  mello/me
 # Keep firmware freestanding: the footer sizing must not introduce libc strlen.
 patch --batch --forward -p1 < patches/cycle-freestanding-ui.patch
 echo '7c6ca30391fa7011f1d984c306640d69446454999a7a6055ed995e5cfe532c8d  mello/mello_ui.c' | sha256sum -c -
+# Chord go/no-go pass + WAVE random target + full 32-step overview.
+NEXT_GZ=${TMPDIR:-/tmp}/chord-sync-wave-overview.patch.gz
+base64 -d patches/chord-sync-wave-overview.patch.gz.b64 > "$NEXT_GZ"
+echo 'd5f9b11832b6a4ea4bcd043b8200dd5da05f6daf61b04ada1153331f25ecfce8  '"$NEXT_GZ" | sha256sum -c -
+gzip -t "$NEXT_GZ"
+gzip -dc "$NEXT_GZ" | patch --batch --forward -p1
+echo '6d39c17e02aa3bd3617f8a0c0787a2ff9b99f14e05de91345770420151b73a72  mello/mello_audio.c' | sha256sum -c -
+echo 'c4eaa13aec1ca37795968c3884f92db404106031f731ffd7c18dfecfeadf1bc8  mello/mello_audio.h' | sha256sum -c -
+echo '47d6dcc310e1cb55158bab826e4d50d80fd6ac5bbdc77f4938df7ec266679fcc  mello/mello_engine.c' | sha256sum -c -
+echo '9bcab43cd4d6d4f224998b543fa531c4bad7a46a2af4008b6a9d8a746ad8777e  mello/mello_engine.h' | sha256sum -c -
+echo '60036a0c6903df91cfecaf610a322c8b3fbe7be18df37cf6144bde17a9f186bd  mello/mello_ui.c' | sha256sum -c -
 # Cycle regression overlays for repo-side tests; applied after source reconstruction.
 CYCLE_TEST_GZ=${TMPDIR:-/tmp}/cycle-tests.patch.gz
 base64 -d patches/cycle-tests.patch.gz.b64 > "$CYCLE_TEST_GZ"
 echo '6e8b22d422bcace9c4750f4937985aa37c75ca3e09cc5d84fad50a6e0a772b34  '"$CYCLE_TEST_GZ" | sha256sum -c -
 gzip -t "$CYCLE_TEST_GZ"
 gzip -dc "$CYCLE_TEST_GZ" | patch --batch --forward -p1
-echo 'PASS: reconstructed source + HTML audio/sub parity + removable chord machine + hardware-first controls + cycle audition/bass transpose/text-fit'
+echo 'PASS: reconstructed source + parity + removable chord machine + sync/tone go-no-go + WAVE random + full-step overview'
