@@ -66,6 +66,9 @@ gzip -dc "$CYCLE_GZ" | patch --batch --forward -p1
 echo '535131cc59f4bc1204b41355622f57095132abbea08174679d01598f49de02b7  mello/mello_engine.h' | sha256sum -c -
 echo 'd2f7c5d0d3837677b07fdf8bb8f48a5905de3d4443781311ccd08432d942a631  mello/mello_engine.c' | sha256sum -c -
 echo 'de5afca281f725dfba0f982ccbfa25ad06fef7ab1fffead8ce1ad7fd5fe17974  mello/mello_ui.c' | sha256sum -c -
+# Keep firmware freestanding: the footer sizing must not introduce libc strlen.
+patch --batch --forward -p1 < patches/cycle-freestanding-ui.patch
+echo '7c6ca30391fa7011f1d984c306640d69446454999a7a6055ed995e5cfe532c8d  mello/mello_ui.c' | sha256sum -c -
 # Cycle regression overlays for repo-side tests; applied after source reconstruction.
 CYCLE_TEST_GZ=${TMPDIR:-/tmp}/cycle-tests.patch.gz
 base64 -d patches/cycle-tests.patch.gz.b64 > "$CYCLE_TEST_GZ"
