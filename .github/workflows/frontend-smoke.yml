@@ -1,0 +1,42 @@
+name: FM-1 browser frontend smoke
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ci/frontend_e2e.py'
+      - 'ci/frontend_e2e.sh'
+      - '.github/workflows/frontend-smoke.yml'
+permissions:
+  actions: read
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Fetch already-attested fastpath firmware
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build /tmp/pkg
+          gh api repos/joakimskurk/fm1mello/actions/artifacts/12405108248/zip > /tmp/packages.zip
+          unzip -q /tmp/packages.zip -d /tmp/pkg
+          FW=$(find /tmp/pkg -name 'skurkymello-0.1-dev.fwsc' -print -quit)
+          test -n "$FW"
+          cp "$FW" build/skurkymello-0.1-dev.fwsc
+          echo '34d257a7666df36967ecec3da7f9e15b9852cc6efa0d5d978c9c297ab0aa787f  build/skurkymello-0.1-dev.fwsc' | sha256sum -c -
+      - name: Build exact FM-1 web emulator
+        run: |
+          rm -rf work/fm1-emu-web
+          git clone -q https://github.com/joakimeriksson/fm1-emu.git work/fm1-emu-web
+          cd work/fm1-emu-web
+          git checkout -q --detach db8d472e62f35d18e392e3abc66474daed65ffe9
+          rustup target add wasm32-unknown-unknown >/dev/null
+          bash web/build.sh >/dev/null
+      - name: Chromium keyboard + canvas pointer smoke
+        run: bash ci/frontend_e2e.sh build/skurkymello-0.1-dev.fwsc
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: frontend-smoke-evidence
+          path: work/frontend-e2e
