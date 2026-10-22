@@ -73,6 +73,47 @@ int main(void)
         ui.step_subpage = i;
         if (render_page(&ui, &ops, MELLO_UI_SEQ_STEP) || fills < 50 || texts < 12) return 3;
     }
+
+    mello_ui_set_page(&ui, MELLO_UI_SEQ_STEP);
+    ui.step_subpage = 3u;
+    transport.engine.project.seq_len = 16u;
+    encoder_delta[MELLO_UI_ENC_KNOB1] = 1;
+    mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, 0u, encoder_delta);
+    if (transport.engine.project.seq_len != 20u) {
+        fprintf(stderr, "STEP length 16 -> 20 failed: %u\n", (unsigned)transport.engine.project.seq_len);
+        return 21;
+    }
+    encoder_delta[MELLO_UI_ENC_KNOB1] = -1;
+    mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, 0u, encoder_delta);
+    if (transport.engine.project.seq_len != 16u) {
+        fprintf(stderr, "STEP length 20 -> 16 failed: %u\n", (unsigned)transport.engine.project.seq_len);
+        return 22;
+    }
+    transport.engine.project.seq_len = 17u;
+    encoder_delta[MELLO_UI_ENC_KNOB1] = 1;
+    mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, 0u, encoder_delta);
+    if (transport.engine.project.seq_len != 20u) {
+        fprintf(stderr, "STEP length legacy 17 -> 20 failed: %u\n", (unsigned)transport.engine.project.seq_len);
+        return 23;
+    }
+    transport.engine.project.seq_len = 17u;
+    encoder_delta[MELLO_UI_ENC_KNOB1] = -1;
+    mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, 0u, encoder_delta);
+    if (transport.engine.project.seq_len != 16u) {
+        fprintf(stderr, "STEP length legacy 17 -> 16 failed: %u\n", (unsigned)transport.engine.project.seq_len);
+        return 24;
+    }
+    transport.engine.project.seq_len = 4u;
+    encoder_delta[MELLO_UI_ENC_KNOB1] = -1;
+    mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, 0u, encoder_delta);
+    if (transport.engine.project.seq_len != 4u) return 25;
+    transport.engine.project.seq_len = 32u;
+    encoder_delta[MELLO_UI_ENC_KNOB1] = 1;
+    mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, 0u, encoder_delta);
+    if (transport.engine.project.seq_len != 32u) return 26;
+    transport.engine.project.seq_len = 16u;
+    encoder_delta[MELLO_UI_ENC_KNOB1] = 0;
+
     for (i = 0u; i < 2u; ++i) {
         ui.segment_subpage = i;
         if (render_page(&ui, &ops, MELLO_UI_SEQ_SEGMENT) || fills < 50 || texts < 12) return 4;
@@ -146,6 +187,6 @@ int main(void)
         fprintf(stderr, "HOME playhead redraw too broad: fills=%d texts=%d\n", fills, texts);
         return 18;
     }
-    printf("PASS: all visual-port pages/subpages stay inside 240x240; RANDOM ALL/NONE parity works; HOME incremental redraw fills=%d texts=%d\n", fills, texts);
+    printf("PASS: all visual-port pages/subpages stay inside 240x240; STEP length parity works; RANDOM ALL/NONE parity works; HOME incremental redraw fills=%d texts=%d\n", fills, texts);
     return 0;
 }
