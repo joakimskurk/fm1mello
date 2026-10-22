@@ -1,0 +1,92 @@
+--- a/mello/mello_ui.c
++++ b/mello/mello_ui.c
+@@ -1195,18 +1195,6 @@
+     o->text(o->ctx, 145, 5, 88, 0, b, ui->transport->running ? UI_ACC : UI_DIM, 2);
+ }
+ 
+-static void draw_grid_4x4(const MelloUiDrawOps *o, uint16_t on_bits, int8_t active, uint16_t colour)
+-{
+-    uint8_t i;
+-    for (i = 0u; i < 16u; ++i) {
+-        int16_t x = (int16_t)(16 + (i % 4u) * 52u);
+-        int16_t y = (int16_t)(48 + (i / 4u) * 28u);
+-        bool on = (on_bits & (uint16_t)(1u << i)) != 0u;
+-        uint16_t c = (int8_t)i == active ? UI_WHITE : on ? colour : UI_PANEL2;
+-        o->fill(o->ctx, x, y, 44, 20, c);
+-    }
+-}
+-
+ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
+ {
+     MelloEngine *e = eng(ui);
+@@ -1418,17 +1406,62 @@
+     }
+     case MELLO_UI_DOT: {
+         MelloDotMatrixConfig *c = &e->dot[ui->selected_dot_target];
+-        draw_grid_4x4(o, c->cells, e->dot_active_cell[ui->selected_dot_target], ui->selected_dot_target == MELLO_DOT_ACCENT ? UI_CORAL : ui->selected_dot_target == MELLO_DOT_FILTER ? UI_BLUE : ui->selected_dot_target == MELLO_DOT_RATCHET ? UI_PURPLE : UI_GOLD);
+-        o->text(o->ctx, 12, 38, 216, 0, ui->selected_dot_target == MELLO_DOT_ACCENT ? "ACCENT" : ui->selected_dot_target == MELLO_DOT_FILTER ? "FILTER" : ui->selected_dot_target == MELLO_DOT_RATCHET ? "RATCHET" : "SUB", UI_WHITE, 0);
+-        o->text(o->ctx, 12, 156, 216, 0, dot_mode_name(c->mode), UI_MID, 0);
++        static const char *tn[4] = { "ACC", "FLT", "RAT", "SUB" };
++        static const uint16_t tc[4] = { UI_CORAL, UI_CYAN, UI_PURPLE, UI_GOLD };
++        uint8_t i, r, col;
++        uint16_t colour = tc[ui->selected_dot_target];
++        /* Target tabs keep the four original matrix identities visible at once. */
++        for (i = 0u; i < 4u; ++i) {
++            int16_t tx = (int16_t)(8 + i * 57u);
++            ui_frame(o, tx, 33, 52, 17, i == ui->selected_dot_target ? tc[i] : UI_PANEL2);
++            o->text(o->ctx, tx + 2, 38, 48, 0, tn[i], i == ui->selected_dot_target ? tc[i] : UI_DIM, 1);
++        }
++        /* Large 4x4 matrix: fill = enabled, bright inset frame = current read position. */
++        for (r = 0u; r < 4u; ++r) {
++            for (col = 0u; col < 4u; ++col) {
++                uint8_t idx = (uint8_t)(r * 4u + col);
++                int16_t x = (int16_t)(20 + col * 51u);
++                int16_t y = (int16_t)(57 + r * 23u);
++                uint8_t on = (c->cells & (uint16_t)(1u << idx)) ? 1u : 0u;
++                o->fill(o->ctx, x, y, 45, 18, on ? colour : UI_PANEL);
++                ui_frame(o, x, y, 45, 18, on ? colour : UI_PANEL2);
++                if (e->dot_active_cell[ui->selected_dot_target] == (int8_t)idx)
++                    ui_frame(o, x + 2, y + 2, 41, 14, UI_WHITE);
++            }
++        }
++        o->text(o->ctx, 8, 153, 46, 0, dot_mode_name(c->mode), colour, 0);
++        value_u(a, "LEN", c->length); o->text(o->ctx, 57, 153, 46, 0, a, UI_MID, 0);
++        value_u(a, "DEP", c->amount / 10u); o->text(o->ctx, 106, 153, 54, 0, a, colour, 0);
++        o->text(o->ctx, 164, 153, 68, 0, c->follow ? "FOLLOW" : (c->reset ? "RESET" : "FREE"), c->follow ? UI_CYAN : UI_DIM, 2);
+         break;
+     }
+     case MELLO_UI_TURING: {
+-        uint16_t bits = 0u; uint8_t i, base = (uint8_t)(ui->tm_bank * 16u);
+-        for (i = 0u; i < 16u; ++i) if (e->tm_bool_reg[base + i]) bits |= (uint16_t)(1u << i);
+-        draw_grid_4x4(o, bits, e->tm_active_index >= (int8_t)base && e->tm_active_index < (int8_t)(base + 16u) ? (int8_t)(e->tm_active_index - (int8_t)base) : -1, UI_CYAN);
+-        o->text(o->ctx, 12, 38, 216, 0, e->tm.on ? (e->tm.locked ? "EVOLVE LOCKED" : "EVOLVE ON") : "EVOLVE OFF", e->tm.on ? UI_CYAN : UI_DIM, 0);
+-        o->text(o->ctx, 12, 156, 216, 0, ui->tm_subpage == 0u ? "MAIN" : ui->tm_subpage == 1u ? "ROUTES" : "DEPTH", UI_MID, 0);
++        uint8_t i;
++        uint8_t len = e->tm.length < 3u ? 3u : e->tm.length;
++        uint8_t window = len <= 8u ? 0u : (uint8_t)((ui->selected_tm_bit / 8u) * 8u);
++        if ((uint16_t)window + 8u > len) window = (uint8_t)(len > 8u ? len - 8u : 0u);
++        o->text(o->ctx, 8, 33, 92, 0, e->tm.on ? (e->tm.locked ? "EVOLVE LOCK" : "EVOLVE ON") : "EVOLVE OFF", e->tm.on ? UI_CYAN : UI_DIM, 0);
++        value_u(a, "LEN", len); o->text(o->ctx, 102, 33, 42, 0, a, UI_MID, 1);
++        o->text(o->ctx, 148, 33, 84, 0, e->tm.rate == MELLO_TM_RATE_HALF ? "RATE 1/2X" : e->tm.rate == MELLO_TM_RATE_DOUBLE ? "RATE 2X" : "RATE 1X", UI_MID, 2);
++        /* Eight register lanes: continuous float value in green + gate pad in cyan. */
++        for (i = 0u; i < 8u; ++i) {
++            uint8_t idx = (uint8_t)(window + i);
++            int16_t x = (int16_t)(8 + i * 28u);
++            int16_t h = idx < len ? (int16_t)(((uint32_t)e->tm_float_reg[idx] * 69u) / 65535u) : 0;
++            uint8_t gate = idx < len && e->tm_bool_reg[idx];
++            uint8_t active = e->tm_active_index == (int8_t)idx;
++            o->fill(o->ctx, x, 52, 23, 84, UI_PANEL);
++            ui_frame(o, x, 52, 23, 84, active ? UI_CYAN : (idx == ui->selected_tm_bit ? UI_WHITE : UI_PANEL2));
++            if (h > 0) o->fill(o->ctx, x + 3, (int16_t)(128 - h), 17, h, UI_ACC);
++            o->fill(o->ctx, x + 3, 130, 17, 4, gate ? UI_CYAN : UI_PANEL2);
++            a[0] = (char)('1' + (idx % 10u)); a[1] = 0;
++            if (idx >= 9u) { a[0] = (char)('0' + ((idx + 1u) / 10u)); a[1] = (char)('0' + ((idx + 1u) % 10u)); a[2] = 0; }
++            o->text(o->ctx, x, 139, 23, 0, a, active ? UI_CYAN : UI_DIM, 1);
++        }
++        o->text(o->ctx, 8, 154, 36, 0, "MUT", UI_DIM, 0);
++        ui_hbar(o, 45, 157, 92, e->tm.mutation_prob, 500u, UI_ACC);
++        value_u(a, "", e->tm.mutation_prob / 10u); o->text(o->ctx, 141, 154, 28, 0, a, UI_ACC, 0);
++        value_i(a, "OFF", e->tm.offset); o->text(o->ctx, 173, 154, 59, 0, a, UI_MID, 2);
+         break;
+     }
+     case MELLO_UI_SUB: {
