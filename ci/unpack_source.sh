@@ -28,7 +28,14 @@ echo 'ddba56b4ab34981189d2275d22e530e3767be1d00d79a063899fd5e1beb96416  mello/me
 echo 'd31cea05b2da085bcadd27f6f0dc61e97f704ba4d08d89783daab3de550f721c  mello/mello_engine.h' | sha256sum -c -
 # Experimental chord layer is one isolated patch. MELLO_FEATURE_CHORD_MACHINE=0
 # compiles its state, events, DSP and page out without touching project storage.
-gzip -dc patches/chord_machine.patch.gz | patch --batch --forward -p1
+CHORD_B64=${TMPDIR:-/tmp}/chord-machine.patch.b64
+CHORD_GZ=${TMPDIR:-/tmp}/chord-machine.patch.gz
+cat patches/chord_machine.patch.gz.b64.part-* > "$CHORD_B64"
+echo 'c5d660edfbd1b25cc32550562707451b0989dac3982c7031dbc84ea937babb50  '"$CHORD_B64" | sha256sum -c -
+base64 -d "$CHORD_B64" > "$CHORD_GZ"
+echo '8cfb9f32f0b9280ab3309b65a21b1c796ab711c1a56f267393e4ffde6decb83a  '"$CHORD_GZ" | sha256sum -c -
+gzip -t "$CHORD_GZ"
+gzip -dc "$CHORD_GZ" | patch --batch --forward -p1
 echo '8e789d05a0c254a31ae38fac71d530534c7bc5714ab65c96fb381d647bc9e904  mello/mello_engine.h' | sha256sum -c -
 echo '2a53b6b6d6e8214e527a742cbad697e0a7d59d37b3327dd214c9905bde94cdef  mello/mello_engine.c' | sha256sum -c -
 echo '3bc1cb1962d8b193c3cd9c1b967d2f065b775c1b3577900c7a50a0b8216f5807  mello/mello_audio.h' | sha256sum -c -
