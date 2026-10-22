@@ -59,7 +59,6 @@ echo '21bfce74f58e7375705f7cb8e0d0420f2f14c5239e1e2ef23c682caf86fd205d  mello/me
 # Loop Cycle audition/bass-transpose + text-fit pass. Storage wire format stays unchanged:
 # sub tone uses low 3 bits and signed bass transpose uses the previously unused high 5 bits.
 CYCLE_GZ=${TMPDIR:-/tmp}/cycle-audition-bass-ui.patch.gz
-echo '6979064dd0595acc0bcd1299e3bb94ac2a0688789ea4d400d7e45adfd577a9c1  patches/cycle-audition-bass-ui-source.patch.gz.b64' | sha256sum -c -
 base64 -d patches/cycle-audition-bass-ui-source.patch.gz.b64 > "$CYCLE_GZ"
 echo '481ba6b29dccc7dae27eb3be88abd1dd3b58c37af2453465951a139078e532cf  '"$CYCLE_GZ" | sha256sum -c -
 gzip -t "$CYCLE_GZ"
@@ -69,7 +68,6 @@ echo 'd2f7c5d0d3837677b07fdf8bb8f48a5905de3d4443781311ccd08432d942a631  mello/me
 echo 'de5afca281f725dfba0f982ccbfa25ad06fef7ab1fffead8ce1ad7fd5fe17974  mello/mello_ui.c' | sha256sum -c -
 # Cycle regression overlays for repo-side tests; applied after source reconstruction.
 CYCLE_TEST_GZ=${TMPDIR:-/tmp}/cycle-tests.patch.gz
-echo '5a413454e52c3b84ddf6d0420ec7ff58171330d3b4ff49742fd0ad43ac2b7ef9  patches/cycle-tests.patch.gz.b64' | sha256sum -c -
 base64 -d patches/cycle-tests.patch.gz.b64 > "$CYCLE_TEST_GZ"
 echo '6e8b22d422bcace9c4750f4937985aa37c75ca3e09cc5d84fad50a6e0a772b34  '"$CYCLE_TEST_GZ" | sha256sum -c -
 gzip -t "$CYCLE_TEST_GZ"
