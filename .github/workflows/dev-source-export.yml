@@ -1,0 +1,18 @@
+name: Dev source export
+on:
+  push:
+    branches: [visual-port-home]
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct patched source
+        run: bash ci/unpack_source.sh
+      - name: Pack source
+        run: tar -czf dev-source.tar.gz mello overlay tools
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dev-source
+          path: dev-source.tar.gz
+          if-no-files-found: error
