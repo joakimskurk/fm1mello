@@ -8,7 +8,7 @@
  static const uint16_t master_lengths[] = {0u,16u,32u,64u,128u,256u};
  static const uint16_t slot_holds[] = {1u,2u,4u,8u,16u,32u,64u};
  static const char name_chars[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.";
-@@ -439,7 +440,22 @@
+@@ -436,7 +437,18 @@
          else if (knob == 3u) s->skip = !s->skip;
          break;
      default: /* SEQ */
