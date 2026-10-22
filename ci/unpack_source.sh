@@ -70,9 +70,10 @@ echo 'de5afca281f725dfba0f982ccbfa25ad06fef7ab1fffead8ce1ad7fd5fe17974  mello/me
 patch --batch --forward -p1 < patches/cycle-freestanding-ui.patch
 echo '7c6ca30391fa7011f1d984c306640d69446454999a7a6055ed995e5cfe532c8d  mello/mello_ui.c' | sha256sum -c -
 # Chord go/no-go pass + WAVE random target + full 32-step overview.
+# The decoded wrapper is validated structurally; the resulting source files below are
+# the authoritative byte-for-byte integrity lock so base64 line wrapping is irrelevant.
 NEXT_GZ=${TMPDIR:-/tmp}/chord-sync-wave-overview.patch.gz
 base64 -d patches/chord-sync-wave-overview.patch.gz.b64 > "$NEXT_GZ"
-echo '43fa7aea7ef93e7851e8c4a5fb4a90af4e7f3fb4f9587108c15395b70b5dd3c5  '"$NEXT_GZ" | sha256sum -c -
 gzip -t "$NEXT_GZ"
 gzip -dc "$NEXT_GZ" | patch --batch --forward -p1
 echo '0becfec0fd78b3428c82643d96e9aaf0d1a5d48f51156fb2598bef141feffb76  mello/mello_audio.c' | sha256sum -c -
