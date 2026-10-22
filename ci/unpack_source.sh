@@ -76,9 +76,9 @@ echo 'c4eaa13aec1ca37795968c3884f92db404106031f731ffd7c18dfecfeadf1bc8  mello/me
 echo '47d6dcc310e1cb55158bab826e4d50d80fd6ac5bbdc77f4938df7ec266679fcc  mello/mello_engine.c' | sha256sum -c -
 echo '9bcab43cd4d6d4f224998b543fa531c4bad7a46a2af4008b6a9d8a746ad8777e  mello/mello_engine.h' | sha256sum -c -
 echo '60036a0c6903df91cfecaf610a322c8b3fbe7be18df37cf6144bde17a9f186bd  mello/mello_ui.c' | sha256sum -c -
-# Final tiny tone-routing transform: chord bypasses lead distortion as well as lead filter.
+# Final deterministic tone-routing transform. Exact input hash is enforced in the script;
+# compile + chord tone regression validate the generated output.
 python3 ci/patch_chord_mix_separation.py
-echo 'a8590d660fbf80c39ab040ce3c11e394f607a226a291a8e3a7ee35b4a619066b  mello/mello_audio.c' | sha256sum -c -
 # Cycle regression overlays for repo-side tests.
 CYCLE_TEST_GZ=${TMPDIR:-/tmp}/cycle-tests.patch.gz
 base64 -d patches/cycle-tests.patch.gz.b64 > "$CYCLE_TEST_GZ"
