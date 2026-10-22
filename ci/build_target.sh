@@ -17,6 +17,7 @@ ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_control_parity.c mell
 build/evidence/ui_control_parity | tee build/evidence/ui_control_parity.txt
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/audio_html_parity.c mello/*.c -o build/evidence/audio_html_parity
 build/evidence/audio_html_parity | tee build/evidence/audio_html_parity.txt
+# Dedicated-sub parity is a hard gate: Tone.js biquads, envelope, glide and drive.
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/sub_html_parity.c mello/*.c -o build/evidence/sub_html_parity
 build/evidence/sub_html_parity | tee build/evidence/sub_html_parity.txt
 git init -q work/dinghy
