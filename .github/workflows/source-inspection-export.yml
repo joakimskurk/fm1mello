@@ -1,0 +1,18 @@
+name: Source inspection export
+on:
+  push:
+    branches: [source-inspect-temp]
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Reconstruct exact development source
+        run: |
+          bash ci/unpack_source.sh
+          tar -czf reconstructed-source.tar.gz mello overlay
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: reconstructed-source
+          path: reconstructed-source.tar.gz
+          if-no-files-found: error
