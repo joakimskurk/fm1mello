@@ -1,10 +1,9 @@
 name: Visual port target build
 on:
   push:
-    branches: [visual-port-home, chord-machine-exp]
+    branches: [visual-port-home]
 jobs:
   build:
-    # Branch-only validation for visual work and removable chord experiments.
     uses: zvenson/fm1-build/.github/workflows/build.yml@v1
     permissions:
       contents: write
