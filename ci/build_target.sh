@@ -39,6 +39,11 @@ build/evidence/audio_timing_stress | tee build/evidence/audio_timing_stress.txt
 # Chord tone gets one explicit go/no-go pass: independent spectral slot, open default voicing.
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/chord_tone_smoke.c mello/*.c -o build/evidence/chord_tone_smoke
 build/evidence/chord_tone_smoke | tee build/evidence/chord_tone_smoke.txt
+# Final chord technical acceptance: prove ARP behavior and integration with the new shared Reverb V2 room.
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/chord_final_acceptance.c mello/*.c -o build/evidence/chord_final_acceptance
+build/evidence/chord_final_acceptance | tee build/evidence/chord_final_acceptance.txt
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/chord_final_acceptance.c mello/*.c -o build/evidence/chord_final_feature_off
+build/evidence/chord_final_feature_off | tee build/evidence/chord_final_feature_off.txt
 # Randomizer WAVE must stay isolated; all 32 main steps must remain visible in overview UIs.
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/random_wave_overview_smoke.c mello/*.c -o build/evidence/random_wave_overview_smoke
 build/evidence/random_wave_overview_smoke | tee build/evidence/random_wave_overview_smoke.txt
