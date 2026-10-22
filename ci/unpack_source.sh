@@ -11,4 +11,7 @@ xz -t "$OUT"
 rm -rf mello overlay
 tar -xJf "$OUT"
 [[ -f mello/mello_engine.c && -f overlay/dinghy.c ]] || { echo 'FAIL: source archive contents' >&2; exit 1; }
-echo 'PASS: reconstructed byte-identical target source'
+if [[ -f patches/visual-port-home.patch ]]; then
+  patch --batch --forward -p1 < patches/visual-port-home.patch
+fi
+echo 'PASS: reconstructed byte-identical target source + deterministic project patches'
