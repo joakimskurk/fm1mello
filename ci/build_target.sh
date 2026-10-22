@@ -9,6 +9,8 @@ DINGHY_TREE=8cefd253b92b544109a315fd2fb9ffcea7c429b6
 if [[ ${GITHUB_REF_TYPE:-} == tag && ${GITHUB_REF_NAME:-} == v* ]]; then VERSION=${GITHUB_REF_NAME#v}; else VERSION=${MELLO_VERSION:-0.1-dev}; fi
 [[ $PRODUCT =~ ^FM-1_9[0-9][0-9]$ && $PRODUCT != FM-1_99? ]] || { echo "invalid MELLO_PRODUCT: $PRODUCT" >&2; exit 2; }
 rm -rf work build; mkdir -p work build/evidence
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_visual_smoke.c mello/*.c -o build/evidence/ui_visual_smoke
+build/evidence/ui_visual_smoke | tee build/evidence/ui_visual_smoke.txt
 git init -q work/dinghy
 ( cd work/dinghy; git remote add origin https://github.com/zvenson/dinghy.git; git fetch -q --depth 1 origin "$DINGHY_COMMIT"; git checkout -q --detach FETCH_HEAD; [[ $(git rev-parse HEAD) == "$DINGHY_COMMIT" ]]; [[ $(git rev-parse 'HEAD^{tree}') == "$DINGHY_TREE" ]] )
 cp UPSTREAM.lock.json build/evidence/
