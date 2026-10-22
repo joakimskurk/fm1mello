@@ -1,5 +1,6 @@
 #include "mello_ui.h"
 #include <stdio.h>
+#include <string.h>
 
 static int fills = 0;
 static int texts = 0;
@@ -32,6 +33,7 @@ static int render_page(MelloUi *ui, const MelloUiDrawOps *ops, MelloUiPage page)
     texts = 0;
     bounds_error = 0;
     mello_ui_set_page(ui, page);
+    ui->dirty |= MELLO_UI_DIRTY_ALL;
     mello_ui_render(ui, ops);
     if (bounds_error) {
         fprintf(stderr, "page %d exceeded 240x240 bounds\n", (int)page);
@@ -47,11 +49,22 @@ int main(void)
     MelloStorage storage;
     MelloUi ui;
     MelloUiDrawOps ops = { smoke_fill, smoke_text, 0, 0, 0 };
+    MelloSampleBank sample_bank;
+    uint8_t sample_dummy[4][1] = {{0},{0},{0},{0}};
+    uint8_t i;
 
     mello_project_defaults(&project);
     mello_transport_init(&transport, &project, 123u, 0, 0);
     mello_storage_init(&storage, 0, 0);
     mello_ui_init(&ui, &transport, &storage);
+    mello_sample_bank_init(&sample_bank, sample_dummy[0], sample_dummy[1], sample_dummy[2], sample_dummy[3], 1u);
+    sample_bank.meta[0].loaded = true;
+    sample_bank.meta[0].sample_count = MELLO_SAMPLE_SOURCE_RATE;
+    memcpy(sample_bank.meta[0].name, "KICK", 5u);
+    sample_bank.meta[1].loaded = true;
+    sample_bank.meta[1].sample_count = MELLO_SAMPLE_SOURCE_RATE / 2u;
+    memcpy(sample_bank.meta[1].name, "SNARE", 6u);
+    mello_ui_attach_sample_bank(&ui, &sample_bank);
 
     if (render_page(&ui, &ops, MELLO_UI_HOME) || fills < 30 || texts < 8) return 2;
     if (render_page(&ui, &ops, MELLO_UI_SEQ_STEP) || fills < 50 || texts < 12) return 3;
@@ -62,7 +75,21 @@ int main(void)
     if (render_page(&ui, &ops, MELLO_UI_TURING) || fills < 30 || texts < 12) return 8;
     if (render_page(&ui, &ops, MELLO_UI_SUB) || fills < 35 || texts < 18) return 9;
 
+    for (i = 0u; i < 5u; ++i) {
+        ui.sound_subpage = i;
+        if (render_page(&ui, &ops, MELLO_UI_SOUND_RESERVED) || fills < 35 || texts < 12) return 10;
+    }
+    for (i = 0u; i < 5u; ++i) {
+        ui.fx_subpage = i;
+        if (render_page(&ui, &ops, MELLO_UI_AUDIO_FX) || fills < 25 || texts < 16) return 11;
+    }
+    for (i = 0u; i < 4u; ++i) {
+        ui.sample_subpage = i;
+        if (render_page(&ui, &ops, MELLO_UI_SAMPLE_RESERVED) || fills < 35 || texts < 18) return 12;
+    }
+
     mello_ui_set_page(&ui, MELLO_UI_HOME);
+    ui.dirty |= MELLO_UI_DIRTY_ALL;
     mello_ui_render(&ui, &ops);
     transport.display_step = 1u;
     mello_ui_tick(&ui);
@@ -71,11 +98,11 @@ int main(void)
     bounds_error = 0;
     mello_ui_render(&ui, &ops);
 
-    if (bounds_error) return 10;
+    if (bounds_error) return 13;
     if (fills >= 20 || texts >= 4) {
         fprintf(stderr, "HOME playhead redraw too broad: fills=%d texts=%d\n", fills, texts);
-        return 11;
+        return 14;
     }
-    printf("PASS: HOME/STEP/SEGMENT/LOOP/RANDOM/DOT/TURING/SUB visual bounds + HOME incremental redraw (fills=%d texts=%d)\n", fills, texts);
+    printf("PASS: all visual-port pages/subpages stay inside 240x240; HOME incremental redraw fills=%d texts=%d\n", fills, texts);
     return 0;
 }
