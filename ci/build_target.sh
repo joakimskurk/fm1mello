@@ -11,6 +11,9 @@ if [[ ${GITHUB_REF_TYPE:-} == tag && ${GITHUB_REF_NAME:-} == v* ]]; then VERSION
 rm -rf work build; mkdir -p work build/evidence
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_visual_smoke.c mello/*.c -o build/evidence/ui_visual_smoke
 build/evidence/ui_visual_smoke | tee build/evidence/ui_visual_smoke.txt
+# Step-3 regression: all 32 steps stay visible and transport movement uses small/page-aware redraws.
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_playhead_perf_smoke.c mello/*.c -o build/evidence/ui_playhead_perf_smoke
+build/evidence/ui_playhead_perf_smoke | tee build/evidence/ui_playhead_perf_smoke.txt
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_wave_parity.c mello/*.c -o build/evidence/ui_wave_parity
 build/evidence/ui_wave_parity | tee build/evidence/ui_wave_parity.txt
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/ui_control_parity.c mello/*.c -o build/evidence/ui_control_parity
@@ -21,7 +24,7 @@ build/evidence/audio_html_parity | tee build/evidence/audio_html_parity.txt
 # Dedicated-sub parity is a hard gate: Tone.js biquads, envelope, glide and drive.
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/sub_html_parity.c mello/*.c -o build/evidence/sub_html_parity
 build/evidence/sub_html_parity | tee build/evidence/sub_html_parity.txt
-# Experimental chord machine: functional behavior plus compile-out reversibility are hard gates.
+# Chord Machine is product-paused, but its existing technical/compile-out gates remain regression protection.
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/chord_machine_smoke.c mello/*.c -o build/evidence/chord_machine_smoke
 build/evidence/chord_machine_smoke | tee build/evidence/chord_machine_smoke.txt
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/ui_visual_smoke.c mello/*.c -o build/evidence/chord_feature_off_smoke
@@ -36,10 +39,8 @@ ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/audio_event_order_smoke.
 build/evidence/audio_event_order_smoke | tee build/evidence/audio_event_order_smoke.txt
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/audio_timing_stress.c mello/*.c -o build/evidence/audio_timing_stress
 build/evidence/audio_timing_stress | tee build/evidence/audio_timing_stress.txt
-# Chord tone gets one explicit go/no-go pass: independent spectral slot, open default voicing.
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/chord_tone_smoke.c mello/*.c -o build/evidence/chord_tone_smoke
 build/evidence/chord_tone_smoke | tee build/evidence/chord_tone_smoke.txt
-# Final chord technical acceptance: prove ARP behavior and integration with the new shared Reverb V2 room.
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -I mello tools/chord_final_acceptance.c mello/*.c -o build/evidence/chord_final_acceptance
 build/evidence/chord_final_acceptance | tee build/evidence/chord_final_acceptance.txt
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/chord_final_acceptance.c mello/*.c -o build/evidence/chord_final_feature_off
@@ -76,6 +77,9 @@ bash ci/emulator_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/emulat
 cp -a work/emu-smoke build/evidence/emulator-smoke
 bash ci/web_100mhz_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/web_100mhz_smoke.txt
 cp -a work/web100 build/evidence/web-100mhz
+# Roadmap step 3 explicitly profiles SEQ/HOME redraw while audio runs at the real 80 MHz budget.
+bash ci/ui_80mhz_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/ui_80mhz_smoke.txt
+cp -a work/ui80 build/evidence/ui-80mhz
 bash ci/chord_80mhz_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/chord_80mhz_smoke.txt
 cp -a work/chord80 build/evidence/chord-80mhz
 bash ci/frontend_e2e.sh "build/$(basename "$PKG")" | tee build/evidence/frontend_e2e.txt
