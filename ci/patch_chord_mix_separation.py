@@ -50,3 +50,5 @@ print('PASS: chord bed bypasses lead filter/distortion and joins before shared d
 
 # Next stabilization stage: replace the old two-tap reverb after chord routing is final.
 runpy.run_path(str(Path(__file__).with_name('patch_reverb_v2.py')), run_name='__main__')
+# Temporary roadmap probe: expose final reconstructed UI structure in CI logs.
+runpy.run_path(str(Path(__file__).with_name('ui_roadmap_probe.py')), run_name='__main__')
