@@ -51,3 +51,5 @@ print('PASS: chord bed bypasses lead filter/distortion and joins before shared d
 # Stabilization stages after the final chord routing point.
 runpy.run_path(str(Path(__file__).with_name('patch_reverb_v2.py')), run_name='__main__')
 runpy.run_path(str(Path(__file__).with_name('patch_ui_playhead_perf.py')), run_name='__main__')
+# Temporary source inspection for roadmap step 4. Removed before the real patch lands.
+runpy.run_path(str(Path(__file__).with_name('randomizer_roadmap_probe.py')), run_name='__main__')
