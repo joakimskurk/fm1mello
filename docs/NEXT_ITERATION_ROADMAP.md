@@ -2,7 +2,7 @@
 
 Baseline: `27c76df24101b3c8b99a3895648880d4c0971d3c`.
 
-This iteration is deliberately stabilization-first. No new large feature is added until the steps below are completed in order. Chord Machine remains removable behind `MELLO_FEATURE_CHORD_MACHINE` until the go/no-go step is complete.
+This iteration is deliberately stabilization-first. No new large feature is added until the steps below are completed in order.
 
 ## 1. Reverb overhaul — COMPLETE
 
@@ -24,53 +24,44 @@ HTML control model to preserve:
 - Level: 0..3x before the final limiter.
 - Freeverb fallback damping reference: 4200 Hz.
 
-Implementation strategy for FM-1:
+Decision: Reverb V2 passed all hard gates and was positively auditioned on the FM-1 emulator. Keep it as the stabilized reverb baseline.
 
-- Do not attempt a literal Tone.js convolution engine if it threatens FM-1 CPU/RAM.
-- Replace the current resonant/tap-like structure with a diffuse algorithmic design whose audible target is the HTML reverb.
-- Prefer multiple decorrelated delay/comb paths plus all-pass diffusion and damping over a small number of repeated taps.
-- Keep pre-delay separate from the diffusion network.
-- Keep reverb tone filtering and 24 Hz HPF on the wet return, not inside the dry path.
-- Preserve the current shared FX bus so lead, chord and samples can inhabit the same room.
+## 2. Chord Machine final go/no-go — PAUSED
 
-Hard gates:
+Technical acceptance is complete. The held `ARP_UP` path traverses three chord tones monophonically (`12 note-ons / 12 note-offs / 3 distinct pitches`), the chord voice inhabits the shared Reverb V2 room, timing stress remains ordered, and the feature still compiles out cleanly with `MELLO_FEATURE_CHORD_MACHINE=0`.
 
-- Impulse-response regression: no strong short-period repeating peaks that read as comb/ring modulation.
-- Decay envelope must remain smooth over short, medium and long settings.
-- Wet=0 must be bit/near-bit equivalent to dry path.
-- 80 MHz worst-case must remain comfortably above realtime; target >=1.35x steady realtime after reverb is enabled in a heavy patch.
-- Pool/RAM must remain within current hard limits.
+Product decision: paused after audition. The feature is not being removed, but no further design/development effort should be spent on it in this stabilization iteration. Existing feature-on and compile-out tests remain as regression protection. Resume only after an explicit future decision to revisit Chord Machine.
 
-Decision: Reverb V2 has passed these gates. Chord Machine may now proceed to its final go/no-go step.
+## 3. UI performance + universal sequence overview — COMPLETE
 
-## 2. Chord Machine final go/no-go
+Completed in `00c6c72ff5a2e7fda1f6f95d0add7b00fa37f171`.
 
-Only after the reverb is fixed.
+The final reconstructed UI already had one shared 4..32-step geometry across HOME, STEP, SEGMENT and RANDOM. The remaining issue was redraw cost, not missing overview geometry.
 
-Evaluate:
+Implemented:
 
-- timing lock against the main sequence;
-- STAB/HOLD/ARP/PATTERN musical usefulness;
-- whether the open 3-voice default occupies a useful spectral slot;
-- whether it complements rather than masks the main synth and sub;
-- practical UI comprehension.
+- STEP and RANDOM now redraw only the previous/current playhead cells during normal transport movement.
+- Static/edit pages no longer redraw the full body merely because the transport advanced.
+- Dynamic sequencer pages retain full body redraw where their own playback state can change.
+- All 32 main steps remain visible by thinning columns rather than paging the visual overview.
+- Hardware edit banking remains separate from visual overview.
 
-If it still does not feel integrated, compile it out with `MELLO_FEATURE_CHORD_MACHINE=0` and remove the feature from the product surface. Do not spend another large iteration defending it.
+Measured host redraw gates:
 
-## 3. UI performance + universal sequence overview
+- HOME incremental playhead: `9 fills / 1 text`.
+- STEP incremental playhead: `15 fills / 1 text`.
+- RANDOM incremental playhead: `9 fills / 1 text`.
+- Static FX page during transport: `1 fill / 1 text`.
 
-Goal: sequence position should never disappear simply because the sequence is longer than 16 steps.
+80 MHz SEQ/HOME playback benchmark:
 
-- Use one shared 4..32-step overview geometry wherever a page is actually showing the main sequence.
-- HOME and RANDOM already follow this rule; extend it consistently where appropriate.
-- Keep all 32 visible by thinning columns rather than paging the visual overview.
-- Hardware keys may still address 16-step edit banks when required; visual overview and edit addressing are separate concepts.
-- Profile SEQ/HOME redraws at 80 MHz.
-- Remove unnecessary full/static redraws and preserve dirty-region rendering.
+- `3.023x` steady realtime.
+- steady render p95 `2.859 ms`, p99 `4.451 ms`, max `7.061 ms`.
+- target RAM headroom `21984 B`; pool headroom `17696 B`.
 
-Hard gate: no sustained UI/render path should push a normal 80 MHz playback case close to the realtime ceiling.
+Decision: step 3 passed its hard performance and visibility gates.
 
-## 4. Randomizer intensity
+## 4. Randomizer intensity — NEXT
 
 Add a musical depth control independent of the selected random targets:
 
@@ -78,7 +69,7 @@ Add a musical depth control independent of the selected random targets:
 - MED: current/default creative range.
 - HIGH: larger structural and timbral movement.
 
-Intensity should constrain target-specific ranges rather than merely reduce the probability that a target changes. `WAVE` remains an independent selectable target.
+Intensity must constrain target-specific mutation ranges rather than merely reduce the probability that a target changes. `WAVE` remains an independent selectable target. MED should preserve the existing randomizer's character as closely as practical so this core creative function is not weakened while LOW/HIGH are added.
 
 ## 5. Undo last random
 
@@ -98,12 +89,13 @@ After steps 1–5:
 - rerun text-fit/clipping validation across all pages;
 - rerun control-grammar tests;
 - rerun HTML audio/sub parity tests;
-- rerun chord feature-on and compile-out tests if chord survives;
+- keep chord feature-on and compile-out regression tests while Chord Machine is paused;
 - target build, emulator audio, 100 MHz browser, 80 MHz worst-case and Chromium E2E;
 - inspect RAM, pool and image headroom before declaring the iteration complete.
 
 ## Deferred, not part of this stabilization iteration
 
 - Four factory samples baked into firmware: implement when the source audio files are supplied.
-- Further oscillator anti-aliasing/Tone.js envelope refinement: only after the reverb, chord decision, randomizer and UI-performance work above are stable.
+- Further oscillator anti-aliasing/Tone.js envelope refinement: only after the reverb, randomizer and UI-performance work above are stable.
+- Chord Machine product/design iteration: paused until explicitly resumed.
 - New large sequencing features: no new scope until this roadmap is complete.
