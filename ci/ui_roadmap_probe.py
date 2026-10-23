@@ -1,55 +1,25 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import re
 
-p = Path('mello/mello_ui.c')
-s = p.read_text()
-lines = s.splitlines()
+c = Path('mello/mello_ui.c').read_text().splitlines()
+h = Path('mello/mello_ui.h').read_text().splitlines()
 
-print('=== UI ROADMAP PROBE ===')
-print(f'bytes={len(s)} lines={len(lines)}')
+def block(label, lines, lo, hi):
+    print(f'\n=== {label} {lo}-{hi} ===')
+    for i in range(lo-1, min(hi, len(lines))):
+        print(f'{i+1:4}: {lines[i]}')
 
-sig = re.compile(r'^(?:static\s+)?(?:void|bool|int|uint\w+_t|Mello\w+)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*\)\s*\{')
-functions = []
-i = 0
-while i < len(lines):
-    m = sig.match(lines[i].strip())
-    if not m:
-        i += 1
-        continue
-    name = m.group(1)
-    start = i
-    depth = 0
-    seen = False
-    j = i
-    while j < len(lines):
-        for ch in lines[j]:
-            if ch == '{':
-                depth += 1; seen = True
-            elif ch == '}':
-                depth -= 1
-        if seen and depth == 0:
-            break
-        j += 1
-    functions.append((name,start,j))
-    i = j + 1
-
-for name,a,b in functions:
-    low = name.lower()
-    body = '\n'.join(lines[a:b+1])
-    if any(k in low for k in ('home','seq','random','step')) or any(k in body for k in ('MELLO_PAGE_HOME','MELLO_PAGE_SEQ','MELLO_PAGE_RANDOM')):
-        print(f'\n--- FUNCTION {name} lines {a+1}-{b+1} ---')
-        print(body)
-
-print('\n=== TOKEN CONTEXTS ===')
-tokens = ['project.length','play_step','selected_step','MELLO_PAGE_HOME','MELLO_PAGE_SEQ','MELLO_PAGE_RANDOM','240,240','240, 240','draw_step','overview']
-shown=set()
-for idx,line in enumerate(lines):
-    if any(t in line for t in tokens):
-        lo=max(0,idx-3); hi=min(len(lines),idx+4)
-        key=(lo,hi)
-        if key in shown: continue
-        shown.add(key)
-        print(f'\n@@ {idx+1} @@')
-        for k in range(lo,hi): print(f'{k+1:4}: {lines[k]}')
-print('=== END UI ROADMAP PROBE ===')
+print('=== UI ROADMAP PROBE V2 ===')
+for i,line in enumerate(h):
+    if 'MELLO_UI_DIRTY' in line or 'home_old_step' in line or 'home_new_step' in line or 'seen_step' in line:
+        lo=max(0,i-3);hi=min(len(h),i+5)
+        print(f'\n--- HEADER @{i+1} ---')
+        for j in range(lo,hi): print(f'{j+1:4}: {h[j]}')
+block('TICK', c, 1145, 1190)
+block('OVERVIEW HELPERS', c, 1400, 1450)
+block('HOME STEP/BODY', c, 1468, 1555)
+block('STEP BODY', c, 1570, 1655)
+block('SEGMENT BODY', c, 1655, 1715)
+block('RENDER', c, 2228, 2252)
+print('=== END UI ROADMAP PROBE V2 ===')
+raise SystemExit('UI ROADMAP PROBE COMPLETE')
