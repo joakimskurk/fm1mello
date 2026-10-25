@@ -1,0 +1,287 @@
+# FM-1 Mello product workshop - 2026-10-25
+
+Status: planning and product review. This document does not claim that the listed changes are implemented.
+
+## Why this workshop exists
+
+A substantial hands-on emulator audition showed that FM-1 Mello is already musically productive and can make compelling loops, but several interaction and audio-quality issues make it harder to understand than it needs to be. The goal is not to reduce functionality. The goal is to make the same depth feel coherent, then add new depth without creating a menu maze.
+
+The user has final product authority. Items marked `PROPOSED` require explicit sign-off before they become locked product decisions.
+
+## Raw audition findings, normalized
+
+### P0 reliability and trust
+
+- Audio can freeze while parameters are being changed. Stopping and pressing PLAY again often recovers it.
+- Some pages show rotary labels that do not match the physical rotary that actually changes the value.
+- Some screen layouts overlap or clip text.
+- A static pink line appears over `SINGLE` on HOME.
+- These issues damage trust because the user cannot tell whether a surprising result is intentional or a bug.
+
+### P1 control grammar
+
+- REC has unrelated meanings across pages: reroll, tap tempo, reset and other contextual actions.
+- EDIT is overloaded as both editing state and modifier, including destructive/randomizer actions.
+- LFO is currently reached through a sound/envelope-oriented path and therefore feels misplaced.
+- DOT matrices behave as modulation/generative modulators and conceptually belong with modulation.
+- K1-K4 labels and actual encoder mappings must be guaranteed to share one source of truth.
+- Black keyboard keys are underused and are a candidate for a contextual action rail.
+- SEQ pages work, but their purpose is not self-explanatory enough without documentation.
+
+### P1 timing model
+
+The original HTML separates two concepts that should remain separate:
+
+1. Main-sequence master reset: `off / 1 / 2 / 4 / 8 / 16 bars`, used to force the melody back to step 1 against fixed-length loops.
+2. Loop Cycle `SYNC / FREE`: SYNC aligns the Loop Cycle counter to main-sequence pattern boundaries, FREE runs independently.
+
+The port must make these concepts explicit rather than using the word `SYNC` for several different ideas.
+
+Product request: the main sequence should default to a bar-locked musical length, while FREE remains available as an intentional polymetric/free-running mode.
+
+### P1 randomizer
+
+- Randomizer remains a core creative instrument.
+- LOW/MED/HIGH intensity remains the active work package.
+- The skyline needs higher information density. At least 16 steps must be comfortably legible, and 17-32 steps must still remain visible in the same overview.
+- Pulse level, ratchet and other event information must remain readable when the sequence is compressed.
+- The randomizer should eventually be able to affect synth tone as an independent target, not only sequence data.
+
+### P1 audio quality
+
+- Distortion does not reach an extreme enough range.
+- Reverb V2 is technically stable but is not product-accepted after the latest audition. It can still sound metallic/ring-mod-like and not sufficiently hi-fi/diffuse.
+- Ratchets can be hard to hear. Original HTML retriggers the synth envelope for every ratchet, so the native path must be checked for envelope retrigger and sub-step duration parity.
+- Chord Machine can produce useful results, especially with sine, but the current voice is raw/bright and lacks enough tone shaping.
+
+### P2 UI and onboarding
+
+- HOME is usable but should feel more polished and instrument-like.
+- Key/Scale is usable but can be clearer.
+- SEQ pages need stronger visual explanation of what they are doing now, not just parameter names.
+- Splash screen is required.
+- No page may rely on clipped text, hidden mappings or prior knowledge of the browser prototype.
+
+### P2 synth evolution
+
+The current synth sounds good, but the FM-1 hardware identity gives room for a deeper engine.
+
+Desired exploration:
+
+- explicit `ANALOG / FM` sound-engine choice;
+- an FM mode that is musically immediate rather than a generic operator-programming exercise;
+- synth-tone randomization as its own selectable randomizer target;
+- per-step timbre locks/modulation so a sequence can change sound, not only note/rhythm;
+- preserve the current analog-style engine as a first-class mode rather than replacing it.
+
+## Original HTML facts that should guide the port
+
+### Main sequence bar reset
+
+The HTML exposes `RESET AFTER` values of off, 1, 2, 4, 8 and 16 bars. Its own help text says the purpose is to keep melody aligned with fixed-length drum loops. The HTML default is `off`, but the new FM-1 product requirement is to make a musically bar-locked setting the default and keep FREE/off as an explicit option.
+
+### Loop Cycle sync
+
+Loop Cycle has a separate `SYNC / FREE` control. SYNC resets/aligned its tick counter on main-sequence pattern wrap. FREE is independent.
+
+### Ratchet behavior
+
+The HTML describes ratchet as micro-retriggers per pulse. With ratchet > 1 it divides the pulse duration by the ratchet count and calls synth `triggerAttackRelease` for every sub-trigger. This is the expected perceptual reference for the FM-1 implementation.
+
+### Reverb reference
+
+The HTML uses `Tone.Reverb` when available and `Tone.Freeverb` only as fallback. The wet path is separate from dry and includes send, reverb, tone LPF, 24 Hz HPF, return level, FX mix and limiter. Native Reverb V2 remains a useful technical baseline but no longer passes the perceptual product gate.
+
+## Simulated expert workshop
+
+This is a simulated design discussion. Trent Reznor, Alessandro Cortini, Richard Devine and Nils Frahm did not participate and are not being quoted as endorsing FM-1 Mello. The perspectives below are inferred from documented public interviews about their workflows.
+
+### Trent Reznor perspective: sound should create the next decision
+
+Public studio accounts around Nine Inch Nails emphasize building sounds from processing, sampling and distortion, then allowing the arrangement to keep evolving around those discoveries. Applied here:
+
+- distortion should have a genuinely dangerous upper range, not stop at polite saturation;
+- FM mode should be a sound-discovery surface, not an engineering worksheet;
+- per-step timbre is valuable because a loop should be able to evolve sonically as well as melodically;
+- unexpected sound is good, but the control that caused it must remain legible.
+
+### Alessandro Cortini perspective: one coherent instrument
+
+Cortini repeatedly describes valuing tactile/visual feedback, direct workflows and instruments whose architecture creates an emotional response rather than presenting unrelated features. Applied here:
+
+- DOT, LFO and other modulation generators should read as one modulation family;
+- a good feature should feel discoverable from the panel, not from the manual;
+- Chord should be judged by whether it creates a useful musical relationship, not by whether it is technically a chord synth;
+- the machine can be deep, but it should feel like one instrument.
+
+### Richard Devine perspective: controlled emergence
+
+Devine has described valuing systems where randomness and interaction create results that cannot be reproduced exactly, while still being playable and evolvable. Applied here:
+
+- the randomizer should remain central and musically weighted;
+- LOW/MED/HIGH should alter the size of the creative jump, not simply the chance that anything happens;
+- modulation matrices are valuable when their movement is visible and can be steered;
+- HIGH should be capable of surprising the user without routinely destroying musical usefulness.
+
+### Nils Frahm perspective: limitation is an interface feature
+
+Frahm has discussed deliberately limiting possibilities to avoid confusion, staying physically involved with controls and keeping tools that reliably produce useful musical results. Applied here:
+
+- FM expansion should use a deliberately curated parameter set;
+- bar lock should be the understandable default, while FREE remains available for intentional complexity;
+- every encoder should do what the screen says, immediately;
+- no feature is improved by exposing every possible parameter at once.
+
+## Simulated developer panel
+
+### Embedded DSP engineer
+
+1. Fix parameter-change audio freezes before adding heavier synthesis.
+2. Add parameter smoothing/ramping at the control-to-audio boundary and audit any path that rebuilds runtime/audio state from the UI thread.
+3. Reverb should be re-opened as a perceptual/DSP task. A low correlation number alone does not prove diffusion quality.
+4. Ratchet tests need event timing plus envelope-retrigger evidence.
+5. FM mode needs a CPU/RAM budget before UI design is locked.
+
+### Interaction designer
+
+1. Physical controls need global verbs.
+2. PLAY should only mean transport.
+3. REC should stop acting as a generic "do the special thing on this page" button.
+4. EDIT should not be a hidden modifier for unrelated/destructive actions.
+5. SELECT may continue to change functional layers.
+6. White keys remain direct position/note selection. Black keys are a strong candidate for visible contextual actions.
+7. Encoder labels and handlers must be generated from the same mapping table.
+
+### Sequencer designer/live performer
+
+1. Separate transport sync, main-loop reset length, Loop Cycle sync and Slot/Chain hold length in both naming and UI.
+2. Default the main sequence to a normal musical bar boundary, with FREE clearly available.
+3. Show what a SEQ page changes in relation to the running loop, not only abstract values.
+4. Keep 4-32 steps visible at once. Compression is better than hidden visual banks.
+
+## Workshop consensus
+
+The strongest consensus is not "simplify the instrument". It is:
+
+> Keep the depth, reduce the number of grammars.
+
+The product should become easier by making related things behave alike, not by deleting them.
+
+Recommended architecture direction:
+
+- `SEQ`: note/rhythm/structure/timing.
+- `SOUND`: analog/FM source, filter, envelope, per-step timbre capability.
+- `MOD`: LFO, DOT matrices and later compatible modulation sources.
+- `FX`: distortion, delay, reverb.
+- `RANDOM`: target selection, intensity, reroll, undo and eventually SOUND as an independent target.
+- `GLOBAL`: tempo, external clock/MIDI and project-level behavior.
+
+This is a conceptual grouping, not approval for an immediate menu rewrite.
+
+## Proposed work packages
+
+### WP-A: Step 4 completion
+
+- LOW/MED/HIGH intensity.
+- MED compatibility.
+- target isolation.
+- dense 4-32-step RANDOM skyline.
+- no unrelated feature implementation.
+
+### WP-B: trust and reliability gate
+
+- reproduce/fix audio freeze while turning controls;
+- rotary label/handler parity on every page/layer;
+- eliminate clipping/overlap;
+- remove HOME pink-line artifact;
+- add automated mapping/text-fit coverage where possible.
+
+No major new synth feature should ship before WP-B is green.
+
+### WP-C: control grammar v2
+
+- settle REC semantics;
+- settle EDIT semantics;
+- audit SELECT/OCT behavior;
+- prototype black-key contextual action rail;
+- move/reframe LFO and DOT under a common modulation concept if approved;
+- add compact on-screen action hints.
+
+### WP-D: timing model
+
+- restore explicit main-sequence `BAR RESET / FREE` concept;
+- default to approved bar length;
+- keep Loop Cycle `SYNC / FREE` independent;
+- clarify Slot/Chain hold semantics;
+- verify full-sequence playback and 16-step assumptions;
+- document names that cannot be confused with external clock sync.
+
+### WP-E: audio character
+
+- distortion extended range with usable gain compensation;
+- Reverb V3 perceptual redesign/reference audition;
+- ratchet envelope/timing parity;
+- parameter smoothing and no audio dropout under live editing;
+- preserve delay and current working sound.
+
+### WP-F: random undo
+
+- one-level pre-random snapshot after the core randomizer and trust gates are stable.
+
+### WP-G: synth evolution
+
+- preserve current engine as ANALOG;
+- design curated FM engine;
+- SOUND randomizer target;
+- per-step timbre locks/modulation;
+- hard CPU/RAM/performance budgets and graceful feature limits.
+
+### WP-H: harmonic layer decision
+
+Prototype before deciding what replaces or evolves Chord Machine:
+
+1. `PAD`: filtered, soft harmonic bed with slow envelope and proper tone control.
+2. `HARMONY`: scale-aware voice derived from the main/sub note, e.g. third/fifth/voice-leading option.
+3. `SUB HARMONY`: second low voice that complements the dedicated sub without becoming a chord synth.
+4. `CHORD V2`: keep current concept but add filter/envelope/voicing and simplify interaction.
+5. `REMOVE FROM DEFAULT UI`: preserve code behind feature flag if none of the above earns its space.
+
+### WP-I: instrument polish
+
+- splash screen;
+- HOME visual refinement;
+- Key/Scale refinement;
+- SEQ explanatory visual hierarchy;
+- consistent text margins and truncation policy;
+- final onboarding pass for a user who has never seen the HTML prototype.
+
+## Decisions for product owner
+
+These are deliberately left as checkboxes so they can be approved/rejected individually.
+
+- [ ] Make main-sequence bar lock the default and keep FREE as an explicit option.
+- [ ] Use `1 BAR` (16 sixteenth-note ticks) as the initial default. Alternative: 2 / 4 / 8 bars.
+- [ ] Reserve REC for actual recording/capture and remove reroll/tap/reset meanings from REC.
+- [ ] Stop using EDIT as a hidden modifier for unrelated/destructive actions.
+- [ ] Prototype black keys as a contextual action rail with visible on-screen labels.
+- [ ] Group LFO + DOT under a common `MOD` concept.
+- [ ] Keep Turing in the generative/modulation family but separate from simple cyclic LFO.
+- [ ] Re-open Reverb as Reverb V3 with listening quality as a hard gate.
+- [ ] Extend distortion into an intentionally extreme range.
+- [ ] Treat ratchet audibility/envelope retrigger as a bug/parity task before changing the musical concept.
+- [ ] Preserve current synth as `ANALOG` and add a curated `FM` mode.
+- [ ] Add `SOUND` as an independent randomizer target.
+- [ ] Add per-step timbre locks/modulation after the control/reliability gate.
+- [ ] Explore `PAD` as the first Chord successor prototype.
+- [ ] Explore scale-aware `HARMONY` as the second Chord successor prototype.
+- [ ] Keep current Chord Machine only as a regression-protected prototype until one direction wins.
+- [ ] Add splash screen before final product polish is declared complete.
+
+## Public references used to simulate the musician perspectives
+
+- Sound On Sound, Classic Tracks: Nine Inch Nails - Closer: https://www.soundonsound.com/techniques/classic-tracks-nine-inch-nails-closer
+- Alessandro Cortini interview, Headphone Commute: https://headphonecommute.com/2021/06/11/interview-with-alessandro-cortini-2/
+- Alessandro Cortini / Strega interview, Pitchfork: https://pitchfork.com/thepitch/alessandro-cortini-interview-strega-synthesizer-nine-inch-nails/
+- Richard Devine interview, MusicRadar: https://www.musicradar.com/news/tech/richard-devine-interview-578399
+- Nils Frahm interview, MusicRadar: https://www.musicradar.com/news/tech/nils-frahm-talks-spaces-synths-improvisation-and-production-587377
+- Nils Frahm live workflow, DJ Mag: https://djmag.com/longreads/how-i-play-live-nils-frahm
