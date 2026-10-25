@@ -17,6 +17,7 @@ jobs:
       - name: Reconstruct final Mello source
         run: bash ci/unpack_source.sh
       - name: Export reconstructed source for WP-A inspection
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reconstructed-mello-source
