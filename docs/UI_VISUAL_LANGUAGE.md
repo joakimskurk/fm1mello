@@ -2,7 +2,7 @@
 
 This document locks the visual semantics for the 240x240 FM-1 port. Colour is functional navigation, not decoration: the same colour should communicate the same kind of musical information across pages.
 
-The 2026-10-25 hands-on review adds a stronger rule: visual density is allowed, ambiguity is not. Advanced functionality may stay deep, but the current state and physical control mapping must remain readable without prior knowledge of the browser prototype.
+The 2026-10-25 hands-on review adds a stronger rule: visual density is allowed, ambiguity is not. Advanced functionality may stay deep, but current state and physical control mapping must remain readable without prior knowledge of the browser prototype.
 
 ## Functional colour language
 
@@ -26,19 +26,19 @@ No normal operating state may contain:
 - decorative lines that can be mistaken for state;
 - a control label that does not match the physical control action.
 
-Extreme formatted values and every SELECT layer must be included in the visual smoke suite.
+Extreme formatted values and every SELECT layer must be included in visual smoke coverage.
 
 The reported static pink line over `SINGLE` on HOME is a bug, not an accepted visual element.
 
 ## Segment identity
 
-Segments A-F have stable structural colours independent of the functional palette. Segment colours recur on HOME, STEP and SEGMENT views. They show where a note belongs in the sequence; functional markers layered on top retain their own semantic colour.
+Segments A-F have stable structural colours independent of the functional palette. Segment colours recur on HOME, STEP and SEGMENT views. Functional markers layered on top retain their own semantic colour.
 
 ## Full-sequence overview
 
-When a page visualizes the main sequencer, the complete active sequence remains visible at once. Sequence length is 4-32 steps, so overview columns become progressively thinner instead of hiding steps in an off-screen visual bank.
+Whenever a page visualizes the main sequencer, the complete active sequence remains visible at once. Sequence length is 4-32 steps, so overview columns become progressively thinner rather than hiding steps in off-screen visual banks.
 
-The physical keys may still edit a 16-step bank, but the display must make the whole sequence, playhead and current edit position legible.
+The physical keys may still edit a 16-step bank, but display must make the whole sequence, playhead and current edit position legible.
 
 HOME, STEP, SEGMENT and RANDOM share proportional geometry so the user does not relearn where a step lives from page to page.
 
@@ -47,24 +47,22 @@ HOME, STEP, SEGMENT and RANDOM share proportional geometry so the user does not 
 - 4-8 steps: generous columns and full event detail.
 - 9-16 steps: compact but comfortably readable columns.
 - 17-32 steps: every step remains visible; event markers simplify rather than disappear.
-- no visual paging for the main overview.
+- no visual paging for main overview.
 
 ## HOME skyline
 
 HOME is the primary performance view and should be recognizable as SkurkyMello without relying on text.
 
-- Each pitch column is filled with the colour of its segment.
-- Pitch height is the main silhouette; event markers remain secondary.
-- Playhead uses a white outline; selected edit step uses a softer neutral outline.
+- Pitch height is the main silhouette.
+- Segment identity remains visible.
+- Playhead uses a white outline; selected edit step uses softer neutral outline.
 - Ratchet is magenta, accent coral, sub yellow/gold and slide blue.
-- Pitch scaling follows selected pitch span and only expands when necessary.
+- Pitch scaling follows selected pitch span and expands only when necessary.
 - Segment brackets reinforce structure but are not the only segment cue.
 - Compact header carries identity, page/context and transport/BPM without stealing sequence height.
 - All active main-sequence steps remain visible up to 32.
 
-### HOME polish target
-
-The current HOME is functionally acceptable but not final. Future polish should improve hierarchy and instrument identity without adding decorative clutter or increasing redraw cost. The skyline remains the hero element.
+HOME is functionally acceptable but not visually final. Later polish improves hierarchy and instrument identity without decorative clutter or increased redraw cost. Skyline remains the hero element.
 
 ## Randomizer
 
@@ -76,31 +74,62 @@ RANDOM carries a full-width miniature sequence/skyline so randomization never hi
 
 ### RANDOM skyline refinement
 
-The 2026-10-25 audition found that the current overview is technically complete but not dense/expressive enough.
+Required for WP-A:
 
-Required refinement:
-
-- at least 16 steps should read immediately as a coherent skyline;
+- at least 16 steps read immediately as a coherent skyline;
 - 17-32 remain visible in the same view;
-- pitch height must remain legible after compression;
-- pulse count and ratchet/activity cues must still distinguish different rhythmic structures;
-- playhead must remain unambiguous;
-- LOW/MED/HIGH intensity state must not consume enough vertical space to weaken the skyline;
-- do not bring back visual banks/pages to solve density.
+- pitch height remains legible after compression;
+- pulse count and ratchet/activity cues still distinguish rhythmic structures;
+- playhead remains unambiguous;
+- LOW/MED/HIGH intensity state must not consume enough vertical space to weaken skyline;
+- no visual banks/pages to solve density.
 
-## Modulation visual family - proposed
+## MOD visual family - APPROVED
 
-If Control Grammar v2 approves a common `MOD` area, use blue as the common family colour while keeping source identities distinct:
+LFO, DOT and Turing belong to one conceptual modulation/generative family. Use blue as common family language while preserving source-specific accents where useful.
 
 - LFO: continuous cyclic movement, waveform/rate/depth/target.
-- DOT: discrete matrix modulation with run mode/length/reset and target.
+- DOT: discrete matrix modulation with run mode/length/reset/target.
 - Turing: evolving register/generative modulation.
 
-The visual grouping should make these feel related without hiding their different time models.
+The grouping should make these sources feel related without hiding their different time models or algorithms.
+
+## Contextual black-key actions - APPROVED
+
+When a page uses the black-key action rail:
+
+- every active action must be labeled on screen;
+- action labels must sit close enough to the keyboard/action context to be understood immediately;
+- destructive actions use red/warning language and suitable hold/confirmation feedback;
+- unused black keys should look unused rather than implying hidden actions;
+- manual note-entry modes must clearly indicate when black keys are musical notes instead of actions.
+
+Do not create dense action legends that compete with the main musical visualization.
+
+## REC / EDIT state language
+
+REC is reserved for actual recording/capture. EDIT is reserved for edit/focus/lock.
+
+The UI must not display REC/EDIT state in ways that imply page-specific REROLL, RESET, TAP or CLEAR semantics.
+
+Contextual actions such as REROLL, RESET, LOCK and CLEAR should be named directly.
+
+## Timing language
+
+Avoid generic `SYNC` wording when actual concept is different.
+
+Visually distinguish:
+
+- external clock/MIDI sync;
+- main-sequence `1/2/4/8/16 BAR / FREE`;
+- Loop Cycle `SYNC / FREE`;
+- Slot/Chain hold length.
+
+Main-sequence default is `1 BAR`.
 
 ## Key / Scale
 
-Key/Scale is currently usable but should communicate three questions immediately:
+Key/Scale should communicate three questions immediately:
 
 1. What is the root?
 2. What scale is active?
@@ -110,20 +139,18 @@ Keyboard geometry is useful only when it clarifies these answers. Do not spend d
 
 ## SEQ pages
 
-SEQ pages need to explain their effect on the running music, not only display parameter values.
+SEQ pages need to explain their effect on running music, not only show parameter values.
 
 Whenever practical, show:
 
-- current position in relation to the full sequence;
+- current position relative to full sequence;
 - active length/hold in musical units;
-- whether the page is aligned, bar-locked or free-running;
-- what will advance/reset and when.
-
-Avoid generic `SYNC` wording when the actual concept is main-sequence bar reset, Loop Cycle alignment, Slot/Chain hold or external MIDI clock.
+- whether relevant subsystem is bar-locked/aligned/free-running;
+- what advances/resets and when.
 
 ## Chord / harmonic layer
 
-Current Chord Machine visual identity is not locked for final product. Future PAD/HARMONY/SUB HARMONY/CHORD V2 prototypes should follow the same rule as the rest of Mello: show the musical relationship first, synthesis parameters second.
+Current Chord Machine visual identity is not locked for final product. Scale-aware HARMONY is the first successor prototype, PAD second. Show musical relationship first, synthesis parameters second.
 
 ## Splash screen
 
@@ -135,14 +162,14 @@ Constraints:
 - short and clean, not a blocking animation;
 - no visual glitch during transition to HOME;
 - must not delay audio initialization materially;
-- avoid tiny version/legal text unless it is actually useful on-device.
+- avoid tiny version/legal text unless useful on-device.
 
 ## SUB 5-SEQ naming
 
-The former user-facing `X-SUB` terminology remains deprecated. Display `SUB 5-SEQ` / `5-SEQ`; internal identifiers may remain unchanged to avoid engine risk.
+Former user-facing `X-SUB` terminology remains deprecated. Display `SUB 5-SEQ` / `5-SEQ`; internal identifiers may remain unchanged to avoid engine risk.
 
 ## Rendering constraints
 
 Visual refinement must not trade away FM-1 performance. Static structure is drawn on page/structural changes; moving playheads and selected items use narrow dirty-region redraws.
 
-HOME/RANDOM playhead regression tests enforce the existing partial-redraw budget. Any new animation, splash transition or richer skyline must be measured on the 80 MHz target path rather than assumed cheap.
+HOME/RANDOM playhead regression tests enforce existing partial-redraw budget. Any richer skyline, contextual hint system or splash transition must be measured on the 80 MHz target path rather than assumed cheap.
