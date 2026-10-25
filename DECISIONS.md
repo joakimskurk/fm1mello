@@ -34,52 +34,92 @@ A technically green feature is not product-complete if hands-on audition exposes
 
 This rule currently applies to Reverb V2: its technical baseline is preserved, but perceptual product acceptance is reopened because metallic/ring-mod-like character remains audible.
 
-### Main-sequence timing model
+## Locked decisions from the 2026-10-25 product workshop
 
-The port must preserve the conceptual distinction found in the original HTML:
+The product owner approved all workshop recommendations on 2026-10-25. The following are now requirements, not proposals.
 
-- main-sequence bar reset/free-running length;
-- Loop Cycle `SYNC / FREE`;
-- external transport/MIDI sync;
-- Slot/Chain hold length.
+### Main-sequence timing
 
-These must not be presented as one generic `SYNC` concept.
+- Main sequence uses a bar-locked musical default.
+- Default is `1 BAR`, meaning reset after 16 sixteenth-note ticks.
+- `FREE` remains an explicit option for natural/polymetric sequence length.
+- Main-sequence bar reset is distinct from Loop Cycle `SYNC / FREE`, Slot/Chain hold length and external MIDI/transport sync.
 
-Product requirement after audition: main sequence should default to a normal bar-locked musical length, with FREE available deliberately. Exact default bar count remains pending sign-off.
+### REC and EDIT
 
-### Control mapping must have one source of truth
+- `REC` is reserved for actual recording/capture semantics.
+- REC must not be the generic page-specific action button for REROLL, TAP, RESET or CLEAR.
+- `EDIT` is reserved for edit focus/state/lock semantics.
+- EDIT must not be a hidden modifier for unrelated or destructive actions.
+- Page-specific actions move to explicit visible contextual actions.
 
-R1-R4 labels and the actual rotary handlers must not be separately maintained mappings that can drift. The implementation should derive display labels/value formatting and encoder action from the same page/layer mapping definition wherever practical.
+### Black-key contextual action rail
+
+The black keyboard keys will be prototyped and then standardized as a contextual action rail where useful.
+
+Rules:
+
+- every active black-key action is visible on screen;
+- prefer stable verb placement across pages;
+- destructive actions are visually distinct and require suitable hold/confirmation behavior;
+- manual note-entry modes keep musical black-key behavior when required;
+- do not consume a black key unless the page has a useful contextual action for it.
+
+### Modulation family
+
+- LFO and DOT are grouped conceptually under `MOD`.
+- LFO remains a continuous cyclic modulation source.
+- DOT remains a discrete matrix modulation source.
+- Turing belongs to the broader generative/modulation family while retaining its evolving-register identity.
+- Grouping must not flatten these into one algorithm or hide their different time models.
+
+### Rotary mapping single source of truth
+
+R1-R4 labels and actual rotary handlers must not be separately maintained mappings that can drift. Wherever practical, display label, formatter, legal range, acceleration and handler come from the same page/layer mapping definition.
+
+### Reverb V3
+
+Reverb is reopened as a product-quality task. Reverb V2 measurements remain regression evidence, but Reverb V3 must pass perceptual listening criteria in addition to objective DSP tests.
+
+### Distortion range
+
+Distortion gains an intentionally extreme upper range. The lower range must remain controllable, and gain compensation/headroom must prevent the feature from becoming only a loudness increase.
+
+### Ratchet parity
+
+Ratchet audibility is treated first as a parity/timing/envelope-retrigger task. The original HTML behavior, with envelope retrigger for every sub-trigger, is the reference before any musical redesign.
+
+### Synth evolution
+
+- Preserve the current engine as first-class `ANALOG` mode.
+- Add a curated, immediate `FM` mode after stabilization gates are green.
+- Do not expose generic operator complexity unless it proves musically useful on FM-1.
+- Add `SOUND` as an independent randomizer target.
+- Add per-step timbre locks/modulation after reliability/control/audio stabilization.
+- Per-step timbre must be realtime-safe and must not allocate or rebuild audio objects on each step.
+
+### Harmonic layer
+
+Current Chord Machine remains regression-protected as a prototype until a successor wins by audition.
+
+First prototypes to build and compare:
+
+1. scale-aware `HARMONY` derived from lead/sub/key context;
+2. soft filtered `PAD`.
+
+Then compare as needed:
+
+- `SUB HARMONY`;
+- `CHORD V2` with filter/envelope/voicing;
+- default-hidden/compile-out if no concept earns its space.
 
 ### Splash screen
 
 A splash/boot identity screen is required before final product-polish acceptance.
 
-### Chord Machine
-
-Chord Machine remains technically regression-protected but product direction is unresolved. Do not remove it and do not incrementally polish the current concept until a design spike compares PAD, scale-aware HARMONY, SUB HARMONY and CHORD V2. Compile-out behavior remains required.
-
-### Synth evolution
-
-The desired future direction is to preserve the current synth as an `ANALOG` mode and investigate a curated `FM` mode, SOUND randomization and per-step timbre. This expansion begins only after the reliability/control/audio stabilization gates are green.
-
-## Proposed decisions awaiting product-owner sign-off
-
-The following are strong workshop recommendations, not locked decisions yet:
-
-- reserve REC for actual recording/capture rather than generic page-specific actions;
-- stop using EDIT as a hidden modifier for unrelated/destructive commands;
-- prototype the black keys as a contextual action rail with visible labels;
-- group LFO and DOT under a common `MOD` concept;
-- treat Turing as part of the generative/modulation family while retaining its distinct behavior;
-- use 1 BAR as the initial main-sequence reset default;
-- make PAD and scale-aware HARMONY the first two Chord-successor prototypes.
-
-See `docs/PRODUCT_WORKSHOP_2026-10-25.md` for checkboxes and rationale.
-
 ## Sequence overview
 
-HOME, STEP, SEGMENT and RANDOM keep a compact 4..32-step visual overview. Do not reintroduce visual paging. The 2026-10-25 audition adds a stronger legibility requirement: 16 steps must be comfortably readable, while 17..32 must still remain visible and show meaningful pulse/event information.
+HOME, STEP, SEGMENT and RANDOM keep a compact 4..32-step visual overview. Do not reintroduce visual paging. At 16 steps the overview must be comfortably readable, while 17..32 must still remain visible and retain meaningful pulse/event information.
 
 ## Step boundaries
 
@@ -93,3 +133,4 @@ Finish and verify Step 4 before implementing later product expansion. A P0 relia
 - Do not claim completion without exact commit and CI evidence.
 - Diagnostic probes may intentionally fail CI, but that state must be clearly documented and removed/disabled before declaring the real feature green.
 - Perceptual audio acceptance needs listening criteria in addition to numerical DSP tests.
+- Do not implement several approved future work packages at once merely because their product direction is now locked.
