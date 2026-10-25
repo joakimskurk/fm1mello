@@ -4,9 +4,11 @@ This contract keeps the FM-1 interface predictable and hardware-first.
 
 ## Current status
 
-The 2026-10-25 product audition found real grammar drift: REC and EDIT have unrelated page-specific meanings, and some R1-R4 screen labels do not match the rotary that actually edits the parameter. The existing rules below remain valid, but the implementation now needs a Control Grammar v2 stabilization pass.
+The 2026-10-25 product audition found real grammar drift: REC and EDIT have unrelated page-specific meanings, and some R1-R4 screen labels do not match the rotary that actually edits the parameter.
 
-No new page is considered interaction-complete until the physical control, rendered label and actual handler agree.
+The product owner approved the Control Grammar v2 direction on 2026-10-25. The rules below are now implementation requirements.
+
+No page is interaction-complete until the physical control, rendered label and actual handler agree.
 
 ## Global invariants
 
@@ -14,11 +16,40 @@ No new page is considered interaction-complete until the physical control, rende
 
 PLAY toggles transport. Do not overload PLAY with a page-specific edit action.
 
-### Position belongs to the keys
+### REC belongs to recording/capture
+
+REC is reserved for actual recording/capture semantics.
+
+REC must not mean REROLL, TAP, RESET, CLEAR, randomize-now or any other generic page action.
+
+Existing page-specific REC behavior is legacy debt and must be migrated during Control Grammar v2 without silently removing functionality.
+
+### EDIT belongs to edit state/focus/lock
+
+EDIT may change edit focus, edit state or lock behavior.
+
+EDIT must not be a hidden modifier for unrelated or destructive commands. In particular, legacy combinations such as `EDIT+REC CLEAR` are migration targets, not accepted final grammar.
+
+### Position belongs to the white keys
 
 Where a page represents steps, cells, bits, slots, chain positions or other discrete positions, the white keys select those positions directly. The keyboard surface mirrors the current step/cell domain unless a page explicitly requires manual note entry.
 
 For domains longer than 16 positions, OCT DOWN/UP may change the edit bank. K1-K4 must not be consumed by bank/cursor navigation when the keys can represent that selection directly.
+
+### Black keys are the contextual action rail
+
+The black keys are approved as the contextual action surface where a page needs explicit verbs such as REROLL, CLEAR, LOCK, RESET or other non-position actions.
+
+Rules:
+
+- every active action must be visible on screen;
+- prefer the same physical key for the same verb across pages;
+- destructive actions must be visually distinct and use suitable hold/confirmation behavior;
+- manual note-entry modes retain musical black-key behavior when required;
+- do not assign black-key actions merely to fill every key;
+- migrating a legacy REC/EDIT action must preserve its musical function unless a later explicit product decision removes it.
+
+Exact page-by-page mapping is determined from the complete audit before implementation is considered complete.
 
 ### SELECT belongs to function layers
 
@@ -32,7 +63,7 @@ K1-K4 edit sound, rhythm, harmony, timing or structural parameters. They must no
 
 ### R1-R4 labels and handlers are one contract
 
-A page/layer must have one authoritative mapping for each rotary containing at least:
+A page/layer has one authoritative mapping for each rotary containing at least:
 
 - label;
 - value formatter;
@@ -40,46 +71,38 @@ A page/layer must have one authoritative mapping for each rotary containing at l
 - handler/action;
 - optional acceleration/coarse behavior.
 
-The screen and input handler should consume the same mapping definition wherever practical. A state where the third displayed rotary label describes parameter 3 while physical rotary 3 changes parameter 4 is a hard failure.
+The screen and input handler should consume the same mapping definition wherever practical. A state where physical rotary 3 changes a parameter described under R4 is a hard failure.
 
 ### Always show the mapping
 
-Dense pages must show compact K1-K4 labels and any contextual key actions. The user should not need to remember a hidden encoder mode.
+Dense pages show compact rotary labels and contextual key actions. The user should not need to remember a hidden mode or modifier.
 
 All rendered UI text must fit its assigned box. No clipping/overlap is acceptable as normal operation.
 
-## REC and EDIT: current debt
+## MOD family
 
-Current firmware uses REC for several unrelated actions including RANDOM reroll, GLOBAL tap tempo, Loop reset, DOT randomize and Turing reroll. RANDOM also uses `EDIT+REC` for clear. This is now documented interaction debt rather than an intentional long-term grammar.
+LFO, DOT and Turing are now one conceptual modulation/generative family, while remaining distinct sources.
 
-### Proposed v2 direction, pending product-owner sign-off
+- `LFO`: continuous cyclic modulation with waveform/rate/depth/target.
+- `DOT`: discrete matrix modulation with run mode/length/reset/target.
+- `TURING`: evolving register/generative modulation.
 
-- REC becomes a stable recording/capture verb.
-- Page-specific commands such as REROLL, TAP, RESET and CLEAR move to visible contextual actions.
-- EDIT changes edit state/focus/lock behavior only. It is not a hidden modifier for destructive unrelated commands.
-- Destructive actions require explicit visible labeling and, when appropriate, confirmation/hold behavior.
+Navigation and visual grouping should make their relationship discoverable without pretending that their timing or algorithms are identical.
 
-Do not implement this proposal until sign-off and a complete page-action audit exist.
+The current placement of Audio LFO under a sound/envelope-oriented route is migration debt.
 
-## Black-key contextual action rail: proposal
+## Timing language
 
-The black keys are underused and should be prototyped as a contextual action rail. Candidate uses include page-level actions such as REROLL, CLEAR, LOCK, RESET, SYNC/FREE or other verbs that are currently awkwardly attached to REC/EDIT.
+Never use one generic `SYNC` label for all timing concepts.
 
-Rules if approved:
+The interface must distinguish:
 
-- actions must be visible on screen;
-- the same physical black key should prefer the same verb across pages when possible;
-- destructive actions must be visually distinct;
-- black-key actions must not break manual note entry modes;
-- do not consume black keys merely because they are available.
+1. external clock/MIDI sync;
+2. main-sequence `BAR RESET / FREE`;
+3. Loop Cycle `SYNC / FREE`;
+4. Slot/Chain hold length.
 
-Exact mappings are deliberately not locked yet.
-
-## Modulation grouping: proposal
-
-LFO and DOT matrices are both modulation sources. The current navigation places Audio LFO inside a sound/envelope-oriented path while DOT is separate. Control Grammar v2 should prototype a common `MOD` concept with separate source identities rather than pretending they are the same algorithm.
-
-Turing may live in the same broader generative/modulation family but must retain its distinct evolving-register semantics.
+Main-sequence default is `1 BAR`. FREE is an explicit deliberate mode.
 
 ## Loop Cycle reference
 
@@ -93,26 +116,37 @@ SELECT cycles STEP/HARM/LOOP. The first eight white keys select loop positions 1
 
 When Loop Cycle is OFF, pressing loop keys 1-8 also auditions that slot immediately by making its harmonic context current. When Loop Cycle is ON, keys 1-8 only select the slot being edited and must not jump the running playback position.
 
-`BASS TR` is a per-cycle-step semitone transpose for the dedicated sub voice only, independent from the cycle lead/main `TRANS`. Range: -12..+12 semitones.
+`BASS TR` is a per-cycle-step semitone transpose for the dedicated sub voice only, independent from cycle lead/main `TRANS`. Range: -12..+12 semitones.
 
 RESET NOW resets playback position without changing the selected loop step.
 
-Important: Loop Cycle `SYNC/FREE` is not the same control as main-sequence bar reset/free-running, and neither is the same as external MIDI/transport sync.
+Loop Cycle `SYNC/FREE` is not the same control as main-sequence bar reset/free-running, and neither is the same as external MIDI/transport sync.
 
-## Required audit before Control Grammar v2 is complete
+## Required page-action audit
 
-Every page/layer must be listed in a machine-readable or testable mapping table covering:
+Before Control Grammar v2 implementation begins, enumerate every page/layer in a machine-readable or directly testable mapping table covering:
 
-1. K1-K4 labels and handlers.
+1. R1-R4 labels, formatters, ranges and handlers.
 2. white-key behavior.
-3. black-key behavior, if any.
+3. black-key contextual actions.
 4. SELECT behavior.
 5. OCT DOWN/UP behavior.
 6. REC behavior.
 7. EDIT behavior.
-8. destructive actions.
+8. destructive actions and confirmation rules.
 9. live-edit safety while transport is running.
+10. manual note-entry exceptions.
+
+This table becomes the implementation source of truth and regression fixture, not merely documentation.
 
 ## Regression gate
 
-`tools/control_grammar_smoke.c` remains a hard CI gate. It must be expanded during the stabilization pass to catch rotary label/handler drift and the approved REC/EDIT/black-key grammar in addition to existing Loop Cycle behavior.
+`tools/control_grammar_smoke.c` remains a hard CI gate. It must be expanded during Control Grammar v2 to catch:
+
+- rotary label/handler drift;
+- REC semantics;
+- EDIT semantics;
+- contextual black-key actions;
+- timing-language separation;
+- existing Loop Cycle behavior;
+- feature-flag/compile-out regressions where applicable.
