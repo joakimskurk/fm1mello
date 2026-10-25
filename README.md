@@ -2,6 +2,14 @@
 
 Native FM-1 port of **SkurkyMello**, developed parity-first from the browser version and built on the Dinghy FM-1 platform.
 
+## Continue development
+
+For a new ChatGPT/work session, start with:
+
+`START_HERE.md`
+
+It identifies the active work package, required project files, source-reconstruction workflow, tests and stop condition. Do not reconstruct the current project direction from old chat history when the repository handoff files are available.
+
 ## Build status
 
 This repository deliberately does **not** vendor a floating Dinghy checkout. CI reconstructs and verifies the exact upstream baseline before applying the Mello overlay:
