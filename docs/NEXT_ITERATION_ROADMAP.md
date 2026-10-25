@@ -1,206 +1,266 @@
 # SkurkyMello FM-1 - stabilization and product-evolution roadmap
 
-Review baseline: product-code checkpoint `1c0748c2140e106e0c38fa0637b4c06139c2625f`, hands-on product review 2026-10-25.
+Approved direction: 2026-10-25.
 
-This roadmap remains stabilization-first. The new audition notes broaden the future plan, but they do not authorize jumping ahead of the active work package.
+Baseline product-code checkpoint before this planning pass: `1c0748c2140e106e0c38fa0637b4c06139c2625f`.
 
-See `docs/PRODUCT_WORKSHOP_2026-10-25.md` for the full review, simulated musician/developer workshop and product-owner checkboxes.
+This roadmap is stabilization-first. All product-owner workshop recommendations are approved, but approval is not permission to implement later work packages early.
 
-## 1. Reverb V2 - TECHNICALLY COMPLETE, PRODUCT QUALITY REOPENED
+See:
 
-Reverb V2 was completed in `58ea689b282d00dd436b790be3bcf95b91e913f3` with separate pre-delay, two all-pass diffusers and a four-line Hadamard FDN. The technical baseline remains useful:
+- `START_HERE.md` for exact new-chat continuation procedure;
+- `docs/PRODUCT_WORKSHOP_2026-10-25.md` for audition findings and rationale;
+- `DECISIONS.md` for locked product decisions;
+- `CONTROL_GRAMMAR.md` for approved hardware interaction rules;
+- `TESTING.md` for acceptance gates.
 
-- corr² `0.00075`
-- block-energy jump `2.279`
-- 120 ms pre-delay shift `5292` samples
-- 80 MHz chord/reverb stress `1.833x` steady realtime
-- pool headroom `17696 B`
+## WP-A. Randomizer intensity + RANDOM skyline - ACTIVE NEXT IMPLEMENTATION
 
-However, the 2026-10-25 audition still reports metallic/ring-mod-like character and insufficient hi-fi diffusion. Therefore Reverb V2 is no longer considered product-complete. Preserve its regression data and reopen perceptual quality as Reverb V3 in the audio-character work package below.
+Randomizer is a core creative instrument.
 
-The original HTML remains the reference intent: `Tone.Reverb` when available, Freeverb only as fallback, followed by wet tone LPF, 24 Hz HPF, return gain, FX mix and limiter.
+Add an intensity control independent of selected random targets:
 
-## 2. Chord Machine - TECHNICALLY PROTECTED, PRODUCT PURPOSE OPEN
-
-Technical regression baseline remains valid: held `ARP_UP` traverses three chord tones and compile-out with `MELLO_FEATURE_CHORD_MACHINE=0` remains required.
-
-The latest audition confirms that the current concept can occasionally produce useful results, particularly with sine, but is often too raw/bright and lacks enough tone shaping. Do not remove it and do not incrementally polish it yet.
-
-Future design spike must compare:
-
-1. soft filtered PAD;
-2. scale-aware HARMONY derived from lead/sub context;
-3. SUB HARMONY;
-4. CHORD V2 with filter/envelope/voicing;
-5. default-hidden/compile-out if none earns its panel space.
-
-## 3. UI performance + universal sequence overview - PERFORMANCE COMPLETE, VISUAL POLISH OPEN
-
-Completed performance checkpoint: `00c6c72ff5a2e7fda1f6f95d0add7b00fa37f171`.
-
-Existing redraw/performance measurements remain the regression baseline. The latest audition adds new visual-quality requirements:
-
-- no overlap/clipping;
-- no stale dirty-region artifacts;
-- RANDOM skyline must be denser and more informative;
-- HOME needs a later visual polish pass;
-- all 4..32 active steps stay visible at once.
-
-## 4. Randomizer intensity - CURRENT
-
-Add a musical depth control independent of selected random targets:
-
-- LOW: conservative variation around current material;
-- MED: current/default creative range and compatibility anchor;
-- HIGH: larger structural/timbral movement while remaining useful.
-
-Intensity constrains target-specific mutation ranges rather than simply reducing the chance that a target changes. `WAVE` remains independent.
-
-### Step 4 visual refinement
-
-RANDOM remains a single full-sequence view. Improve information density without visual paging:
-
-- 4..16 steps: comfortably readable columns;
-- 17..32 steps: progressively compressed columns with every active step still visible;
-- retain visible pitch contour/playhead;
-- preserve pulse/ratchet/event cues at compressed widths;
-- keep incremental redraw cost within the established Step 3 budget.
-
-Do not add Undo, FM or broader control redesign inside Step 4.
-
-## Gate A. Trust and reliability - IMMEDIATELY AFTER STEP 4
-
-This gate exists because a user cannot learn an advanced instrument while wondering whether the UI or audio engine is broken.
-
-### A1. Live-edit audio freeze
-
-Reproduce and fix the reported case where audio freezes while turning parameters and recovers after STOP/PLAY.
-
-Audit all live parameter paths for:
-
-- audio-engine rebuilds/allocations;
-- scheduler/event corruption;
-- unsafe state mutation;
-- missing smoothing/ramping;
-- UI/audio contention.
-
-### A2. Rotary mapping parity
-
-Audit every page/layer. R1-R4 display labels, value formatting and physical handlers must share one authoritative mapping definition where practical.
-
-### A3. Display integrity
-
-- remove clipping/overlap at extreme values;
-- remove static pink line over `SINGLE` on HOME;
-- extend visual smoke tests to stale dirty regions and all page/layer combinations.
-
-Major synth expansion waits until Gate A is green.
-
-## Gate B. Control grammar v2 + timing model
-
-### B1. REC / EDIT
-
-Current page-specific REC meanings and `EDIT+REC` modifier behavior are documented debt. Final mapping depends on product-owner sign-off in the workshop checklist.
-
-Recommended direction:
-
-- REC = stable recording/capture verb;
-- EDIT = edit focus/state/lock, not unrelated destructive modifier;
-- explicit contextual commands move to visible actions.
-
-### B2. Black-key action rail
-
-Prototype the unused black keys as contextual actions with on-screen labels. Do not lock exact mappings until the complete page audit is available.
-
-### B3. Modulation grouping
-
-Prototype LFO + DOT under a coherent `MOD` concept while retaining distinct source behavior. Turing may belong to the same broader generative family without being reduced to an LFO.
-
-### B4. Timing concepts
-
-The original HTML separates:
-
-- main-sequence `RESET AFTER`: off / 1 / 2 / 4 / 8 / 16 bars;
-- Loop Cycle `SYNC / FREE`;
-- Slot/Chain hold length;
-- external transport/MIDI sync.
-
-The port must make those distinctions explicit.
-
-New product requirement: main sequence should default to an approved bar-locked length, with FREE available deliberately. Exact default is pending sign-off; workshop recommendation is 1 BAR.
-
-## Gate C. Audio character
-
-### C1. Distortion range
-
-Current maximum is too polite. Extend range so maximum can be intentionally extreme while preserving subtle lower settings and managing output gain/headroom.
-
-### C2. Reverb V3
-
-Rework the native reverb specifically for perceptual diffusion quality. Objective tests remain required but listening is a hard gate. Reject normal musical settings that expose obvious periodic ringing, comb pitch, short-delay character or ring-mod-like metallicity.
-
-### C3. Ratchet parity
-
-Original HTML ratchets divide a pulse into sub-triggers and retrigger the synth envelope for each one. Verify native timing/envelope behavior before changing the musical design.
-
-### C4. Live parameter smoothing
-
-All continuous sound/FX controls must remain safe and audible while transport runs, without requiring STOP/PLAY recovery.
-
-## 5. Undo Last Random
-
-After the randomizer and trust/control gates are stable, store one pre-random snapshot sufficient to restore the immediately previous randomization.
+- `LOW`: conservative variation around current material;
+- `MED`: current/default creative range and compatibility anchor;
+- `HIGH`: larger structural/timbral movement while remaining useful.
 
 Requirements:
 
-- one level only;
-- cheap in RAM/storage;
-- restores every target touched by the last random operation;
-- includes synth waveform/SOUND data once those targets exist;
-- no interference with slot/project persistence.
+- intensity constrains target-specific mutation ranges/depth rather than acting as one global probability knob;
+- target selection/mask is unchanged by intensity;
+- preserve existing MED code path and RNG consumption order where practical;
+- `WAVE` remains independent;
+- legal values for all sequence lengths 4..32;
+- deterministic host coverage where RNG architecture permits;
+- no Undo, FM, Reverb V3 or broad control redesign inside WP-A.
 
-## 6. Synth evolution
+### RANDOM skyline refinement
 
-Only after Gate A/B/C:
+RANDOM remains a single full-sequence view:
+
+- 4..16 steps: immediately readable columns;
+- 16 steps must be comfortably legible;
+- 17..32 steps: compressed, but every active step remains visible;
+- retain pitch contour and unambiguous playhead;
+- preserve meaningful pulse/ratchet/event cues under compression;
+- no visual paging;
+- incremental redraw cost remains inside the established Step 3 budget.
+
+### WP-A completion rule
+
+Remove/disable the intentional failure in `ci/randomizer_roadmap_probe.py` only when its findings have been converted into real tests. Do not declare WP-A complete until real CI is green and exact commit/run evidence is recorded.
+
+Stop after WP-A. Prepare a handoff for WP-B instead of silently starting it.
+
+## WP-B. Trust and reliability
+
+This gate exists because advanced functionality is useless if live editing feels unreliable.
+
+### B1. Live-edit audio freeze - highest priority
+
+Reproduce and fix the reported case where audio freezes while turning parameters and recovers after STOP/PLAY.
+
+Audit:
+
+- audio-engine rebuilds/allocations;
+- scheduler/event corruption;
+- unsafe cross-state mutation;
+- missing smoothing/ramping;
+- UI/audio contention;
+- any parameter path that reinitializes DSP unnecessarily.
+
+Pass criteria:
+
+- no silent/frozen state during repeated live parameter movement;
+- no STOP/PLAY recovery required;
+- transport phase remains valid;
+- no unbounded rebuild/allocation path for normal rotary movement.
+
+### B2. Rotary mapping parity
+
+Every page/layer must use one authoritative R1-R4 mapping containing label, formatter, range/step, handler and acceleration behavior.
+
+Hard failure: any rendered Rn label/value describes a different parameter than physical rotary n changes.
+
+### B3. Display integrity
+
+- eliminate clipping/overlap at extreme values;
+- remove the static pink line over `SINGLE` on HOME;
+- test stale dirty regions;
+- extend visual smoke coverage across every page/layer.
+
+Major synth expansion remains blocked until WP-B is green.
+
+## WP-C. Control Grammar v2
+
+Direction is approved.
+
+### C1. REC
+
+REC means actual recording/capture only.
+
+Legacy REC meanings such as REROLL, TAP, RESET or generic page action must migrate without losing functionality.
+
+### C2. EDIT
+
+EDIT means edit focus/state/lock only.
+
+It must not be a hidden modifier for unrelated or destructive commands.
+
+### C3. Black-key contextual action rail
+
+Use black keys for explicit contextual verbs where useful.
+
+Rules:
+
+- actions visible on screen;
+- stable verb placement where practical;
+- destructive actions distinct and confirmed/held where appropriate;
+- manual note-entry modes preserve musical behavior;
+- no filler assignments.
+
+### C4. MOD family
+
+Group conceptually:
+
+- LFO = continuous cyclic modulation;
+- DOT = discrete matrix modulation;
+- Turing = evolving/generative modulation.
+
+The current buried LFO navigation is migration debt.
+
+### C5. Complete action audit
+
+Before final mapping implementation, create one machine-readable/testable page-layer table covering R1-R4, white keys, black keys, SELECT, OCT, REC, EDIT, destructive actions and manual note-entry exceptions.
+
+That table becomes the implementation source of truth and regression fixture.
+
+## WP-D. Timing model
+
+Approved main-sequence default: `1 BAR`.
+
+Expose the main sequence as:
+
+- `1 BAR`
+- `2 BAR`
+- `4 BAR`
+- `8 BAR`
+- `16 BAR`
+- `FREE`
+
+Keep four distinct timing concepts in state, naming and UI:
+
+1. external MIDI/transport sync;
+2. main-sequence `BAR RESET / FREE`;
+3. Loop Cycle `SYNC / FREE`;
+4. Slot/Chain hold length.
+
+Tests must prove that a 16-step Chain/Slot hold does not silently redefine full main-sequence length.
+
+## WP-E. Audio character
+
+### E1. Distortion
+
+Extend the upper range until maximum is intentionally extreme.
+
+Requirements:
+
+- preserve subtle lower range;
+- gain compensation/headroom so extremity is not only louder;
+- final limiter remains bounded;
+- live changes remain realtime-safe.
+
+### E2. Reverb V3
+
+Reverb V2 remains technical regression baseline only.
+
+Reverb V3 must be redesigned/tuned for perceptual diffusion quality and reject ordinary musical settings that expose:
+
+- periodic ringing;
+- comb-like pitch;
+- short-delay character;
+- ring-mod-like metallicity.
+
+Retain objective impulse/energy/pre-delay/stability tests and add listening A/B against original HTML where practical.
+
+### E3. Ratchet parity
+
+Original HTML is reference behavior: pulse is split into sub-triggers and synth amplitude envelope retriggers for every ratchet.
+
+Verify ratchet 1..8, timing distribution, audible note length and intended sub/MIDI behavior before redesign.
+
+### E4. Live parameter smoothing
+
+All continuous sound/FX controls remain safe while transport runs and do not require STOP/PLAY recovery.
+
+## WP-F. Undo Last Random
+
+One-level pre-random snapshot.
+
+Requirements:
+
+- cheap RAM/storage;
+- restores every target touched by last random operation;
+- no interference with normal slot/project persistence;
+- architecture must later include WAVE/SOUND state when those targets exist.
+
+## WP-G. Synth evolution
+
+Only after WP-B through WP-E are green.
 
 ### ANALOG
 
-Preserve the current synth engine and its musical behavior as a first-class `ANALOG` mode.
+Preserve the current synth engine and its musical behavior as a first-class mode.
 
 ### FM
 
-Design a curated FM engine that exploits the hardware identity without becoming a generic operator editor. Start from a small set of musically meaningful macro parameters and prove CPU/RAM viability before expanding.
+Add a curated FM engine suited to FM-1 hardware identity.
+
+Requirements:
+
+- small set of musically useful macro parameters first;
+- hard CPU/RAM/pool budget on 80 MHz path before expansion;
+- no generic operator editor unless it proves necessary and usable;
+- no regression to ANALOG mode.
 
 ### SOUND randomization
 
-Add sound/timbre as an independent randomizer target so rhythmic/melodic masks can remain untouched.
+Add `SOUND` as an independent target so tone can change without forcing pitch/rhythm targets.
 
 ### Per-step timbre
 
-Add a realtime-safe per-step sound-lock/modulation model. It must not allocate or rebuild audio objects per step.
+Add realtime-safe timbre locks/modulation. Never allocate/rebuild audio objects per step.
 
-## 7. Harmonic-layer design spike
+## WP-H. Harmonic layer decision
 
-Prototype and audition PAD and scale-aware HARMONY first, then compare SUB HARMONY and CHORD V2. Keep current Chord Machine behind regression protection until a winner is chosen.
+Current Chord Machine remains regression-protected during the design spike.
 
-No concept wins because it has more parameters. It wins if it creates useful harmonic depth quickly and remains legible in the FM-1 interface.
+Prototype/audition in order:
 
-## 8. Instrument polish and onboarding
+1. scale-aware `HARMONY` derived from lead/sub/key context;
+2. soft filtered `PAD` with proper envelope/tone shaping;
+3. `SUB HARMONY` if useful;
+4. `CHORD V2` if useful;
+5. default-hidden/compile-out if none earns its space.
+
+A concept wins by fast musical usefulness and interface legibility, not parameter count.
+
+## WP-I. Instrument polish and onboarding
 
 - splash screen;
-- slicker HOME hierarchy without sacrificing sequence visibility;
+- slicker HOME without sacrificing skyline or performance;
 - Key/Scale refinement;
-- SEQ pages that visually explain their effect on the running pattern;
+- SEQ pages that explain their effect on the running pattern;
+- visible contextual action hints;
 - consistent margins/truncation/value formatting;
-- visible contextual control hints;
-- newcomer test: usable without prior knowledge of the HTML prototype.
+- newcomer test without prior HTML-prototype knowledge.
 
-## 9. Final integration gate
+## WP-J. Final integration gate
 
-After all approved work packages:
+Before release acceptance:
 
-- full text-fit/clipping suite;
-- full control-grammar mapping suite;
+- full text-fit/clipping/stale-region suite;
+- full Control Grammar v2 mapping suite;
 - randomizer deterministic/parity suite;
 - ratchet/audio event-order suite;
 - HTML audio/sub reference checks where applicable;
@@ -211,11 +271,11 @@ After all approved work packages:
 - 80 MHz worst-case path;
 - Chromium E2E;
 - RAM/pool/image headroom review;
-- hands-on product audition for reverb, distortion, live editing and overall learnability.
+- hands-on product audition for reverb, distortion, live editing and learnability.
 
 ## Deferred / dependency-gated
 
-- Four factory samples baked into firmware: wait for source audio.
-- Any feature that requires unresolved Control Grammar v2 semantics.
-- Large synth/sequencer expansion before Gate A/B/C.
-- Chord implementation work before the harmonic-layer design decision.
+- Factory samples baked into firmware: wait for source audio.
+- Any feature requiring unresolved implementation details from the current work package.
+- Large synthesis/sequencing expansion before WP-B through WP-E.
+- Chord implementation changes before WP-H design decision.
