@@ -85,4 +85,26 @@ base64 -d patches/cycle-tests.patch.gz.b64 > "$CYCLE_TEST_GZ"
 echo '6e8b22d422bcace9c4750f4937985aa37c75ca3e09cc5d84fad50a6e0a772b34  '"$CYCLE_TEST_GZ" | sha256sum -c -
 gzip -t "$CYCLE_TEST_GZ"
 gzip -dc "$CYCLE_TEST_GZ" | patch --batch --forward -p1
-echo 'PASS: reconstructed source + parity + removable chord machine + sync/tone go-no-go + WAVE random + full-step overview'
+# WP-A: randomizer intensity + RANDOM skyline. Apply last so MED is locked
+# against the already validated source and no storage migration is introduced.
+WP_A_B64=${TMPDIR:-/tmp}/wp-a-randomizer-intensity-and-skyline.patch.b64
+WP_A_GZ=${TMPDIR:-/tmp}/wp-a-randomizer-intensity-and-skyline.patch.gz
+cat patches/wp-a-randomizer-intensity-and-skyline.patch.gz.b64.part-* > "$WP_A_B64"
+echo '6893352e8da1fdceb0c3ca40e174c229f4c027d4f21326300f649b5c590172d8  '"$WP_A_B64" | sha256sum -c -
+base64 -d "$WP_A_B64" > "$WP_A_GZ"
+echo '2902990dab7e56a9e8136ba131d49076b56fce63414df56c77c41c46d2102d8f  '"$WP_A_GZ" | sha256sum -c -
+gzip -t "$WP_A_GZ"
+# Lock exact final pre-WP-A inputs before applying the late patch.
+echo '9bcab43cd4d6d4f224998b543fa531c4bad7a46a2af4008b6a9d8a746ad8777e  mello/mello_engine.h' | sha256sum -c -
+echo '47d6dcc310e1cb55158bab826e4d50d80fd6ac5bbdc77f4938df7ec266679fcc  mello/mello_engine.c' | sha256sum -c -
+echo 'a83a969311709ef0e6efdbd882a123ad14f050ba37184dda76f5a187f92009fc  mello/mello_ui.h' | sha256sum -c -
+echo 'f1edad29111fe74b156151569320e8042e6db2874ff66673fa9a95f6afb236b9  mello/mello_ui.c' | sha256sum -c -
+echo '04768cbc989c291efc6547dfbbd561232a30fc634f94045da0cb287f99dc62a2  tools/random_wave_overview_smoke.c' | sha256sum -c -
+gzip -dc "$WP_A_GZ" | patch --batch --forward -p1
+# Lock the exact generated source + hard smoke produced by WP-A.
+echo '5a431221418d3f2c90d6094303a6eab03f13757d211284381251f004d29fa2f8  mello/mello_engine.h' | sha256sum -c -
+echo '7c9b7428920f787225c383ae4e6ba08a8e1ac5a2a95064b3d7d14ea0f8d3c64d  mello/mello_engine.c' | sha256sum -c -
+echo '0b712e7c5641c989f98a85af97f5dad5ee290897f33340f0e40d9cad2005159d  mello/mello_ui.h' | sha256sum -c -
+echo 'd3d016c2d4e67d310c031b2d2aaf36c011783a8bbbd6a45712f84d2fe9cc6932  mello/mello_ui.c' | sha256sum -c -
+echo 'e9f5de542f27c04399dfbde5765a4b760988b3ba992b9027e31b4a89562efd40  tools/random_wave_overview_smoke.c' | sha256sum -c -
+echo 'PASS: reconstructed source + parity + removable chord machine + sync/tone go-no-go + WP-A randomizer intensity/skyline'

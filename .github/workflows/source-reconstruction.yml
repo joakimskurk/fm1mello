@@ -16,11 +16,3 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Reconstruct final Mello source
         run: bash ci/unpack_source.sh
-      - name: Export reconstructed source for WP-A inspection
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: reconstructed-mello-source
-          path: mello/
-          if-no-files-found: error
-          retention-days: 1
