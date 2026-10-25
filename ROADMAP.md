@@ -1,14 +1,12 @@
 # ROADMAP
 
-This file is the short handoff index. Detailed scope and acceptance criteria live in `docs/NEXT_ITERATION_ROADMAP.md`. The 2026-10-25 product review is in `docs/PRODUCT_WORKSHOP_2026-10-25.md`.
+This file is the short handoff index. Detailed scope and acceptance criteria live in `docs/NEXT_ITERATION_ROADMAP.md`. New chats start with `START_HERE.md`.
 
-## Current work
+## Active next implementation
 
-### Step 4 - Randomizer intensity - CURRENT
+### WP-A / Step 4 - Randomizer intensity + RANDOM skyline
 
-Goal: add `LOW / MED / HIGH` without weakening the existing creative behavior.
-
-Also refine the RANDOM overview so 4..32 active steps remain visible with enough density to read pitch/pulse/event structure.
+Goal: add `LOW / MED / HIGH` without weakening the existing creative behavior, and make the RANDOM skyline denser while keeping all 4..32 steps visible.
 
 Hard constraints:
 
@@ -18,42 +16,84 @@ Hard constraints:
 - `LOW` stays close to current material;
 - `HIGH` moves further but remains musical;
 - `WAVE` remains independently selectable;
-- do not implement later feature expansion inside Step 4.
+- 16 steps are comfortably legible;
+- 17..32 remain visible without visual paging;
+- do not implement later feature expansion inside WP-A.
 
-## Next stabilization gates
+## Approved work order after WP-A
 
-### Gate A - Trust and reliability
+### WP-B - Trust and reliability
 
-- reproduce/fix audio freeze during live parameter changes;
-- guarantee R1-R4 screen labels match actual rotary handlers;
-- remove text clipping/overlap;
-- remove HOME pink-line artifact;
-- extend automated mapping/text-fit coverage.
+1. Reproduce/fix live-edit audio freeze.
+2. Guarantee R1-R4 screen labels match actual handlers.
+3. Remove text clipping/overlap.
+4. Remove HOME pink-line artifact.
+5. Extend mapping/text-fit/stale-region automated coverage.
 
-### Gate B - Control grammar + timing
+Major synth expansion is blocked until WP-B is green.
 
-- resolve REC and EDIT overloading;
-- prototype black-key contextual actions;
-- clarify SELECT/OCT behavior;
-- evaluate LFO + DOT as a coherent MOD family;
-- restore explicit main-sequence bar-reset/FREE model;
-- keep Loop Cycle SYNC/FREE separate;
-- clarify Slot/Chain hold-length semantics.
+### WP-C - Control Grammar v2
 
-### Gate C - Audio character
+Approved direction:
 
-- extend distortion into an intentionally extreme but gain-managed range;
-- reopen reverb as Reverb V3 with perceptual quality as a hard gate;
-- verify ratchet envelope retrigger/timing parity with original HTML;
-- add parameter smoothing/no-dropout acceptance under live editing.
+- REC = real recording/capture only;
+- EDIT = edit/focus/lock only;
+- page actions migrate to visible contextual actions;
+- black keys become the contextual action rail where useful;
+- SELECT remains functional-layer navigation;
+- LFO + DOT group under MOD;
+- Turing belongs to the broader modulation/generative family;
+- page-action mapping becomes one authoritative/testable table.
 
-## Then
+### WP-D - Timing model
 
-1. Undo Last Random: one-level pre-random snapshot.
-2. Synth evolution: preserve current engine as `ANALOG`, design curated `FM`, add SOUND randomization and per-step timbre.
-3. Harmonic-layer design spike: PAD vs scale-aware HARMONY vs SUB HARMONY vs CHORD V2 vs default-hidden/compile-out.
-4. Instrument polish: splash screen, slicker HOME, Key/Scale refinement, SEQ explanation/onboarding.
-5. Final full integration/performance gate.
+- main sequence exposes `1 / 2 / 4 / 8 / 16 BAR / FREE`;
+- default is `1 BAR`;
+- Loop Cycle `SYNC / FREE` remains a separate concept;
+- Slot/Chain hold length remains separate;
+- external clock/MIDI sync remains separate.
+
+### WP-E - Audio character
+
+- intentionally extreme distortion range with gain management;
+- Reverb V3 with perceptual listening as a hard gate;
+- ratchet envelope/timing parity with original HTML;
+- live parameter smoothing/no-dropout acceptance.
+
+### WP-F - Undo Last Random
+
+One-level pre-random snapshot after the core randomizer and trust/control/audio gates are stable.
+
+### WP-G - Synth evolution
+
+- preserve current engine as `ANALOG`;
+- add curated `FM` mode under CPU/RAM budgets;
+- add independent `SOUND` randomizer target;
+- add realtime-safe per-step timbre locks/modulation.
+
+### WP-H - Harmonic layer decision
+
+Prototype and audition in this order:
+
+1. scale-aware `HARMONY`;
+2. soft filtered `PAD`;
+3. SUB HARMONY if useful;
+4. CHORD V2 if useful.
+
+Current Chord remains regression-protected until a successor wins.
+
+### WP-I - Instrument polish
+
+- splash screen;
+- slicker HOME hierarchy;
+- Key/Scale refinement;
+- SEQ explanatory hierarchy/onboarding;
+- consistent margins/truncation/value formatting;
+- newcomer usability pass.
+
+### WP-J - Final integration/performance gate
+
+Run all control, randomizer, audio, visual, feature-flag, target, emulator/browser and performance gates before release acceptance.
 
 ## Product rule
 
@@ -62,5 +102,5 @@ Do not reduce functionality merely to make the interface simpler. Prefer one coh
 ## Deferred until dependencies are green
 
 - Factory samples until source audio is supplied.
-- Major new synthesis/sequence scope before the trust and control gates.
-- Chord implementation work before the harmonic-layer design decision.
+- Major new synth/sequence scope before WP-B through WP-E.
+- Chord implementation changes before WP-H.
