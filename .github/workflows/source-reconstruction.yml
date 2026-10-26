@@ -16,11 +16,43 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Reconstruct final Mello source
         run: bash ci/unpack_source.sh
+      - name: Diagnose WP-A reconstruction failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          DEBUG=wp-a-reconstruction-debug.txt
+          B64=/tmp/wp-a-debug.patch.b64
+          GZ=/tmp/wp-a-debug.patch.gz
+          {
+            echo 'WP-A reconstruction diagnostic'
+            echo '--- parts ---'
+            ls -l patches/wp-a-randomizer-intensity-and-skyline.patch.gz.b64.part-*
+            sha256sum patches/wp-a-randomizer-intensity-and-skyline.patch.gz.b64.part-*
+            cat patches/wp-a-randomizer-intensity-and-skyline.patch.gz.b64.part-* > "$B64"
+            echo '--- concatenated base64 ---'
+            wc -c "$B64"
+            sha256sum "$B64"
+            base64 -d "$B64" > "$GZ"
+            echo "base64_status=$?"
+            echo '--- gzip ---'
+            wc -c "$GZ"
+            sha256sum "$GZ"
+            gzip -t "$GZ"
+            echo "gzip_status=$?"
+            echo '--- pre-WP-A source ---'
+            sha256sum mello/mello_engine.h mello/mello_engine.c mello/mello_ui.h mello/mello_ui.c tools/random_wave_overview_smoke.c
+            echo '--- patch dry-run ---'
+            gzip -dc "$GZ" | patch --batch --forward --dry-run -p1
+            echo "patch_dry_run_status=$?"
+          } > "$DEBUG" 2>&1
       - name: Export reconstructed source for WP-A baseline repair
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reconstructed-mello-source
-          path: mello/
+          path: |
+            mello/
+            wp-a-reconstruction-debug.txt
           if-no-files-found: error
           retention-days: 1
