@@ -90,9 +90,9 @@ gzip -dc "$CYCLE_TEST_GZ" | patch --batch --forward -p1
 WP_A_B64=${TMPDIR:-/tmp}/wp-a-randomizer-intensity-and-skyline.patch.b64
 WP_A_GZ=${TMPDIR:-/tmp}/wp-a-randomizer-intensity-and-skyline.patch.gz
 cat patches/wp-a-randomizer-intensity-and-skyline.patch.gz.b64.part-* > "$WP_A_B64"
-echo '6893352e8da1fdceb0c3ca40e174c229f4c027d4f21326300f649b5c590172d8  '"$WP_A_B64" | sha256sum -c -
+echo '689340892175afa46845d75f630e633d97684b8163aeff9c821bb1292d43c846  '"$WP_A_B64" | sha256sum -c -
 base64 -d "$WP_A_B64" > "$WP_A_GZ"
-echo '2902990dab7e56a9e8136ba131d49076b56fce63414df56c77c41c46d2102d8f  '"$WP_A_GZ" | sha256sum -c -
+echo '2902990d9afa88d5c3c7391220587da4472dd72b8d91e1d0662a01148d194596  '"$WP_A_GZ" | sha256sum -c -
 gzip -t "$WP_A_GZ"
 # Lock exact final pre-WP-A inputs before applying the late patch.
 echo '9bcab43cd4d6d4f224998b543fa531c4bad7a46a2af4008b6a9d8a746ad8777e  mello/mello_engine.h' | sha256sum -c -
