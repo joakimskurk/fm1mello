@@ -2,39 +2,49 @@
 
 This file is the short handoff index. Detailed scope and acceptance criteria live in `docs/NEXT_ITERATION_ROADMAP.md`. New chats start with `START_HERE.md`.
 
-## Active next implementation
+## Completed
 
 ### WP-A / Step 4 - Randomizer intensity + RANDOM skyline
 
-Goal: add `LOW / MED / HIGH` without weakening the existing creative behavior, and make the RANDOM skyline denser while keeping all 4..32 steps visible.
+**Complete 2026-10-26.**
 
-Hard constraints:
+Delivered:
 
-- intensity changes target-specific mutation depth/span;
-- intensity never changes the selected target mask;
-- `MED` is the compatibility/default behavior;
-- `LOW` stays close to current material;
-- `HIGH` moves further but remains musical;
-- `WAVE` remains independently selectable;
-- 16 steps are comfortably legible;
-- 17..32 remain visible without visual paging;
-- do not implement later feature expansion inside WP-A.
+- `LOW / MED / HIGH` randomizer intensity;
+- exact previous/default randomizer path retained as MED;
+- target mask semantics unchanged by intensity;
+- WAVE remains independently selectable and isolated;
+- no storage migration;
+- full 4..32-step RANDOM skyline without paging;
+- compressed pitch/event/playhead information retained across long sequences;
+- deterministic host coverage and full target/emulator/browser/performance regression gates.
 
-## Approved work order after WP-A
+Implementation commit: `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`.
+Clean reconstruction closeout: `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
+
+## Active next implementation
 
 ### WP-B - Trust and reliability
 
-1. Reproduce/fix live-edit audio freeze.
+Goal: remove trust-breaking runtime/UI defects before expanding the instrument.
+
+Work order:
+
+1. Reproduce and fix live-edit audio freeze.
 2. Guarantee R1-R4 screen labels match actual handlers.
 3. Remove text clipping/overlap.
 4. Remove HOME pink-line artifact.
 5. Extend mapping/text-fit/stale-region automated coverage.
 
-Major synth expansion is blocked until WP-B is green.
+Hard constraints:
+
+- do not fold Control Grammar v2, FM, Reverb V3 or other later feature work into WP-B;
+- preserve all currently green WP-A, chord, reverb, timing and target-build gates;
+- major synth expansion remains blocked until WP-B is green.
+
+## Approved work order after WP-B
 
 ### WP-C - Control Grammar v2
-
-Approved direction:
 
 - REC = real recording/capture only;
 - EDIT = edit/focus/lock only;
@@ -49,7 +59,7 @@ Approved direction:
 
 - main sequence exposes `1 / 2 / 4 / 8 / 16 BAR / FREE`;
 - default is `1 BAR`;
-- Loop Cycle `SYNC / FREE` remains a separate concept;
+- Loop Cycle `SYNC / FREE` remains separate;
 - Slot/Chain hold length remains separate;
 - external clock/MIDI sync remains separate.
 

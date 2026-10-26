@@ -1,143 +1,109 @@
 # PROJECT STATE
 
-Last product-owner approval/handoff: 2026-10-25
+Last verified work-package closeout: 2026-10-26
 
 ## Repository
 
 - Repo: `joakimskurk/fm1mello`
 - Active branch: `visual-port-home`
-- Product-code checkpoint before the 2026-10-25 product review: `1c0748c2140e106e0c38fa0637b4c06139c2625f`
-- Product-review documentation checkpoint before approval lock: `45df96067c7232491ee38610dc179b8dfbb56e5f`
 - Always resolve current branch HEAD before editing.
-- New chats should start with root `START_HERE.md`.
+- New chats start with root `START_HERE.md` and follow the repo rather than old chat context.
 
-## Current implementation position
+## Work-package position
 
-The authoritative detailed roadmap is `docs/NEXT_ITERATION_ROADMAP.md`.
+**WP-A / Step 4 - Randomizer intensity + RANDOM skyline refinement is complete.**
 
-**ACTIVE NEXT WORK PACKAGE: WP-A / Step 4 - Randomizer intensity + RANDOM skyline refinement.**
+WP-A implementation landed in `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07` and its clean reconstructed-source closeout is locked at `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
 
-Do not skip directly into Control Grammar v2, FM synthesis or Reverb V3. A P0 reliability defect may interrupt WP-A only if it prevents meaningful implementation/testing.
+**ACTIVE NEXT WORK PACKAGE: WP-B - Trust and reliability.**
 
-After WP-A is green, the next package is **WP-B Trust and reliability**, with live-edit audio freeze as the highest-priority blocker.
+WP-B starts with the reported live-edit audio freeze. Do not begin WP-C or later work until WP-B is complete, tested and documented.
 
-## Product-owner decisions locked 2026-10-25
+## WP-A delivered behavior
 
-All recommendations in `docs/PRODUCT_WORKSHOP_2026-10-25.md` were approved.
-
-Locked requirements:
-
-- main sequence defaults to `1 BAR`; FREE remains explicit;
-- REC is reserved for real recording/capture;
-- EDIT is reserved for edit/focus/lock behavior;
-- legacy REROLL/TAP/RESET/CLEAR actions must migrate to visible contextual actions without losing functionality;
-- black keys are the approved contextual action rail where useful;
-- LFO + DOT belong under a common `MOD` concept;
-- Turing belongs to the broader modulation/generative family while retaining its own identity;
-- Reverb V3 is required because V2 remains perceptually metallic/ring-mod-like despite technical acceptance;
-- distortion gets an intentionally extreme upper range with gain management;
-- ratchet audibility is a parity/timing/envelope-retrigger task first;
-- current synth is preserved as `ANALOG` and later gains curated `FM` mode;
-- `SOUND` becomes an independent future randomizer target;
-- per-step timbre locks/modulation are approved after stabilization;
-- harmonic-layer prototyping begins with scale-aware `HARMONY`, then soft filtered `PAD`;
-- current Chord remains regression-protected until a successor wins by audition;
-- splash screen is required before final polish acceptance.
-
-## Product status after hands-on audition
-
-FM-1 Mello is already musically useful and produces compelling loops. The main product problem is not lack of functionality. It is inconsistent interaction grammar plus a few trust-breaking audio/UI defects.
-
-Detailed review: `docs/PRODUCT_WORKSHOP_2026-10-25.md`.
-
-### P0 trust/reliability backlog
-
-- Audio can freeze while parameters are turned; STOP/PLAY often recovers it.
-- Some R1-R4 rendered labels do not match the rotary handler.
-- Text clipping/overlap exists on some screens.
-- A static pink line can appear over `SINGLE` on HOME.
-
-These are WP-B blockers before major synth expansion.
-
-### Timing model
-
-Keep these concepts separate in names, state and UI:
-
-1. external clock/MIDI sync;
-2. main-sequence `BAR RESET / FREE`;
-3. Loop Cycle `SYNC / FREE`;
-4. Slot/Chain hold length.
-
-Approved main-sequence default: `1 BAR` = reset after 16 sixteenth-note ticks.
-
-### Reverb
-
-Reverb V2 remains the technically validated regression baseline, but is not product-accepted. Reverb V3 is an approved later work package with perceptual listening as a hard gate.
-
-### Ratchet
-
-Original HTML retriggers the synth envelope for every ratchet sub-trigger. Native ratchet behavior must be checked against that reference before redesign.
-
-### Synth/harmonic future
-
-After WP-A through WP-E stabilization:
-
-- ANALOG remains intact;
-- curated FM is added under hard CPU/RAM budgets;
-- SOUND randomization and per-step timbre are added safely;
-- scale-aware HARMONY and PAD are prototyped before changing/removing current Chord.
-
-## WP-A / Step 4 requirements
-
-Randomizer is a primary creative instrument.
+Randomizer remains a primary creative instrument.
 
 - `LOW`: conservative variation around current material.
-- `MED`: preserve existing/default randomizer character as closely as practical.
-- `HIGH`: larger structural/timbral movement while remaining musical.
-- intensity changes target-specific mutation depth/span, never target selection.
-- `WAVE` remains independently selectable.
-- preserve the existing RNG call order for MED where practical.
-- compact full 4..32-step overview remains visible.
-- RANDOM skyline becomes denser: 16 steps comfortably legible, 17..32 still visible without display paging.
-- pulse/ratchet/event information must remain meaningful under compression.
-- do not implement Undo, FM, Control Grammar v2 or Reverb V3 inside WP-A.
+- `MED`: exact compatibility path through the previous/default randomizer implementation.
+- `HIGH`: broader structural/timbral movement while remaining within legal ranges.
+- intensity changes mutation depth/span only; it does not change target selection.
+- `WAVE` remains independently selectable and isolated.
+- intensity is runtime UI state, so WP-A introduced no project/storage migration.
+- RANDOM page exposes LOW/MED/HIGH on K1 and retains the target mask controls.
+- RANDOM skyline shows the full active 4..32-step sequence without paging, including compressed event information and playhead feedback.
 
-## Current technical state
+## WP-A verification evidence
 
-`ci/randomizer_roadmap_probe.py` is still diagnostic and deliberately ends with:
+Clean reconstruction closeout:
 
-`raise SystemExit('RANDOMIZER ROADMAP PROBE V2 COMPLETE')`
+- commit: `42cf506be5b127e7f03c763966d1e75cc4a48a85`
+- `Reconstructed source gate` run: `40294234032`
+- result: PASS
+- WP-A split-patch transport is protected by base64 SHA-256 `6893352e8da1fdceb0c3ca40e174c229f4c027d4f21326300f649b5c590172d8`, gzip SHA-256 `2902990dab7e56a9e8136ba131d49076b56fce63414df56c77c41c46d2102d8f`, plus exact pre/post source hashes.
 
-Known diagnostic run at product-code checkpoint `1c0748c2140e106e0c38fa0637b4c06139c2625f`:
+Full target closeout:
 
-- Workflow run: `39925230733`
-- Workflow: `Reconstructed source gate`
-- Result: `failure`
-- Reason: intentional probe exit after printing findings.
+- `Visual port target build` run: `40294234527`
+- result: PASS
+- repo build/test command: `bash ci/build_target.sh`
+- randomizer distance, Chord enabled: `LOW=194824 < MED=516917 < HIGH=1082367`
+- randomizer distance, Chord compiled out: `LOW=180984 < MED=484357 < HIGH=1038671`
+- RANDOM incremental redraw: `4 fills / 0 texts`
+- WAVE isolation: PASS
+- full RANDOM skyline lengths `4..32`: PASS
+- legal-range/deterministic randomizer coverage: PASS
+- 300 BPM timing stress: PASS
+- chord/reverb regressions and chord compile-out: PASS
+- emulator panel/audio: PASS
+- browser/WASM 100 MHz path: PASS, `1.872x` steady realtime
+- Chromium keyboard/pointer E2E: PASS
+- 80 MHz SEQ/HOME path: PASS, `2.231x` steady realtime
+- 80 MHz Chord + Reverb V2 worst-case: PASS, `2.249x` steady realtime.
 
-This intentional failure must be removed/disabled when WP-A findings have been converted into real deterministic tests. WP-A cannot be declared green while the production gate intentionally fails.
+Target resource/package result:
+
+- image: `190560 B / 581564 B`
+- RAM: `76320 B / 98304 B`, headroom `21984 B`
+- pool: `326368 B / 344064 B`, headroom `17696 B`
+- package: `skurkymello-0.1-dev.fwsc`, `611545 B`
+- package SHA-256: `fcd1fbf7624b50995f90267f4e168fe2a72328a8f7eeeb46c4982632cd999df0`
+- build provenance attestation: PASS.
+
+Both RAM and pool remain above the required 16 KiB headroom floor.
+
+## Closeout deviation resolved
+
+WP-A initially appeared to fail reconstruction after its implementation. The WP-A patch itself was valid. The actual blocker was the old temporary `ci/randomizer_roadmap_probe.py` still being invoked by `ci/patch_chord_mix_separation.py`; that probe intentionally exited non-zero after printing diagnostics. Its invocation was removed in `2883e5670c3617f8f81aad738c9620ba600664ef`. Temporary tracing/artifact diagnostics were then removed and the correct WP-A transport-integrity hashes restored in `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
+
+This was a resolved workflow deviation, not a randomizer functional defect.
+
+## Active WP-B scope
+
+WP-B is a trust/reliability package, not feature expansion:
+
+1. reproduce and fix live-edit audio freeze;
+2. guarantee R1-R4 rendered labels match the actual handlers;
+3. remove text clipping/overlap;
+4. remove the HOME pink-line artifact;
+5. expand automated mapping/text-fit/stale-region coverage.
+
+Major synth expansion remains blocked until WP-B is green.
+
+## Locked product direction after WP-B
+
+- WP-C: Control Grammar v2 - REC/EDIT cleanup, contextual black-key actions, MOD family.
+- WP-D: timing model - default `1 BAR`, explicit FREE, timing concepts kept separate.
+- WP-E: audio character - extreme distortion, Reverb V3, ratchet parity and live smoothing.
+- WP-F: one-level Undo Last Random.
+- WP-G: preserve ANALOG, add curated FM, SOUND randomization and realtime-safe per-step timbre.
+- WP-H: prototype scale-aware HARMONY, then PAD, before replacing current Chord.
+- WP-I: splash/HOME/Key-Scale/SEQ/onboarding polish.
+- WP-J: final integration/performance gate.
 
 ## Source reconstruction model
 
-Firmware source is reconstructed by `ci/unpack_source.sh` from source chunks plus an ordered patch chain. New functional work must follow that patch/test architecture. Do not assume reconstructed source is committed as ordinary source files.
+Firmware source is reconstructed by `ci/unpack_source.sh` from source chunks plus an ordered patch chain. Functional work must continue to follow this patch/test architecture. Do not assume reconstructed `mello/` files are ordinary committed source of truth.
 
 ## New-chat procedure
 
-Read `START_HERE.md` first. It gives the exact file order, active work package and stop conditions.
-
-## Definition of done for WP-A
-
-WP-A is not complete until:
-
-- LOW/MED/HIGH exists in engine behavior and FM-1 UI;
-- MED preserves previous creative behavior as closely as practical;
-- intensity never changes the selected target mask;
-- WAVE can be randomized independently;
-- values remain legal at every sequence length 4..32;
-- deterministic/reproducible tests exist where RNG architecture permits;
-- RANDOM shows the whole active sequence with useful density at 4..32 steps;
-- redraw performance remains within established baseline;
-- existing chord/reverb technical regressions and target build remain green;
-- intentional diagnostic probe failure is removed from the real gate;
-- exact commit and workflow/run evidence is recorded in project/testing docs;
-- stop after WP-A and hand off to WP-B rather than silently starting later packages.
+Read `START_HERE.md` first. It contains the active package, file-reading order and stop condition.

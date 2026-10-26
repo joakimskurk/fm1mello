@@ -1,5 +1,43 @@
 # CHANGELOG
 
+## 2026-10-26 - WP-A randomizer intensity + RANDOM skyline complete
+
+WP-A / Step 4 is complete and handed off. No WP-B implementation is included in this checkpoint.
+
+Implemented:
+
+- `LOW / MED / HIGH` randomizer intensity;
+- MED preserves the previous/default randomizer implementation directly;
+- LOW stays closer to current material and HIGH produces broader legal variation;
+- intensity changes mutation depth/span without changing selected target masks;
+- WAVE remains independently selectable and isolated;
+- intensity is runtime UI state, so no project/storage migration was introduced;
+- RANDOM page exposes intensity through K1;
+- RANDOM skyline retains the full active 4..32-step sequence without paging, with pitch/event/playhead information under compression.
+
+Validation:
+
+- implementation commit: `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`;
+- clean reconstruction closeout: `42cf506be5b127e7f03c763966d1e75cc4a48a85`;
+- reconstruction run `40294234032`: PASS;
+- target closeout run `40294234527`;
+- measured randomizer distance baseline: `LOW=194824 < MED=516917 < HIGH=1082367`;
+- RANDOM incremental redraw: `4 fills / 0 texts`;
+- 4..32 skyline, WAVE isolation, legal-range and deterministic coverage: PASS;
+- 300 BPM timing, Chord/Reverb regressions, emulator/browser/Chromium and 80 MHz gates: PASS;
+- RAM headroom `21984 B`; pool headroom `17696 B`, both above the 16 KiB floor;
+- product-identical package SHA-256: `fcd1fbf7624b50995f90267f4e168fe2a72328a8f7eeeb46c4982632cd999df0`.
+
+Closeout repair:
+
+- the temporary red reconstruction was traced to the old `randomizer_roadmap_probe.py` still being invoked and deliberately exiting non-zero;
+- the WP-A patch itself was valid;
+- the obsolete probe invocation was removed;
+- temporary reconstruction tracing/artifact export was removed;
+- correct WP-A base64/gzip integrity hashes plus exact source pre/post hashes now lock reconstruction.
+
+Next active package: **WP-B Trust and reliability**, beginning with live-edit audio freeze. Stop here; WP-B is not started by this closeout.
+
 ## 2026-10-25 - approved next-iteration handoff
 
 Product owner approved every recommendation from the 2026-10-25 product workshop.
@@ -39,7 +77,7 @@ Updated:
 - `docs/UI_VISUAL_LANGUAGE.md`
 - `README.md`
 
-Active next implementation remains **WP-A / Step 4 - Randomizer intensity + RANDOM skyline refinement**.
+Active next implementation remained **WP-A / Step 4 - Randomizer intensity + RANDOM skyline refinement**.
 
 After WP-A is verified and documented, stop and hand off to **WP-B Trust and reliability**, where live-edit audio freeze is the first blocker.
 

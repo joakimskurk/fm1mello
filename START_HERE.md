@@ -6,8 +6,9 @@ Use this file at the start of every new ChatGPT work session on `joakimskurk/fm1
 
 - Repo: `joakimskurk/fm1mello`
 - Branch: `visual-port-home`
-- Always fetch the current branch HEAD before editing.
+- Always fetch and verify the current branch HEAD before editing.
 - Do not reconstruct project direction from old chat memory when repo documentation is available.
+- Follow the active work package below and do not jump ahead.
 
 ## Read these files in this order
 
@@ -21,101 +22,119 @@ Use this file at the start of every new ChatGPT work session on `joakimskurk/fm1
 8. `docs/PRODUCT_WORKSHOP_2026-10-25.md`
 9. `docs/UI_VISUAL_LANGUAGE.md` when UI is touched.
 
+## Last completed work package
+
+**WP-A / Step 4 - Randomizer intensity + RANDOM skyline refinement: COMPLETE.**
+
+Implementation commit: `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`.
+Clean reconstruction closeout: `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
+
+Verified outcomes:
+
+- LOW/MED/HIGH implemented;
+- MED preserves the old/default path directly;
+- target masks are unchanged by intensity;
+- WAVE remains independently selectable;
+- RANDOM shows the full 4..32-step skyline without paging;
+- no storage migration;
+- host, timing, chord/reverb, emulator/browser, 80 MHz and target-build gates are green;
+- the obsolete diagnostic probe invocation and temporary reconstruction tracing have been removed.
+
+Do not reopen WP-A unless a real regression is demonstrated.
+
 ## Active next work package
 
-**WP-A / Step 4 - Randomizer intensity + RANDOM skyline refinement.**
+**WP-B - Trust and reliability.**
 
 Do this work package only.
 
-### Goals
+### Work order
 
-- add `LOW / MED / HIGH` randomizer intensity;
-- preserve MED as closely as practical to the current/default creative behavior;
-- make LOW a conservative variation around current material;
-- make HIGH a broader but still musical jump;
-- intensity changes mutation depth/range per target, not target selection;
-- preserve independent `WAVE` target;
-- keep all 4..32 active sequence steps visible;
-- make 16-step RANDOM skyline comfortably readable and 17..32 still meaningful without display paging.
+1. Reproduce and fix the live-edit audio freeze reported during parameter turning.
+2. Guarantee R1-R4 rendered labels/values match the actual rotary handlers.
+3. Remove text clipping and overlap at extreme values.
+4. Remove the static pink-line artifact reported over `SINGLE` on HOME.
+5. Extend automated mapping, text-fit and stale-region coverage so those defects cannot silently return.
 
-### Do not implement inside WP-A
+### WP-B principles
 
-- Undo Last Random;
-- REC/EDIT remapping;
-- black-key action rail;
-- MOD menu/navigation redesign;
-- main-sequence 1 BAR timing implementation;
+- trust/reliability before new synthesis scope;
+- reproduce before redesigning;
+- preserve currently green audio, randomizer, timing, chord, feature-flag, UI-performance and target gates;
+- normal live rotary movement must not allocate/rebuild DSP in an unbounded way;
+- one authoritative mapping source should drive both displayed R1-R4 semantics and handlers where practical;
+- display fixes must be covered by bounds/dirty-region tests, not screenshot judgement only.
+
+### Do not implement inside WP-B
+
+- Control Grammar v2 / REC-EDIT remapping;
+- contextual black-key action rail;
+- MOD navigation redesign;
+- main-sequence 1 BAR timing model;
+- distortion expansion;
 - Reverb V3;
-- distortion range expansion;
+- Undo Last Random;
 - ANALOG/FM engine work;
 - SOUND randomization;
 - per-step timbre;
 - harmonic-layer redesign;
-- splash screen.
+- splash/onboarding polish.
 
-Those directions are approved, but they belong to later work packages.
+Those directions are approved but belong to later work packages.
 
-## Required source/workflow inspection before editing WP-A
+## Required inspection before editing WP-B
 
-Read:
+At minimum inspect:
 
-- `ci/randomizer_roadmap_probe.py`
 - `ci/unpack_source.sh`
 - `ci/build_target.sh`
-- analogous existing patch scripts in `ci/`
-- relevant existing randomizer/UI host tests in `tools/`
+- `TESTING.md`
+- relevant audio parameter/state code in the reconstructed source;
+- UI rotary label/handler paths;
+- existing `tools/` visual/control/performance tests;
+- `docs/PRODUCT_WORKSHOP_2026-10-25.md` for the reported defects and product context.
 
-The firmware source is reconstructed from chunks plus an ordered patch chain. Follow that architecture rather than assuming ordinary committed source files are the editable source of truth.
+The firmware source is reconstructed from chunks plus an ordered patch chain. Follow that architecture rather than treating generated `mello/` files as ordinary committed source.
 
-## Known CI condition
+## WP-B required acceptance
 
-At product-code checkpoint `1c0748c2140e106e0c38fa0637b4c06139c2625f`, workflow run `39925230733` is intentionally red because `ci/randomizer_roadmap_probe.py` exits non-zero after printing diagnostics.
+Before WP-B can close:
 
-This is not a functional regression, but WP-A cannot be declared complete until that intentional failure is removed/disabled and replaced by real deterministic coverage.
-
-## WP-A required tests
-
-At minimum verify:
-
-1. MED compatibility with previous behavior.
-2. LOW/MED/HIGH do not alter selected target mask.
-3. WAVE-only randomization is isolated.
-4. LOW mutation depth is smaller than MED where applicable.
-5. HIGH mutation depth is larger than MED where applicable without illegal values.
-6. all mutated values remain legal.
-7. sequence lengths 4..32 remain valid.
-8. reproducibility for identical seed/state where possible.
-9. full RANDOM overview remains visible at 4..32.
-10. 16 steps are comfortably legible; 17..32 remain visible.
-11. pulse/ratchet/event cues remain meaningful under compression.
-12. incremental redraw/performance does not regress Step 3 baseline.
-13. existing Chord/Reverb technical regression tests remain green.
-14. target build and applicable emulator/browser/80 MHz/Chromium gates are green.
+1. deterministic/stress reproduction exists for live parameter edits while transport/audio run;
+2. no audio freeze/silent state and no STOP/PLAY recovery is required;
+3. transport phase remains valid through live edits;
+4. R1-R4 display/handler parity is validated across page/layer mappings;
+5. text fit and overlap pass at extreme formatted values;
+6. HOME stale/pink-line artifact is eliminated and regression-covered;
+7. existing WP-A LOW/MED/HIGH + skyline gates remain green;
+8. Chord/Reverb technical regressions remain green;
+9. 300 BPM timing, emulator/browser, 80 MHz and Chromium paths remain green;
+10. full target build remains green with >=16 KiB RAM and pool headroom;
+11. project docs record exact commit/run evidence.
 
 ## Stop condition
 
-When WP-A is fully green:
+When WP-B is fully green:
 
-- record exact implementation commit SHA;
-- record exact workflow run ID and relevant measured gates;
+- record exact implementation/closeout commit SHA;
+- record workflow run IDs and measured gates;
 - update `PROJECT_STATE.md`, `ROADMAP.md`, `TESTING.md` and `CHANGELOG.md`;
-- set **WP-B Trust and reliability** as the next active package;
-- stop and prepare a new-chat handoff instead of beginning WP-B automatically.
+- set **WP-C Control Grammar v2** as the next active package;
+- stop and hand off instead of beginning WP-C automatically.
 
-## Approved future sequence after WP-A
+## Approved future sequence after WP-B
 
-1. WP-B Trust/reliability: audio freeze first, rotary parity, clipping/overlap, HOME artifact.
-2. WP-C Control Grammar v2: REC/EDIT cleanup, contextual black keys, MOD family.
-3. WP-D Timing: default 1 BAR, explicit FREE, keep Loop Cycle/Slot/external sync concepts separate.
-4. WP-E Audio character: extreme distortion, Reverb V3, ratchet parity, live smoothing.
-5. WP-F Undo Last Random.
-6. WP-G ANALOG/FM + SOUND randomization + per-step timbre.
-7. WP-H scale-aware HARMONY first, PAD second, then compare alternatives.
-8. WP-I splash/HOME/Key-Scale/SEQ/onboarding polish.
-9. WP-J final integration/performance gate.
+1. WP-C Control Grammar v2: REC/EDIT cleanup, contextual black keys, MOD family.
+2. WP-D Timing: default 1 BAR, explicit FREE, keep Loop Cycle/Slot/external sync concepts separate.
+3. WP-E Audio character: extreme distortion, Reverb V3, ratchet parity, live smoothing.
+4. WP-F Undo Last Random.
+5. WP-G ANALOG/FM + SOUND randomization + per-step timbre.
+6. WP-H scale-aware HARMONY first, PAD second, then compare alternatives.
+7. WP-I splash/HOME/Key-Scale/SEQ/onboarding polish.
+8. WP-J final integration/performance gate.
 
 ## Non-negotiable product principle
 
 **Keep the depth, reduce the number of grammars.**
 
-Do not remove useful functionality just to make the interface simpler. Make related functions behave consistently and visibly instead.
+Do not remove useful functionality merely to make the interface simpler. Make related functions behave consistently and visibly instead.
