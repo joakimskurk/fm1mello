@@ -51,3 +51,5 @@ print('PASS: chord bed bypasses lead filter/distortion and joins before shared d
 # Stabilization stages after the final chord routing point.
 runpy.run_path(str(Path(__file__).with_name('patch_reverb_v2.py')), run_name='__main__')
 runpy.run_path(str(Path(__file__).with_name('patch_ui_playhead_perf.py')), run_name='__main__')
+# WP-B1: publish complete live-edit snapshots and keep heavyweight derived DSP work out of normal audio config applies.
+runpy.run_path(str(Path(__file__).with_name('patch_live_edit_audio.py')), run_name='__main__')

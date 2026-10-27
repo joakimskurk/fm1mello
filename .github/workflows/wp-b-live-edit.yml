@@ -1,0 +1,22 @@
+name: WP-B live-edit gate
+
+on:
+  push:
+    branches: [visual-port-home]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-edit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Reconstruct final Mello source
+        run: bash ci/unpack_source.sh
+      - name: Compile live-edit audio stress
+        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_LIVE_EDIT_TEST_HOOK=1 -I mello tools/live_edit_audio_stress.c mello/*.c -o /tmp/live_edit_audio_stress
+      - name: Stress live rotary audio publication
+        run: /tmp/live_edit_audio_stress
