@@ -1,0 +1,26 @@
+name: WP-B rotary parity gate
+
+on:
+  push:
+    branches: [visual-port-home]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rotary-parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Reconstruct final Mello source
+        run: bash ci/unpack_source.sh
+      - name: Compile rotary parity with Chord enabled
+        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/rotary_mapping_parity.c mello/*.c -o /tmp/rotary_mapping_parity
+      - name: Validate rotary parity with Chord enabled
+        run: /tmp/rotary_mapping_parity
+      - name: Compile rotary parity with Chord disabled
+        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/rotary_mapping_parity.c mello/*.c -o /tmp/rotary_mapping_parity_off
+      - name: Validate rotary parity with Chord disabled
+        run: /tmp/rotary_mapping_parity_off
