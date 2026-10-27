@@ -107,4 +107,6 @@ echo '7c9b7428920f787225c383ae4e6ba08a8e1ac5a2a95064b3d7d14ea0f8d3c64d  mello/me
 echo '0b712e7c5641c989f98a85af97f5dad5ee290897f33340f0e40d9cad2005159d  mello/mello_ui.h' | sha256sum -c -
 echo 'd3d016c2d4e67d310c031b2d2aaf36c011783a8bbbd6a45712f84d2fe9cc6932  mello/mello_ui.c' | sha256sum -c -
 echo 'e9f5de542f27c04399dfbde5765a4b760988b3ba992b9027e31b4a89562efd40  tools/random_wave_overview_smoke.c' | sha256sum -c -
-echo 'PASS: reconstructed source + parity + removable chord machine + sync/tone go-no-go + WP-A randomizer intensity/skyline'
+# WP-B2: apply rotary display/handler parity only after the locked WP-A source.
+python3 ci/patch_rotary_parity.py
+echo 'PASS: reconstructed source + parity + removable chord machine + sync/tone go-no-go + WP-A randomizer intensity/skyline + WP-B1 live-edit + WP-B2 rotary parity'
