@@ -61,16 +61,16 @@ for old, new in replacements:
     s = s.replace(old, new)
 ROTARY.write_text(s)
 
-# WP-A's hard smoke is hash-locked before WP-B is applied. B3 changes only
-# presentation geometry, so first locate the exact post-WP-A footer capture.
+# WP-A's hard smoke is hash-locked before WP-B is applied. Inspect the exact
+# post-WP-A capture/assertions once before making the B3-only test adaptation.
 r = RANDOM_TEST.read_text()
-if r.count('y==203') != 1:
-    print('WP-B3 diagnostic: post-WP-A RANDOM capture lines follow')
-    for lineno, line in enumerate(r.splitlines(), 1):
-        if any(token in line for token in ('text_cb', 'INT', 'MED', 'LABEL', 'y==', 'y ==')):
-            print(f'{lineno}: {line}')
-    raise SystemExit('FAIL: WP-B3 footer capture needs exact post-WP-A adaptation')
-r = r.replace('y==203', 'y==204')
-RANDOM_TEST.write_text(r)
-
-print('PASS: WP-B3 display-integrity patch + B2/WP-A test adaptations applied')
+lines = r.splitlines()
+print('WP-B3 diagnostic: post-WP-A RANDOM text capture')
+for lineno in range(24, 36):
+    if lineno <= len(lines):
+        print(f'{lineno}: {lines[lineno-1]}')
+print('WP-B3 diagnostic: post-WP-A RANDOM UI assertions')
+for lineno in range(158, 203):
+    if lineno <= len(lines):
+        print(f'{lineno}: {lines[lineno-1]}')
+raise SystemExit('FAIL: WP-B3 diagnostic checkpoint - replace with exact adaptation')
