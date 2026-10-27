@@ -17,3 +17,11 @@ jobs:
         run: bash ci/unpack_source.sh
       - name: Inspect live-edit paths
         run: python3 ci/wp_b_live_edit_probe.py
+      - name: Export reconstructed source for WP-B diagnosis
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wp-b-reconstructed-source
+          path: |
+            mello/
+            overlay/
+          if-no-files-found: error
