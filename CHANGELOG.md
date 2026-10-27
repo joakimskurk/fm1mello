@@ -1,8 +1,41 @@
 # CHANGELOG
 
+## 2026-10-27 - WP-B1 live-edit audio reliability complete
+
+B1 is complete on the currently available host/emulator/browser/target evidence. WP-B remains active; B2 rotary display/handler parity is next.
+
+Implemented:
+
+- odd/even pending-config publication so audio does not consume a partial live-edit snapshot;
+- 32-bit config generation plus a 32768-publication alias regression;
+- 257-point SUB drive-curve preparation moved out of normal audio render;
+- selective derived-state invalidation for LFO, delay, reverb, distortion and SUB processing;
+- permanent host live-edit stress across SOUND/FX/SUB/SAMPLE;
+- real 80 MHz front-panel encoder live-edit stress in the target gate;
+- corrected emulator encoder-event syntax from ineffective `encN` to the pinned emulator's `eN` format in existing web/80 MHz scripts.
+
+Validation checkpoint: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
+
+- dedicated live-edit run `40596812842`: PASS;
+- reconstruction run `40596812864`: PASS;
+- full target run `40596813400`: PASS;
+- 2400-block host stress: no silence window, queue overflow or transport stall;
+- 32768 coalesced config publications: PASS;
+- 80 MHz physical encoder stress: `1.673x` steady realtime;
+- final one-second stress tail: `88168` nonzero samples, peak `3902`;
+- 100 MHz browser/WASM: `1.660x` steady realtime;
+- 80 MHz SEQ/HOME: `1.756x` steady realtime;
+- 80 MHz Chord + Reverb V2: `1.663x` steady realtime;
+- RAM headroom `21472 B`; pool headroom `17696 B`;
+- package SHA-256 `9d118b8559bd6fbd2bf89c3c763edb8a626da9ed75ec37e2324696d2ed5d72da`.
+
+The exact originally reported physical FM-1 freeze cannot be hands-on re-auditioned until hardware is available. That limitation is retained explicitly in `TESTING.md`.
+
+B2 audit already confirmed two real display/handler mismatches: GLOBAL K4 shows `REC / TAP` while toggling MIDI note out, and Loop Cycle STEP displays `TRANS`/`OCT` opposite to the K3/K4 handlers. B2 must build systematic parity coverage rather than patching only those strings.
+
 ## 2026-10-26 - WP-A randomizer intensity + RANDOM skyline complete
 
-WP-A / Step 4 is complete and handed off. No WP-B implementation is included in this checkpoint.
+WP-A / Step 4 is complete and handed off.
 
 Implemented:
 
@@ -20,7 +53,7 @@ Validation:
 - implementation commit: `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`;
 - clean reconstruction closeout: `42cf506be5b127e7f03c763966d1e75cc4a48a85`;
 - reconstruction run `40294234032`: PASS;
-- target closeout run `40294234527`;
+- target closeout run `40294234527`: PASS;
 - measured randomizer distance baseline: `LOW=194824 < MED=516917 < HIGH=1082367`;
 - RANDOM incremental redraw: `4 fills / 0 texts`;
 - 4..32 skyline, WAVE isolation, legal-range and deterministic coverage: PASS;
@@ -36,85 +69,16 @@ Closeout repair:
 - temporary reconstruction tracing/artifact export was removed;
 - correct WP-A base64/gzip integrity hashes plus exact source pre/post hashes now lock reconstruction.
 
-Next active package: **WP-B Trust and reliability**, beginning with live-edit audio freeze. Stop here; WP-B is not started by this closeout.
-
 ## 2026-10-25 - approved next-iteration handoff
 
-Product owner approved every recommendation from the 2026-10-25 product workshop.
+Product owner approved every recommendation from the 2026-10-25 product workshop. Documentation/handoff updates only; no firmware implementation changed in this approval checkpoint.
 
-Documentation/handoff updates only; no firmware implementation changed in this approval checkpoint.
-
-Added:
-
-- `START_HERE.md` as the canonical entry point for new ChatGPT/work sessions.
-
-Locked product decisions:
-
-- main-sequence default = `1 BAR`, FREE remains explicit;
-- REC reserved for actual recording/capture;
-- EDIT reserved for edit/focus/lock;
-- black keys approved as visible contextual action rail where useful;
-- LFO + DOT grouped conceptually under `MOD`, with Turing in the broader generative/modulation family;
-- Reverb V3 approved with perceptual listening as a hard gate;
-- distortion approved for an intentionally extreme upper range with gain management;
-- ratchet audibility handled as parity/timing/envelope retrigger first;
-- current synth preserved as ANALOG with curated FM mode approved after stabilization;
-- SOUND approved as future independent randomizer target;
-- per-step timbre approved after stabilization;
-- harmonic-layer spike starts with scale-aware HARMONY, then PAD;
-- current Chord remains regression-protected until a successor wins;
-- splash screen required before final polish acceptance.
-
-Updated:
-
-- `PROJECT_STATE.md`
-- `ROADMAP.md`
-- `DECISIONS.md`
-- `CONTROL_GRAMMAR.md`
-- `TESTING.md`
-- `docs/NEXT_ITERATION_ROADMAP.md`
-- `docs/PRODUCT_WORKSHOP_2026-10-25.md`
-- `docs/UI_VISUAL_LANGUAGE.md`
-- `README.md`
-
-Active next implementation remained **WP-A / Step 4 - Randomizer intensity + RANDOM skyline refinement**.
-
-After WP-A is verified and documented, stop and hand off to **WP-B Trust and reliability**, where live-edit audio freeze is the first blocker.
+Locked product decisions included default `1 BAR`, REC/EDIT semantic cleanup, contextual black keys, MOD grouping, Reverb V3, broader distortion, ratchet parity, ANALOG/FM direction, SOUND randomization, per-step timbre, HARMONY/PAD exploration and splash-screen polish.
 
 ## 2026-10-25 - post-audition product review
 
-Documentation/planning checkpoint after extended hands-on emulator testing. No firmware implementation was changed in this checkpoint.
-
-Added:
-
-- `docs/PRODUCT_WORKSHOP_2026-10-25.md`
-
-Important status changes:
-
-- Step 4 Randomizer intensity remained current implementation work package.
-- Reverb V2 kept its technical regression baseline but product acceptance was reopened after metallic/ring-mod-like audition feedback.
-- Chord Machine remained regression-protected while its final musical purpose was opened for design exploration.
-- P0 reliability backlog added live-edit audio freeze, rotary-label/handler mismatch, text overlap/clipping and HOME pink-line artifact.
-- Original HTML timing semantics were re-checked: main-sequence bar reset and Loop Cycle SYNC/FREE are separate concepts.
-- Ratchet reference behavior was re-checked: HTML retriggers synth envelope for each ratchet sub-trigger.
-- Future product direction documented ANALOG/FM exploration, SOUND randomization and per-step timbre after stabilization gates.
+Documentation/planning checkpoint after extended hands-on emulator testing. Added `docs/PRODUCT_WORKSHOP_2026-10-25.md` and the P0 trust/reliability backlog that became WP-B.
 
 ## 2026-10-23 - handoff checkpoint for new chat
 
-Documentation-only handoff prepared for continuation of the same FM-1 Mello project.
-
-Added root-level continuity files:
-
-- `PROJECT_STATE.md`
-- `ROADMAP.md`
-- `DECISIONS.md`
-- `TESTING.md`
-- `CHANGELOG.md`
-
-No firmware/product implementation was changed by this handoff.
-
-The product-code checkpoint immediately before the handoff is:
-
-`1c0748c2140e106e0c38fa0637b4c06139c2625f`
-
-Current work remained **Step 4 - Randomizer intensity**. The source-reconstruction CI failure was intentionally caused by `ci/randomizer_roadmap_probe.py` exiting after diagnostic output and must not be mistaken for a functional regression.
+Added the root continuity files and documented the then-active Step 4 randomizer work plus its intentional diagnostic reconstruction failure.

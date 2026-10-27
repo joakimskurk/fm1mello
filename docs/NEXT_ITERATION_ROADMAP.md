@@ -1,6 +1,6 @@
 # SkurkyMello FM-1 - stabilization and product-evolution roadmap
 
-Approved direction: 2026-10-25. Updated after WP-A closeout: 2026-10-26.
+Approved direction: 2026-10-25. Updated after WP-B1 closeout: 2026-10-27.
 
 This roadmap is stabilization-first. Approval of later product direction is not permission to implement later work packages early.
 
@@ -17,57 +17,61 @@ See:
 
 Completed 2026-10-26.
 
-Delivered:
-
-- `LOW`: conservative variation around current material;
-- `MED`: direct compatibility path through the previous/default randomizer;
-- `HIGH`: larger structural/timbral movement while remaining useful and legal;
-- intensity changes target-specific mutation ranges/depth, not target selection;
-- `WAVE` remains independent;
-- no storage migration;
-- RANDOM retains a single full-sequence 4..32-step skyline with no visual paging;
-- pitch contour, playhead and event information remain meaningful under compression;
-- incremental redraw improved to `4 fills / 0 texts` in the measured WP-A smoke;
-- deterministic host coverage, timing stress, chord/reverb regressions, target build, emulator/browser, 80 MHz and Chromium gates pass.
+Delivered LOW/MED/HIGH intensity, direct MED compatibility, target-mask isolation, independent WAVE, no storage migration, full 4..32-step RANDOM skyline and deterministic/performance coverage.
 
 Implementation commit: `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`.
 Clean reconstruction closeout: `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
-Reconstruction run: `40294234032`.
-Target closeout run: `40294234527`.
 
-The temporary red reconstruction was caused by the old diagnostic probe still being invoked and deliberately exiting non-zero. The probe invocation and temporary tracing were removed; WP-A patch bytes plus pre/post source hashes are now integrity-locked.
+## WP-B. Trust and reliability - ACTIVE
 
-## WP-B. Trust and reliability - ACTIVE NEXT IMPLEMENTATION
+This gate exists because advanced functionality is useless if live editing and the interface cannot be trusted.
 
-This gate exists because advanced functionality is useless if live editing feels unreliable.
+### B1. Live-edit audio freeze - COMPLETE
 
-### B1. Live-edit audio freeze - highest priority
+Accepted on current host/emulator/browser/target evidence on 2026-10-27.
 
-Reproduce and fix the reported case where audio freezes while turning parameters and recovers after STOP/PLAY.
+Verified checkpoint: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
 
-Audit:
+Implemented:
 
-- audio-engine rebuilds/allocations;
-- scheduler/event corruption;
-- unsafe cross-state mutation;
-- missing smoothing/ramping;
-- UI/audio contention;
-- any parameter path that reinitializes DSP unnecessarily.
+- stable odd/even pending-config publication;
+- 32-bit generation counter with 32768-update regression;
+- SUB distortion-curve generation moved out of audio render;
+- selective derived-state invalidation rather than full rebuild on every parameter change;
+- permanent host live-edit stress;
+- real 80 MHz front-panel encoder live-edit stress.
 
-Pass criteria:
+Evidence:
 
-- no silent/frozen state during repeated live parameter movement;
-- no STOP/PLAY recovery required;
-- transport phase remains valid;
-- no unbounded rebuild/allocation path for normal rotary movement.
+- live-edit run `40596812842`: PASS;
+- reconstruction run `40596812864`: PASS;
+- target run `40596813400`: PASS;
+- 80 MHz live-edit stress `1.673x` steady realtime with audio still active in the final second;
+- RAM headroom `21472 B`, pool headroom `17696 B`.
 
-### B2. Rotary mapping parity
+Physical FM-1 hands-on regression remains required when hardware becomes available.
 
-Every page/layer must use or validate one authoritative R1-R4 mapping containing label, formatter, range/step, handler and acceleration behavior.
+### B2. Rotary mapping parity - ACTIVE SUBTASK
 
-Hard failure: any rendered Rn label/value describes a different parameter than physical rotary n changes.
+Every page/layer must use or validate one authoritative K1-K4 mapping containing label, formatter, range/step, handler and intentional action semantics.
 
-### B3. Display integrity
+Confirmed defects before implementation:
+
+- GLOBAL subpage 0 K4 toggles MIDI note output but footer says `REC / TAP`;
+- Loop Cycle STEP K3/K4 handlers for octave/transpose are displayed in the opposite `TRANS`/`OCT` positions.
+
+Hard failure: any rendered Kn label/value describes a different parameter than physical rotary n changes.
+
+B2 acceptance:
+
+- audit every page/layer, not only confirmed defects;
+- exercise actual encoder input paths;
+- verify label/value, direction and legal range where meaningful;
+- explicitly classify momentary/action controls;
+- deterministic CI fails on future mapping drift;
+- preserve all B1 and prior regression gates.
+
+### B3. Display integrity - PENDING AFTER B2
 
 - eliminate clipping/overlap at extreme values;
 - remove the static pink line over `SINGLE` on HOME;
@@ -78,7 +82,7 @@ Major synth expansion remains blocked until WP-B is green.
 
 ### WP-B completion rule
 
-Preserve all WP-A and existing regression gates. Record exact commit/run evidence in project/testing docs, then stop and hand off to WP-C rather than silently beginning it.
+Preserve all WP-A, B1 and existing regression gates. Record exact commit/run evidence in project/testing docs, then stop and hand off to WP-C rather than silently beginning it.
 
 ## WP-C. Control Grammar v2
 
@@ -104,45 +108,20 @@ Group conceptually:
 
 ### C5. Complete action audit
 
-Create one machine-readable/testable page-layer table covering R1-R4, white keys, black keys, SELECT, OCT, REC, EDIT, destructive actions and manual note-entry exceptions.
+Create one machine-readable/testable page-layer table covering K1-K4, white keys, black keys, SELECT, OCT, REC, EDIT, destructive actions and manual note-entry exceptions.
 
 ## WP-D. Timing model
 
 Approved main-sequence default: `1 BAR`.
 
-Expose:
-
-- `1 BAR`
-- `2 BAR`
-- `4 BAR`
-- `8 BAR`
-- `16 BAR`
-- `FREE`
-
-Keep separate:
-
-1. external MIDI/transport sync;
-2. main-sequence BAR RESET/FREE;
-3. Loop Cycle SYNC/FREE;
-4. Slot/Chain hold length.
+Expose `1 / 2 / 4 / 8 / 16 BAR / FREE` while keeping external sync, main-sequence reset/free, Loop Cycle sync/free and Slot/Chain hold length distinct.
 
 ## WP-E. Audio character
 
-### E1. Distortion
-
-Extend the upper range until maximum is intentionally extreme while preserving subtle lower range, gain-managed headroom and realtime-safe live changes.
-
-### E2. Reverb V3
-
-Reverb V2 remains a technical regression baseline only. Reverb V3 must reject ordinary musical settings that expose periodic ringing, comb-like pitch, short-delay character or ring-mod-like metallicity, with perceptual A/B as a hard gate.
-
-### E3. Ratchet parity
-
-Original HTML is the reference: pulse is split into sub-triggers and synth amplitude envelope retriggers for every ratchet.
-
-### E4. Live parameter smoothing
-
-All continuous sound/FX controls remain safe while transport runs and do not require STOP/PLAY recovery.
+- extend distortion to an intentionally extreme but bounded range;
+- build Reverb V3 with perceptual A/B as a hard gate;
+- preserve HTML ratchet envelope-retrigger parity;
+- all continuous sound/FX controls remain realtime-safe.
 
 ## WP-F. Undo Last Random
 
@@ -150,7 +129,7 @@ One-level pre-random snapshot, cheap in RAM/storage and isolated from normal slo
 
 ## WP-G. Synth evolution
 
-Only after WP-B through WP-E are green.
+Only after WP-B through WP-E are green:
 
 - preserve current synth as `ANALOG`;
 - add curated `FM` under hard CPU/RAM/pool budgets;
@@ -159,27 +138,15 @@ Only after WP-B through WP-E are green.
 
 ## WP-H. Harmonic layer decision
 
-Current Chord remains regression-protected. Prototype/audition in order:
-
-1. scale-aware `HARMONY`;
-2. soft filtered `PAD`;
-3. `SUB HARMONY` if useful;
-4. `CHORD V2` if useful;
-5. default-hidden/compile-out if none earns its space.
+Current Chord remains regression-protected. Prototype/audition HARMONY first, PAD second, then SUB HARMONY/CHORD V2 only if useful.
 
 ## WP-I. Instrument polish and onboarding
 
-- splash screen;
-- slicker HOME without sacrificing skyline/performance;
-- Key/Scale refinement;
-- SEQ explanatory hierarchy;
-- visible contextual action hints;
-- consistent margins/truncation/value formatting;
-- newcomer test without prior HTML-prototype knowledge.
+Splash, HOME hierarchy, Key/Scale, SEQ explanatory hierarchy, contextual hints, consistent typography/margins and newcomer usability.
 
 ## WP-J. Final integration gate
 
-Before release acceptance run the full text-fit, control mapping, randomizer, ratchet/audio event-order, reference parity, chord feature-on/compile-out, target, emulator, browser, 80 MHz, Chromium, memory/headroom and hands-on product audition gates.
+Run the full text-fit, control mapping, randomizer, ratchet/audio event-order, reference parity, chord feature-on/compile-out, target, emulator, browser, 80 MHz, Chromium, memory/headroom and hands-on product audition gates.
 
 ## Deferred / dependency-gated
 

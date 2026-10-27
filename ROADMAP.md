@@ -8,39 +8,63 @@ This file is the short handoff index. Detailed scope and acceptance criteria liv
 
 **Complete 2026-10-26.**
 
-Delivered:
-
-- `LOW / MED / HIGH` randomizer intensity;
-- exact previous/default randomizer path retained as MED;
-- target mask semantics unchanged by intensity;
-- WAVE remains independently selectable and isolated;
-- no storage migration;
-- full 4..32-step RANDOM skyline without paging;
-- compressed pitch/event/playhead information retained across long sequences;
-- deterministic host coverage and full target/emulator/browser/performance regression gates.
-
 Implementation commit: `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`.
 Clean reconstruction closeout: `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
 
-## Active next implementation
+### WP-B1 - Live-edit audio freeze
 
-### WP-B - Trust and reliability
+**Complete 2026-10-27 on available host/emulator/target evidence.**
 
-Goal: remove trust-breaking runtime/UI defects before expanding the instrument.
+Verified checkpoint: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
 
-Work order:
+Delivered:
 
-1. Reproduce and fix live-edit audio freeze.
-2. Guarantee R1-R4 screen labels match actual handlers.
-3. Remove text clipping/overlap.
-4. Remove HOME pink-line artifact.
-5. Extend mapping/text-fit/stale-region automated coverage.
+- stable pending audio-config publication;
+- heavy SUB distortion-curve generation moved out of audio render;
+- selective invalidation of derived LFO/delay/reverb/distortion/SUB state;
+- 32-bit publication generation with 32768-update regression coverage;
+- deterministic live-edit host stress;
+- real 80 MHz front-panel encoder stress integrated into target validation;
+- corrected emulator encoder-event syntax in existing 100 MHz and 80 MHz scripts.
+
+Green evidence:
+
+- live-edit run `40596812842`;
+- reconstruction run `40596812864`;
+- target run `40596813400`;
+- 80 MHz live-edit steady realtime `1.673x`, with audio still present in the final second;
+- target RAM headroom `21472 B`, pool headroom `17696 B`.
+
+Physical FM-1 hands-on regression remains deferred until hardware is available.
+
+## Active implementation
+
+### WP-B2 - Rotary display/handler parity
+
+Goal: make every K1-K4 label/value describe the parameter or action that the same physical rotary actually controls.
+
+Confirmed defects to start from:
+
+- GLOBAL subpage 0 K4 toggles MIDI note output but renders `REC / TAP`;
+- Loop Cycle STEP has K3/K4 `TRANS` and `OCT` displayed opposite to their handlers.
 
 Hard constraints:
 
-- do not fold Control Grammar v2, FM, Reverb V3 or other later feature work into WP-B;
-- preserve all currently green WP-A, chord, reverb, timing and target-build gates;
-- major synth expansion remains blocked until WP-B is green.
+- audit every page/layer, not only the two confirmed mismatches;
+- create deterministic mapping coverage so drift becomes a CI failure;
+- preserve all B1, WP-A, audio, timing and target-build gates;
+- do not fold B3, Control Grammar v2, FM, Reverb V3 or later feature work into B2.
+
+## Remaining WP-B work after B2
+
+### WP-B3 - Display integrity
+
+- remove text clipping/overlap at extreme values;
+- remove HOME pink-line artifact;
+- test stale dirty regions;
+- extend text-fit and visual integrity coverage.
+
+WP-B closes only after B1, B2 and B3 plus full regression validation are green.
 
 ## Approved work order after WP-B
 

@@ -1,6 +1,6 @@
 # PROJECT STATE
 
-Last verified work-package closeout: 2026-10-26
+Last verified subtask closeout: 2026-10-27
 
 ## Repository
 
@@ -15,77 +15,105 @@ Last verified work-package closeout: 2026-10-26
 
 WP-A implementation landed in `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07` and its clean reconstructed-source closeout is locked at `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
 
-**ACTIVE NEXT WORK PACKAGE: WP-B - Trust and reliability.**
+**ACTIVE WORK PACKAGE: WP-B - Trust and reliability.**
 
-WP-B starts with the reported live-edit audio freeze. Do not begin WP-C or later work until WP-B is complete, tested and documented.
+**B1 live-edit audio freeze is complete. ACTIVE SUBTASK: B2 rotary display/handler parity.**
 
-## WP-A delivered behavior
+Do not begin B3, WP-C or later work before the active subtask is complete, tested and documented.
 
-Randomizer remains a primary creative instrument.
+## B1 delivered reliability changes
 
-- `LOW`: conservative variation around current material.
-- `MED`: exact compatibility path through the previous/default randomizer implementation.
-- `HIGH`: broader structural/timbral movement while remaining within legal ranges.
-- intensity changes mutation depth/span only; it does not change target selection.
-- `WAVE` remains independently selectable and isolated.
-- intensity is runtime UI state, so WP-A introduced no project/storage migration.
-- RANDOM page exposes LOW/MED/HIGH on K1 and retains the target mask controls.
-- RANDOM skyline shows the full active 4..32-step sequence without paging, including compressed event information and playhead feedback.
+The reported live-edit freeze could not be reproduced on physical hardware because the user does not yet have an FM-1, but the reconstructed audio path exposed two concrete realtime risks consistent with the report:
 
-## WP-A verification evidence
+- pending audio configs could be consumed without an explicit update-in-progress guard;
+- every audio-config change rebuilt heavyweight derived DSP state inside audio render, including the full 257-point SUB distortion curve and reverb configuration even when unrelated parameters changed.
 
-Clean reconstruction closeout:
+B1 now:
 
-- commit: `42cf506be5b127e7f03c763966d1e75cc4a48a85`
-- `Reconstructed source gate` run: `40294234032`
-- result: PASS
-- WP-A split-patch transport is protected by base64 SHA-256 `6893352e8da1fdceb0c3ca40e174c229f4c027d4f21326300f649b5c590172d8`, gzip SHA-256 `2902990dab7e56a9e8136ba131d49076b56fce63414df56c77c41c46d2102d8f`, plus exact pre/post source hashes.
+- publishes pending config snapshots with an odd/even generation protocol so audio keeps the previous complete snapshot while a new one is being written;
+- uses 32-bit generation counters and regression-tests the old 32768-publication alias distance;
+- precomputes the 257-point SUB drive curve outside audio render and applies the prepared curve atomically;
+- invalidates LFO, delay, reverb, distortion and SUB derived state only when the relevant source fields change;
+- retains allocation-free normal live rotary paths;
+- adds a permanent deterministic host stress and a real 80 MHz front-panel encoder stress to the target gate.
 
-Full target closeout:
+Verified B1 implementation/test checkpoint: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
 
-- `Visual port target build` run: `40294234527`
-- result: PASS
-- repo build/test command: `bash ci/build_target.sh`
-- randomizer distance, Chord enabled: `LOW=194824 < MED=516917 < HIGH=1082367`
-- randomizer distance, Chord compiled out: `LOW=180984 < MED=484357 < HIGH=1038671`
-- RANDOM incremental redraw: `4 fills / 0 texts`
-- WAVE isolation: PASS
-- full RANDOM skyline lengths `4..32`: PASS
-- legal-range/deterministic randomizer coverage: PASS
-- 300 BPM timing stress: PASS
-- chord/reverb regressions and chord compile-out: PASS
-- emulator panel/audio: PASS
-- browser/WASM 100 MHz path: PASS, `1.872x` steady realtime
-- Chromium keyboard/pointer E2E: PASS
-- 80 MHz SEQ/HOME path: PASS, `2.231x` steady realtime
-- 80 MHz Chord + Reverb V2 worst-case: PASS, `2.249x` steady realtime.
+## B1 verification evidence
 
-Target resource/package result:
+Dedicated host gate:
 
-- image: `190560 B / 581564 B`
-- RAM: `76320 B / 98304 B`, headroom `21984 B`
-- pool: `326368 B / 344064 B`, headroom `17696 B`
-- package: `skurkymello-0.1-dev.fwsc`, `611545 B`
-- package SHA-256: `fcd1fbf7624b50995f90267f4e168fe2a72328a8f7eeeb46c4982632cd999df0`
+- workflow: `WP-B live-edit gate`;
+- run: `40596812842`;
+- result: PASS;
+- 2400 live-edit audio blocks with active transport: PASS;
+- transport reached tick `159600`;
+- stable config applies: `2470`;
+- SUB curve builds: `67`;
+- reverb reconfigurations: `135`;
+- no event-queue overflow;
+- no silent stress window;
+- no STOP/PLAY recovery;
+- 32768 coalesced publications: PASS, newest config remains visible and applies once.
+
+Reconstruction:
+
+- `Reconstructed source gate` run `40596812864`: PASS.
+
+Full target gate:
+
+- `Visual port target build` run `40596813400`: PASS;
+- physical encoder live-edit stress at 80 MHz: PASS;
+- stress length: `9002 ms` emulated;
+- steady realtime margin: `1.673x`;
+- complete audio output: `743872` nonzero samples, peak `3902`;
+- final second after encoder stress: `88168` nonzero samples, peak `3902`;
+- corrected SEQ/HOME 80 MHz encoder-path gate: PASS, `1.756x` steady realtime;
+- Chord + Reverb V2 80 MHz worst-case: PASS, `1.663x` steady realtime;
+- browser/WASM 100 MHz: PASS, `1.660x` steady realtime;
+- emulator panel/audio and Chromium keyboard/pointer E2E: PASS;
+- WP-A randomizer, timing, Chord and Reverb regressions: PASS.
+
+Target resource/package result after B1:
+
+- image: `191232 B / 581564 B`;
+- RAM: `76832 B / 98304 B`, headroom `21472 B`;
+- pool: `326368 B / 344064 B`, headroom `17696 B`;
+- package: `skurkymello-0.1-dev.fwsc`, `611545 B`;
+- package SHA-256: `9d118b8559bd6fbd2bf89c3c763edb8a626da9ed75ec37e2324696d2ed5d72da`;
 - build provenance attestation: PASS.
 
 Both RAM and pool remain above the required 16 KiB headroom floor.
 
-## Closeout deviation resolved
+### B1 validation limitation
 
-WP-A initially appeared to fail reconstruction after its implementation. The WP-A patch itself was valid. The actual blocker was the old temporary `ci/randomizer_roadmap_probe.py` still being invoked by `ci/patch_chord_mix_separation.py`; that probe intentionally exited non-zero after printing diagnostics. Its invocation was removed in `2883e5670c3617f8f81aad738c9620ba600664ef`. Temporary tracing/artifact diagnostics were then removed and the correct WP-A transport-integrity hashes restored in `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
+The original physical-hardware symptom still requires a later hands-on regression when an FM-1 is available. B1 is accepted on the currently available deterministic host, emulator, browser and target evidence; do not rewrite this as proof that the exact hardware symptom was physically reproduced.
 
-This was a resolved workflow deviation, not a randomizer functional defect.
+## Active B2 scope - rotary display/handler parity
 
-## Active WP-B scope
+The source audit has already confirmed at least two real mismatches:
 
-WP-B is a trust/reliability package, not feature expansion:
+1. `GLOBAL` subpage 0: K4/R4 toggles MIDI note output, but the footer renders `REC / TAP`.
+2. Loop Cycle STEP: K3 changes octave and K4 changes transpose, while the footer presents K3=`TRANS` and K4=`OCT`.
 
-1. reproduce and fix live-edit audio freeze;
-2. guarantee R1-R4 rendered labels match the actual handlers;
-3. remove text clipping/overlap;
-4. remove the HOME pink-line artifact;
-5. expand automated mapping/text-fit/stale-region coverage.
+B2 must therefore be systematic, not two string fixes.
+
+Required direction:
+
+- validate every page/layer K1-K4 mapping;
+- make label, displayed value, range/direction and handler agree;
+- distinguish intentional momentary/action controls from continuous parameter controls;
+- prefer one authoritative/testable mapping source or fixture where practical;
+- add deterministic CI coverage that fails on future rotary/display drift.
+
+## Remaining WP-B scope
+
+After B2:
+
+1. eliminate text clipping/overlap at extreme values;
+2. remove the HOME pink-line artifact;
+3. extend text-fit/stale-region coverage;
+4. rerun all B1/WP-A/audio/timing/target gates before WP-B closeout.
 
 Major synth expansion remains blocked until WP-B is green.
 
@@ -106,4 +134,4 @@ Firmware source is reconstructed by `ci/unpack_source.sh` from source chunks plu
 
 ## New-chat procedure
 
-Read `START_HERE.md` first. It contains the active package, file-reading order and stop condition.
+Read `START_HERE.md` first. It contains the active package, active subtask, file-reading order and stop condition.
