@@ -8,10 +8,10 @@ import subprocess
 PATCH_B64 = Path('patches/wp-b3-display-integrity.patch.gz.b64')
 UI = Path('mello/mello_ui.c')
 ROTARY = Path('tools/rotary_mapping_parity.c')
-RANDOM_TEST = Path('tools/random_wave_overview_smoke.c')
 TEST = Path('tools/ui_display_integrity.c')
 PRE_UI_SHA = 'ab38ade0a418017e639263ccf6e1fb7580f5f39b5510ed979db5bd3b366e00b5'
-POST_UI_SHA = 'e835f009eeb2c6525a9654488422f2187b0c489e7a37b73a90c758917d380701'
+POST_PATCH_UI_SHA = 'e835f009eeb2c6525a9654488422f2187b0c489e7a37b73a90c758917d380701'
+FINAL_UI_SHA = '4130f72df4573a2082086f8dcaaf8db1ec9c70b517e30e7e1c818e54895de8de'
 PATCH_B64_SHA = 'bc1c0e4f75a3024317b51d0f2a8d6cb18d2f0ae5eebda5b6477d661f64fdab8b'
 ROTARY_PRE_SHA = '3c5ac8c5d60017dbe3bc687b10023210106edcb6a02ecf29aa0b7ad4108bf629'
 
@@ -46,8 +46,26 @@ proc = subprocess.run(
 if proc.returncode:
     print(proc.stdout.decode(errors='replace'), end='')
     raise SystemExit(f'FAIL: WP-B3 patch returned {proc.returncode}')
-if sha(UI) != POST_UI_SHA:
-    raise SystemExit(f'FAIL: WP-B3 UI output hash {sha(UI)} != {POST_UI_SHA}')
+if sha(UI) != POST_PATCH_UI_SHA:
+    raise SystemExit(f'FAIL: WP-B3 patch output hash {sha(UI)} != {POST_PATCH_UI_SHA}')
+
+# Preserve WP-A's visible WAVE contract without reintroducing clipping. The
+# final RANDOM target is alone at the right edge of row two, so it can safely
+# use a 34 px cell (32 px text box after the 1 px insets).
+u = UI.read_text()
+ui_replacements = (
+    ('"CHD", "WAV"', '"CHD", "WAVE"'),
+    ('"SMP", "WAV"', '"SMP", "WAVE"'),
+    ('            w = 30;\n            x = (int16_t)(8 + col * 32);',
+     '            w = (i == (uint8_t)(rn_count - 1u)) ? 34 : 30;\n            x = (int16_t)(8 + col * 32);'),
+)
+for old, new in ui_replacements:
+    if u.count(old) != 1:
+        raise SystemExit(f'FAIL: WP-B3 expected one UI marker {old!r}')
+    u = u.replace(old, new)
+UI.write_text(u)
+if sha(UI) != FINAL_UI_SHA:
+    raise SystemExit(f'FAIL: WP-B3 final UI hash {sha(UI)} != {FINAL_UI_SHA}')
 
 s = ROTARY.read_text()
 replacements = (
@@ -61,16 +79,4 @@ for old, new in replacements:
     s = s.replace(old, new)
 ROTARY.write_text(s)
 
-# WP-A's hard smoke is hash-locked before WP-B is applied. Inspect the exact
-# post-WP-A capture/assertions once before making the B3-only test adaptation.
-r = RANDOM_TEST.read_text()
-lines = r.splitlines()
-print('WP-B3 diagnostic: post-WP-A RANDOM text capture')
-for lineno in range(24, 36):
-    if lineno <= len(lines):
-        print(f'{lineno}: {lines[lineno-1]}')
-print('WP-B3 diagnostic: post-WP-A RANDOM UI assertions')
-for lineno in range(158, 203):
-    if lineno <= len(lines):
-        print(f'{lineno}: {lines[lineno-1]}')
-raise SystemExit('FAIL: WP-B3 diagnostic checkpoint - replace with exact adaptation')
+print('PASS: WP-B3 display-integrity patch + full WAVE target + B2 fixture adaptation applied')
