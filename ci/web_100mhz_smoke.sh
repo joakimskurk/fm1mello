@@ -16,7 +16,7 @@ PKG_ABS=$(realpath "$PKG")
 (
   cd work/fm1-emu-web
   FM1_FWSC="$PKG_ABS" \
-  FM1_BENCH_KEYS='900:SEQ,1500:enc0:+2,2200:HOME,2800:PLAY' \
+  FM1_BENCH_KEYS='900:SEQ,1500:e0:+2,2200:HOME,2800:PLAY' \
   FM1_WARMUP_MS=500 \
   FM1_BENCH_JSON="$ROOT/work/web100/report.json" \
   node web/bench.mjs 100 4 "$ROOT/work/web100/audio.raw" \

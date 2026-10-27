@@ -78,6 +78,22 @@ static void test_invalidation(void){
     if(a.config.master_level!=t.engine.sound.master_level)fail("coalesced apply did not use newest config");
 }
 
+static void test_generation_distance(void){
+    uint32_t before=a.config_generation;
+    uint32_t apply0=a.test_config_applies;
+    for(unsigned i=0;i<32768u;++i){
+        MelloSoundConfig s=t.engine.sound;
+        s.master_level=(uint16_t)(500u+(i%40u)*10u);
+        mello_engine_sound_set_config(&t.engine,&s);
+        publish();
+    }
+    if(a.config_generation&1u)fail("long coalesced publish left unstable generation");
+    if(a.config_generation==before)fail("config generation aliased after 32768 queued publications");
+    render_once(73u*BLOCK_US);
+    if(a.test_config_applies!=apply0+1u)fail("long coalesced publication did not apply exactly once");
+    if(a.config.master_level!=t.engine.sound.master_level)fail("long coalesced publication lost newest config");
+}
+
 static void mutate_live(unsigned i){
     MelloSoundConfig s=t.engine.sound;
     MelloFxConfig f=t.engine.fx;
@@ -161,6 +177,7 @@ int main(void){
     publish();
     render_once(0u);
     test_invalidation();
+    test_generation_distance();
     mello_transport_start(&t,100000u);
     test_running_stress();
     puts("PASS: live rotary config publication stays stable; heavy DSP derivation is invalidated selectively and audio/transport remain live");

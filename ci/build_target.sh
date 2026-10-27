@@ -55,6 +55,9 @@ ${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mell
 build/evidence/random_wave_feature_off | tee build/evidence/random_wave_feature_off.txt
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/chord_tone_smoke.c mello/*.c -o build/evidence/chord_tone_feature_off
 build/evidence/chord_tone_feature_off | tee build/evidence/chord_tone_feature_off.txt
+# WP-B1: hammer all live audio config families while transport/audio run, including a publication-distance regression.
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -DMELLO_LIVE_EDIT_TEST_HOOK=1 -I mello tools/live_edit_audio_stress.c mello/*.c -o build/evidence/live_edit_audio_stress
+build/evidence/live_edit_audio_stress | tee build/evidence/live_edit_audio_stress.txt
 git init -q work/dinghy
 ( cd work/dinghy; git remote add origin https://github.com/zvenson/dinghy.git; git fetch -q --depth 1 origin "$DINGHY_COMMIT"; git checkout -q --detach FETCH_HEAD; [[ $(git rev-parse HEAD) == "$DINGHY_COMMIT" ]]; [[ $(git rev-parse 'HEAD^{tree}') == "$DINGHY_TREE" ]] )
 cp UPSTREAM.lock.json build/evidence/
@@ -82,6 +85,9 @@ bash ci/ui_80mhz_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/ui_80m
 cp -a work/ui80 build/evidence/ui-80mhz
 bash ci/chord_80mhz_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/chord_80mhz_smoke.txt
 cp -a work/chord80 build/evidence/chord-80mhz
+# WP-B1: run the real front-panel encoder route across SOUND/SUB/FX/SAMPLE while PLAY stays active.
+bash ci/live_edit_80mhz_smoke.sh "build/$(basename "$PKG")" | tee build/evidence/live_edit_80mhz_smoke.txt
+cp -a work/live-edit-80 build/evidence/live-edit-80mhz
 bash ci/frontend_e2e.sh "build/$(basename "$PKG")" | tee build/evidence/frontend_e2e.txt
 cp -a work/frontend-e2e build/evidence/frontend-e2e
 printf 'PASS: target package %s (%s)\n' "$(basename "$PKG")" "$PRODUCT"

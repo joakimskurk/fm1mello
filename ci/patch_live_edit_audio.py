@@ -11,11 +11,11 @@ PRE = {
     Path('mello/mello_audio.h'): '8455145a37c7612f83d495252d69ff4e90273a7c6d8b5b44a924dd16bcfe2f8d',
 }
 POST = {
-    Path('mello/mello_audio.c'): '728ff16c9b6a1b04b760b7c9e4b440a85e7cf50cd0be0fe7b914e9a5367e3284',
-    Path('mello/mello_audio.h'): 'e15c31501edd75816445af65c95ed255f584ba7df9636b3d0f66dd7a76bb2c89',
+    Path('mello/mello_audio.c'): '3bfc64f6b101a8123b1533014fece746073bfac22055b83434252d8e0252ff85',
+    Path('mello/mello_audio.h'): '302e217d551d1f250269ca37216217cffd067656a7db371ad1dc91e7ec7c61b5',
 }
-B64_SHA = '66864287502720f6c7e1a4c176adfe13bbd6bfee012100e93e35e7fc5e3f7537'
-GZ_SHA = '7042d6b57657607d7b07444592704ccc8342022604a0249a322ecd54c0ce4f99'
+B64_SHA = 'ad4ca5f42e5de8f2c689c28a8a671187b748bed49208bedf73ac962ca1bda40d'
+GZ_SHA = '09c4879c535cb3b758e59bcda38bb5e4a30d0ae2574083a20f1f54b819c95534'
 
 
 def digest_bytes(data: bytes) -> str:
