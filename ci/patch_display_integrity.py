@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import base64
+import gzip
+import hashlib
+import subprocess
+
+PATCH_B64 = Path('patches/wp-b3-display-integrity.patch.gz.b64')
+UI = Path('mello/mello_ui.c')
+ROTARY = Path('tools/rotary_mapping_parity.c')
+TEST = Path('tools/ui_display_integrity.c')
+PRE_UI_SHA = 'ab38ade0a418017e639263ccf6e1fb7580f5f39b5510ed979db5bd3b366e00b5'
+POST_UI_SHA = 'e835f009eeb2c6525a9654488422f2187b0c489e7a37b73a90c758917d380701'
+PATCH_B64_SHA = 'bc1c0e4f75a3024317b51d0f2a8d6cb18d2f0ae5eebda5b6477d661f64fdab8b'
+TEST_SHA = '9e9e47c57032c6bf220d5361d7540b614e327206021a88e59086840c5ff0c5ff'
+ROTARY_PRE_SHA = '3c5ac8c5d60017dbe3bc687b10023210106edcb6a02ecf29aa0b7ad4108bf629'
+
+
+def sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+if sha(UI) != PRE_UI_SHA:
+    raise SystemExit(f'FAIL: WP-B3 UI base hash {sha(UI)} != {PRE_UI_SHA}')
+if sha(PATCH_B64) != PATCH_B64_SHA:
+    raise SystemExit('FAIL: WP-B3 patch transport hash')
+if sha(TEST) != TEST_SHA:
+    raise SystemExit('FAIL: WP-B3 display-integrity test hash')
+if sha(ROTARY) != ROTARY_PRE_SHA:
+    raise SystemExit('FAIL: WP-B3 rotary fixture base hash')
+
+try:
+    patch_bytes = gzip.decompress(base64.b64decode(PATCH_B64.read_bytes(), validate=True))
+except Exception as exc:
+    raise SystemExit(f'FAIL: WP-B3 patch decode: {exc}') from exc
+proc = subprocess.run(
+    ['patch', '--batch', '--forward', '-p1'],
+    input=patch_bytes,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+)
+if proc.returncode:
+    print(proc.stdout.decode(errors='replace'), end='')
+    raise SystemExit(f'FAIL: WP-B3 patch returned {proc.returncode}')
+if sha(UI) != POST_UI_SHA:
+    raise SystemExit(f'FAIL: WP-B3 UI output hash {sha(UI)} != {POST_UI_SHA}')
+
+s = ROTARY.read_text()
+replacements = (
+    ('else if(y==203)', 'else if(y==204)'),
+    ('"5SEQ LEN"', '"5SEQLEN"'),
+    ('"MIDI OUT"', '"NOTEOUT"'),
+)
+for old, new in replacements:
+    if s.count(old) != 1:
+        raise SystemExit(f'FAIL: WP-B3 rotary fixture expected one {old!r}')
+    s = s.replace(old, new)
+ROTARY.write_text(s)
+
+print('PASS: WP-B3 display-integrity patch + rotary fixture adaptation applied')

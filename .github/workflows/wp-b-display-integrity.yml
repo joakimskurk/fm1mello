@@ -1,0 +1,26 @@
+name: WP-B display integrity gate
+
+on:
+  push:
+    branches: [visual-port-home]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  display-integrity:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Reconstruct final Mello source
+        run: bash ci/unpack_source.sh
+      - name: Compile display integrity with Chord enabled
+        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/ui_display_integrity.c mello/*.c -o /tmp/ui_display_integrity
+      - name: Validate display integrity with Chord enabled
+        run: /tmp/ui_display_integrity
+      - name: Compile display integrity with Chord disabled
+        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/ui_display_integrity.c mello/*.c -o /tmp/ui_display_integrity_off
+      - name: Validate display integrity with Chord disabled
+        run: /tmp/ui_display_integrity_off

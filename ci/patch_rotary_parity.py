@@ -38,3 +38,4 @@ if actual != POST_UI_SHA:
     raise SystemExit(f'FAIL: WP-B2 UI output hash {actual} != {POST_UI_SHA}')
 
 print('PASS: WP-B2 rotary display/handler parity patch applied')
+subprocess.run(['python3', 'ci/patch_display_integrity.py'], check=True)
