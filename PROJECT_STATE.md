@@ -1,6 +1,6 @@
 # PROJECT STATE
 
-Last verified subtask closeout: 2026-10-28
+Last verified work-package closeout: 2026-10-28
 
 ## Repository
 
@@ -11,112 +11,118 @@ Last verified subtask closeout: 2026-10-28
 
 ## Work-package position
 
-**WP-A / Step 4 - Randomizer intensity + RANDOM skyline refinement is complete.**
+**WP-A / Step 4 - Randomizer intensity + RANDOM skyline: COMPLETE.**
 
-WP-A implementation landed in `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07` and its clean reconstructed-source closeout is locked at `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
+Implementation `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`; clean reconstruction closeout `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
 
-**ACTIVE WORK PACKAGE: WP-B - Trust and reliability.**
+**WP-B - Trust and reliability: COMPLETE.**
 
-**B1 live-edit audio freeze: COMPLETE.**
-**B2 rotary display/handler parity: COMPLETE.**
-**ACTIVE SUBTASK: B3 display integrity.**
+- B1 live-edit audio reliability: COMPLETE.
+- B2 rotary display/handler parity: COMPLETE.
+- B3 display integrity: COMPLETE.
 
-Do not begin WP-C or later work before B3 and the complete WP-B regression closeout are green and documented.
+Final WP-B implementation/test checkpoint: `7c20efbdc391c59118fef3f000689eeafaa176b9`.
 
-## B1 delivered reliability changes
+**ACTIVE WORK PACKAGE: WP-C - Control Grammar v2.**
 
-The reported live-edit freeze could not be reproduced on physical hardware because the user does not yet have an FM-1, but the reconstructed audio path exposed two concrete realtime risks consistent with the report:
+Do not begin WP-D or later work before WP-C is green and documented.
 
-- pending audio configs could be consumed without an explicit update-in-progress guard;
-- every audio-config change rebuilt heavyweight derived DSP state inside audio render, including the full 257-point SUB distortion curve and reverb configuration even when unrelated parameters changed.
+## WP-B final evidence
 
-B1 now:
+All five gates are green on the final implementation checkpoint:
 
-- publishes pending config snapshots with an odd/even generation protocol so audio keeps the previous complete snapshot while a new one is being written;
-- uses 32-bit generation counters and regression-tests the old 32768-publication alias distance;
-- precomputes the 257-point SUB drive curve outside audio render and applies the prepared curve atomically;
-- invalidates LFO, delay, reverb, distortion and SUB derived state only when the relevant source fields change;
-- retains allocation-free normal live rotary paths;
-- adds a permanent deterministic host stress and a real 80 MHz front-panel encoder stress to the target gate.
+- reconstruction `40604213816`;
+- live-edit `40604213682`;
+- rotary parity `40604213768`;
+- display integrity `40604213707`;
+- full target `40604214660`.
 
-Verified B1 implementation/test checkpoint: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
+### B1 retained reliability contract
 
-## B1 verification evidence
+B1 introduced odd/even pending-config publication, 32-bit generation coverage, SUB drive-curve preparation outside audio render, selective derived-state invalidation, host stress and 80 MHz physical-encoder stress.
 
-- `WP-B live-edit gate` run `40596812842`: PASS;
-- `Reconstructed source gate` run `40596812864`: PASS;
-- `Visual port target build` run `40596813400`: PASS;
-- 2400 live-edit audio blocks: PASS;
-- transport reached tick `159600`;
-- 32768-publication alias regression: PASS;
-- physical encoder live-edit stress at 80 MHz: PASS;
-- target RAM headroom `21472 B`; pool headroom `17696 B`.
+Original B1 checkpoint: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
 
-The exact originally reported physical-hardware symptom remains a later hands-on regression when an FM-1 becomes available.
+Final WP-B run reconfirms live editing:
 
-## B2 delivered rotary parity
+- energy `433436686798`;
+- transport tick `159600`;
+- `2470` config applies;
+- `67` SUB curve builds;
+- `135` reverb reconfigs;
+- physical encoder 80 MHz steady realtime `3.040x`;
+- tail `88154` nonzero samples, peak `3207`.
 
-Verified B2 implementation/test checkpoint: `85a3c376b47829af6d6abdd3264ec75cb37d42bf`.
+Physical FM-1 hands-on reproduction remains deferred until hardware is available.
 
-Confirmed defects fixed:
+### B2 retained rotary contract
 
-- GLOBAL subpage 0 K4 now renders `MIDI OUT` with the actual ON/OFF state it controls;
-- Loop Cycle STEP K3/K4 now render `OCT` / `TRANS` in the same physical positions as their handlers;
-- SLOTS no longer presents an inactive K1 as a fake parameter, and the slot-name CHAR footer shows the character being edited.
+Original B2 checkpoint: `85a3c376b47829af6d6abdd3264ec75cb37d42bf`.
 
-Permanent coverage:
+- GLOBAL K4 MIDI OUT parity fixed;
+- Loop Cycle STEP K3=`OCT`, K4=`TRANS` parity fixed;
+- SLOTS inactive/edit footer made truthful;
+- real K1-K4 encoder fixture covers every current page/layer with Chord enabled and compiled out.
 
-- `tools/rotary_mapping_parity.c` drives actual K1-K4 encoder input and captures the rendered footer for every current page/layer fixture;
-- 45 page/layer fixtures / 180 mappings with Chord enabled;
-- 40 page/layer fixtures / 160 mappings with Chord compiled out;
-- explicit action rotaries are classified intentionally;
-- reconstruction locks the B2 patch and fixture hashes.
+Final rotary-parity gate `40604213768`: PASS.
 
-## B2 verification evidence
+### B3 delivered display integrity
 
-- `WP-B rotary parity gate` run `40599056435`: PASS;
-- `Reconstructed source gate` run `40599056475`: PASS;
-- B1 regression run `40599056403`: PASS;
-- full `Visual port target build` run `40599056945`: PASS;
-- browser/WASM 100 MHz: `1.663x` steady realtime;
-- SEQ/HOME 80 MHz: `1.776x` steady realtime;
-- Chord + Reverb V2 80 MHz: `1.760x` steady realtime;
-- live-edit physical encoder stress 80 MHz: `1.707x` steady realtime, final-second audio present;
-- image `191280 B / 581564 B`;
-- RAM `76832 B / 98304 B`, headroom `21472 B`;
-- pool `326368 B / 344064 B`, headroom `17696 B`;
-- package SHA-256 `26ccf3716c4b15b3671e9b4d6d91cf5f162ec1e1e2f692ba486a70c0ea8cd8f8`;
-- build provenance attestation: PASS.
+Final B3/WP-B checkpoint: `7c20efbdc391c59118fef3f000689eeafaa176b9`.
 
-## Active B3 scope - display integrity
+Root cause was structural: the pinned Dinghy/Felucca renderer uses an 8x16 small font and 16x32 large font and clears each full text box before blitting. Several legacy UI rows were spaced as if those boxes were shorter. On HOME, the `SINGLE` summary occupied y=160..175 while the purple probability bar was drawn through y=168..170 and the footer began immediately below it, producing the reported static pink-line corruption.
 
-B3 starts from two user-visible trust issues:
+B3 now:
 
-1. text can clip/overlap at extreme formatted values;
-2. HOME can show a static pink-line artifact over `SINGLE`.
+- reflows header/body/footer rows around the actual 16/32 px font metrics;
+- removes the HOME graphic/text collision and protects dirty redraw equivalence;
+- fits or compacts footer values deterministically instead of allowing clipping;
+- preserves full `WAVE` on RANDOM with a 34 px final target cell;
+- keeps the new text-length path freestanding-safe without libc `strlen`;
+- moves the SEGMENT 32-cell strip to y=52 with the original 32-cell/bounds requirement intact;
+- adds `tools/ui_display_integrity.c` and a dedicated CI gate.
 
-Required direction:
+B3 fixture evidence:
 
-- reproduce both classes deterministically before changing rendering;
-- validate text boxes and adjacent-column separation at legal extreme values across every page/layer;
-- identify the exact draw primitive / dirty-region sequence that creates the HOME artifact;
-- compare incremental redraw behavior against clean redraw behavior where practical;
-- add permanent host coverage for text fit, overlap and stale/dirty-region regressions;
-- preserve B1, B2, WP-A, audio, timing, feature-flag and target-performance gates.
+- Chord enabled: `150` fixtures, `0` clips, `0` overlaps;
+- Chord disabled: `135` fixtures, `0` clips, `0` overlaps;
+- HOME incremental redraw equals clean redraw for the protected region.
 
-## Remaining WP-B closeout after B3
+## Final WP-B target/performance evidence
 
-After B3 implementation:
+Full target run `40604214660`:
 
-1. rerun all B1/B2/WP-A/audio/timing gates;
-2. rerun emulator/browser/80 MHz/Chromium paths;
-3. require >=16 KiB RAM and pool headroom on full target build;
-4. record exact B3/WP-B closeout evidence;
-5. set WP-C active and stop/handoff instead of beginning WP-C automatically.
+- WP-A: `LOW=194824 < MED=516917 < HIGH=1082367`, redraw `4/0`, WAVE isolation and 4..32 skyline: PASS;
+- Chord/Reverb and 300 BPM timing: PASS;
+- emulator panel input + audio: PASS;
+- browser/WASM 100 MHz steady realtime `3.403x`;
+- SEQ/HOME 80 MHz steady realtime `3.528x`;
+- Chord + Reverb V2 80 MHz steady realtime `3.306x`;
+- live-edit 80 MHz steady realtime `3.040x`;
+- Chromium keyboard/pointer/PLAY routes: PASS;
+- image `190756 / 581564 B`;
+- RAM `76832 / 98304 B`, headroom `21472 B`;
+- pool `326368 / 344064 B`, headroom `17696 B`;
+- package `611545 B`, SHA-256 `b0bf86215ab4c547c668c54c3f023ff05fb7f4e87b728bcb7e84365a02cebf1e`;
+- build provenance: PASS.
 
-## Locked product direction after WP-B
+## Active WP-C direction
 
-- WP-C: Control Grammar v2 - REC/EDIT cleanup, contextual black-key actions, MOD family.
+WP-C is Control Grammar v2. The approved direction is:
+
+- REC = actual recording/capture only;
+- EDIT = edit/focus/lock only;
+- unrelated page actions become visible contextual actions;
+- black keys are the contextual action rail where useful;
+- SELECT remains functional-layer navigation;
+- LFO + DOT group coherently under MOD;
+- Turing belongs to the broader modulation/generative family;
+- one authoritative/testable page-action map should drive behavior and rendered guidance where practical.
+
+Begin with a complete mapping audit and deterministic baseline before remapping controls. Preserve all WP-A/WP-B/audio/timing/performance/target gates.
+
+## Locked product direction after WP-C
+
 - WP-D: timing model - default `1 BAR`, explicit FREE, timing concepts kept separate.
 - WP-E: audio character - extreme distortion, Reverb V3, ratchet parity and live smoothing.
 - WP-F: one-level Undo Last Random.
@@ -131,4 +137,4 @@ Firmware source is reconstructed by `ci/unpack_source.sh` from source chunks plu
 
 ## New-chat procedure
 
-Read `START_HERE.md` first. It contains the active package, active subtask, file-reading order and stop condition.
+Read `START_HERE.md` first. It contains the active package, work order, acceptance criteria and stop condition.

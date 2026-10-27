@@ -8,7 +8,7 @@ Use this file at the start of every new ChatGPT work session on `joakimskurk/fm1
 - Branch: `visual-port-home`
 - Always fetch and verify the current branch HEAD before editing.
 - Do not reconstruct project direction from old chat memory when repo documentation is available.
-- Follow the active work package and active subtask below. Do not jump ahead.
+- Follow the active work package below. Do not jump ahead.
 
 ## Read these files in this order
 
@@ -24,136 +24,108 @@ Use this file at the start of every new ChatGPT work session on `joakimskurk/fm1
 
 ## Last completed work package
 
-**WP-A / Step 4 - Randomizer intensity + RANDOM skyline refinement: COMPLETE.**
+**WP-B - Trust and reliability: COMPLETE.**
 
-Implementation commit: `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`.
-Clean reconstruction closeout: `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
+Final implementation/test checkpoint: `7c20efbdc391c59118fef3f000689eeafaa176b9`.
 
-Do not reopen WP-A unless a real regression is demonstrated.
+WP-B delivered three completed gates:
+
+- B1 live-edit audio reliability;
+- B2 K1-K4 rendered-display / handler parity;
+- B3 display integrity, text fit and HOME stale-artifact protection.
+
+Final WP-B evidence on the implementation checkpoint:
+
+- `Reconstructed source gate` run `40604213816`: PASS;
+- `WP-B live-edit gate` run `40604213682`: PASS;
+- `WP-B rotary parity gate` run `40604213768`: PASS;
+- `WP-B display integrity gate` run `40604213707`: PASS;
+- `Visual port target build` run `40604214660`: PASS.
+
+B3-specific acceptance:
+
+- Chord enabled: `150` display-integrity fixtures, `0` clips, `0` overlaps;
+- Chord compiled out: `135` fixtures, `0` clips, `0` overlaps;
+- HOME incremental redraw matches clean redraw in the protected region;
+- the reported pink line over `SINGLE` was reproduced as a real 16 px font/layout collision and removed;
+- full `WAVE` remains visible on RANDOM without clipping;
+- freestanding target contains no new libc string dependency.
+
+Final full-target measurements:
+
+- WP-A randomizer: `LOW=194824 < MED=516917 < HIGH=1082367`, redraw `4 fills / 0 texts`;
+- 300 BPM event-order stress: PASS;
+- live-edit host stress: energy `433436686798`, transport tick `159600`, `2470` config applies;
+- emulator panel/audio: PASS, peak `3530`, `148408` nonzero samples;
+- browser/WASM 100 MHz: `3.403x` steady realtime;
+- SEQ/HOME 80 MHz: `3.528x` steady realtime, steady render p95 `2.390 ms`, p99 `3.495 ms`, max `7.704 ms`;
+- Chord + Reverb V2 80 MHz: `3.306x` steady realtime;
+- physical encoder live-edit stress 80 MHz: `3.040x` steady realtime, tail `88154` nonzero samples, peak `3207`;
+- Chromium keyboard + pointer routes incl. PLAY start/stop: PASS;
+- image `190756 B / 581564 B`;
+- RAM `76832 B / 98304 B`, headroom `21472 B`;
+- pool `326368 B / 344064 B`, headroom `17696 B`;
+- package `skurkymello-0.1-dev.fwsc`, `611545 B`;
+- package SHA-256 `b0bf86215ab4c547c668c54c3f023ff05fb7f4e87b728bcb7e84365a02cebf1e`;
+- build provenance attestation: PASS.
+
+The exact user-reported physical-hardware live-edit freeze cannot be hands-on re-auditioned until a physical FM-1 is available. Keep that as an explicit later hardware regression check; do not reopen WP-B without a demonstrated regression.
 
 ## Active work package
 
-**WP-B - Trust and reliability.**
+**WP-C - Control Grammar v2.**
 
-WP-B is not complete yet. Work on the active subtask only.
+Start here. Do not begin WP-D early.
 
-### B1 - Live-edit audio freeze: COMPLETE
+### WP-C goal
 
-Verified implementation/test checkpoint: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
+Keep the instrument deep while reducing page-specific control grammars. REC must mean recording/capture, EDIT must mean edit/focus/lock, SELECT remains functional-layer navigation, and unrelated page actions must become visible/contextual rather than hiding behind inconsistent button meanings.
 
-Evidence:
+### WP-C work order
 
-- `Reconstructed source gate` run `40596812864`: PASS;
-- dedicated `WP-B live-edit gate` run `40596812842`: PASS;
-- full `Visual port target build` run `40596813400`: PASS;
-- 2400-block host stress with active transport/audio: PASS;
-- 32768 coalesced config publications: PASS;
-- physical encoder-path stress in the 80 MHz emulator: PASS, `1.673x` steady realtime;
-- final second of the 80 MHz stress remained audible: `88168` nonzero samples, peak `3902`;
-- target RAM headroom `21472 B`; pool headroom `17696 B`.
+1. Audit the complete current REC / EDIT / SELECT / black-key / page-action map against `CONTROL_GRAMMAR.md` and create a deterministic baseline test before changing behavior.
+2. Move REC to actual recording/capture behavior only.
+3. Move EDIT to edit/focus/lock behavior only.
+4. Migrate unrelated page actions to visible contextual actions; use the black-key action rail where the approved grammar calls for it.
+5. Keep SELECT as functional-layer navigation and organize LFO + DOT coherently under MOD; treat Turing as part of the broader modulation/generative family.
+6. Make one authoritative/testable page-action mapping source drive both behavior and rendered guidance where practical.
+7. Rerun WP-A, all WP-B gates, audio/timing, emulator/browser, 80 MHz, Chromium and target gates.
 
-The exact user-reported physical-hardware freeze cannot be hands-on re-auditioned until a physical FM-1 is available. Host, emulator, browser and target evidence are green and the hardware audition remains an explicit later regression check.
+### WP-C acceptance
 
-### B2 - Rotary display/handler parity: COMPLETE
+- REC has no unrelated page-action overloads;
+- EDIT has no unrelated page-action overloads;
+- SELECT remains consistent layer navigation;
+- contextual actions are visible and deterministic;
+- rendered hints/guidance match actual handlers;
+- all current page/layer action mappings are covered by automated parity tests;
+- B1/B2/B3/WP-A/audio/timing/performance/target gates remain green;
+- target retains at least `16 KiB` RAM and pool headroom.
 
-Verified implementation/test checkpoint: `85a3c376b47829af6d6abdd3264ec75cb37d42bf`.
+### Do not implement inside WP-C
 
-Delivered:
-
-- GLOBAL CLOCK K4 now truthfully renders `MIDI OUT` and its ON/OFF state;
-- Loop Cycle STEP K3/K4 now render `OCT` and `TRANS` in the same positions as their physical handlers;
-- inactive SLOTS controls no longer present misleading values, and slot-name CHAR shows the actual edited character;
-- permanent deterministic rotary mapping fixture exercises the real `mello_ui_input` encoder path across every current page/layer;
-- explicit action handling is represented in the fixture rather than treated as a fake continuous parameter;
-- Chord feature-on and compile-out configurations are both gated.
-
-Evidence:
-
-- dedicated `WP-B rotary parity gate` run `40599056435`: PASS;
-- `180` K1-K4 mappings across `45` page/layer fixtures with Chord enabled: PASS;
-- `160` K1-K4 mappings across `40` page/layer fixtures with Chord compiled out: PASS;
-- `Reconstructed source gate` run `40599056475`: PASS;
-- B1 live-edit regression run `40599056403`: PASS;
-- full `Visual port target build` run `40599056945`: PASS;
-- 100 MHz browser/WASM: `1.663x` steady realtime;
-- SEQ/HOME 80 MHz: `1.776x` steady realtime;
-- Chord + Reverb V2 80 MHz: `1.760x` steady realtime;
-- live-edit encoder stress 80 MHz: `1.707x` steady realtime and final-second audio remains present;
-- target RAM headroom `21472 B`; pool headroom `17696 B`;
-- target package SHA-256 `26ccf3716c4b15b3671e9b4d6d91cf5f162ec1e1e2f692ba486a70c0ea8cd8f8`.
-
-## Active WP-B subtask
-
-**B3 - Display integrity.**
-
-Start here. Do not begin WP-C early.
-
-### B3 work order
-
-1. Reproduce and eliminate text clipping/overlap at extreme formatted values.
-2. Reproduce and remove the static pink-line artifact reported over `SINGLE` on HOME.
-3. Add deterministic text-fit, overlap and stale/dirty-region coverage across every page/layer.
-4. Rerun B1, B2, WP-A, audio/timing, emulator/browser, 80 MHz and target gates.
-5. Close WP-B only after all trust gates are green and exact evidence is recorded.
-
-### B3 acceptance
-
-- no footer/header/body text exceeds its intended display region at legal extreme values;
-- adjacent K1-K4 label/value columns do not collide;
-- no intentional graphic primitive crosses text regions unless explicitly designed to do so;
-- HOME redraws do not leave or redraw the reported pink line over `SINGLE`;
-- dirty/incremental redraws produce the same relevant pixels/regions as a clean redraw;
-- every current page/layer is represented in deterministic visual-integrity coverage;
-- all prior B1/B2/WP-A/audio/timing/performance/target gates remain green.
-
-### WP-B principles
-
-- trust/reliability before new synthesis scope;
-- reproduce before redesigning;
-- preserve currently green audio, randomizer, timing, chord, feature-flag, UI-performance and target gates;
-- display fixes must be covered by bounds/dirty-region tests, not screenshot judgement only.
-
-### Do not implement inside WP-B
-
-- Control Grammar v2 / REC-EDIT remapping;
-- contextual black-key action rail;
-- MOD navigation redesign;
-- main-sequence 1 BAR timing model;
+- WP-D timing redesign / default 1 BAR;
 - distortion expansion;
 - Reverb V3;
 - Undo Last Random;
-- ANALOG/FM engine work;
+- ANALOG/FM engine expansion;
 - SOUND randomization;
 - per-step timbre;
-- harmonic-layer redesign;
-- splash/onboarding polish.
-
-## WP-B completion condition
-
-Before WP-B can close:
-
-1. B1 live-edit audio reliability remains green;
-2. B2 K1-K4 display/handler parity remains green;
-3. B3 text fit and overlap pass at extreme formatted values;
-4. HOME stale/pink-line artifact is eliminated and regression-covered;
-5. existing WP-A LOW/MED/HIGH + skyline gates remain green;
-6. Chord/Reverb technical regressions remain green;
-7. 300 BPM timing, emulator/browser, 80 MHz and Chromium paths remain green;
-8. full target build remains green with >=16 KiB RAM and pool headroom;
-9. project docs record exact commit/run evidence.
+- harmonic-layer replacement;
+- splash/onboarding polish beyond guidance required by the control grammar itself.
 
 ## Stop condition
 
-When WP-B is fully green:
+When WP-C is fully green:
 
 - record exact implementation checkpoint and workflow run IDs;
-- update `PROJECT_STATE.md`, `ROADMAP.md`, `TESTING.md` and `CHANGELOG.md`;
-- set **WP-C Control Grammar v2** as the next active package;
-- stop and hand off instead of beginning WP-C automatically.
+- update project/testing docs;
+- set **WP-D Timing model** as the next active package;
+- stop and hand off instead of beginning WP-D automatically.
 
-## Approved future sequence after WP-B
+## Approved future sequence
 
-1. WP-C Control Grammar v2: REC/EDIT cleanup, contextual black keys, MOD family.
+1. WP-C Control Grammar v2.
 2. WP-D Timing: default 1 BAR, explicit FREE, keep Loop Cycle/Slot/external sync concepts separate.
 3. WP-E Audio character: extreme distortion, Reverb V3, ratchet parity, live smoothing.
 4. WP-F Undo Last Random.

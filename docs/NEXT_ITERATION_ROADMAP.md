@@ -1,6 +1,6 @@
 # SkurkyMello FM-1 - stabilization and product-evolution roadmap
 
-Approved direction: 2026-10-25. Updated after WP-B2 closeout: 2026-10-28.
+Approved direction: 2026-10-25. Updated after WP-B closeout: 2026-10-28.
 
 This roadmap is stabilization-first. Approval of later product direction is not permission to implement later work packages early.
 
@@ -8,67 +8,71 @@ See `START_HERE.md` for exact continuation procedure, `PROJECT_STATE.md` for the
 
 ## WP-A. Randomizer intensity + RANDOM skyline - COMPLETE
 
-Completed 2026-10-26.
+Completed 2026-10-26. Implementation `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`; clean reconstruction closeout `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
 
-Implementation commit: `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`.
-Clean reconstruction closeout: `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
+## WP-B. Trust and reliability - COMPLETE
 
-## WP-B. Trust and reliability - ACTIVE
+Completed 2026-10-28.
 
-This gate exists because advanced functionality is useless if live editing and the interface cannot be trusted.
+Final implementation/test checkpoint: `7c20efbdc391c59118fef3f000689eeafaa176b9`.
 
-### B1. Live-edit audio freeze - COMPLETE
+### B1. Live-edit audio reliability - COMPLETE
 
-Accepted on current host/emulator/browser/target evidence on 2026-10-27.
-
-Verified checkpoint: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
-
-Evidence: live-edit run `40596812842`, reconstruction `40596812864`, target `40596813400`. Physical FM-1 hands-on regression remains required when hardware becomes available.
+Safe pending-config publication, selective DSP invalidation, 32-bit generation coverage, host stress and real 80 MHz encoder stress. Original checkpoint `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
 
 ### B2. Rotary mapping parity - COMPLETE
 
-Accepted 2026-10-28.
+Truthful K1-K4 rendered footer vs actual handlers across every current page/layer, including feature-on and Chord compile-out. Original checkpoint `85a3c376b47829af6d6abdd3264ec75cb37d42bf`.
 
-Verified checkpoint: `85a3c376b47829af6d6abdd3264ec75cb37d42bf`.
+### B3. Display integrity - COMPLETE
 
-Delivered:
-
-- truthful GLOBAL K4 MIDI OUT footer;
-- corrected Loop Cycle STEP K3/K4 OCT/TRANS positions;
-- truthful SLOTS inactive/edit footer state;
-- real-encoder K1-K4 fixture for every current page/layer;
-- explicit action semantics in the fixture;
-- feature-on and Chord compile-out CI coverage.
+Reproduced the HOME pink-line as a real font-box/graphic collision, reflowed the UI to actual pinned font metrics, added deterministic text-fit/overlap/overdraw/dirty-region coverage, preserved full RANDOM `WAVE`, and kept target text fitting freestanding-safe.
 
 Evidence:
 
-- rotary parity run `40599056435`: PASS, `180/45` enabled and `160/40` compiled out;
-- reconstruction `40599056475`: PASS;
-- B1 regression `40599056403`: PASS;
-- full target `40599056945`: PASS;
-- RAM headroom `21472 B`, pool headroom `17696 B`.
+- display integrity `40604213707`: PASS, `150` fixtures enabled / `135` compiled out, `0` clips / `0` overlaps;
+- reconstruction `40604213816`: PASS;
+- B1 `40604213682`: PASS;
+- B2 `40604213768`: PASS;
+- full target `40604214660`: PASS;
+- RAM headroom `21472 B`, pool headroom `17696 B`;
+- package SHA-256 `b0bf86215ab4c547c668c54c3f023ff05fb7f4e87b728bcb7e84365a02cebf1e`.
 
-### B3. Display integrity - ACTIVE SUBTASK
+The physical FM-1 live-edit symptom remains a later hands-on regression when hardware becomes available; it does not block the current host/emulator/browser/target WP-B closeout.
 
-B3 acceptance:
+## WP-C. Control Grammar v2 - ACTIVE
 
-- eliminate clipping/overlap at legal extreme values;
-- remove the static pink line reported over `SINGLE` on HOME;
-- test stale/dirty regions and relevant incremental redraw equivalence;
-- cover every current page/layer with deterministic visual-integrity checks;
-- preserve B1, B2, WP-A and all audio/timing/performance/target gates.
+The purpose of WP-C is not to delete depth; it is to make one coherent interaction language.
 
-Reproduce before changing rendering. Screenshot judgement alone is not sufficient.
+### C1. Audit and baseline
 
-Major synth expansion remains blocked until WP-B is green.
+Before remapping anything, enumerate and deterministically test every current REC, EDIT, SELECT, black-key and page-specific action across all pages/layers. Identify every semantic overload against `CONTROL_GRAMMAR.md`.
 
-### WP-B completion rule
+### C2. Normalize REC / EDIT
 
-After B3 is green, rerun the full regression and target matrix. Record exact implementation/run evidence in project/testing docs, set WP-C active, then stop and hand off rather than silently beginning WP-C.
+- REC = actual recording/capture only.
+- EDIT = edit/focus/lock only.
+- Unrelated actions must migrate rather than survive as exceptions.
 
-## WP-C. Control Grammar v2
+### C3. Contextual action rail and navigation
 
-REC means actual recording/capture only; EDIT means edit/focus/state only; unrelated page actions migrate to visible contextual actions. Black keys become a contextual action rail where useful, SELECT remains layer navigation, and LFO/DOT/Turing are organized coherently under the modulation/generative family. The page-action mapping becomes authoritative and testable.
+- move appropriate page actions to visible contextual actions;
+- use black keys as the contextual action rail where useful and approved;
+- keep SELECT as functional-layer navigation;
+- group LFO + DOT coherently under MOD;
+- place Turing in the broader modulation/generative family.
+
+### C4. One authoritative mapping contract
+
+Where practical, one authoritative/testable page-action mapping source should drive handler semantics and rendered guidance. Add parity coverage so UI hints cannot drift from behavior.
+
+### C5. Regression closeout
+
+Rerun WP-A, all WP-B gates, audio/timing, emulator/browser, 80 MHz, Chromium and target build. Require >=16 KiB RAM and pool headroom. Record exact evidence, set WP-D active, then stop/handoff.
+
+### WP-C exclusions
+
+No WP-D timing redesign, distortion/Reverb V3 work, Undo, FM/SOUND randomization, per-step timbre, harmonic replacement or general onboarding polish inside WP-C.
 
 ## WP-D. Timing model
 
@@ -84,7 +88,7 @@ One-level pre-random snapshot, cheap in RAM/storage and isolated from normal slo
 
 ## WP-G. Synth evolution
 
-Only after WP-B through WP-E are green: preserve current synth as `ANALOG`, add curated `FM` under hard CPU/RAM/pool budgets, add independent `SOUND` randomization and realtime-safe per-step timbre locks/modulation.
+Only after earlier gates are green: preserve current synth as `ANALOG`, add curated `FM` under hard CPU/RAM/pool budgets, independent `SOUND` randomization and realtime-safe per-step timbre locks/modulation.
 
 ## WP-H. Harmonic layer decision
 
@@ -100,4 +104,4 @@ Run the full text-fit, control mapping, randomizer, ratchet/audio event-order, r
 
 ## Deferred / dependency-gated
 
-Factory samples wait for source audio. Large synthesis/sequencing expansion waits for WP-B through WP-E. Chord implementation changes wait for WP-H.
+Factory samples wait for source audio. Chord implementation changes wait for WP-H. Later feature packages do not leak into WP-C.

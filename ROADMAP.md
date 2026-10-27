@@ -8,100 +8,71 @@ This file is the short handoff index. Detailed scope and acceptance criteria liv
 
 **Complete 2026-10-26.**
 
-Implementation commit: `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`.
+Implementation: `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`.
 Clean reconstruction closeout: `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
 
-### WP-B1 - Live-edit audio freeze
-
-**Complete 2026-10-27 on available host/emulator/target evidence.**
-
-Verified checkpoint: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
-
-Delivered stable pending audio-config publication, selective DSP invalidation, 32-bit generation coverage, host stress and real 80 MHz front-panel encoder stress. Physical FM-1 hands-on regression remains deferred until hardware is available.
-
-Green evidence: live-edit run `40596812842`, reconstruction `40596812864`, target `40596813400`.
-
-### WP-B2 - Rotary display/handler parity
+### WP-B - Trust and reliability
 
 **Complete 2026-10-28.**
 
-Verified checkpoint: `85a3c376b47829af6d6abdd3264ec75cb37d42bf`.
+Final implementation/test checkpoint: `7c20efbdc391c59118fef3f000689eeafaa176b9`.
 
-Delivered:
+B1 delivered safe live audio-config publication, selective DSP invalidation and host/80 MHz live-edit stress. B2 delivered deterministic K1-K4 display/handler parity across every current page/layer. B3 reflowed UI geometry around the real 8x16/16x32 font metrics, removed the HOME pink-line collision, added deterministic clip/overlap/dirty-redraw coverage and preserved full RANDOM `WAVE`.
 
-- fixed GLOBAL K4 `MIDI OUT` footer parity;
-- fixed Loop Cycle STEP K3=`OCT`, K4=`TRANS` parity;
-- truthful inactive/edit state on SLOTS footer;
-- deterministic real-encoder mapping fixture across every current page/layer;
-- feature-on and Chord compile-out coverage.
+Final green evidence:
 
-Green evidence:
+- reconstruction `40604213816`;
+- B1 live-edit `40604213682`;
+- B2 rotary parity `40604213768`;
+- B3 display integrity `40604213707` (`150` fixtures on / `135` off, `0` clips, `0` overlaps);
+- full target `40604214660`;
+- RAM headroom `21472 B`, pool headroom `17696 B`;
+- package SHA-256 `b0bf86215ab4c547c668c54c3f023ff05fb7f4e87b728bcb7e84365a02cebf1e`.
 
-- rotary parity run `40599056435`: `180` mappings / `45` fixtures enabled, `160` / `40` compiled out;
-- reconstruction run `40599056475`;
-- B1 regression run `40599056403`;
-- target run `40599056945`;
-- RAM headroom `21472 B`, pool headroom `17696 B`.
+Physical FM-1 live-edit regression remains a later hands-on check when hardware exists; current host/emulator/browser/target evidence is green.
 
 ## Active implementation
 
-### WP-B3 - Display integrity
-
-Goal: make legal extreme values and incremental redraws visually trustworthy on every page/layer.
-
-Known defects / required reproductions:
-
-- text clipping or overlap at extreme values;
-- static pink-line artifact reported over `SINGLE` on HOME.
-
-Hard constraints:
-
-- reproduce before changing rendering;
-- deterministic text-fit/overlap coverage across every current page/layer;
-- deterministic stale/dirty-region coverage for HOME and relevant incremental redraws;
-- preserve B1, B2, WP-A, audio, timing and target-build gates;
-- do not fold Control Grammar v2, FM, Reverb V3 or later feature work into B3.
-
-WP-B closes only after B3 plus full regression validation are green.
-
-## Approved work order after WP-B
-
 ### WP-C - Control Grammar v2
 
-- REC = real recording/capture only;
+Goal: keep functionality and depth while eliminating inconsistent page-specific button grammars.
+
+Approved work:
+
+- audit and test the current complete action map first;
+- REC = actual recording/capture only;
 - EDIT = edit/focus/lock only;
-- page actions migrate to visible contextual actions;
+- unrelated page actions migrate to visible contextual actions;
 - black keys become the contextual action rail where useful;
 - SELECT remains functional-layer navigation;
 - LFO + DOT group under MOD;
 - Turing belongs to the broader modulation/generative family;
-- page-action mapping becomes one authoritative/testable table.
+- page-action mapping becomes one authoritative/testable source where practical;
+- rendered guidance must match actual handlers.
+
+Hard constraints:
+
+- preserve WP-A and all WP-B gates;
+- no timing/audio-engine/FM/harmonic feature scope creep;
+- full target must retain >=16 KiB RAM and pool headroom.
+
+## Approved work order after WP-C
 
 ### WP-D - Timing model
 
-- main sequence exposes `1 / 2 / 4 / 8 / 16 BAR / FREE`;
-- default is `1 BAR`;
-- Loop Cycle `SYNC / FREE` remains separate;
-- Slot/Chain hold length remains separate;
-- external clock/MIDI sync remains separate.
+Main sequence exposes `1 / 2 / 4 / 8 / 16 BAR / FREE`, default `1 BAR`; Loop Cycle sync/free, Slot/Chain hold length and external sync remain separate concepts.
 
 ### WP-E - Audio character
 
-- intentionally extreme distortion range with gain management;
-- Reverb V3 with perceptual listening as a hard gate;
-- ratchet envelope/timing parity with original HTML;
-- live parameter smoothing/no-dropout acceptance.
+Extreme but bounded distortion range, Reverb V3 with perceptual A/B, ratchet envelope/timing parity and live parameter smoothing/no-dropout acceptance.
 
 ### WP-F - Undo Last Random
 
-One-level pre-random snapshot after the core randomizer and trust/control/audio gates are stable.
+One-level pre-random snapshot after the core control/audio gates are stable.
 
 ### WP-G - Synth evolution
 
-- preserve current engine as `ANALOG`;
-- add curated `FM` mode under CPU/RAM budgets;
-- add independent `SOUND` randomizer target;
-- add realtime-safe per-step timbre locks/modulation.
+Preserve current engine as `ANALOG`, add curated `FM` under CPU/RAM budgets, independent `SOUND` randomization and realtime-safe per-step timbre locks/modulation.
 
 ### WP-H - Harmonic layer decision
 
@@ -118,9 +89,3 @@ Run all control, randomizer, audio, visual, feature-flag, target, emulator/brows
 ## Product rule
 
 Do not reduce functionality merely to make the interface simpler. Prefer one coherent control grammar over several page-specific grammars.
-
-## Deferred until dependencies are green
-
-- Factory samples until source audio is supplied.
-- Major new synth/sequence scope before WP-B through WP-E.
-- Chord implementation changes before WP-H.
