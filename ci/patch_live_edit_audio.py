@@ -31,7 +31,9 @@ for path, expected in PRE.items():
     if actual != expected:
         raise SystemExit(f'FAIL: WP-B live-edit base hash {path} {actual} != {expected}')
 
-b64 = PATCH.read_bytes()
+# Repository text transport may add a trailing newline to the base64 payload.
+# Hash and decode the normalized payload while still locking its exact bytes.
+b64 = PATCH.read_bytes().strip()
 if digest_bytes(b64) != B64_SHA:
     raise SystemExit('FAIL: WP-B live-edit base64 package hash')
 try:
