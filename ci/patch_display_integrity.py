@@ -8,6 +8,7 @@ import subprocess
 PATCH_B64 = Path('patches/wp-b3-display-integrity.patch.gz.b64')
 UI = Path('mello/mello_ui.c')
 ROTARY = Path('tools/rotary_mapping_parity.c')
+RANDOM_TEST = Path('tools/random_wave_overview_smoke.c')
 TEST = Path('tools/ui_display_integrity.c')
 PRE_UI_SHA = 'ab38ade0a418017e639263ccf6e1fb7580f5f39b5510ed979db5bd3b366e00b5'
 POST_UI_SHA = 'e835f009eeb2c6525a9654488422f2187b0c489e7a37b73a90c758917d380701'
@@ -60,4 +61,13 @@ for old, new in replacements:
     s = s.replace(old, new)
 ROTARY.write_text(s)
 
-print('PASS: WP-B3 display-integrity patch + rotary fixture adaptation applied')
+# WP-A's hard smoke is hash-locked before WP-B is applied. B3 moves only the
+# footer value baseline from y=203 to y=204, so adapt that post-WP-A capture
+# without weakening any LOW/MED/HIGH, WAVE isolation or skyline assertions.
+r = RANDOM_TEST.read_text()
+if r.count('y==203') != 1:
+    raise SystemExit("FAIL: WP-B3 expected exactly one WP-A footer value capture at y==203")
+r = r.replace('y==203', 'y==204')
+RANDOM_TEST.write_text(r)
+
+print('PASS: WP-B3 display-integrity patch + B2/WP-A test adaptations applied')
