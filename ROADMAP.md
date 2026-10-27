@@ -17,54 +17,52 @@ Clean reconstruction closeout: `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
 
 Verified checkpoint: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
 
-Delivered:
+Delivered stable pending audio-config publication, selective DSP invalidation, 32-bit generation coverage, host stress and real 80 MHz front-panel encoder stress. Physical FM-1 hands-on regression remains deferred until hardware is available.
 
-- stable pending audio-config publication;
-- heavy SUB distortion-curve generation moved out of audio render;
-- selective invalidation of derived LFO/delay/reverb/distortion/SUB state;
-- 32-bit publication generation with 32768-update regression coverage;
-- deterministic live-edit host stress;
-- real 80 MHz front-panel encoder stress integrated into target validation;
-- corrected emulator encoder-event syntax in existing 100 MHz and 80 MHz scripts.
-
-Green evidence:
-
-- live-edit run `40596812842`;
-- reconstruction run `40596812864`;
-- target run `40596813400`;
-- 80 MHz live-edit steady realtime `1.673x`, with audio still present in the final second;
-- target RAM headroom `21472 B`, pool headroom `17696 B`.
-
-Physical FM-1 hands-on regression remains deferred until hardware is available.
-
-## Active implementation
+Green evidence: live-edit run `40596812842`, reconstruction `40596812864`, target `40596813400`.
 
 ### WP-B2 - Rotary display/handler parity
 
-Goal: make every K1-K4 label/value describe the parameter or action that the same physical rotary actually controls.
+**Complete 2026-10-28.**
 
-Confirmed defects to start from:
+Verified checkpoint: `85a3c376b47829af6d6abdd3264ec75cb37d42bf`.
 
-- GLOBAL subpage 0 K4 toggles MIDI note output but renders `REC / TAP`;
-- Loop Cycle STEP has K3/K4 `TRANS` and `OCT` displayed opposite to their handlers.
+Delivered:
 
-Hard constraints:
+- fixed GLOBAL K4 `MIDI OUT` footer parity;
+- fixed Loop Cycle STEP K3=`OCT`, K4=`TRANS` parity;
+- truthful inactive/edit state on SLOTS footer;
+- deterministic real-encoder mapping fixture across every current page/layer;
+- feature-on and Chord compile-out coverage.
 
-- audit every page/layer, not only the two confirmed mismatches;
-- create deterministic mapping coverage so drift becomes a CI failure;
-- preserve all B1, WP-A, audio, timing and target-build gates;
-- do not fold B3, Control Grammar v2, FM, Reverb V3 or later feature work into B2.
+Green evidence:
 
-## Remaining WP-B work after B2
+- rotary parity run `40599056435`: `180` mappings / `45` fixtures enabled, `160` / `40` compiled out;
+- reconstruction run `40599056475`;
+- B1 regression run `40599056403`;
+- target run `40599056945`;
+- RAM headroom `21472 B`, pool headroom `17696 B`.
+
+## Active implementation
 
 ### WP-B3 - Display integrity
 
-- remove text clipping/overlap at extreme values;
-- remove HOME pink-line artifact;
-- test stale dirty regions;
-- extend text-fit and visual integrity coverage.
+Goal: make legal extreme values and incremental redraws visually trustworthy on every page/layer.
 
-WP-B closes only after B1, B2 and B3 plus full regression validation are green.
+Known defects / required reproductions:
+
+- text clipping or overlap at extreme values;
+- static pink-line artifact reported over `SINGLE` on HOME.
+
+Hard constraints:
+
+- reproduce before changing rendering;
+- deterministic text-fit/overlap coverage across every current page/layer;
+- deterministic stale/dirty-region coverage for HOME and relevant incremental redraws;
+- preserve B1, B2, WP-A, audio, timing and target-build gates;
+- do not fold Control Grammar v2, FM, Reverb V3 or later feature work into B3.
+
+WP-B closes only after B3 plus full regression validation are green.
 
 ## Approved work order after WP-B
 
@@ -107,23 +105,11 @@ One-level pre-random snapshot after the core randomizer and trust/control/audio 
 
 ### WP-H - Harmonic layer decision
 
-Prototype and audition in this order:
-
-1. scale-aware `HARMONY`;
-2. soft filtered `PAD`;
-3. SUB HARMONY if useful;
-4. CHORD V2 if useful.
-
-Current Chord remains regression-protected until a successor wins.
+Prototype and audition scale-aware `HARMONY` first, soft filtered `PAD` second, then SUB HARMONY / CHORD V2 only if useful. Current Chord remains regression-protected until a successor wins.
 
 ### WP-I - Instrument polish
 
-- splash screen;
-- slicker HOME hierarchy;
-- Key/Scale refinement;
-- SEQ explanatory hierarchy/onboarding;
-- consistent margins/truncation/value formatting;
-- newcomer usability pass.
+Splash, HOME hierarchy, Key/Scale refinement, SEQ explanatory hierarchy/onboarding, consistent margins/truncation/value formatting and newcomer usability.
 
 ### WP-J - Final integration/performance gate
 

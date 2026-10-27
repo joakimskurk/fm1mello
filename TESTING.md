@@ -21,114 +21,95 @@ WP-A / Randomizer intensity + RANDOM skyline is complete.
 
 B1 is complete on the currently available host/emulator/target evidence.
 
-Verified implementation/test checkpoint:
+Verified implementation/test checkpoint: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
 
-- commit: `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`.
+- `WP-B live-edit gate` run `40596812842`: PASS;
+- `Reconstructed source gate` run `40596812864`: PASS;
+- `Visual port target build` run `40596813400`: PASS;
+- 2400 audio blocks complete without silence, queue overflow or transport stall;
+- 32768-publication coalescing regression: PASS;
+- 80 MHz physical encoder route remains audible through the final second;
+- RAM/pool headroom remain above the 16 KiB floor.
 
-### Dedicated host stress
+The exact originally reported physical FM-1 freeze remains a required hands-on regression when hardware becomes available.
 
-- workflow: `WP-B live-edit gate`;
-- run: `40596812842`;
+## WP-B2 verified baseline - rotary display/handler parity
+
+B2 is complete.
+
+Verified implementation/test checkpoint: `85a3c376b47829af6d6abdd3264ec75cb37d42bf`.
+
+### Dedicated parity gate
+
+- workflow: `WP-B rotary parity gate`;
+- run: `40599056435`;
 - result: PASS.
 
 Coverage:
 
-- all major continuous SOUND, FX, SUB and SAMPLE config families are repeatedly mutated while transport and audio run;
-- 2400 audio blocks complete without a silent stress window;
-- no audio event-queue overflow;
-- transport remains running and advances to tick `159600`;
-- no STOP/PLAY recovery is required;
-- test output: `2470` config applies, `67` SUB curve builds, `135` reverb reconfigurations;
-- a separate 32768-publication coalescing case proves the 32-bit generation protocol does not alias at the old 16-bit distance and the newest config is applied once.
+- actual `mello_ui_input` K1-K4 encoder path is exercised;
+- rendered footer label/value for the same physical rotary is captured;
+- all current page/layer fixtures are included;
+- intentional action controls are represented explicitly;
+- coarse/fine display updates are tolerated without hiding a non-responsive mapping;
+- Chord feature-on and compile-out builds both pass.
 
-### Reconstruction
+Measured fixture coverage:
 
-- `Reconstructed source gate` run `40596812864`: PASS.
+- Chord enabled: `180` rotary/footer mappings across `45` page/layer fixtures: PASS;
+- Chord disabled: `160` rotary/footer mappings across `40` page/layer fixtures: PASS.
 
-### Full target/emulator/browser validation
+Confirmed mismatches fixed by B2:
 
-- workflow: `Visual port target build`;
-- run: `40596813400`;
-- result: PASS;
-- repo build/test command: `bash ci/build_target.sh`.
+- GLOBAL CLOCK K4: `MIDI OUT` / actual ON-OFF state;
+- Loop Cycle STEP K3: `OCT`; K4: `TRANS`;
+- SLOTS inactive/edit footer states made truthful.
 
-Live-edit 80 MHz physical encoder route:
+### Reconstruction and regression gates
 
-- emulated duration: `9002 ms`;
-- steady realtime: `1.673x`;
-- raw nonzero audio samples: `743872`;
-- raw peak: `3902`;
-- final one-second tail after encoder stress: `88168` nonzero samples, peak `3902`;
-- result: PASS.
+- `Reconstructed source gate` run `40599056475`: PASS;
+- B1 live-edit gate run `40599056403`: PASS;
+- full `Visual port target build` run `40599056945`: PASS.
 
-The script navigates and edits through real front-panel encoder routes across SOUND, SUB, FX and SAMPLE while PLAY remains active.
+Full target-run evidence at B2 checkpoint:
 
-Additional final-run gates:
-
-- browser/WASM 100 MHz: PASS, `1.660x` steady realtime;
-- SEQ/HOME 80 MHz with real encoder syntax: PASS, `1.756x` steady realtime;
-- Chord + Reverb V2 80 MHz worst-case: PASS, `1.663x` steady realtime;
-- emulator panel input/audio: PASS;
-- Chromium keyboard/pointer E2E: PASS;
-- WP-A randomizer regressions: PASS;
+- 100 MHz browser/WASM: `1.663x` steady realtime;
+- SEQ/HOME 80 MHz: `1.776x` steady realtime;
+- Chord + Reverb V2 80 MHz: `1.760x` steady realtime;
+- physical encoder live-edit 80 MHz: `1.707x` steady realtime;
+- final one-second live-edit tail: `88168` nonzero samples, peak `3902`;
 - 300 BPM timing: PASS;
-- Chord/Reverb and compile-out regressions: PASS.
-
-Target budget after B1:
-
-- image: `191232 B / 581564 B`;
+- WP-A randomizer: PASS (`LOW=194824 < MED=516917 < HIGH=1082367`, redraw `4/0`);
+- emulator panel/audio: PASS;
+- Chromium keyboard/pointer incl PLAY: PASS;
+- image: `191280 B / 581564 B`;
 - RAM: `76832 B / 98304 B`, headroom `21472 B`;
 - pool: `326368 B / 344064 B`, headroom `17696 B`;
-- RAM headroom >= `16384 B`: PASS;
-- pool headroom >= `16384 B`: PASS;
 - package: `skurkymello-0.1-dev.fwsc`, `611545 B`;
-- package SHA-256: `9d118b8559bd6fbd2bf89c3c763edb8a626da9ed75ec37e2324696d2ed5d72da`;
-- build provenance attestation: PASS.
+- package SHA-256: `26ccf3716c4b15b3671e9b4d6d91cf5f162ec1e1e2f692ba486a70c0ea8cd8f8`;
+- provenance attestation: PASS.
 
-### B1 architecture assertions now regression-covered
+## Active WP-B3 gate - display integrity
 
-- pending config publication has explicit update-in-progress/stable generations;
-- normal live rotary changes do not allocate memory;
-- SUB drive curve is prepared outside audio render and copied only when drive changes;
-- unrelated SOUND edits do not rebuild reverb or SUB drive curve;
-- reverb is reconfigured only when its structural inputs change;
-- rapid pre-render edits coalesce to the latest complete snapshot.
+B3 must be deterministic, not screenshot-only.
 
-### B1 hardware limitation
+Required coverage:
 
-The exact originally reported physical FM-1 freeze has not been hands-on reproduced or re-auditioned because physical hardware is not yet available. When hardware arrives, repeated live rotary editing across SOUND/FX/SUB/SAMPLE remains a required regression audition. This limitation does not invalidate the deterministic realtime risks fixed and the currently green host/emulator/target evidence.
+- exercise every current page/layer at legal extreme formatted values;
+- record text draw rectangles and assert they stay inside intended regions;
+- assert adjacent footer label/value columns do not collide;
+- detect accidental graphic primitives crossing protected text regions;
+- reproduce the HOME `SINGLE` pink-line artifact with draw operations / stale-region state;
+- compare incremental redraw against a clean redraw for affected HOME regions;
+- keep B1/B2/WP-A/audio/timing/performance/target gates green.
 
-## Active WP-B2 gate - rotary display/handler parity
+B3 acceptance:
 
-B2 is now the active subtask.
-
-Confirmed source-level mismatches before implementation:
-
-1. GLOBAL subpage 0 K4/R4 handler toggles MIDI note output, but the footer renders `REC / TAP`.
-2. Loop Cycle STEP K3 changes octave and K4 changes transpose, but the footer renders K3=`TRANS`, K4=`OCT`.
-
-Required test direction:
-
-- exercise every page/layer K1-K4 through the actual `mello_ui_input` encoder path;
-- capture the rendered footer label/value for the same physical rotary;
-- verify label/value describes the state that rotary changes;
-- verify direction and legal range where meaningful;
-- use middle-of-range fixtures so boundary clamping does not create false negatives;
-- explicitly classify momentary/action controls rather than pretending they are continuous parameters;
-- account for displays whose formatter changes only after more than one fine encoder step;
-- make future label/handler drift a CI failure.
-
-Do not treat two manual label fixes as B2 completion.
-
-## WP-B3 gates - display integrity
-
-After B2:
-
-- no text overflow at extreme values;
+- no text overflow at legal extremes;
 - no label/value collision;
 - no accidental graphic overlap;
-- no stale dirty-region artifact such as the reported pink line over `SINGLE` on HOME;
-- every page/layer included in deterministic text-fit/stale-region coverage.
+- no stale dirty-region artifact over `SINGLE` on HOME;
+- every page/layer included in deterministic visual-integrity coverage.
 
 ## Reverb V2 technical baseline
 
@@ -155,11 +136,4 @@ WP-C through WP-J remain dependency-gated exactly as documented in `ROADMAP.md` 
 
 ## Test reporting rule
 
-When completing a work package or major WP-B subtask, record:
-
-- exact implementation/test checkpoint SHA;
-- exact workflow run ID;
-- pass/fail conclusion;
-- relevant measured gates;
-- hands-on audition result where required;
-- intentionally skipped hardware-only validation.
+When completing a work package or major WP-B subtask, record exact checkpoint SHA, workflow run IDs, pass/fail conclusion, relevant measured gates, hands-on audition result where required, and intentionally skipped hardware-only validation.
