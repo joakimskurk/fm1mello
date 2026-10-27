@@ -61,12 +61,15 @@ for old, new in replacements:
     s = s.replace(old, new)
 ROTARY.write_text(s)
 
-# WP-A's hard smoke is hash-locked before WP-B is applied. B3 moves only the
-# footer value baseline from y=203 to y=204, so adapt that post-WP-A capture
-# without weakening any LOW/MED/HIGH, WAVE isolation or skyline assertions.
+# WP-A's hard smoke is hash-locked before WP-B is applied. B3 changes only
+# presentation geometry, so first locate the exact post-WP-A footer capture.
 r = RANDOM_TEST.read_text()
 if r.count('y==203') != 1:
-    raise SystemExit("FAIL: WP-B3 expected exactly one WP-A footer value capture at y==203")
+    print('WP-B3 diagnostic: post-WP-A RANDOM capture lines follow')
+    for lineno, line in enumerate(r.splitlines(), 1):
+        if any(token in line for token in ('text_cb', 'INT', 'MED', 'LABEL', 'y==', 'y ==')):
+            print(f'{lineno}: {line}')
+    raise SystemExit('FAIL: WP-B3 footer capture needs exact post-WP-A adaptation')
 r = r.replace('y==203', 'y==204')
 RANDOM_TEST.write_text(r)
 
