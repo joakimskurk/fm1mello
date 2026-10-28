@@ -16,14 +16,22 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Reconstruct final Mello source
         run: bash ci/unpack_source.sh
-      - name: Compile C1 map with Chord enabled
+      - name: Compile C1 action map with Chord enabled
         run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_action_baseline.c mello/*.c -o /tmp/control_action_baseline
-      - name: Validate C1 map with Chord enabled
+      - name: Validate C1 action map with Chord enabled
         run: /tmp/control_action_baseline
-      - name: Compile C1 map with Chord disabled
+      - name: Compile C1 action map with Chord disabled
         run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_action_baseline.c mello/*.c -o /tmp/control_action_baseline_off
-      - name: Validate C1 map with Chord disabled
+      - name: Validate C1 action map with Chord disabled
         run: /tmp/control_action_baseline_off
+      - name: Compile C1 encoder debt map with Chord enabled
+        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_encoder_baseline.c mello/*.c -o /tmp/control_encoder_baseline
+      - name: Validate C1 encoder debt map with Chord enabled
+        run: /tmp/control_encoder_baseline
+      - name: Compile C1 encoder debt map with Chord disabled
+        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_encoder_baseline.c mello/*.c -o /tmp/control_encoder_baseline_off
+      - name: Validate C1 encoder debt map with Chord disabled
+        run: /tmp/control_encoder_baseline_off
       - name: Keep existing control grammar smoke green
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_grammar_smoke.c mello/*.c -o /tmp/control_grammar_smoke
@@ -31,4 +39,4 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_grammar_smoke.c mello/*.c -o /tmp/control_grammar_smoke_off
           /tmp/control_grammar_smoke_off
       - name: Record C1 source hashes
-        run: sha256sum mello/mello_ui.c mello/mello_ui.h tools/control_action_baseline.c tools/control_grammar_smoke.c docs/WP_C_CONTROL_AUDIT.md
+        run: sha256sum mello/mello_ui.c mello/mello_ui.h tools/control_action_baseline.c tools/control_encoder_baseline.c tools/control_grammar_smoke.c docs/WP_C_CONTROL_AUDIT.md
