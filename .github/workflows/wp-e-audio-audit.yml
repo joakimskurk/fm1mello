@@ -58,7 +58,7 @@ jobs:
           ui = files['ui_c'].read_text()
 
           print('\n=== AUDIO FUNCTIONS ===')
-          for name in ('soft_drive','browser_dist_drive','reverb_feedback_q15','reverb_configure','rv2_allpass','reverb_network_step','apply_pending','mello_audio_render'):
+          for name in ('soft_drive','global_dist_drive','global_distort','reverb_feedback_q15','reverb_configure','rv2_allpass','reverb_network_step','apply_pending','mello_audio_render'):
               block = function_block(audio, name)
               print(f'--- {name} ---')
               print(block if block else 'MISSING')
@@ -110,10 +110,12 @@ jobs:
               for j in range(a,b): print(f'{j+1:5d}: {lines[j]}')
           PY
 
-      - name: Run permanent WP-E1 deterministic baseline
-        run: python3 tools/wp_e_audio_baseline.py
+      - name: Run active WP-E2 distortion contract
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -DMELLO_DISTORTION_TEST_HOOK=1 -I mello tools/wp_e2_distortion_smoke.c mello/*.c -o /tmp/wp_e2_distortion_smoke
+          /tmp/wp_e2_distortion_smoke
 
-      - name: Run existing audio/realtime baselines
+      - name: Run retained audio/realtime baselines
         run: |
           cc -std=c11 -Wall -Wextra -Werror -DMELLO_REVERB_TEST_HOOK=1 -I mello tools/audio_html_parity.c mello/*.c -o /tmp/audio_html_parity
           /tmp/audio_html_parity
@@ -127,10 +129,10 @@ jobs:
       - name: Record reconstructed audio-source hashes
         run: sha256sum mello/mello_audio.h mello/mello_audio.c mello/mello_engine.h mello/mello_engine.c mello/mello_ui.c
 
-      - name: Publish reconstructed audio source for E1 audit
+      - name: Publish reconstructed audio source
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: wp-e-e1-reconstructed-audio-source
+          name: wp-e-reconstructed-audio-source
           path: |
             mello/mello_audio.h
             mello/mello_audio.c
