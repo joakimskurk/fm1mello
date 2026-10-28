@@ -52,3 +52,7 @@ subprocess.run(['python3', 'ci/lock_wp_c4_outputs.py'], check=True)
 # C5 consumes the exact locked C4 output and centralizes page/action knowledge.
 subprocess.run(['python3', 'ci/patch_control_grammar_c5.py'], check=True)
 subprocess.run(['python3', 'ci/lock_wp_c5_outputs.py'], check=True)
+# WP-D D2 consumes the exact locked WP-C output. Keep timing-model changes isolated
+# from the control-grammar baseline and lock the generated engine/header separately.
+subprocess.run(['python3', 'ci/patch_wp_d_timing_model.py'], check=True)
+subprocess.run(['python3', 'ci/lock_wp_d_d2_outputs.py'], check=True)
