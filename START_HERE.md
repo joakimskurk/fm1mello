@@ -19,9 +19,10 @@ Use this file at the start of every new ChatGPT work session on `joakimskurk/fm1
 5. `CONTROL_GRAMMAR.md`
 6. `TESTING.md`
 7. `docs/NEXT_ITERATION_ROADMAP.md`
-8. `docs/WP_C_CONTROL_AUDIT.md`
-9. `docs/PRODUCT_WORKSHOP_2026-10-25.md`
-10. `docs/UI_VISUAL_LANGUAGE.md` when UI is touched.
+8. `docs/WP_D_TIMING_AUDIT.md`
+9. `docs/WP_C_CONTROL_AUDIT.md`
+10. `docs/PRODUCT_WORKSHOP_2026-10-25.md`
+11. `docs/UI_VISUAL_LANGUAGE.md` when UI is touched.
 
 ## Completed work packages
 
@@ -81,23 +82,28 @@ Full target retained WP-A/WP-B/audio/timing/emulator/browser/80 MHz/Chromium gat
 
 **WP-D - Timing model.**
 
-This is ACTIVE NEXT. Do not begin WP-E early.
+Do not begin WP-E early.
 
 ### WP-D approved product direction
 
-- main sequence default becomes `1 BAR`;
+- main sequence default becomes **`2 BAR`**;
 - expose explicit `1 / 2 / 4 / 8 / 16 BAR / FREE` main-sequence reset choices;
+- BAR is a musical duration and must remain the selected number of bars across sequence pulse-division changes;
 - main-sequence bar reset is distinct from external/MIDI sync;
 - Loop Cycle `SYNC / FREE` remains a separate concept;
 - Slot/Chain hold length remains separate;
 - names and UI must not collapse these timing concepts into one generic `SYNC` control.
 
-### WP-D start procedure
+### WP-D current position
 
-1. Audit current main-sequence reset/free-running behavior, defaults, storage representation, transport event path and rendered timing labels before changing behavior.
-2. Build deterministic timing tests for current behavior and the approved `1 BAR` default/choices.
-3. Implement the smallest storage/engine/UI migration needed without altering Loop Cycle/external sync semantics.
-4. Preserve all WP-A/WP-B/WP-C/audio/performance/target gates.
+D1 audit has identified the legacy main reset as `master_len` measured in processed pulses, with `0` meaning natural/free. External transport sync, Loop Cycle sync and Slot/Chain hold are already separate runtime concepts. `tools/wp_d_timing_baseline.c` and `docs/WP_D_TIMING_AUDIT.md` are the permanent D1 baseline; D1 CI closeout is the immediate gate before D2.
+
+### WP-D procedure
+
+1. Close D1 by running the permanent timing baseline and legacy-language separation gate in CI.
+2. D2: implement the smallest engine/storage migration to `1 / 2 / 4 / 8 / 16 BAR / FREE`, default **2 BAR**, without changing Loop Cycle/external sync/hold semantics.
+3. D3: expose timing choices with unambiguous language while preserving control grammar/parity.
+4. D4: rerun all WP-A/WP-B/WP-C/audio/performance/target gates and document closeout.
 
 ### Do not implement inside WP-D
 
