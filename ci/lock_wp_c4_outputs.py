@@ -8,6 +8,7 @@ EXPECTED = {
     Path('tools/ui_control_parity.c'): '7d21290a5a29ba94d7f751e361762e3c219df48b0783d6b69d414b4c327d0a1c',
     Path('tools/control_encoder_baseline.c'): 'f83eedd2a2130a978fc30f02896f0316ab274b18978fe97b55e409f4bfb4fdb8',
     Path('tools/control_grammar_smoke.c'): '6fd837ae7ff7eabaf8e4d7e3e04d7f6bac8d3dfa18e3988d16f3537d942f85c9',
+    Path('tools/ui_visual_smoke.c'): '3bdfcd6717deacc532989a03f2076719d1eaf6fa7148c2174a47dc1274c42bd2',
 }
 
 for path, expected in EXPECTED.items():
