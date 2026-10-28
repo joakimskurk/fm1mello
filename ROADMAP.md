@@ -14,47 +14,53 @@ Complete. Final implementation/test checkpoint `7c20efbdc391c59118fef3f000689eea
 
 ### WP-C - Control Grammar v2
 
-**COMPLETE 2026-10-28.** Final implementation/test checkpoint `2c280184b0c5cd0947f2d4d9149ad12a96188709`.
-
-C1-C5 delivered REC/EDIT cleanup, visible stable B0-B7 contextual actions, coherent MOD navigation and one authoritative `MelloContextAction` descriptor shared by handler semantics and rendered guidance.
-
-Final target `40703571071`: PASS. RAM headroom `21472 B`; pool headroom `17696 B`.
+**COMPLETE 2026-10-28.** Final implementation/test checkpoint `2c280184b0c5cd0947f2d4d9149ad12a96188709`. REC/EDIT semantics, visible B0-B7 contextual rail, coherent MOD navigation and authoritative action mapping remain regression-protected.
 
 ### WP-D - Timing model
 
 **COMPLETE 2026-10-28.** Final implementation/test checkpoint `0cd810b5deb90087d60b181682de7e9ff52682cd`.
 
-Delivered:
+Delivered `FREE / 1 / 2 / 4 / 8 / 16 BAR`, **2 BAR default**, musical duration across DIV, retained storage layout, explicit RESET language and separation from MIDI sync / Loop Cycle / HOLD.
 
-- deterministic pre-change timing audit and permanent baseline;
-- `FREE / 1 / 2 / 4 / 8 / 16 BAR` main reset with **2 BAR default**;
-- musical BAR duration independent of sequence `DIV`;
-- unchanged 16-bit storage layout with safe malformed-value handling;
-- explicit `RESET` BAR/FREE UI language;
-- external/MIDI sync, Loop Cycle `SYNC/FREE` and Slot/Chain HOLD remain separate timing concepts.
-
-Exact generated locks: engine C `daa00773838efe5d511c81afcdc84ba3e8bef42c6e08d368de5843c643f7670c`, engine H `769ea7e8b7a1be51d38bbd48e5eb09e39114dd79ca363dcb70b235e1483cdab8`, UI `08bd19d7a2f112de318d50516c5a27b3ed2324d0c82bd50a087caadd0b7ecd55`.
-
-All 11 fast workflows PASS; full target `40763918161`: PASS. RAM headroom `21472 B`, pool headroom `17696 B`, image `190156 B`, package SHA-256 `bee43ce894a5a26472270b0890f1d64e400bfb68246980f5fe285179a4225b7f`.
-
-Full closeout: `docs/WP_D_CLOSEOUT.md`.
+Full target `40763918161`: PASS. RAM headroom `21472 B`, pool headroom `17696 B`.
 
 ## Active implementation
 
 ### WP-E - Audio character - ACTIVE
 
-Approved scope:
+Goal: make Mello substantially more characterful without sacrificing realtime trust or the stabilized control/timing grammars.
 
-- extreme bounded distortion;
-- Reverb V3 with perceptual A/B acceptance;
-- ratchet parity;
-- realtime-safe live smoothing.
+#### E1 - audit + deterministic/perceptual baseline - COMPLETE
 
-Immediate step is **E1 audit and deterministic/perceptual baseline**. Map current audio behavior, parameter/control paths, realtime update paths, CPU/memory budgets and existing tests before changing sound.
+Checkpoint `b58dfb224f4037b27b6d232f02991274ed676504`. Audio-audit `40773113620`: PASS.
 
-Preserve all WP-A/WP-B/WP-C/WP-D gates, emulator/browser/80 MHz/Chromium/target validation and >=16 KiB RAM/pool headroom.
+Permanent baseline: `tools/wp_e_audio_baseline.py`, `.github/workflows/wp-e-audio-audit.yml`, `docs/WP_E_AUDIO_AUDIT.md`.
 
-Stop after WP-E closeout and activate WP-F; do not jump ahead.
+Findings:
+
+- current distortion upper range is conservative and CHAR is not yet an independent waveshaper dimension;
+- Reverb V2 is a static four-line FDN after two all-pass diffusers, with fixed damping and mono late return;
+- V2 has no late-tail delay modulation, so technical density/correlation success does not resolve the audible metallic/pitched tail;
+- ratchet scheduling already sends NOTE_ON/OFF per sub-trigger and re-enters lead attack;
+- FX snapshots are coherently published but lack a general continuous live-parameter smoothing layer.
+
+**Reverb V3 is a defining Mello product-quality gate.** The E1 A/B contract is authoritative: a metallic, pitched, fluttering or detached tail is a hard reject even if numerical tests are green.
+
+#### E2 - extreme bounded distortion - ACTIVE NEXT
+
+Expand distortion into a genuinely extreme upper range while keeping low settings nuanced, bounded and gain-aware. Preserve control semantics, realtime safety and all retained gates.
+
+#### E3 - Reverb V3
+
+Build against the E1 perceptual contract. Prioritize early diffusion, non-stationary modal identity, frequency-dependent decay, musical SIZE/DECAY/TONE behavior, safe live movement and stereo decorrelation where budget permits. Reuse the existing reverb ring unless measured evidence justifies more memory.
+
+#### E4 - ratchet parity + realtime-safe live smoothing
+
+Add audible/musical ratchet parity evidence and eliminate zipper/click/tail-discontinuity risks from live audio-character changes without render-thread allocation.
+
+### WP-E closeout
+
+Rerun all WP-A/WP-B/WP-C/WP-D gates plus audio-specific deterministic/perceptual A/B, emulator/browser, 80 MHz, Chromium and target build. Require >=16 KiB RAM and pool headroom. Record exact evidence, activate WP-F, then stop/handoff.
 
 ## Approved sequence after WP-E
 

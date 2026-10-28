@@ -2,17 +2,17 @@
 
 Date: 2026-10-28
 
-WP-E1 maps the pre-change audio implementation before WP-E alters sound behavior. The current implementation checkpoint entering WP-E is WP-D `0cd810b5deb90087d60b181682de7e9ff52682cd`; the first E1 audit workflow was added at `4696a40de3066caa187e56bd934a4dbcddbb8d97`.
+WP-E1 maps the pre-change audio implementation before WP-E alters sound behavior. The implementation checkpoint entering WP-E is WP-D `0cd810b5deb90087d60b181682de7e9ff52682cd`; the final E1 baseline checkpoint is `b58dfb224f4037b27b6d232f02991274ed676504`.
 
 ## Product priority
 
-Reverb is a defining part of Mello, not a utility effect. Reverb V3 is not accepted merely because it is stable, dense or low-correlation. It must sound substantially better than Reverb V2 in controlled listening and must remove the metallic/ring-mod-like quality that reopened the earlier technical acceptance.
+Reverb is a **defining part of Mello**, not a utility effect. Reverb V3 is not accepted merely because it is stable, dense or low-correlation. It must sound substantially better than Reverb V2 in controlled listening and must remove the metallic/ring-mod-like quality that reopened the earlier technical acceptance.
 
 The WP-E rule is therefore: **objective DSP gates prevent regressions; perceptual A/B decides whether the reverb is good enough.**
 
 ## E1 reconstructed-source baseline
 
-Final reconstructed source at the first E1 audit:
+Final reconstructed source at E1:
 
 - `mello_audio.c`: `3bfc64f6b101a8123b1533014fece746073bfac22055b83434252d8e0252ff85`
 - `mello_audio.h`: `302e217d551d1f250269ca37216217cffd067656a7db371ad1dc91e7ec7c61b5`
@@ -20,9 +20,15 @@ Final reconstructed source at the first E1 audit:
 - `mello_engine.h`: `769ea7e8b7a1be51d38bbd48e5eb09e39114dd79ca363dcb70b235e1483cdab8`
 - `mello_ui.c`: `08bd19d7a2f112de318d50516c5a27b3ed2324d0c82bd50a087caadd0b7ecd55`
 
-First E1 audit run `40772338806`: PASS.
+Permanent E1 baseline:
 
-Existing retained audio baselines in that run:
+- `tools/wp_e_audio_baseline.py`;
+- `.github/workflows/wp-e-audio-audit.yml`;
+- this document.
+
+Final E1 audio-audit run `40773113620`: PASS.
+
+Retained audio baselines:
 
 - Reverb V2 IR: dense `42497`, corr² `0.00075`, max block-energy jump `2.279`, predelay delta `5292` samples;
 - 300 BPM / 8-ratchet audio timing stress: PASS;
@@ -157,6 +163,32 @@ V3 must still remain:
 - inside the established target performance gates, including >= `1.35x` steady realtime margin at 80 MHz worst-case and >=16 KiB RAM and pool headroom.
 
 The preferred implementation should reuse the existing reverb ring and spend CPU/state on perceptually useful diffusion, damping, modulation and stereo decorrelation before requesting more delay memory.
+
+## E1 closeout evidence
+
+E1 final baseline checkpoint `b58dfb224f4037b27b6d232f02991274ed676504` changes tests/audit/documentation only; it does not alter DSP behavior.
+
+Validation on that checkpoint:
+
+- permanent WP-E audio audit `40773113620`: PASS;
+- all completed retained fast regression workflows: PASS, no failures;
+- full target `40773113827`: PASS;
+- emulator panel/audio: `189440` frames, peak `3530`, `148408` nonzero samples: PASS;
+- browser/WASM 100 MHz steady realtime `3.065x`: PASS;
+- SEQ/HOME 80 MHz steady realtime `3.161x`: PASS;
+- Chord + Reverb V2 80 MHz steady realtime `3.107x`: PASS;
+- physical-encoder live-edit stress 80 MHz steady realtime `3.166x`, tail nonzero `88174`, tail peak `3847`: PASS;
+- Chromium keyboard/pointer including PLAY start-stop: PASS;
+- image `190156 / 581564 B`;
+- RAM `76832 / 98304 B`, headroom `21472 B`;
+- pool `326368 / 344064 B`, headroom `17696 B`;
+- package `611545 B`;
+- package SHA-256 `bee43ce894a5a26472270b0890f1d64e400bfb68246980f5fe285179a4225b7f`;
+- provenance attestation: PASS.
+
+Hosted emulator timings vary with runner load; the established thresholds, not the unusually fast E1 runner, remain authoritative.
+
+**E1 is COMPLETE. E2 extreme bounded distortion is ACTIVE NEXT.**
 
 ## WP-E sequence after E1
 

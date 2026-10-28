@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## 2026-10-28 - WP-E1 Audio character audit/baseline complete
+
+WP-E1 is complete. E2 extreme bounded distortion is ACTIVE NEXT; no WP-E audio DSP behavior is changed by this closeout.
+
+Final E1 baseline checkpoint: `b58dfb224f4037b27b6d232f02991274ed676504`.
+
+Delivered:
+
+- permanent reconstructed-source/audio audit workflow `.github/workflows/wp-e-audio-audit.yml`;
+- deterministic pre-change audio contract `tools/wp_e_audio_baseline.py`;
+- `docs/WP_E_AUDIO_AUDIT.md` with distortion/Reverb V2/ratchet/live-update findings;
+- strict Reverb V3 perceptual A/B acceptance contract, with Reverb defined as a core Mello product-quality feature.
+
+E1 findings:
+
+- current distortion is conservative: derived drive capped at `800`, and CHAR currently changes drive scaling rather than an independent waveshape;
+- Reverb V2 is two all-pass diffusers into a static four-line Hadamard FDN with fixed damping and mono late return;
+- V2 has no late-tail delay modulation, leaving a credible cause for the audible metallic/pitched tail despite good objective IR metrics;
+- ratchets already emit NOTE_ON/OFF per sub-trigger and each NOTE_ON re-enters `lead_attack()`;
+- coherent WP-B config publication is retained, but there is no general continuous FX smoothing layer yet.
+
+Validation on `b58dfb224...`:
+
+- WP-E audio audit `40773113620`: PASS;
+- retained fast workflows: PASS, no failures;
+- full target `40773113827`: PASS;
+- image `190156 / 581564 B`;
+- RAM headroom `21472 B`;
+- pool headroom `17696 B`;
+- package `611545 B`;
+- package SHA-256 `bee43ce894a5a26472270b0890f1d64e400bfb68246980f5fe285179a4225b7f`;
+- provenance: PASS.
+
 ## 2026-10-28 - WP-D Timing model complete
 
 WP-D is complete. WP-E Audio character is ACTIVE NEXT; no WP-E audio implementation is included in this closeout.
@@ -92,7 +125,7 @@ Baseline checkpoint `a2a2bb97f3c8bb95a9ed0a539241698949b0defc`. Added determinis
 
 ## 2026-10-28 - WP-B trust and reliability complete
 
-Final checkpoint `7c20efbdc391c59118fef3f000689eeafaa176b9`; target `40604214660`: PASS. B1 live-edit, B2 rotary parity and B3 display integrity remain regression-protected.
+Final checkpoint `7c20efbdc391c59118fef3f000689eeafaa176b9`; target `40604214660`: PASS. B1 live-edit, B2 rotary mapping and B3 display integrity remain regression-protected.
 
 ## 2026-10-26 - WP-A randomizer intensity + RANDOM skyline complete
 
