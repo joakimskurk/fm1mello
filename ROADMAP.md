@@ -14,15 +14,11 @@ Complete. Final implementation/test checkpoint `7c20efbdc391c59118fef3f000689eea
 
 ### WP-C - Control Grammar v2
 
-**COMPLETE 2026-10-28.** Final implementation/test checkpoint `2c280184b0c5cd0947f2d4d9149ad12a96188709`. REC/EDIT semantics, visible B0-B7 contextual rail, coherent MOD navigation and authoritative action mapping remain regression-protected.
+**COMPLETE 2026-10-28.** Final implementation/test checkpoint `2c280184b0c5cd0947f2d4d9149ad12a96188709`.
 
 ### WP-D - Timing model
 
-**COMPLETE 2026-10-28.** Final implementation/test checkpoint `0cd810b5deb90087d60b181682de7e9ff52682cd`.
-
-Delivered `FREE / 1 / 2 / 4 / 8 / 16 BAR`, **2 BAR default**, musical duration across DIV, retained storage layout, explicit RESET language and separation from MIDI sync / Loop Cycle / HOLD.
-
-Full target `40763918161`: PASS. RAM headroom `21472 B`, pool headroom `17696 B`.
+**COMPLETE 2026-10-28.** Final implementation/test checkpoint `0cd810b5deb90087d60b181682de7e9ff52682cd`. Full target `40763918161`: PASS. RAM headroom `21472 B`, pool headroom `17696 B`.
 
 ## Active implementation
 
@@ -36,23 +32,21 @@ Checkpoint `b58dfb224f4037b27b6d232f02991274ed676504`. Audio-audit `40773113620`
 
 Permanent baseline: `tools/wp_e_audio_baseline.py`, `.github/workflows/wp-e-audio-audit.yml`, `docs/WP_E_AUDIO_AUDIT.md`.
 
-Findings:
+Reverb V3 remains a defining product-quality gate: metallic/pitched/fluttering/detached tails are rejected even if numerical metrics pass.
 
-- current distortion upper range is conservative and CHAR is not yet an independent waveshaper dimension;
-- Reverb V2 is a static four-line FDN after two all-pass diffusers, with fixed damping and mono late return;
-- V2 has no late-tail delay modulation, so technical density/correlation success does not resolve the audible metallic/pitched tail;
-- ratchet scheduling already sends NOTE_ON/OFF per sub-trigger and re-enters lead attack;
-- FX snapshots are coherently published but lack a general continuous live-parameter smoothing layer.
+#### E2 - extreme bounded distortion - COMPLETE
 
-**Reverb V3 is a defining Mello product-quality gate.** The E1 A/B contract is authoritative: a metallic, pitched, fluttering or detached tail is a hard reject even if numerical tests are green.
+Final checkpoint `cbbf44a68b64a75195383511a04f607b68562935`. Closeout: `docs/WP_E2_CLOSEOUT.md`.
 
-#### E2 - extreme bounded distortion - ACTIVE NEXT
+Delivered a cubic AMT range with nuanced low/mid control and extreme top end, an independent CHAR transfer-shape dimension, bounded/monotonic exact-symmetry behavior, and isolation from legacy sample-slot distortion.
 
-Expand distortion into a genuinely extreme upper range while keeping low settings nuanced, bounded and gain-aware. Preserve control semantics, realtime safety and all retained gates.
+WP-E audit `40776409911`: PASS. Full target `40776410416`: PASS. RAM headroom `21472 B`, pool headroom `17696 B`, package SHA-256 `95473c044eea9958265595efe292c8cbc8bce79d7473e4d472b93c9839ff24e6`.
 
-#### E3 - Reverb V3
+#### E3 - Reverb V3 - ACTIVE NEXT
 
-Build against the E1 perceptual contract. Prioritize early diffusion, non-stationary modal identity, frequency-dependent decay, musical SIZE/DECAY/TONE behavior, safe live movement and stereo decorrelation where budget permits. Reuse the existing reverb ring unless measured evidence justifies more memory.
+Build against the E1 perceptual contract. Prioritize substantially higher modal/echo density, strong early diffusion, frequency-dependent decay, useful SIZE/DECAY/TONE behavior, stereo decorrelation and non-stationary modal identity only where it does not create chorus/vibrato artifacts.
+
+Reuse the current reverb ring unless measured evidence justifies more memory. Create controlled DRY/V2/V3 audition assets for bright pluck, staccato lead, sustained chord-bed, bass/sub-rich material and dense rhythmic/ratcheted material. Numerical tests are guardrails; controlled listening decides acceptance.
 
 #### E4 - ratchet parity + realtime-safe live smoothing
 
