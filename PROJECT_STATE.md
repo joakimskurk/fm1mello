@@ -70,12 +70,15 @@ Physical FM-1 live-edit reproduction remains a later hands-on regression when ha
 
 WP-D is the timing-model package. Approved rules:
 
-- main sequence defaults to `1 BAR`;
+- main sequence defaults to **`2 BAR`**;
 - choices are `1 / 2 / 4 / 8 / 16 BAR / FREE`;
+- BAR choices are musical durations and remain the selected number of bars across sequence pulse-division changes;
 - main-sequence bar reset, external/MIDI sync, Loop Cycle `SYNC/FREE`, and Slot/Chain hold length remain distinct concepts;
 - timing labels must make those distinctions explicit.
 
-Begin WP-D with an audit/baseline of current transport reset behavior, default/storage representation and UI labels before implementation. Preserve all WP-A/WP-B/WP-C/audio/performance/target gates.
+D1 has identified the legacy representation as `master_len` in processed pulses (`0 / 16 / 32 / 64 / 128 / 256`, with `0` meaning natural/free), with separate transport sync, Loop Cycle sync and hold counters. See `docs/WP_D_TIMING_AUDIT.md`. D1 CI closeout is the immediate gate before D2 implementation.
+
+Preserve all WP-A/WP-B/WP-C/audio/performance/target gates.
 
 ## Future sequence
 
