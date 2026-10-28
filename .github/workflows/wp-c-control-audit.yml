@@ -30,6 +30,8 @@ jobs:
               'MELLO_UI_BTN_OCT_DOWN',
               'MELLO_UI_BTN_OCT_UP',
               'MELLO_UI_ENC_SELECT',
+              'MELLO_UI_ENC_ALGORITHM',
+              'MELLO_UI_ENC_PRESETS',
               'seq_button(',
               'handle_note(',
               'handle_buttons(',
@@ -64,7 +66,7 @@ jobs:
                       print(f'{j+1:5d}: {lines[j]}')
                       if seen_open and depth <= 0:
                           break
-          for fn in ('adjust_select(', 'adjust_sound(', 'render_footer(', 'render_body('):
+          for fn in ('adjust_algorithm(', 'adjust_select(', 'adjust_presets(', 'adjust_sound(', 'render_footer(', 'render_body('):
               dump_function(fn)
 
           print('--- SOUND/LFO textual references ---')
