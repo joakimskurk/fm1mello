@@ -1,0 +1,39 @@
+name: WP-C contextual rail and MOD gate
+
+on:
+  push:
+    branches: [visual-port-home]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  context-grammar:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Reconstruct WP-C source
+        run: bash ci/unpack_source.sh
+      - name: Compile C4 contextual contract with Chord enabled
+        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_context_contract.c mello/*.c -o /tmp/control_c4
+      - name: Validate C4 contextual contract with Chord enabled
+        run: /tmp/control_c4
+      - name: Compile C4 contextual contract with Chord disabled
+        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_context_contract.c mello/*.c -o /tmp/control_c4_off
+      - name: Validate C4 contextual contract with Chord disabled
+        run: /tmp/control_c4_off
+      - name: Compile retained C3 action contract
+        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_action_contract.c mello/*.c -o /tmp/control_c3
+      - name: Validate retained C3 action contract
+        run: /tmp/control_c3
+      - name: Assert removed hidden grammar stays absent
+        run: |
+          ! grep -F 'reset_combo' mello/mello_ui.c
+          ! grep -F 'case MELLO_UI_RANDOM: return MELLO_UI_BTN_EDIT;' mello/mello_ui.c
+          ! grep -F 'case MELLO_UI_DOT: return MELLO_UI_BTN_FX;' mello/mello_ui.c
+          ! grep -F 'KEY TARGET | REC RND | OCT' mello/mello_ui.c
+          ! grep -F 'mello_engine_loop_cycle_reset_position(e);' mello/mello_ui.c | grep -F 'knob == 3u'
+      - name: Record C4 generated hashes
+        run: sha256sum mello/mello_ui.c tools/rotary_mapping_parity.c tools/ui_control_parity.c tools/control_context_contract.c
