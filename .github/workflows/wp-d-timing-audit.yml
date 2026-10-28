@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Reconstruct final WP-C source
+      - name: Reconstruct WP-D D2 source
         run: bash ci/unpack_source.sh
       - name: Audit timing model source of truth
         run: |
@@ -53,41 +53,32 @@ jobs:
                   print(f'--- {path}:{a+1}-{b} window {n} ---')
                   for j in range(a,b):
                       print(f'{j+1:5d}: {lines[j]}')
-
-          for path, names in (
-              (Path('mello/mello_engine.c'), ('mello_project_defaults', 'mello_engine_tick')),
-              (Path('mello/mello_transport.c'), ('mello_transport_init', 'mello_transport_tick', 'mello_transport_clock')),
-              (Path('mello/mello_ui.c'), ('draw_global', 'adjust_global', 'render_body', 'render_footer')),
-          ):
-              if not path.exists(): continue
-              lines=path.read_text().splitlines()
-              for name in names:
-                  starts=[i for i,l in enumerate(lines) if name in l and ('(' in l)]
-                  print(f'=== targeted {path}:{name} matches={len(starts)} ===')
-                  for start in starts[:6]:
-                      a=max(0,start-3); b=min(len(lines),start+90)
-                      for j in range(a,b): print(f'{j+1:5d}: {lines[j]}')
-                      print('---')
           PY
-      - name: Verify permanent D1 timing baseline contract
+      - name: Verify permanent D2 musical timing contract
         run: |
-          cc -std=c11 -Wall -Wextra -Werror -I mello tools/wp_d_timing_baseline.c mello/mello_engine.c mello/mello_transport.c -o /tmp/wp_d_timing_baseline
-          /tmp/wp_d_timing_baseline
-      - name: Lock legacy D1 timing language before D2 migration
+          cc -std=c11 -Wall -Wextra -Werror -I mello tools/wp_d_timing_model.c mello/mello_engine.c mello/mello_transport.c -o /tmp/wp_d_timing_model
+          /tmp/wp_d_timing_model
+      - name: Verify D2 timing-domain separation and pre-D3 UI boundary
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          engine = Path('mello/mello_engine.c').read_text()
+          header = Path('mello/mello_engine.h').read_text()
           ui = Path('mello/mello_ui.c').read_text()
           checks = {
-              'legacy main reset choices': 'static const uint16_t master_lengths[] = {0u,16u,32u,64u,128u,256u};',
-              'main reset label': 'l[1]="RESET";value_u(v[1],"",e->project.master_len);',
-              'Loop Cycle sync/free': 'l[1]="SYNC";copy_s(v[1],e->loop_cycle.sync?"SYNC":"FREE");',
-              'external transport sync': 'l[2]="SYNC";copy_s(v[2],sync_name(ui->transport->sync_mode));',
-              'slot hold': 'l[1]="HOLD";value_u(v[1],"",ss->hold);',
+              '2 BAR default': ('engine', 'p->master_len=32u; /* WP-D: default 2 BAR = 32 sixteenth notes. */'),
+              'BAR scales by DIV': ('engine', '(uint32_t)e->project.master_len/(uint32_t)e->project.clock_div'),
+              'FREE semantic': ('header', '0=FREE. Non-zero is musical length in 1/16-note units'),
+              'main choices remain canonical': ('ui', 'static const uint16_t master_lengths[] = {0u,16u,32u,64u,128u,256u};'),
+              'main pre-D3 label': ('ui', 'l[1]="RESET";value_u(v[1],"",e->project.master_len);'),
+              'Loop Cycle sync/free': ('ui', 'l[1]="SYNC";copy_s(v[1],e->loop_cycle.sync?"SYNC":"FREE");'),
+              'external transport sync': ('ui', 'l[2]="SYNC";copy_s(v[2],sync_name(ui->transport->sync_mode));'),
+              'slot hold': ('ui', 'l[1]="HOLD";value_u(v[1],"",ss->hold);'),
           }
-          for name, needle in checks.items():
-              if needle not in ui:
-                  raise SystemExit(f'D1 timing-language drift: {name}: {needle}')
+          sources = {'engine': engine, 'header': header, 'ui': ui}
+          for name, (source, needle) in checks.items():
+              if needle not in sources[source]:
+                  raise SystemExit(f'D2 timing-model drift: {name}: {needle}')
               print(f'PASS {name}')
           PY
       - name: Keep current timing/event-order regressions green
@@ -98,10 +89,10 @@ jobs:
           /tmp/audio_event_order_smoke
       - name: Record timing-source hashes
         run: sha256sum mello/mello_engine.h mello/mello_engine.c mello/mello_transport.h mello/mello_transport.c mello/mello_ui.h mello/mello_ui.c
-      - name: Publish reconstructed timing source for D1 audit
+      - name: Publish reconstructed timing source for D2 audit
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: wp-d-reconstructed-timing-source
+          name: wp-d-d2-reconstructed-timing-source
           path: |
             mello/mello_engine.h
             mello/mello_engine.c
@@ -109,5 +100,7 @@ jobs:
             mello/mello_transport.c
             mello/mello_ui.h
             mello/mello_ui.c
-          if-no-files-found: error
+            mello/mello_storage.h
+            mello/mello_storage.c
+          if-no-files-found: warn
           retention-days: 7
