@@ -69,6 +69,27 @@ jobs:
                       for j in range(a,b): print(f'{j+1:5d}: {lines[j]}')
                       print('---')
           PY
+      - name: Verify permanent D1 timing baseline contract
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I mello tools/wp_d_timing_baseline.c mello/mello_engine.c mello/mello_transport.c -o /tmp/wp_d_timing_baseline
+          /tmp/wp_d_timing_baseline
+      - name: Lock legacy D1 timing language before D2 migration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          ui = Path('mello/mello_ui.c').read_text()
+          checks = {
+              'legacy main reset choices': 'static const uint16_t master_lengths[] = {0u,16u,32u,64u,128u,256u};',
+              'main reset label': 'l[1]="RESET";value_u(v[1],"",e->project.master_len);',
+              'Loop Cycle sync/free': 'l[1]="SYNC";copy_s(v[1],e->loop_cycle.sync?"SYNC":"FREE");',
+              'external transport sync': 'l[2]="SYNC";copy_s(v[2],sync_name(ui->transport->sync_mode));',
+              'slot hold': 'l[1]="HOLD";value_u(v[1],"",ss->hold);',
+          }
+          for name, needle in checks.items():
+              if needle not in ui:
+                  raise SystemExit(f'D1 timing-language drift: {name}: {needle}')
+              print(f'PASS {name}')
+          PY
       - name: Keep current timing/event-order regressions green
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I mello tools/audio_timing_stress.c mello/*.c -o /tmp/audio_timing_stress
