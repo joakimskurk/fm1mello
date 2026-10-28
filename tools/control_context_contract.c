@@ -60,7 +60,14 @@ static void black(MelloUi *u,uint32_t ms,uint8_t pos){
     mello_ui_input(u,ms*1000u,ms,0u,0u,0u,bit_u32(note),enc);
 }
 static void turn_k4(MelloUi *u){ int16_t enc[MELLO_UI_ENCODER_COUNT]={0}; enc[MELLO_UI_ENC_KNOB4]=1; mello_ui_input(u,100000u,100u,0,0,0,0,enc); }
-static void render(MelloUi *u,Capture *cap){ MelloUiDrawOps ops={fill,text,led_key,led_btn,cap}; memset(cap,0,sizeof *cap); u->dirty=MELLO_UI_DIRTY_ALL; mello_ui_render(u,&ops); }
+static void render(MelloUi *u,Capture *cap){
+    MelloUiDrawOps ops={fill,text,led_key,led_btn,cap};
+    memset(cap,0,sizeof *cap);
+    u->last_key_led_mask=0u;
+    u->last_button_led_mask=0u;
+    u->dirty=MELLO_UI_DIRTY_ALL;
+    mello_ui_render(u,&ops);
+}
 
 static void verify_hints(void){
     unsigned i;

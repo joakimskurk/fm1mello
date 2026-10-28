@@ -2,6 +2,7 @@
 from pathlib import Path
 
 PARITY = Path('tools/ui_control_parity.c')
+GRAMMAR = Path('tools/control_grammar_smoke.c')
 s = PARITY.read_text()
 
 old_input = '''static void input(MelloUi *ui, uint32_t ms, uint32_t pressed, uint32_t held)\n{\n    int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};\n    mello_ui_input(ui, ms * 1000u, ms, pressed, 0u, held, 0u, enc);\n}\n\n'''
@@ -24,4 +25,13 @@ s = s.replace(old_expired, new_expired, 1)
 if 'RESET ALL remains on its legacy confirmed OCT chord' in s or 'static void input(' in s:
     raise SystemExit('FAIL: WP-C4 stale OCT reset parity remains')
 PARITY.write_text(s)
-print('PASS: WP-C4 control-parity RESET ALL trigger migrated to contextual B3')
+
+g = GRAMMAR.read_text()
+old_loop = '''    t.engine.loop_cycle_pos = 5u;\n    t.engine.loop_cycle_tick = 9u;\n    enc(&ui, MELLO_UI_ENC_KNOB4, +1);\n    if (ui.selected_loop_step != 6u || t.engine.loop_cycle_pos != 0u || t.engine.loop_cycle_tick != 0u) return 12;\n'''
+new_loop = '''    t.engine.loop_cycle_pos = 5u;\n    t.engine.loop_cycle_tick = 9u;\n    enc(&ui, MELLO_UI_ENC_KNOB4, +1);\n    if (ui.selected_loop_step != 6u || t.engine.loop_cycle_pos != 5u || t.engine.loop_cycle_tick != 9u) return 12;\n'''
+if g.count(old_loop) != 1:
+    raise SystemExit(f'FAIL: WP-C4 grammar LOOP K4 marker count {g.count(old_loop)}')
+g = g.replace(old_loop, new_loop, 1)
+GRAMMAR.write_text(g)
+
+print('PASS: WP-C4 generated control tests migrated to B3 RESET ALL and inert LOOP K4')
