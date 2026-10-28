@@ -6,7 +6,7 @@ AUDIO = Path('mello/mello_audio.c')
 HEADER = Path('mello/mello_audio.h')
 PRE_AUDIO_SHA = '3bfc64f6b101a8123b1533014fece746073bfac22055b83434252d8e0252ff85'
 PRE_HEADER_SHA = '302e217d551d1f250269ca37216217cffd067656a7db371ad1dc91e7ec7c61b5'
-POST_AUDIO_SHA = '0b66c165f3eb63dc6bc902f35e0db7163dfb351c8b5324c56c2ebcba0752e403'
+POST_AUDIO_SHA = 'd0bea0a0dd777ff27f615d6cc5f3b7330680a4e1bdddea841ca3b49139ba8e47'
 POST_HEADER_SHA = '463e403fa7f5c927bfc69be48b6f0b18d475f21fe9ac45f7e6c285eaf7e0b63d'
 
 
@@ -48,8 +48,8 @@ audio = replace_once(
 ''',
     '''static uint16_t global_dist_drive(uint16_t amount){
     uint32_t a=amount>1000u?1000u:amount;
-    /* Quadratic AMT curve: fine control below halfway, full 0..1000 drive at the top. */
-    return (uint16_t)((a*a+500u)/1000u);
+    /* Cubic AMT curve: preserves fine low/mid control but opens into the full E2 range. */
+    return (uint16_t)(((a*a)*a+500000u)/1000000u);
 }
 ''',
     'amount-to-drive mapping',
