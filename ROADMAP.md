@@ -35,18 +35,21 @@ Target resource closeout: RAM headroom `21472 B`, pool headroom `17696 B`, packa
 
 ## Active implementation
 
-### WP-D - Timing model - ACTIVE NEXT
+### WP-D - Timing model - ACTIVE
 
 Approved target:
 
-- main-sequence default `1 BAR`;
+- main-sequence default **`2 BAR`**;
 - expose `1 / 2 / 4 / 8 / 16 BAR / FREE`;
+- BAR values remain musical bar lengths when pulse division changes;
 - external/MIDI sync remains independent;
 - Loop Cycle `SYNC/FREE` remains independent;
 - Slot/Chain hold length remains independent;
 - UI terminology must not collapse these into one generic sync concept.
 
-Start with an exact audit of current transport reset/free-running behavior, storage/default representation and rendered labels before changing behavior. Add deterministic timing tests, then implement the smallest migration that preserves all other timing concepts and all WP-A/WP-B/WP-C gates.
+D1 audit has captured the current model: legacy main reset is `master_len` in processed pulses, `0` means natural/free, and transport sync / Loop Cycle sync / hold counters are separate. Permanent baseline coverage lives in `tools/wp_d_timing_baseline.c`; full findings live in `docs/WP_D_TIMING_AUDIT.md`. D1 CI closeout is the immediate gate, followed by D2.
+
+D2 implements the smallest compatible migration to the approved bar model while preserving all other timing concepts and all WP-A/WP-B/WP-C gates.
 
 Stop after WP-D closeout and activate WP-E; do not jump ahead.
 
