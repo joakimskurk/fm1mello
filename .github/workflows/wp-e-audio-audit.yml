@@ -1,0 +1,138 @@
+name: WP-E audio character audit
+
+on:
+  push:
+    branches: [visual-port-home]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audio-audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Reconstruct final Mello source
+        run: bash ci/unpack_source.sh
+
+      - name: Map distortion, reverb, ratchet and smoothing source paths
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, re
+
+          def sha(path):
+              return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+          def function_block(text, name):
+              hit = re.search(r'(^|\n)(?:static\s+)?[^\n;{}]*\b' + re.escape(name) + r'\s*\([^;{}]*\)\s*\{', text)
+              if not hit:
+                  return None
+              start = hit.start(0) + (1 if text[hit.start(0):].startswith('\n') else 0)
+              brace = text.find('{', start)
+              depth = 0
+              i = brace
+              while i < len(text):
+                  if text[i] == '{': depth += 1
+                  elif text[i] == '}':
+                      depth -= 1
+                      if depth == 0:
+                          return text[start:i+1]
+                  i += 1
+              return None
+
+          files = {
+              'audio_c': Path('mello/mello_audio.c'),
+              'audio_h': Path('mello/mello_audio.h'),
+              'engine_c': Path('mello/mello_engine.c'),
+              'engine_h': Path('mello/mello_engine.h'),
+              'ui_c': Path('mello/mello_ui.c'),
+          }
+          for key, path in files.items():
+              print(f'SHA {key} {sha(path)}')
+
+          audio = files['audio_c'].read_text()
+          engine = files['engine_c'].read_text()
+          ui = files['ui_c'].read_text()
+
+          print('\n=== AUDIO FUNCTIONS ===')
+          for name in ('soft_drive','browser_dist_drive','reverb_feedback_q15','reverb_configure','rv2_allpass','reverb_network_step','apply_pending','mello_audio_render'):
+              block = function_block(audio, name)
+              print(f'--- {name} ---')
+              print(block if block else 'MISSING')
+
+          print('\n=== ENGINE RATCHET WINDOWS ===')
+          lines = engine.splitlines()
+          hits = [i for i,l in enumerate(lines) if 'ratchet' in l.lower()]
+          merged=[]
+          for i in hits:
+              a,b=max(0,i-8),min(len(lines),i+14)
+              if merged and a <= merged[-1][1]: merged[-1]=(merged[-1][0],max(merged[-1][1],b))
+              else: merged.append((a,b))
+          for a,b in merged:
+              print(f'--- mello_engine.c:{a+1}-{b} ---')
+              for j in range(a,b): print(f'{j+1:5d}: {lines[j]}')
+
+          print('\n=== AUDIO EVENT / ENVELOPE WINDOWS ===')
+          lines = audio.splitlines()
+          needles=('MELLO_EVENT_NOTE_ON','MELLO_EVENT_NOTE_OFF','env_stage','env_q24','attack','retrigger')
+          hits=[i for i,l in enumerate(lines) if any(n.lower() in l.lower() for n in needles)]
+          merged=[]
+          for i in hits:
+              a,b=max(0,i-5),min(len(lines),i+10)
+              if merged and a <= merged[-1][1]: merged[-1]=(merged[-1][0],max(merged[-1][1],b))
+              else: merged.append((a,b))
+          for a,b in merged[:20]:
+              print(f'--- mello_audio.c:{a+1}-{b} ---')
+              for j in range(a,b): print(f'{j+1:5d}: {lines[j]}')
+
+          print('\n=== SMOOTHING / RAMP SEARCH ===')
+          terms=('smooth','smoothing','ramp','slew','interpol','target_','current_','zipper')
+          for path in (files['audio_c'],files['audio_h'],files['engine_c'],files['ui_c']):
+              hits=[]
+              for i,l in enumerate(path.read_text().splitlines(),1):
+                  if any(t in l.lower() for t in terms): hits.append((i,l))
+              print(f'{path}: {len(hits)} hits')
+              for i,l in hits[:80]: print(f'{i:5d}: {l}')
+
+          print('\n=== FX UI LABELS / CONTROL WINDOWS ===')
+          lines=ui.splitlines()
+          hits=[i for i,l in enumerate(lines) if any(t in l for t in ('FX DIST','FX REVERB','reverb_wet','reverb_size','reverb_decay','reverb_pre','dist_amount','dist_character'))]
+          merged=[]
+          for i in hits:
+              a,b=max(0,i-5),min(len(lines),i+10)
+              if merged and a <= merged[-1][1]: merged[-1]=(merged[-1][0],max(merged[-1][1],b))
+              else: merged.append((a,b))
+          for a,b in merged:
+              print(f'--- mello_ui.c:{a+1}-{b} ---')
+              for j in range(a,b): print(f'{j+1:5d}: {lines[j]}')
+          PY
+
+      - name: Run existing audio/realtime baselines
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -DMELLO_REVERB_TEST_HOOK=1 -I mello tools/audio_html_parity.c mello/*.c -o /tmp/audio_html_parity
+          /tmp/audio_html_parity
+          cc -std=c11 -Wall -Wextra -Werror -I mello tools/audio_timing_stress.c mello/*.c -o /tmp/audio_timing_stress
+          /tmp/audio_timing_stress
+          cc -std=c11 -Wall -Wextra -Werror -I mello tools/audio_event_order_smoke.c mello/*.c -o /tmp/audio_event_order_smoke
+          /tmp/audio_event_order_smoke
+          cc -std=c11 -Wall -Wextra -Werror -DMELLO_LIVE_EDIT_TEST_HOOK=1 -I mello tools/live_edit_audio_stress.c mello/*.c -o /tmp/live_edit_audio_stress
+          /tmp/live_edit_audio_stress
+
+      - name: Record reconstructed audio-source hashes
+        run: sha256sum mello/mello_audio.h mello/mello_audio.c mello/mello_engine.h mello/mello_engine.c mello/mello_ui.c
+
+      - name: Publish reconstructed audio source for E1 audit
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wp-e-e1-reconstructed-audio-source
+          path: |
+            mello/mello_audio.h
+            mello/mello_audio.c
+            mello/mello_engine.h
+            mello/mello_engine.c
+            mello/mello_ui.c
+          if-no-files-found: error
+          retention-days: 7
