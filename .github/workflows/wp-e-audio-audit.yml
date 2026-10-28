@@ -110,6 +110,9 @@ jobs:
               for j in range(a,b): print(f'{j+1:5d}: {lines[j]}')
           PY
 
+      - name: Run permanent WP-E1 deterministic baseline
+        run: python3 tools/wp_e_audio_baseline.py
+
       - name: Run existing audio/realtime baselines
         run: |
           cc -std=c11 -Wall -Wextra -Werror -DMELLO_REVERB_TEST_HOOK=1 -I mello tools/audio_html_parity.c mello/*.c -o /tmp/audio_html_parity
