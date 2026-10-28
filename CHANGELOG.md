@@ -38,9 +38,41 @@ Physical FM-1 timing/live-edit validation remains deferred until hardware exists
 
 ## 2026-10-28 - WP-C Control Grammar v2 complete
 
-WP-C is complete. Final implementation/test checkpoint: `2c280184b0c5cd0947f2d4d9149ad12a96188709`.
+WP-C is complete. WP-D Timing model is ACTIVE NEXT; no WP-D implementation is included in this closeout.
 
-C5 replaced duplicated contextual handler/render page mapping with one authoritative `MelloContextAction` page/B0-B7 descriptor. Final WP-C target `40703571071`: PASS; RAM headroom `21472 B`; pool headroom `17696 B`; package SHA-256 `755a098ecbe66a6f8f7697a5787cb240e50a69df2520dc2f10b690f0056b8da1`.
+Final implementation/test checkpoint: `2c280184b0c5cd0947f2d4d9149ad12a96188709`.
+
+C5 closeout:
+
+- replaced duplicated contextual handler/render page mapping with one authoritative `MelloContextAction` page/B0-B7 descriptor;
+- descriptor carries handler verb and rendered label together;
+- handler dispatch now switches on descriptor verb rather than page;
+- rendered contextual guidance iterates the same descriptor;
+- added all-page/all-slot parity coverage with Chord enabled and compiled out;
+- proved inactive slots inert, B5 RANDOM routing consistent, and STEP `SEL+black` manual-note priority retained;
+- exact generated C5 UI/test outputs are hash-locked.
+
+C5 coverage:
+
+- Chord enabled: `16 pages / 31 active / 97 inactive`;
+- Chord disabled: `15 pages / 29 active / 91 inactive`.
+
+Final WP-C validation on `2c280184...`:
+
+- authoritative actions `40703570244`: PASS;
+- reconstruction `40703570315`: PASS;
+- context grammar `40703570196`: PASS;
+- REC `40703570212`: PASS;
+- EDIT `40703570277`: PASS;
+- action contract `40703570204`: PASS;
+- audit `40703570330`: PASS;
+- rotary `40703570466`: PASS;
+- display `40703570254`: PASS;
+- live-edit `40703570316`: PASS;
+- full target `40703571071`: PASS;
+- RAM headroom `21472 B`; pool headroom `17696 B`;
+- package SHA-256 `755a098ecbe66a6f8f7697a5787cb240e50a69df2520dc2f10b690f0056b8da1`;
+- provenance: PASS.
 
 ## 2026-10-28 - WP-C4 contextual rail and MOD navigation complete
 
