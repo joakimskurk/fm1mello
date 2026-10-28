@@ -36,6 +36,25 @@ static void input(MelloUi *ui, uint32_t ms, uint32_t pressed, uint32_t held)
     mello_ui_input(ui, ms * 1000u, ms, pressed, 0u, held, 0u, enc);
 }
 
+static uint8_t black_note(uint8_t pos)
+{
+    uint8_t i, n = 0u;
+    for (i = 0u; i < 27u; ++i) {
+        if (mello_ui_white_key_position(i) >= 0) continue;
+        if (n == pos) return i;
+        ++n;
+    }
+    return 0xFFu;
+}
+
+static void black_input(MelloUi *ui, uint32_t ms, uint8_t pos)
+{
+    int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
+    uint8_t note = black_note(pos);
+    if (note == 0xFFu) return;
+    mello_ui_input(ui, ms * 1000u, ms, 0u, 0u, 0u, 1u << note, enc);
+}
+
 int main(void)
 {
     MelloProject project;
@@ -54,7 +73,8 @@ int main(void)
     mello_sample_bank_init(&bank, dummy[0], dummy[1], dummy[2], dummy[3], 1u);
     mello_ui_attach_sample_bank(&ui, &bank);
 
-    /* Source CLEAR: main steps + Loop Cycle step records/position only. */
+    /* Source CLEAR semantics are preserved, but WP-C2 moves the trigger to
+       contextual black-key B3 with a two-press destructive confirmation. */
     transport.engine.project.seq_len = 20u;
     transport.engine.project.bpm = 137u;
     transport.engine.project.root_note = 67u;
@@ -87,46 +107,48 @@ int main(void)
     if (!mello_engine_save_slot(&transport.engine, 2u, "KEEP")) return 1;
 
     mello_ui_set_page(&ui, MELLO_UI_RANDOM);
-    input(&ui, 100u, (1u << MELLO_UI_BTN_REC), (1u << MELLO_UI_BTN_EDIT));
+    black_input(&ui, 100u, 3u);
+    if (!ui.reset_armed || transport.engine.project.steps[0].pitch != 9) return 2;
+    black_input(&ui, 200u, 3u);
     for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
         if (!canonical_step(&transport.engine.project.steps[i], i)) {
             fprintf(stderr, "CLEAR step %u failed\n", (unsigned)i);
-            return 2;
+            return 3;
         }
     }
     for (i = 0u; i < MELLO_MAX_LOOP_CYCLE_STEPS; ++i) {
         if (!canonical_loop_step(&transport.engine.loop_cycle.steps[i])) {
             fprintf(stderr, "CLEAR loop %u failed\n", (unsigned)i);
-            return 3;
+            return 4;
         }
     }
-    if (transport.engine.loop_cycle_pos || transport.engine.loop_cycle_tick || transport.engine.loop_cycle_count) return 4;
-    if (!transport.engine.loop_cycle.active || transport.engine.loop_cycle.sync || transport.engine.loop_cycle.length != 6u) return 5;
+    if (transport.engine.loop_cycle_pos || transport.engine.loop_cycle_tick || transport.engine.loop_cycle_count) return 5;
+    if (!transport.engine.loop_cycle.active || transport.engine.loop_cycle.sync || transport.engine.loop_cycle.length != 6u) return 6;
     if (transport.engine.project.seq_len != 20u || transport.engine.project.bpm != 137u ||
         transport.engine.project.root_note != 67u || transport.engine.project.scale != MELLO_SCALE_DORIAN ||
-        transport.engine.project.seg_count != 3u || transport.engine.project.master_len != 64u) return 6;
+        transport.engine.project.seg_count != 3u || transport.engine.project.master_len != 64u) return 7;
     if (transport.engine.randomize.mask != (MELLO_RAND_PITCH | MELLO_RAND_GATE) ||
-        !transport.engine.tm.on || transport.engine.dot[0].cells != 0xA55Au) return 7;
+        !transport.engine.tm.on || transport.engine.dot[0].cells != 0xA55Au) return 8;
     if (!transport.engine.slot_seq.active || transport.engine.slot_seq.length != 8u ||
-        transport.engine.slot_seq.steps[0].slot != 3 || !mello_engine_slot_valid(&transport.engine, 2u)) return 8;
-    if (!storage.dirty) return 9;
+        transport.engine.slot_seq.steps[0].slot != 3 || !mello_engine_slot_valid(&transport.engine, 2u)) return 9;
+    if (!storage.dirty || ui.reset_armed) return 10;
 
-    /* Exact source TAP: average adjacent intervals, latest eight taps, 3 s freshness. */
+    /* Exact TAP math is preserved; only the trigger moved from REC to B1. */
     storage.dirty = false;
     mello_ui_set_page(&ui, MELLO_UI_GLOBAL);
-    input(&ui, 1000u, (1u << MELLO_UI_BTN_REC), (1u << MELLO_UI_BTN_REC));
-    if (transport.engine.project.bpm != 137u || ui.tap_count != 1u) return 10;
-    input(&ui, 1500u, (1u << MELLO_UI_BTN_REC), (1u << MELLO_UI_BTN_REC));
-    if (transport.engine.project.bpm != 120u || ui.tap_count != 2u || !storage.dirty) return 11;
-    input(&ui, 2000u, (1u << MELLO_UI_BTN_REC), (1u << MELLO_UI_BTN_REC));
-    input(&ui, 2500u, (1u << MELLO_UI_BTN_REC), (1u << MELLO_UI_BTN_REC));
-    if (transport.engine.project.bpm != 120u || ui.tap_count != 4u) return 12;
-    input(&ui, 6000u, (1u << MELLO_UI_BTN_REC), (1u << MELLO_UI_BTN_REC));
-    if (ui.tap_count != 1u || transport.engine.project.bpm != 120u) return 13;
-    input(&ui, 6600u, (1u << MELLO_UI_BTN_REC), (1u << MELLO_UI_BTN_REC));
-    if (transport.engine.project.bpm != 100u) return 14;
+    black_input(&ui, 1000u, 1u);
+    if (transport.engine.project.bpm != 137u || ui.tap_count != 1u) return 11;
+    black_input(&ui, 1500u, 1u);
+    if (transport.engine.project.bpm != 120u || ui.tap_count != 2u || !storage.dirty) return 12;
+    black_input(&ui, 2000u, 1u);
+    black_input(&ui, 2500u, 1u);
+    if (transport.engine.project.bpm != 120u || ui.tap_count != 4u) return 13;
+    black_input(&ui, 6000u, 1u);
+    if (ui.tap_count != 1u || transport.engine.project.bpm != 120u) return 14;
+    black_input(&ui, 6600u, 1u);
+    if (transport.engine.project.bpm != 100u) return 15;
 
-    /* RESET ALL: one chord arms, a second chord within 3 s confirms. */
+    /* RESET ALL remains on its legacy confirmed OCT chord until WP-C4. */
     transport.engine.project.seq_len = 24u;
     transport.engine.project.bpm = 199u;
     transport.engine.project.root_note = 72u;
@@ -144,30 +166,30 @@ int main(void)
 
     input(&ui, 7100u, (1u << MELLO_UI_BTN_OCT_DOWN),
           (1u << MELLO_UI_BTN_OCT_DOWN) | (1u << MELLO_UI_BTN_OCT_UP));
-    if (!ui.reset_armed || transport.engine.project.seq_len != 24u || !transport.running) return 15;
+    if (!ui.reset_armed || transport.engine.project.seq_len != 24u || !transport.running) return 16;
     input(&ui, 8000u, (1u << MELLO_UI_BTN_OCT_UP),
           (1u << MELLO_UI_BTN_OCT_DOWN) | (1u << MELLO_UI_BTN_OCT_UP));
-    if (transport.running || ui.page != MELLO_UI_HOME || ui.reset_armed) return 16;
+    if (transport.running || ui.page != MELLO_UI_HOME || ui.reset_armed) return 17;
     if (transport.engine.project.seq_len != 16u || transport.engine.project.bpm != 80u ||
-        transport.engine.project.root_note != 60u || transport.engine.project.scale != MELLO_SCALE_MINOR) return 17;
+        transport.engine.project.root_note != 60u || transport.engine.project.scale != MELLO_SCALE_MINOR) return 18;
     if (transport.sync_mode != MELLO_SYNC_OFF || transport.midi_channel != 0u ||
-        transport.midi_sub_channel != 1u || transport.midi_note_out_enabled) return 18;
+        transport.midi_sub_channel != 1u || transport.midi_note_out_enabled) return 19;
     if (transport.engine.slot_seq.active || mello_engine_slot_valid(&transport.engine, 5u) ||
-        transport.engine.randomize.mask != MELLO_RAND_ALL) return 19;
+        transport.engine.randomize.mask != MELLO_RAND_ALL) return 20;
     if (transport.midi_send != midi_send || transport.midi_ctx != (void *)0x1234 ||
-        transport.event_sink != event_sink || transport.event_sink_ctx != (void *)0x5678) return 20;
-    if (ui.sample_bank != &bank || !storage.dirty || !storage.manual_pending) return 21;
+        transport.event_sink != event_sink || transport.event_sink_ctx != (void *)0x5678) return 21;
+    if (ui.sample_bank != &bank || !storage.dirty || !storage.manual_pending) return 22;
 
     /* An expired confirmation chord re-arms instead of resetting. */
     transport.engine.project.bpm = 111u;
     mello_ui_set_page(&ui, MELLO_UI_GLOBAL);
     input(&ui, 10000u, (1u << MELLO_UI_BTN_OCT_DOWN),
           (1u << MELLO_UI_BTN_OCT_DOWN) | (1u << MELLO_UI_BTN_OCT_UP));
-    if (!ui.reset_armed) return 22;
+    if (!ui.reset_armed) return 23;
     input(&ui, 13101u, (1u << MELLO_UI_BTN_OCT_UP),
           (1u << MELLO_UI_BTN_OCT_DOWN) | (1u << MELLO_UI_BTN_OCT_UP));
-    if (!ui.reset_armed || transport.engine.project.bpm != 111u) return 23;
+    if (!ui.reset_armed || transport.engine.project.bpm != 111u) return 24;
 
-    puts("PASS: source-parity CLEAR, TAP tempo, and confirmed RESET ALL behavior");
+    puts("PASS: CLEAR/TAP semantics survive WP-C2 contextual migration; confirmed RESET ALL legacy path remains protected");
     return 0;
 }
