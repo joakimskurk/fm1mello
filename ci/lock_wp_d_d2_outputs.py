@@ -3,7 +3,7 @@ from pathlib import Path
 import hashlib
 
 EXPECTED = {
-    Path('mello/mello_engine.c'): 'b76dd8f25a1e2b218e0e32652578001cf073ca50f6198e95af9866b3cfd51937',
+    Path('mello/mello_engine.c'): 'daa00773838efe5d511c81afcdc84ba3e8bef42c6e08d368de5843c643f7670c',
     Path('mello/mello_engine.h'): '769ea7e8b7a1be51d38bbd48e5eb09e39114dd79ca363dcb70b235e1483cdab8',
 }
 
@@ -22,7 +22,7 @@ engine = Path('mello/mello_engine.c').read_text()
 header = Path('mello/mello_engine.h').read_text()
 for marker in (
     'p->master_len=32u; /* WP-D: default 2 BAR = 32 sixteenth notes. */',
-    '(uint32_t)e->project.master_len/(uint32_t)e->project.clock_div',
+    '((uint32_t)e->project.master_len+(uint32_t)e->project.clock_div-1u)/(uint32_t)e->project.clock_div',
 ):
     if marker not in engine:
         raise SystemExit(f'FAIL: WP-D D2 engine marker missing: {marker}')
