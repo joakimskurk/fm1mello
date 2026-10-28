@@ -62,3 +62,5 @@ subprocess.run(['python3', 'ci/lock_wp_d_d3_outputs.py'], check=True)
 # WP-E2 consumes the exact E1 audio baseline. It changes only the global distortion
 # path; sample-slot soft_drive remains locked by the transform itself.
 subprocess.run(['python3', 'ci/patch_wp_e2_distortion.py'], check=True)
+# WP-E3 consumes the exact E2 audio output and upgrades only the reverb topology/render return.
+subprocess.run(['python3', 'ci/patch_wp_e3_reverb_v3.py'], check=True)

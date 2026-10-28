@@ -58,7 +58,7 @@ jobs:
           ui = files['ui_c'].read_text()
 
           print('\n=== AUDIO FUNCTIONS ===')
-          for name in ('soft_drive','global_dist_drive','global_distort','reverb_feedback_q15','reverb_configure','rv2_allpass','reverb_network_step','apply_pending','mello_audio_render'):
+          for name in ('soft_drive','global_dist_drive','global_distort','reverb_feedback_q15','reverb_configure','rv3_allpass','reverb_network_step','apply_pending','mello_audio_render'):
               block = function_block(audio, name)
               print(f'--- {name} ---')
               print(block if block else 'MISSING')
@@ -114,6 +114,11 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -DMELLO_DISTORTION_TEST_HOOK=1 -I mello tools/wp_e2_distortion_smoke.c mello/*.c -o /tmp/wp_e2_distortion_smoke
           /tmp/wp_e2_distortion_smoke
+
+      - name: Run active WP-E3 Reverb V3 contract
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -DMELLO_REVERB_TEST_HOOK=1 -I mello tools/wp_e3_reverb_v3_smoke.c mello/*.c -o /tmp/wp_e3_reverb_v3_smoke
+          /tmp/wp_e3_reverb_v3_smoke
 
       - name: Run retained audio/realtime baselines
         run: |
