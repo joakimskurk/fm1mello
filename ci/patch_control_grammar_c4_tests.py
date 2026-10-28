@@ -3,6 +3,7 @@ from pathlib import Path
 
 PARITY = Path('tools/ui_control_parity.c')
 GRAMMAR = Path('tools/control_grammar_smoke.c')
+ENCODER = Path('tools/control_encoder_baseline.c')
 s = PARITY.read_text()
 
 old_input = '''static void input(MelloUi *ui, uint32_t ms, uint32_t pressed, uint32_t held)\n{\n    int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};\n    mello_ui_input(ui, ms * 1000u, ms, pressed, 0u, held, 0u, enc);\n}\n\n'''
@@ -33,5 +34,16 @@ if g.count(old_loop) != 1:
     raise SystemExit(f'FAIL: WP-C4 grammar LOOP K4 marker count {g.count(old_loop)}')
 g = g.replace(old_loop, new_loop, 1)
 GRAMMAR.write_text(g)
+
+e = ENCODER.read_text()
+old_encoder = '''static void verify_loop_k4_reset_action(void)\n{\n    MelloProject p; MelloTransport t; MelloStorage st; MelloUi u;\n    setup(&p,&t,&st,&u,MELLO_UI_SEQ_LOOP);\n    u.loop_subpage=2u;\n    t.engine.loop_cycle_pos=5u;\n    t.engine.loop_cycle_tick=9u;\n    turn(&u,MELLO_UI_ENC_KNOB4,+1);\n    if(t.engine.loop_cycle_pos!=0u || t.engine.loop_cycle_tick!=0u) fail("LOOP K4","RESET page-action baseline mismatch");\n}\n'''
+new_encoder = '''static void verify_loop_k4_inert(void)\n{\n    MelloProject p; MelloTransport t; MelloStorage st; MelloUi u;\n    setup(&p,&t,&st,&u,MELLO_UI_SEQ_LOOP);\n    u.loop_subpage=2u;\n    t.engine.loop_cycle_pos=5u;\n    t.engine.loop_cycle_tick=9u;\n    u.dirty=0u;\n    turn(&u,MELLO_UI_ENC_KNOB4,+1);\n    if(t.engine.loop_cycle_pos!=5u || t.engine.loop_cycle_tick!=9u || u.dirty) fail("LOOP K4","must be inert after contextual RESET migration");\n}\n'''
+if e.count(old_encoder) != 1:
+    raise SystemExit(f'FAIL: WP-C4 encoder LOOP K4 marker count {e.count(old_encoder)}')
+e = e.replace(old_encoder, new_encoder, 1)
+e = e.replace('    verify_loop_k4_reset_action();\n', '    verify_loop_k4_inert();\n', 1)
+e = e.replace('LOOP-K4=RESET-action', 'LOOP-K4=inert', 1)
+e = e.replace('PASS: deterministic WP-C C1 encoder/action debt baseline matches reconstructed pre-remap behavior', 'PASS: encoder baseline preserves SELECT/ALGORITHM/PRESETS while LOOP K4 is inert after C4 migration', 1)
+ENCODER.write_text(e)
 
 print('PASS: WP-C4 generated control tests migrated to B3 RESET ALL and inert LOOP K4')
