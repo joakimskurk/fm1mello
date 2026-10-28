@@ -16,17 +16,17 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Reconstruct WP-C source
         run: bash ci/unpack_source.sh
-      - name: Compile C2 contract with Chord enabled
-        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_action_contract.c mello/*.c -o /tmp/control_c2
-      - name: Validate C2 contract with Chord enabled
-        run: /tmp/control_c2
-      - name: Compile C2 contract with Chord disabled
-        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_action_contract.c mello/*.c -o /tmp/control_c2_off
-      - name: Validate C2 contract with Chord disabled
-        run: /tmp/control_c2_off
+      - name: Compile current action contract with Chord enabled
+        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_action_contract.c mello/*.c -o /tmp/control_current
+      - name: Validate REC + migrated action contract with Chord enabled
+        run: /tmp/control_current
+      - name: Compile current action contract with Chord disabled
+        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_action_contract.c mello/*.c -o /tmp/control_current_off
+      - name: Validate REC + migrated action contract with Chord disabled
+        run: /tmp/control_current_off
       - name: Compile source-parity action semantics
         run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/ui_control_parity.c mello/*.c -o /tmp/ui_control_parity
       - name: Validate migrated CLEAR/TAP semantics
         run: /tmp/ui_control_parity
-      - name: Record C2 source hash
+      - name: Record current source hash
         run: sha256sum mello/mello_ui.c tools/control_action_contract.c tools/ui_control_parity.c

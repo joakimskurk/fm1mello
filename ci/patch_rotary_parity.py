@@ -42,3 +42,4 @@ subprocess.run(['python3', 'ci/patch_display_integrity.py'], check=True)
 # Ordered late-stage continuation: WP-C transforms the already locked WP-B-final source.
 subprocess.run(['python3', 'ci/patch_control_grammar_c2.py'], check=True)
 subprocess.run(['python3', 'ci/lock_wp_c2_outputs.py'], check=True)
+subprocess.run(['python3', 'ci/patch_control_grammar_c3.py'], check=True)

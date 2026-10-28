@@ -1,0 +1,32 @@
+name: WP-C EDIT grammar gate
+
+on:
+  push:
+    branches: [visual-port-home]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  edit-grammar:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Reconstruct WP-C source
+        run: bash ci/unpack_source.sh
+      - name: Compile C3 EDIT/action contract with Chord enabled
+        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_action_contract.c mello/*.c -o /tmp/control_c3
+      - name: Validate C3 EDIT/action contract with Chord enabled
+        run: /tmp/control_c3
+      - name: Compile C3 EDIT/action contract with Chord disabled
+        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_action_contract.c mello/*.c -o /tmp/control_c3_off
+      - name: Validate C3 EDIT/action contract with Chord disabled
+        run: /tmp/control_c3_off
+      - name: Assert hidden EDIT modifiers are absent
+        run: |
+          ! grep -F 'held_buttons & bit_u32(MELLO_UI_BTN_EDIT)' mello/mello_ui.c
+          ! grep -F 'else mello_ui_set_page(ui, MELLO_UI_RANDOM);' mello/mello_ui.c
+      - name: Record C3 generated source hash
+        run: sha256sum mello/mello_ui.c tools/control_action_contract.c

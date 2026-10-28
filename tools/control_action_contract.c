@@ -34,6 +34,12 @@ static void black(MelloUi *u,uint32_t ms,uint8_t pos)
     if(note==0xFFu) fail("BLACK","position missing");
     mello_ui_input(u,ms*1000u,ms,0u,0u,0u,bit_u32(note),enc);
 }
+static void white_with_held(MelloUi *u,uint32_t ms,uint8_t pos,uint32_t held)
+{
+    int16_t enc[MELLO_UI_ENCODER_COUNT]={0}; uint8_t note=mello_ui_white_key_note_index(pos);
+    if(note==0xFFu) fail("WHITE","position missing");
+    mello_ui_input(u,ms*1000u,ms,0u,0u,held,bit_u32(note),enc);
+}
 
 static void verify_rec_reserved(void)
 {
@@ -42,7 +48,7 @@ static void verify_rec_reserved(void)
         MelloProject p; MelloTransport t; MelloStorage st; MelloUi u; MelloEngine before; MelloUiPage page;
         setup(&p,&t,&st,&u,pages[i].page); before=t.engine; page=u.page; st.dirty=false;
         buttons(&u,100u,bit_u32(MELLO_UI_BTN_REC),bit_u32(MELLO_UI_BTN_EDIT)|bit_u32(MELLO_UI_BTN_REC));
-        if(u.page!=page || memcmp(&before,&t.engine,sizeof before) || st.dirty || u.tap_count) fail(pages[i].name,"REC is not reserved/inert in C2");
+        if(u.page!=page || memcmp(&before,&t.engine,sizeof before) || st.dirty || u.tap_count) fail(pages[i].name,"REC is not reserved/inert");
     }
 }
 
@@ -83,28 +89,74 @@ static void verify_context_actions(void)
     setup(&p,&t,&st,&u,MELLO_UI_SAMPLE_RESERVED); b=t.engine.sample.on; black(&u,100u,0u); if(t.engine.sample.on==b) fail("SAMPLE B0","toggle not migrated");
 }
 
-static void verify_c3_debt_still_explicit(void)
+static void verify_edit_semantics(void)
 {
-    MelloProject p; MelloTransport t; MelloStorage st; MelloUi u; uint8_t note; bool b; int16_t enc[MELLO_UI_ENCODER_COUNT]={0};
-    setup(&p,&t,&st,&u,MELLO_UI_HOME); buttons(&u,100u,bit_u32(MELLO_UI_BTN_EDIT),0u);
-    if(u.page!=MELLO_UI_RANDOM) fail("C3 debt","EDIT navigation disappeared before C3");
-    setup(&p,&t,&st,&u,MELLO_UI_SEQ_STEP); note=mello_ui_white_key_note_index(3u); b=t.engine.project.steps[3].skip;
-    mello_ui_input(&u,100000u,100u,0u,0u,bit_u32(MELLO_UI_BTN_EDIT),bit_u32(note),enc);
-    if(t.engine.project.steps[3].skip==b) fail("C3 debt","EDIT+STEP SKIP debt missing");
+    unsigned i;
+    for(i=0u;i<sizeof(pages)/sizeof(pages[0]);++i){
+        MelloProject p; MelloTransport t; MelloStorage st; MelloUi u; MelloEngine before; MelloUiPage page; bool b;
+        setup(&p,&t,&st,&u,pages[i].page); page=u.page;
+        if(page==MELLO_UI_TURING){
+            b=t.engine.tm.locked; buttons(&u,100u,bit_u32(MELLO_UI_BTN_EDIT),0u);
+            if(u.page!=page||t.engine.tm.locked==b) fail(pages[i].name,"EDIT did not toggle LOCK");
+        } else if(page==MELLO_UI_SAMPLE_RESERVED){
+            b=t.engine.sample.per_step; buttons(&u,100u,bit_u32(MELLO_UI_BTN_EDIT),0u);
+            if(u.page!=page||t.engine.sample.per_step==b) fail(pages[i].name,"EDIT did not toggle per-step edit mode");
+        } else {
+            before=t.engine; buttons(&u,100u,bit_u32(MELLO_UI_BTN_EDIT),0u);
+            if(u.page!=page||memcmp(&before,&t.engine,sizeof before)) fail(pages[i].name,"EDIT has unrelated page/action semantics");
+        }
+    }
+}
+
+static void verify_selected_position_actions(void)
+{
+    MelloProject p; MelloTransport t; MelloStorage st; MelloUi u; bool b;
+
+    setup(&p,&t,&st,&u,MELLO_UI_SEQ_STEP); b=t.engine.project.steps[3].skip;
+    white_with_held(&u,100u,3u,bit_u32(MELLO_UI_BTN_EDIT));
+    if(u.selected_step!=3u||t.engine.project.steps[3].skip!=b) fail("STEP","EDIT+white still performs hidden SKIP");
+    black(&u,200u,4u); if(t.engine.project.steps[3].skip==b) fail("STEP B4","selected-step SKIP toggle missing");
+
+    setup(&p,&t,&st,&u,MELLO_UI_SUB); b=t.engine.sub.x_steps[2].on;
+    white_with_held(&u,100u,2u,bit_u32(MELLO_UI_BTN_EDIT));
+    if(u.selected_sub_x_step!=2u||t.engine.sub.x_steps[2].on!=b) fail("SUB","EDIT+white still toggles selected SUB step");
+    black(&u,200u,4u); if(t.engine.sub.x_steps[2].on==b) fail("SUB B4","selected SUB-step toggle missing");
+}
+
+static void verify_dot_reset_migration(void)
+{
+    MelloProject p; MelloTransport t; MelloStorage st; MelloUi u; bool b;
+    setup(&p,&t,&st,&u,MELLO_UI_DOT); b=t.engine.dot[u.selected_dot_target].reset;
+    buttons(&u,100u,bit_u32(MELLO_UI_BTN_EDIT),0u);
+    if(t.engine.dot[u.selected_dot_target].reset!=b) fail("DOT EDIT","reset toggle remained on EDIT");
+    black(&u,200u,2u);
+    if(t.engine.dot[u.selected_dot_target].reset==b) fail("DOT B2","reset toggle was not migrated");
+}
+
+static void verify_random_navigation(void)
+{
+    MelloProject p; MelloTransport t; MelloStorage st; MelloUi u;
+    setup(&p,&t,&st,&u,MELLO_UI_HOME); black(&u,100u,5u);
+    if(u.page!=MELLO_UI_RANDOM) fail("B5 RANDOM","RANDOM became inaccessible after EDIT cleanup");
+    buttons(&u,200u,bit_u32(MELLO_UI_BTN_EDIT),0u);
+    if(u.page!=MELLO_UI_RANDOM) fail("RANDOM EDIT","EDIT navigated away from RANDOM");
 }
 
 static void verify_manual_black_note_exception(void)
 {
-    MelloProject p; MelloTransport t; MelloStorage st; MelloUi u; int16_t enc[MELLO_UI_ENCODER_COUNT]={0};
+    MelloProject p; MelloTransport t; MelloStorage st; MelloUi u; int16_t enc[MELLO_UI_ENCODER_COUNT]={0}; uint8_t note=black_note(5u);
     setup(&p,&t,&st,&u,MELLO_UI_SEQ_STEP); u.selected_step=0u; t.engine.project.steps[0].pitch=9;
-    mello_ui_input(&u,100000u,100u,0u,0u,bit_u32(MELLO_UI_BTN_SEL),bit_u32(10u),enc);
-    if(t.engine.project.steps[0].pitch==9) fail("STEP manual","A# black key stopped being musical under SEL");
+    if(note==0xFFu) fail("STEP manual","B5 black key missing");
+    mello_ui_input(&u,100000u,100u,0u,0u,bit_u32(MELLO_UI_BTN_SEL),bit_u32(note),enc);
+    if(u.page!=MELLO_UI_SEQ_STEP) fail("STEP manual","context navigation beat SEL+black manual note entry");
+    if(t.engine.project.steps[0].pitch==9) fail("STEP manual","black key stopped being musical under SEL");
 }
 
 int main(void)
 {
-    verify_rec_reserved(); verify_sample_navigation(); verify_context_actions(); verify_c3_debt_still_explicit(); verify_manual_black_note_exception();
-    printf("C2 CONTRACT: pages=%u REC=reserved B0=state B1=trigger B2=reset B3=destructive-confirm ENV=SOUND/SAMPLE\n",(unsigned)(sizeof(pages)/sizeof(pages[0])));
-    puts("PASS: WP-C2 removes non-record REC semantics while preserving migrated actions and manual-note exception");
+    verify_rec_reserved(); verify_sample_navigation(); verify_context_actions(); verify_edit_semantics();
+    verify_selected_position_actions(); verify_dot_reset_migration(); verify_random_navigation(); verify_manual_black_note_exception();
+    printf("C3 CONTRACT: pages=%u REC=reserved EDIT=lock/edit-only B4=position-toggle B5=RANDOM\n",(unsigned)(sizeof(pages)/sizeof(pages[0])));
+    puts("PASS: WP-C3 removes unrelated EDIT semantics while preserving C2 actions and manual-note priority");
     return 0;
 }
