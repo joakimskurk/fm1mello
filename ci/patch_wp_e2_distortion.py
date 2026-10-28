@@ -6,7 +6,7 @@ AUDIO = Path('mello/mello_audio.c')
 HEADER = Path('mello/mello_audio.h')
 PRE_AUDIO_SHA = '3bfc64f6b101a8123b1533014fece746073bfac22055b83434252d8e0252ff85'
 PRE_HEADER_SHA = '302e217d551d1f250269ca37216217cffd067656a7db371ad1dc91e7ec7c61b5'
-POST_AUDIO_SHA = 'd0bea0a0dd777ff27f615d6cc5f3b7330680a4e1bdddea841ca3b49139ba8e47'
+POST_AUDIO_SHA = '8a0adbcd9eadbefe7339e5ff4b5a3a82e951871375061ab06bd106f51fb2cb1f'
 POST_HEADER_SHA = '463e403fa7f5c927bfc69be48b6f0b18d475f21fe9ac45f7e6c285eaf7e0b63d'
 
 
@@ -64,19 +64,21 @@ audio = replace_once(
 
 global_stage = '''\nstatic int32_t global_distort(int32_t x,uint16_t drive,uint16_t character){
     uint32_t d=drive>1000u?1000u:drive,c=character>1000u?1000u:character;
-    int32_t gain_q12,lim,slope_q12,y;
+    int32_t gain_q12,lim,slope_q12,mag,y;
+    bool neg;
     x=clamp32(x,-32767,32767);
     if(d==0u)return x;
-    /* 1.0x..7.84x pre-gain in Q12. x*gain remains safely inside int32_t. */
+    neg=x<0;mag=neg?-x:x;
+    /* 1.0x..7.84x pre-gain in Q12. Magnitude-domain shaping guarantees f(-x)=-f(x). */
     gain_q12=4096+(int32_t)d*28;
-    y=(x*gain_q12)>>12;
+    y=(mag*gain_q12)>>12;
     /* CHAR is an independent transfer-shape control: higher values move the knee
      * inward and flatten the post-knee slope without increasing AMT drive. */
     lim=28672-((int32_t)c<<3);              /* 0.875FS .. ~0.631FS */
     slope_q12=1536-(((int32_t)c*5)>>2);    /* 0.375 .. ~0.070 */
     if(y>lim)y=lim+(((y-lim)*slope_q12)>>12);
-    if(y<-lim)y=-lim+(((y+lim)*slope_q12)>>12);
-    return clamp32(y,-32767,32767);
+    y=clamp32(y,0,32767);
+    return neg?-y:y;
 }
 #if defined(MELLO_DISTORTION_TEST_HOOK) && MELLO_DISTORTION_TEST_HOOK
 uint16_t mello_audio_test_global_dist_drive(uint16_t amount){return global_dist_drive(amount);}
