@@ -1,0 +1,65 @@
+name: WP-C control grammar audit
+
+on:
+  push:
+    branches: [visual-port-home]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  control-audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Reconstruct final Mello source
+        run: bash ci/unpack_source.sh
+      - name: Print current control-action source map
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('mello/mello_ui.c')
+          lines = path.read_text().splitlines()
+          needles = (
+              'MELLO_UI_BTN_REC',
+              'MELLO_UI_BTN_EDIT',
+              'MELLO_UI_BTN_SELECT',
+              'MELLO_UI_BTN_OCT_DOWN',
+              'MELLO_UI_BTN_OCT_UP',
+              'mello_ui_white_key_note_index',
+          )
+          hits = []
+          for i, line in enumerate(lines):
+              if any(n in line for n in needles):
+                  hits.append((max(0, i - 10), min(len(lines), i + 18)))
+          merged = []
+          for start, end in hits:
+              if merged and start <= merged[-1][1] + 2:
+                  merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+              else:
+                  merged.append((start, end))
+          print(f'CONTROL_ACTION_AUDIT source={path} hits={len(hits)} windows={len(merged)}')
+          for n, (start, end) in enumerate(merged, 1):
+              print(f'--- action-window {n}: lines {start+1}-{end} ---')
+              for j in range(start, end):
+                  print(f'{j+1:5d}: {lines[j]}')
+
+          header = Path('mello/mello_ui.h').read_text().splitlines()
+          print('--- UI page/button/encoder declarations ---')
+          for i, line in enumerate(header):
+              if ('MELLO_UI_' in line and any(k in line for k in ('BTN_', 'ENC_', 'HOME', 'SEQ_', 'TURING', 'DOT', 'RANDOM', 'SUB', 'CHORD', 'GLOBAL', 'SOUND', 'AUDIO_FX', 'SAMPLE'))):
+                  print(f'{i+1:5d}: {line}')
+          PY
+      - name: Compile current grammar baseline with Chord enabled
+        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_grammar_smoke.c mello/*.c -o /tmp/control_grammar_smoke
+      - name: Validate current grammar baseline with Chord enabled
+        run: /tmp/control_grammar_smoke
+      - name: Compile current grammar baseline with Chord disabled
+        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_grammar_smoke.c mello/*.c -o /tmp/control_grammar_smoke_off
+      - name: Validate current grammar baseline with Chord disabled
+        run: /tmp/control_grammar_smoke_off
+      - name: Record reconstructed control-source hashes
+        run: sha256sum mello/mello_ui.c mello/mello_ui.h tools/control_grammar_smoke.c
