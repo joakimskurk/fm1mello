@@ -59,3 +59,6 @@ subprocess.run(['python3', 'ci/lock_wp_d_d2_outputs.py'], check=True)
 # WP-D D3 consumes the locked D2/C5 output and changes timing language only.
 subprocess.run(['python3', 'ci/patch_wp_d_timing_ui.py'], check=True)
 subprocess.run(['python3', 'ci/lock_wp_d_d3_outputs.py'], check=True)
+# WP-E2 consumes the exact E1 audio baseline. It changes only the global distortion
+# path; sample-slot soft_drive remains locked by the transform itself.
+subprocess.run(['python3', 'ci/patch_wp_e2_distortion.py'], check=True)
