@@ -86,6 +86,20 @@ static void test_free_uses_natural_length(void)
     assert(e.loop_count == 1u);
 }
 
+static void test_malformed_nonzero_values_stay_safe(void)
+{
+    MelloProject p = plain_project(4u, 1u);
+    MelloEngine e;
+    mello_engine_init(&e, &p, 23u);
+    assert(mello_engine_rebuild_sequence(&e));
+    assert(e.loop_pulse_length == 1u);
+
+    p.master_len = 17u;
+    mello_engine_init(&e, &p, 24u);
+    assert(mello_engine_rebuild_sequence(&e));
+    assert(e.loop_pulse_length == 5u);
+}
+
 static void test_storage_shape_is_unchanged(void)
 {
     MelloProject p, decoded;
@@ -138,9 +152,10 @@ int main(void)
     test_default_is_two_bars();
     test_bar_matrix_is_musical();
     test_free_uses_natural_length();
+    test_malformed_nonzero_values_stay_safe();
     test_storage_shape_is_unchanged();
     test_other_timing_domains_remain_separate();
     puts("WP-D D2 timing model PASS");
-    puts("BAR matrix: 1/2/4/8/16 x DIV 1/2/4 remains musical; default=2 BAR; FREE natural");
+    puts("BAR matrix: 1/2/4/8/16 x DIV 1/2/4 remains musical; default=2 BAR; FREE natural; malformed nonzero safe");
     return 0;
 }
