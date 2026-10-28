@@ -26,15 +26,19 @@ jobs:
           needles = (
               'MELLO_UI_BTN_REC',
               'MELLO_UI_BTN_EDIT',
-              'MELLO_UI_BTN_SELECT',
+              'MELLO_UI_BTN_SEL',
               'MELLO_UI_BTN_OCT_DOWN',
               'MELLO_UI_BTN_OCT_UP',
+              'MELLO_UI_ENC_SELECT',
+              'seq_button(',
+              'handle_note(',
+              'handle_buttons(',
               'mello_ui_white_key_note_index',
           )
           hits = []
           for i, line in enumerate(lines):
               if any(n in line for n in needles):
-                  hits.append((max(0, i - 10), min(len(lines), i + 18)))
+                  hits.append((max(0, i - 14), min(len(lines), i + 26)))
           merged = []
           for start, end in hits:
               if merged and start <= merged[-1][1] + 2:
@@ -50,7 +54,7 @@ jobs:
           header = Path('mello/mello_ui.h').read_text().splitlines()
           print('--- UI page/button/encoder declarations ---')
           for i, line in enumerate(header):
-              if ('MELLO_UI_' in line and any(k in line for k in ('BTN_', 'ENC_', 'HOME', 'SEQ_', 'TURING', 'DOT', 'RANDOM', 'SUB', 'CHORD', 'GLOBAL', 'SOUND', 'AUDIO_FX', 'SAMPLE'))):
+              if ('MELLO_UI_' in line and any(k in line for k in ('BTN_', 'ENC_', 'HOME', 'SEQ_', 'KEY_SCALE', 'SLOTS', 'TURING', 'DOT', 'RANDOM', 'SUB', 'CHORD', 'GLOBAL', 'SOUND', 'AUDIO_FX', 'SAMPLE'))):
                   print(f'{i+1:5d}: {line}')
           PY
       - name: Compile current grammar baseline with Chord enabled
