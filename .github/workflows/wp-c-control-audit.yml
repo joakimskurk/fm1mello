@@ -16,6 +16,13 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Reconstruct final Mello source
         run: bash ci/unpack_source.sh
+      - name: Print WP-A randomizer trigger context
+        run: |
+          echo '--- selected-intensity assertion context ---'
+          grep -n -C 24 'REC did not use selected intensity' tools/random_wave_overview_smoke.c || true
+          echo '--- REC references in reconstructed randomizer smoke ---'
+          grep -n -C 12 'MELLO_UI_BTN_REC' tools/random_wave_overview_smoke.c || true
+          sha256sum tools/random_wave_overview_smoke.c
       - name: Print current control-action source map
         run: |
           python3 - <<'PY'
