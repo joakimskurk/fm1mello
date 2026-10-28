@@ -51,6 +51,28 @@ jobs:
               for j in range(start, end):
                   print(f'{j+1:5d}: {lines[j]}')
 
+          def dump_function(name):
+              starts = [i for i, line in enumerate(lines) if name in line and ('static ' in line or line.startswith('void ') or line.startswith('const '))]
+              print(f'--- targeted function {name}: matches={len(starts)} ---')
+              for start in starts:
+                  depth = 0
+                  seen_open = False
+                  end = min(len(lines), start + 220)
+                  for j in range(start, end):
+                      depth += lines[j].count('{') - lines[j].count('}')
+                      if '{' in lines[j]: seen_open = True
+                      print(f'{j+1:5d}: {lines[j]}')
+                      if seen_open and depth <= 0:
+                          break
+          for fn in ('adjust_select(', 'adjust_sound(', 'render_footer(', 'render_body('):
+              dump_function(fn)
+
+          print('--- SOUND/LFO textual references ---')
+          for i, line in enumerate(lines):
+              if any(k in line for k in ('sound_subpage', 'LFO', 'MELLO_UI_SOUND_RESERVED', 'MELLO_UI_TURING', 'MELLO_UI_DOT')):
+                  if 'case MELLO_UI_' in line or 'sound_subpage' in line or 'LFO' in line:
+                      print(f'{i+1:5d}: {line}')
+
           header = Path('mello/mello_ui.h').read_text().splitlines()
           print('--- UI page/button/encoder declarations ---')
           for i, line in enumerate(header):
