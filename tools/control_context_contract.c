@@ -67,6 +67,7 @@ static void render(MelloUi *u,Capture *cap){
     u->last_button_led_mask=0u;
     u->dirty=MELLO_UI_DIRTY_ALL;
     mello_ui_render(u,&ops);
+    mello_ui_sync_leds(u,&ops);
 }
 
 static void verify_hints(void){
