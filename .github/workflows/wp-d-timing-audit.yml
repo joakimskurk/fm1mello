@@ -77,3 +77,16 @@ jobs:
           /tmp/audio_event_order_smoke
       - name: Record timing-source hashes
         run: sha256sum mello/mello_engine.h mello/mello_engine.c mello/mello_transport.h mello/mello_transport.c mello/mello_ui.h mello/mello_ui.c
+      - name: Publish reconstructed timing source for D1 audit
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wp-d-reconstructed-timing-source
+          path: |
+            mello/mello_engine.h
+            mello/mello_engine.c
+            mello/mello_transport.h
+            mello/mello_transport.c
+            mello/mello_ui.h
+            mello/mello_ui.c
+          if-no-files-found: error
+          retention-days: 7
