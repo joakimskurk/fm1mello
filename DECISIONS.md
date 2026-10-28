@@ -36,12 +36,14 @@ This rule currently applies to Reverb V2: its technical baseline is preserved, b
 
 ## Locked decisions from the 2026-10-25 product workshop
 
-The product owner approved all workshop recommendations on 2026-10-25. The following are now requirements, not proposals.
+The product owner approved all workshop recommendations on 2026-10-25. The following are now requirements, not proposals. The WP-D default below was subsequently revised by the product owner on 2026-10-28 and supersedes the workshop's original `1 BAR` default.
 
 ### Main-sequence timing
 
 - Main sequence uses a bar-locked musical default.
-- Default is `1 BAR`, meaning reset after 16 sixteenth-note ticks.
+- Default is **`2 BAR`**, meaning reset after two 4/4 bars.
+- Explicit choices are `1 / 2 / 4 / 8 / 16 BAR / FREE`.
+- A BAR choice is a musical duration, not a fixed raw processed-pulse count; changing sequence pulse division must not change the selected number of bars.
 - `FREE` remains an explicit option for natural/polymetric sequence length.
 - Main-sequence bar reset is distinct from Loop Cycle `SYNC / FREE`, Slot/Chain hold length and external MIDI/transport sync.
 
