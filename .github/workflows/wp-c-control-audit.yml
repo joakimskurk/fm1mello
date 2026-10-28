@@ -31,50 +31,57 @@ jobs:
           path = Path('mello/mello_ui.c')
           lines = path.read_text().splitlines()
           needles = (
-              'MELLO_UI_BTN_REC',
-              'MELLO_UI_BTN_EDIT',
-              'MELLO_UI_BTN_SEL',
-              'MELLO_UI_BTN_OCT_DOWN',
-              'MELLO_UI_BTN_OCT_UP',
-              'MELLO_UI_ENC_SELECT',
-              'MELLO_UI_ENC_ALGORITHM',
-              'MELLO_UI_ENC_PRESETS',
-              'seq_button(',
-              'handle_note(',
-              'handle_buttons(',
-              'mello_ui_white_key_note_index',
+              'MELLO_UI_BTN_REC', 'MELLO_UI_BTN_EDIT', 'MELLO_UI_BTN_SEL',
+              'MELLO_UI_BTN_OCT_DOWN', 'MELLO_UI_BTN_OCT_UP',
+              'MELLO_UI_ENC_SELECT', 'MELLO_UI_ENC_ALGORITHM', 'MELLO_UI_ENC_PRESETS',
+              'seq_button(', 'handle_note(', 'handle_buttons(', 'mello_ui_white_key_note_index',
           )
           hits = []
           for i, line in enumerate(lines):
-              if any(n in line for n in needles):
-                  hits.append((max(0, i - 14), min(len(lines), i + 26)))
+              if any(n in line for n in needles): hits.append((max(0, i - 14), min(len(lines), i + 26)))
           merged = []
           for start, end in hits:
-              if merged and start <= merged[-1][1] + 2:
-                  merged[-1] = (merged[-1][0], max(merged[-1][1], end))
-              else:
-                  merged.append((start, end))
+              if merged and start <= merged[-1][1] + 2: merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+              else: merged.append((start, end))
           print(f'CONTROL_ACTION_AUDIT source={path} hits={len(hits)} windows={len(merged)}')
           for n, (start, end) in enumerate(merged, 1):
               print(f'--- action-window {n}: lines {start+1}-{end} ---')
-              for j in range(start, end):
-                  print(f'{j+1:5d}: {lines[j]}')
+              for j in range(start, end): print(f'{j+1:5d}: {lines[j]}')
 
           def dump_function(name):
               starts = [i for i, line in enumerate(lines) if name in line and ('static ' in line or line.startswith('void ') or line.startswith('const '))]
               print(f'--- targeted function {name}: matches={len(starts)} ---')
               for start in starts:
-                  depth = 0
-                  seen_open = False
-                  end = min(len(lines), start + 220)
-                  for j in range(start, end):
+                  depth = 0; seen_open = False
+                  for j in range(start, min(len(lines), start + 320)):
                       depth += lines[j].count('{') - lines[j].count('}')
                       if '{' in lines[j]: seen_open = True
                       print(f'{j+1:5d}: {lines[j]}')
-                      if seen_open and depth <= 0:
-                          break
-          for fn in ('adjust_algorithm(', 'adjust_select(', 'adjust_presets(', 'adjust_sound(', 'render_footer(', 'render_body('):
+                      if seen_open and depth <= 0: break
+
+          def dump_enclosing_marker(marker):
+              print(f'--- enclosing functions for marker {marker!r} ---')
+              for hit, line in enumerate(lines):
+                  if marker not in line: continue
+                  start = hit
+                  while start > 0 and not (lines[start].startswith('static ') or lines[start].startswith('void ') or lines[start].startswith('const ')):
+                      start -= 1
+                  depth = 0; seen_open = False
+                  print(f'--- marker line {hit+1}, function starts {start+1} ---')
+                  for j in range(start, min(len(lines), start + 420)):
+                      depth += lines[j].count('{') - lines[j].count('}')
+                      if '{' in lines[j]: seen_open = True
+                      print(f'{j+1:5d}: {lines[j]}')
+                      if seen_open and depth <= 0: break
+
+          for fn in (
+              'page_button(', 'adjust_loop(', 'adjust_algorithm(', 'adjust_select(', 'adjust_presets(',
+              'adjust_sound(', 'handle_context_action(', 'render_footer(', 'render_body('
+          ):
               dump_function(fn)
+
+          for marker in ('KEY CELL | SEL ', 'page_button(ui->page)', 'MELLO_UI_BTN_LFO);'):
+              dump_enclosing_marker(marker)
 
           print('--- SOUND/LFO textual references ---')
           for i, line in enumerate(lines):
