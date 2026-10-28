@@ -30,12 +30,13 @@ static void bounded_and_symmetric(void)
 
 int main(void)
 {
-    /* AMT is deliberately gentle at the bottom and reaches the full E2 drive range. */
+    /* Cubic AMT preserves the old ~12.5% midpoint drive while opening the top end. */
     assert(mello_audio_test_global_dist_drive(0u) == 0u);
-    assert(mello_audio_test_global_dist_drive(100u) == 10u);
-    assert(mello_audio_test_global_dist_drive(250u) == 63u);
-    assert(mello_audio_test_global_dist_drive(500u) == 250u);
-    assert(mello_audio_test_global_dist_drive(750u) == 563u);
+    assert(mello_audio_test_global_dist_drive(50u) == 0u);
+    assert(mello_audio_test_global_dist_drive(100u) == 1u);
+    assert(mello_audio_test_global_dist_drive(250u) == 16u);
+    assert(mello_audio_test_global_dist_drive(500u) == 125u);
+    assert(mello_audio_test_global_dist_drive(750u) == 422u);
     assert(mello_audio_test_global_dist_drive(1000u) == 1000u);
 
     /* Zero AMT is exact identity regardless of CHAR. */
@@ -43,10 +44,11 @@ int main(void)
     assert(mello_audio_test_global_distort(12345, 0u, 1000u) == 12345);
     assert(mello_audio_test_global_distort(-12345, 0u, 1000u) == -12345);
 
-    /* Low settings stay graduated rather than jumping directly into clipping. */
-    assert(mello_audio_test_global_distort(6000, 100u, 350u) == 6410);
-    assert(mello_audio_test_global_distort(6000, 250u, 350u) == 8583);
-    assert(mello_audio_test_global_distort(6000, 500u, 350u) == 16253);
+    /* Low and midpoint settings stay graduated rather than jumping into clipping. */
+    assert(mello_audio_test_global_distort(6000, 100u, 350u) == 6041);
+    assert(mello_audio_test_global_distort(6000, 250u, 350u) == 6656);
+    assert(mello_audio_test_global_distort(6000, 500u, 350u) == 11126);
+    assert(mello_audio_test_global_distort(6000, 750u, 350u) == 23308);
 
     /* The top end is genuinely extreme: max AMT can saturate a modest input. */
     assert(mello_audio_test_global_distort(6000, 1000u, 0u) == 32767);
@@ -54,8 +56,8 @@ int main(void)
     /* CHAR changes transfer shape at fixed AMT instead of secretly changing drive. */
     assert(mello_audio_test_global_distort(6000, 1000u, 350u) == 31544);
     assert(mello_audio_test_global_distort(6000, 1000u, 1000u) == 22511);
-    assert(mello_audio_test_global_distort(12000, 500u, 0u) == 30110);
-    assert(mello_audio_test_global_distort(12000, 500u, 1000u) == 21498);
+    assert(mello_audio_test_global_distort(12000, 500u, 0u) == 22253);
+    assert(mello_audio_test_global_distort(12000, 500u, 1000u) == 20782);
 
     bounded_and_symmetric();
 
