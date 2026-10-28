@@ -7,8 +7,9 @@ Use this file at the start of every new ChatGPT work session on `joakimskurk/fm1
 - Repo: `joakimskurk/fm1mello`
 - Branch: `visual-port-home`
 - Always fetch and verify the current branch HEAD before editing.
-- Do not reconstruct project direction from old chat memory when repo documentation is available.
-- Follow the active work package below. Do not jump ahead.
+- Repo documentation is source of truth; do not reconstruct direction from old chat memory.
+- Follow the active subtask only. Do not jump ahead.
+- Firmware is reconstructed by `ci/unpack_source.sh`; do not treat generated `mello/` as ordinary committed source.
 
 ## Read these files in this order
 
@@ -19,123 +20,135 @@ Use this file at the start of every new ChatGPT work session on `joakimskurk/fm1
 5. `CONTROL_GRAMMAR.md`
 6. `TESTING.md`
 7. `docs/NEXT_ITERATION_ROADMAP.md`
-8. `docs/PRODUCT_WORKSHOP_2026-10-25.md`
-9. `docs/UI_VISUAL_LANGUAGE.md` when UI is touched.
+8. `docs/WP_C_CONTROL_AUDIT.md`
+9. `docs/PRODUCT_WORKSHOP_2026-10-25.md`
+10. `docs/UI_VISUAL_LANGUAGE.md` when UI is touched.
 
 ## Last completed work package
 
 **WP-B - Trust and reliability: COMPLETE.**
 
 Final implementation/test checkpoint: `7c20efbdc391c59118fef3f000689eeafaa176b9`.
+Final full target run: `40604214660`: PASS.
 
-WP-B delivered three completed gates:
-
-- B1 live-edit audio reliability;
-- B2 K1-K4 rendered-display / handler parity;
-- B3 display integrity, text fit and HOME stale-artifact protection.
-
-Final WP-B evidence on the implementation checkpoint:
-
-- `Reconstructed source gate` run `40604213816`: PASS;
-- `WP-B live-edit gate` run `40604213682`: PASS;
-- `WP-B rotary parity gate` run `40604213768`: PASS;
-- `WP-B display integrity gate` run `40604213707`: PASS;
-- `Visual port target build` run `40604214660`: PASS.
-
-B3-specific acceptance:
-
-- Chord enabled: `150` display-integrity fixtures, `0` clips, `0` overlaps;
-- Chord compiled out: `135` fixtures, `0` clips, `0` overlaps;
-- HOME incremental redraw matches clean redraw in the protected region;
-- the reported pink line over `SINGLE` was reproduced as a real 16 px font/layout collision and removed;
-- full `WAVE` remains visible on RANDOM without clipping;
-- freestanding target contains no new libc string dependency.
-
-Final full-target measurements:
-
-- WP-A randomizer: `LOW=194824 < MED=516917 < HIGH=1082367`, redraw `4 fills / 0 texts`;
-- 300 BPM event-order stress: PASS;
-- live-edit host stress: energy `433436686798`, transport tick `159600`, `2470` config applies;
-- emulator panel/audio: PASS, peak `3530`, `148408` nonzero samples;
-- browser/WASM 100 MHz: `3.403x` steady realtime;
-- SEQ/HOME 80 MHz: `3.528x` steady realtime, steady render p95 `2.390 ms`, p99 `3.495 ms`, max `7.704 ms`;
-- Chord + Reverb V2 80 MHz: `3.306x` steady realtime;
-- physical encoder live-edit stress 80 MHz: `3.040x` steady realtime, tail `88154` nonzero samples, peak `3207`;
-- Chromium keyboard + pointer routes incl. PLAY start/stop: PASS;
-- image `190756 B / 581564 B`;
-- RAM `76832 B / 98304 B`, headroom `21472 B`;
-- pool `326368 B / 344064 B`, headroom `17696 B`;
-- package `skurkymello-0.1-dev.fwsc`, `611545 B`;
-- package SHA-256 `b0bf86215ab4c547c668c54c3f023ff05fb7f4e87b728bcb7e84365a02cebf1e`;
-- build provenance attestation: PASS.
-
-The exact user-reported physical-hardware live-edit freeze cannot be hands-on re-auditioned until a physical FM-1 is available. Keep that as an explicit later hardware regression check; do not reopen WP-B without a demonstrated regression.
+Do not reopen WP-B without a demonstrated regression. Physical FM-1 live-edit reproduction remains a later hands-on check because hardware is not yet available.
 
 ## Active work package
 
 **WP-C - Control Grammar v2.**
 
-Start here. Do not begin WP-D early.
+Product rule: **Keep the depth, reduce the number of grammars.**
 
-### WP-C goal
+Normative target:
 
-Keep the instrument deep while reducing page-specific control grammars. REC must mean recording/capture, EDIT must mean edit/focus/lock, SELECT remains functional-layer navigation, and unrelated page actions must become visible/contextual rather than hiding behind inconsistent button meanings.
+- PLAY = transport only;
+- REC = actual recording/capture only;
+- EDIT = edit/focus/lock only;
+- SELECT = function-layer navigation only;
+- white keys own direct positions/cells except explicit manual note entry;
+- black keys are a visible contextual action rail where useful;
+- destructive actions require confirmation/hold treatment;
+- K1-K4 remain musical/value controls rather than hidden page actions;
+- LFO, DOT and Turing/EVOLVE must end in a coherent MOD/generative family;
+- rendered guidance must match actual handlers.
 
-### WP-C work order
+### C1 - Complete action audit: COMPLETE
 
-1. Audit the complete current REC / EDIT / SELECT / black-key / page-action map against `CONTROL_GRAMMAR.md` and create a deterministic baseline test before changing behavior.
-2. Move REC to actual recording/capture behavior only.
-3. Move EDIT to edit/focus/lock behavior only.
-4. Migrate unrelated page actions to visible contextual actions; use the black-key action rail where the approved grammar calls for it.
-5. Keep SELECT as functional-layer navigation and organize LFO + DOT coherently under MOD; treat Turing as part of the broader modulation/generative family.
-6. Make one authoritative/testable page-action mapping source drive both behavior and rendered guidance where practical.
-7. Rerun WP-A, all WP-B gates, audio/timing, emulator/browser, 80 MHz, Chromium and target gates.
+Verified baseline checkpoint: `a2a2bb97f3c8bb95a9ed0a539241698949b0defc`.
 
-### WP-C acceptance
+C1 established deterministic pre-remap coverage for REC, EDIT, SELECT, black keys, OCT, ALGORITHM/PRESETS and hidden page actions. See `docs/WP_C_CONTROL_AUDIT.md`.
 
-- REC has no unrelated page-action overloads;
-- EDIT has no unrelated page-action overloads;
-- SELECT remains consistent layer navigation;
-- contextual actions are visible and deterministic;
-- rendered hints/guidance match actual handlers;
-- all current page/layer action mappings are covered by automated parity tests;
-- B1/B2/B3/WP-A/audio/timing/performance/target gates remain green;
-- target retains at least `16 KiB` RAM and pool headroom.
+Important C1 findings retained for later migration:
 
-### Do not implement inside WP-C
+- STEP: `EDIT+white key` toggles SKIP;
+- SUB: `EDIT+white key` toggles SUB step enable;
+- RANDOM: legacy `EDIT+REC` CLEAR and OCT ALL/NONE;
+- GLOBAL: hidden OCT chord RESET ALL;
+- LOOP layer 3 K4 = RESET page action;
+- physical LFO currently routes to Turing/EVOLVE while actual Audio LFO is SOUND layer 2;
+- physical FX currently routes through DOT to AUDIO FX;
+- ALGORITHM duplicates SELECT layer movement;
+- PRESETS is a global slot cursor;
+- black keys were otherwise inert except STEP manual note entry with SEL held.
 
-- WP-D timing redesign / default 1 BAR;
-- distortion expansion;
-- Reverb V3;
-- Undo Last Random;
-- ANALOG/FM engine expansion;
-- SOUND randomization;
-- per-step timbre;
-- harmonic-layer replacement;
-- splash/onboarding polish beyond guidance required by the control grammar itself.
+### C2 - REC cleanup: COMPLETE
 
-## Stop condition
+Implementation/test checkpoint: `f6d1f81660dab8db1de6da4e4650d01482d1ced3`.
 
-When WP-C is fully green:
+Delivered:
 
-- record exact implementation checkpoint and workflow run IDs;
-- update project/testing docs;
-- set **WP-D Timing model** as the next active package;
-- stop and hand off instead of beginning WP-D automatically.
+- REC has no non-record page-action semantics; until an actual capture path exists it is reserved/inert;
+- stable contextual verb slots introduced: B0=`state toggle`, B1=`trigger/reroll/tap`, B2=`reset`, B3=`destructive`;
+- former REC actions migrated without removing functionality:
+  - RANDOM B1 reroll, B3 confirmed CLEAR;
+  - GLOBAL B1 TAP;
+  - LOOP B2 reset;
+  - DOT/TURING B1 reroll;
+  - SUB/CHORD/SAMPLE B0 toggle;
+- SAMPLE remains reachable through the ENV/SOUND family: ENV -> SOUND, SOUND ENV -> SAMPLE, SAMPLE ENV -> SOUND;
+- STEP `SEL+black key` manual note entry still takes precedence and remains musical;
+- WP-A randomizer UI smoke now uses RANDOM B1 instead of REC without weakening LOW/MED/HIGH, WAVE, skyline or redraw assertions;
+- exact generated C2 UI and migrated WP-A smoke hashes are locked.
 
-## Approved future sequence
+C2 green evidence:
 
-1. WP-C Control Grammar v2.
-2. WP-D Timing: default 1 BAR, explicit FREE, keep Loop Cycle/Slot/external sync concepts separate.
-3. WP-E Audio character: extreme distortion, Reverb V3, ratchet parity, live smoothing.
-4. WP-F Undo Last Random.
-5. WP-G ANALOG/FM + SOUND randomization + per-step timbre.
-6. WP-H scale-aware HARMONY first, PAD second, then compare alternatives.
-7. WP-I splash/HOME/Key-Scale/SEQ/onboarding polish.
-8. WP-J final integration/performance gate.
+- control audit `40671589758`;
+- control-action contract `40671589741`;
+- REC grammar `40671589777`;
+- rotary parity `40671589763`;
+- display integrity `40671589734`;
+- live-edit `40671589787`;
+- reconstruction `40671589813`;
+- full target `40671590524`.
 
-## Non-negotiable product principle
+Full target retained:
 
-**Keep the depth, reduce the number of grammars.**
+- WP-A `LOW=194824 < MED=516917 < HIGH=1082367`, redraw `4/0`;
+- 300 BPM event-order stress: PASS;
+- browser/WASM 100 MHz steady realtime `3.287x`;
+- SEQ/HOME 80 MHz `3.355x`;
+- Chord + Reverb V2 80 MHz `3.129x`;
+- live-edit 80 MHz `2.920x`, tail `88156` nonzero samples;
+- RAM headroom `21472 B`;
+- pool headroom `17696 B`;
+- package SHA-256 `cb09e296517f2f699fdf2b926e2baba7de033b52b498be765850cf5709615c12`;
+- provenance: PASS.
 
-Do not remove useful functionality merely to make the interface simpler. Make related functions behave consistently and visibly instead.
+## Active WP-C subtask
+
+**C3 - EDIT cleanup.**
+
+Start here. Do not begin C4 early.
+
+### C3 required work
+
+1. Remove generic `EDIT -> RANDOM` navigation without making RANDOM inaccessible.
+2. Preserve EDIT meanings that are genuinely edit/focus/lock semantics:
+   - Turing `EDIT = LOCK`;
+   - Sample `EDIT = per-step edit mode`.
+3. Move STEP `EDIT+white key = SKIP` to a visible contextual action on the selected step.
+4. Move SUB `EDIT+white key = step enable` to a visible contextual action on the selected SUB step.
+5. Evaluate DOT `EDIT = reset toggle`; if it is not a true edit/focus/lock state, migrate it rather than retaining an exception.
+6. Keep the C2 REC contract exact and preserve the STEP manual-note exception.
+7. Add deterministic Chord-on/off EDIT-contract coverage before C3 closeout.
+
+### Leave for C4
+
+- RANDOM OCT ALL/NONE migration;
+- GLOBAL RESET ALL OCT chord migration;
+- LOOP K4 RESET removal;
+- final visible black-key guidance/action rail rendering;
+- MOD navigation reorganization (Audio LFO / DOT / Turing);
+- authoritative handler + rendered-guidance action table.
+
+### WP-C exclusions
+
+No WP-D timing model, distortion/Reverb V3, Undo, FM/SOUND randomization, per-step timbre, harmonic replacement or general onboarding scope.
+
+## WP-C stop condition
+
+When C1-C5 and full regressions are green:
+
+- record exact implementation checkpoint/run evidence;
+- set **WP-D Timing model** active;
+- stop and hand off rather than beginning WP-D automatically.

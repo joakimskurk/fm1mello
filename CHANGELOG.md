@@ -1,73 +1,70 @@
 # CHANGELOG
 
+## 2026-10-28 - WP-C2 REC cleanup complete
+
+WP-C remains active; C3 EDIT cleanup is next.
+
+Implementation/test checkpoint: `f6d1f81660dab8db1de6da4e4650d01482d1ced3`.
+
+C2 changes:
+
+- REC now has no unrelated page-action meanings and is reserved for actual recording/capture; no capture implementation exists yet, so REC is intentionally inert rather than overloaded;
+- introduced stable contextual slots: B0 state toggle, B1 trigger/reroll/tap, B2 reset, B3 destructive/confirmed;
+- migrated RANDOM reroll/CLEAR, GLOBAL TAP, LOOP reset, DOT/TURING reroll and SUB/CHORD/SAMPLE toggles off REC without deleting functionality;
+- moved SAMPLE navigation into the ENV/SOUND family;
+- preserved STEP `SEL+black key` chromatic manual-note entry as an explicit exception;
+- migrated the WP-A randomizer UI smoke from REC to RANDOM B1 without changing LOW/MED/HIGH, WAVE, skyline or redraw assertions;
+- locked generated C2 UI SHA `3da137c8faa5800bcfddd8291176e77718bc320d890f20f9f9d0c9cba4aaffb0` and migrated randomizer-smoke SHA `71fc32a27fedfb0509ab0ff9eccfc85ba53d90c9b6d6bf48f0915f15c1d5fa13`.
+
+Validation:
+
+- control audit `40671589758`: PASS;
+- control-action contract `40671589741`: PASS;
+- REC grammar `40671589777`: PASS;
+- rotary parity `40671589763`: PASS;
+- display integrity `40671589734`: PASS;
+- live-edit `40671589787`: PASS;
+- reconstruction `40671589813`: PASS;
+- full target `40671590524`: PASS;
+- RAM headroom `21472 B`; pool headroom `17696 B`;
+- package SHA-256 `cb09e296517f2f699fdf2b926e2baba7de033b52b498be765850cf5709615c12`.
+
+C3 is active: remove generic EDIT navigation, retain true edit/focus/lock meanings, migrate hidden STEP/SUB EDIT+key actions, and classify/migrate DOT reset.
+
+## 2026-10-28 - WP-C1 control-action audit complete
+
+C1 baseline checkpoint: `a2a2bb97f3c8bb95a9ed0a539241698949b0defc`.
+
+Added deterministic pre-remap coverage for REC/EDIT/SELECT/black keys/OCT/ALGORITHM/PRESETS and hidden page actions, plus `docs/WP_C_CONTROL_AUDIT.md`. The audit identified the exact legacy overloads that C2-C4 must migrate rather than delete.
+
 ## 2026-10-28 - WP-B trust and reliability complete
 
-WP-B is complete. WP-C Control Grammar v2 is the next active package; no WP-C implementation is included in this closeout.
+WP-B final implementation/test checkpoint: `7c20efbdc391c59118fef3f000689eeafaa176b9`.
 
-Final implementation/test checkpoint: `7c20efbdc391c59118fef3f000689eeafaa176b9`.
+B1 live-edit, B2 rotary parity and B3 display integrity are complete. Final gates: reconstruction `40604213816`, live-edit `40604213682`, rotary `40604213768`, display integrity `40604213707`, target `40604214660`: PASS. RAM headroom `21472 B`, pool `17696 B`, package SHA-256 `b0bf86215ab4c547c668c54c3f023ff05fb7f4e87b728bcb7e84365a02cebf1e`.
 
-B3 display-integrity closeout:
-
-- reproduced the HOME pink-line issue as a real collision between the 16 px `SINGLE` summary row, the purple probability bar and the following footer region;
-- reflowed UI geometry around the pinned renderer's real 8x16 and 16x32 fixed-cell fonts;
-- added deterministic large-to-small fitting/compaction for constrained value boxes;
-- removed the HOME graphic/text collision and regression-covered incremental-vs-clean redraw;
-- preserved full RANDOM `WAVE` with a 34 px final target cell;
-- kept new text fitting freestanding-safe without libc `strlen`;
-- moved the SEGMENT 32-cell strip to y=52 while retaining the original 32-cell/bounds test;
-- added permanent `tools/ui_display_integrity.c` and dedicated CI.
-
-B3 deterministic coverage:
-
-- Chord enabled: `150` fixtures, `0` clips, `0` overlaps;
-- Chord compiled out: `135` fixtures, `0` clips, `0` overlaps;
-- HOME dirty-vs-clean protected-region equivalence: PASS.
-
-Final WP-B validation:
-
-- reconstruction `40604213816`: PASS;
-- B1 live-edit `40604213682`: PASS;
-- B2 rotary parity `40604213768`: PASS;
-- B3 display integrity `40604213707`: PASS;
-- full target `40604214660`: PASS;
-- WP-A randomizer `LOW=194824 < MED=516917 < HIGH=1082367`, redraw `4/0`: PASS;
-- 300 BPM event-order stress: PASS;
-- browser/WASM 100 MHz `3.403x` steady realtime;
-- SEQ/HOME 80 MHz `3.528x`;
-- Chord + Reverb V2 80 MHz `3.306x`;
-- live-edit encoder stress 80 MHz `3.040x`, tail `88154` nonzero samples;
-- RAM headroom `21472 B`; pool headroom `17696 B`;
-- package SHA-256 `b0bf86215ab4c547c668c54c3f023ff05fb7f4e87b728bcb7e84365a02cebf1e`;
-- provenance attestation: PASS.
-
-The original physical-hardware live-edit symptom remains an explicit later hands-on regression because no physical FM-1 is currently available.
+The physical FM-1 live-edit symptom remains a later hands-on regression because hardware is not currently available.
 
 ## 2026-10-28 - WP-B2 rotary display/handler parity complete
 
-B2 fixed GLOBAL K4 MIDI OUT parity, Loop Cycle K3/K4 OCT/TRANS parity, truthful SLOTS footer state and added deterministic real-encoder page/layer coverage.
-
-Checkpoint `85a3c376b47829af6d6abdd3264ec75cb37d42bf`; rotary gate `40599056435`, reconstruction `40599056475`, B1 regression `40599056403`, target `40599056945`: PASS.
+Checkpoint `85a3c376b47829af6d6abdd3264ec75cb37d42bf`; rotary `40599056435`, reconstruction `40599056475`, B1 `40599056403`, target `40599056945`: PASS.
 
 ## 2026-10-27 - WP-B1 live-edit audio reliability complete
-
-B1 implemented odd/even pending-config publication, 32-bit config generations, SUB drive-curve preparation outside render, selective derived-state invalidation, host live-edit stress and real 80 MHz front-panel encoder stress.
 
 Checkpoint `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`; live-edit `40596812842`, reconstruction `40596812864`, target `40596813400`: PASS.
 
 ## 2026-10-26 - WP-A randomizer intensity + RANDOM skyline complete
 
-Implemented LOW/MED/HIGH randomizer intensity, direct MED compatibility, target-mask isolation, independent WAVE, no storage migration and full 4..32-step RANDOM skyline.
-
 Implementation `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`; reconstruction closeout `42cf506be5b127e7f03c763966d1e75cc4a48a85`; runs `40294234032` and `40294234527`: PASS.
 
 ## 2026-10-25 - approved next-iteration handoff
 
-Product owner approved every recommendation from the 2026-10-25 product workshop. Documentation/handoff updates only.
+Product owner approved the 2026-10-25 product-workshop direction.
 
 ## 2026-10-25 - post-audition product review
 
-Added `docs/PRODUCT_WORKSHOP_2026-10-25.md` and the P0 trust/reliability backlog that became WP-B.
+Added `docs/PRODUCT_WORKSHOP_2026-10-25.md` and the stabilization backlog.
 
 ## 2026-10-23 - handoff checkpoint for new chat
 
-Added root continuity files and documented the then-active Step 4 randomizer work.
+Added root continuity files and documented the then-active randomizer work.

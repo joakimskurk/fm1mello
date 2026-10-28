@@ -1,91 +1,66 @@
 # ROADMAP
 
-This file is the short handoff index. Detailed scope and acceptance criteria live in `docs/NEXT_ITERATION_ROADMAP.md`. New chats start with `START_HERE.md`.
+This file is the short handoff index. Detailed scope lives in `docs/NEXT_ITERATION_ROADMAP.md`; new chats start with `START_HERE.md`.
 
 ## Completed
 
-### WP-A / Step 4 - Randomizer intensity + RANDOM skyline
+### WP-A - Randomizer intensity + RANDOM skyline
 
-**Complete 2026-10-26.**
-
-Implementation: `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`.
-Clean reconstruction closeout: `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
+Complete 2026-10-26. Implementation `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`; clean reconstruction closeout `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
 
 ### WP-B - Trust and reliability
 
-**Complete 2026-10-28.**
-
-Final implementation/test checkpoint: `7c20efbdc391c59118fef3f000689eeafaa176b9`.
-
-B1 delivered safe live audio-config publication, selective DSP invalidation and host/80 MHz live-edit stress. B2 delivered deterministic K1-K4 display/handler parity across every current page/layer. B3 reflowed UI geometry around the real 8x16/16x32 font metrics, removed the HOME pink-line collision, added deterministic clip/overlap/dirty-redraw coverage and preserved full RANDOM `WAVE`.
-
-Final green evidence:
-
-- reconstruction `40604213816`;
-- B1 live-edit `40604213682`;
-- B2 rotary parity `40604213768`;
-- B3 display integrity `40604213707` (`150` fixtures on / `135` off, `0` clips, `0` overlaps);
-- full target `40604214660`;
-- RAM headroom `21472 B`, pool headroom `17696 B`;
-- package SHA-256 `b0bf86215ab4c547c668c54c3f023ff05fb7f4e87b728bcb7e84365a02cebf1e`.
-
-Physical FM-1 live-edit regression remains a later hands-on check when hardware exists; current host/emulator/browser/target evidence is green.
+Complete 2026-10-28. Final implementation/test checkpoint `7c20efbdc391c59118fef3f000689eeafaa176b9`; final target `40604214660`: PASS. B1 live-edit, B2 rotary parity and B3 display integrity remain regression-protected.
 
 ## Active implementation
 
 ### WP-C - Control Grammar v2
 
-Goal: keep functionality and depth while eliminating inconsistent page-specific button grammars.
+Goal: keep functionality/depth while reducing page-specific grammars.
 
-Approved work:
+#### C1 - Audit and deterministic pre-remap baseline: COMPLETE
 
-- audit and test the current complete action map first;
-- REC = actual recording/capture only;
-- EDIT = edit/focus/lock only;
-- unrelated page actions migrate to visible contextual actions;
-- black keys become the contextual action rail where useful;
-- SELECT remains functional-layer navigation;
-- LFO + DOT group under MOD;
-- Turing belongs to the broader modulation/generative family;
-- page-action mapping becomes one authoritative/testable source where practical;
-- rendered guidance must match actual handlers.
+Checkpoint `a2a2bb97f3c8bb95a9ed0a539241698949b0defc`.
 
-Hard constraints:
+Delivered full REC/EDIT/SELECT/black-key/OCT/ALGORITHM/PRESETS/page-action mapping, Chord on/off fixtures and documented migration debt in `docs/WP_C_CONTROL_AUDIT.md`.
 
-- preserve WP-A and all WP-B gates;
-- no timing/audio-engine/FM/harmonic feature scope creep;
-- full target must retain >=16 KiB RAM and pool headroom.
+#### C2 - REC cleanup: COMPLETE
 
-## Approved work order after WP-C
+Checkpoint `f6d1f81660dab8db1de6da4e4650d01482d1ced3`.
 
-### WP-D - Timing model
+REC is now reserved for actual recording/capture only. Legacy REC functions were preserved on stable contextual slots: B0 state, B1 trigger, B2 reset, B3 confirmed destructive. SAMPLE navigation moved to ENV/SOUND. STEP manual black-key note entry remains protected.
 
-Main sequence exposes `1 / 2 / 4 / 8 / 16 BAR / FREE`, default `1 BAR`; Loop Cycle sync/free, Slot/Chain hold length and external sync remain separate concepts.
+Green evidence: audit `40671589758`, action contract `40671589741`, REC grammar `40671589777`, rotary `40671589763`, display `40671589734`, live-edit `40671589787`, reconstruction `40671589813`, target `40671590524`.
 
-### WP-E - Audio character
+Target retained `21472 B` RAM headroom, `17696 B` pool headroom and package SHA-256 `cb09e296517f2f699fdf2b926e2baba7de033b52b498be765850cf5709615c12`.
 
-Extreme but bounded distortion range, Reverb V3 with perceptual A/B, ratchet envelope/timing parity and live parameter smoothing/no-dropout acceptance.
+#### C3 - EDIT cleanup: ACTIVE
 
-### WP-F - Undo Last Random
+- remove generic EDIT -> RANDOM navigation without making RANDOM inaccessible;
+- retain only true edit/focus/lock meanings (Turing LOCK, Sample per-step state);
+- migrate STEP SKIP and SUB step-enable hidden EDIT+key modifiers to visible contextual actions;
+- classify/migrate DOT reset if it is not true edit/focus/lock;
+- preserve C2 REC contract and manual note-entry exception;
+- add deterministic current EDIT contract with Chord enabled/compiled out.
 
-One-level pre-random snapshot after the core control/audio gates are stable.
+#### C4 - Contextual rail / remaining hidden actions / MOD navigation
 
-### WP-G - Synth evolution
+After C3 only: migrate RANDOM OCT ALL/NONE, GLOBAL RESET ALL chord and LOOP K4 RESET; make black-key actions visibly guided; reorganize Audio LFO/DOT/Turing under coherent MOD navigation.
 
-Preserve current engine as `ANALOG`, add curated `FM` under CPU/RAM budgets, independent `SOUND` randomization and realtime-safe per-step timbre locks/modulation.
+#### C5 - Authoritative mapping + full closeout
 
-### WP-H - Harmonic layer decision
+One authoritative/testable page-action contract should drive behavior/rendered guidance where practical. Then rerun WP-A, WP-B, audio/timing, emulator/browser, 80 MHz, Chromium and target gates. Set WP-D active and stop.
 
-Prototype and audition scale-aware `HARMONY` first, soft filtered `PAD` second, then SUB HARMONY / CHORD V2 only if useful. Current Chord remains regression-protected until a successor wins.
+## Approved sequence after WP-C
 
-### WP-I - Instrument polish
-
-Splash, HOME hierarchy, Key/Scale refinement, SEQ explanatory hierarchy/onboarding, consistent margins/truncation/value formatting and newcomer usability.
-
-### WP-J - Final integration/performance gate
-
-Run all control, randomizer, audio, visual, feature-flag, target, emulator/browser and performance gates before release acceptance.
+- WP-D Timing model: main sequence `1 / 2 / 4 / 8 / 16 BAR / FREE`, default `1 BAR`.
+- WP-E Audio character: extreme bounded distortion, Reverb V3, ratchet parity, live smoothing.
+- WP-F Undo Last Random.
+- WP-G ANALOG/FM + SOUND randomization + realtime-safe per-step timbre.
+- WP-H harmonic layer decision: HARMONY first, PAD second.
+- WP-I instrument polish/onboarding.
+- WP-J final integration/performance gate.
 
 ## Product rule
 
-Do not reduce functionality merely to make the interface simpler. Prefer one coherent control grammar over several page-specific grammars.
+**Keep the depth, reduce the number of grammars.** Do not remove useful functionality merely to simplify the interface.

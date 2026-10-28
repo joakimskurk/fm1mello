@@ -1,123 +1,110 @@
-# WP-C C1 control-action audit
+# WP-C control-action migration record
 
-Checkpoint scope: **pre-remap baseline only**. This document records the reconstructed WP-B-final behavior that WP-C must migrate. It does not approve the legacy overloads.
+This document records the deterministic pre-remap baseline and the control migrations performed inside WP-C. `CONTROL_GRAMMAR.md` remains normative.
 
-The executable sources of truth are `tools/control_action_baseline.c` and `tools/control_encoder_baseline.c`; the dedicated workflow compiles both with Chord enabled and compiled out. `CONTROL_GRAMMAR.md` remains the normative target.
+## C1 - pre-remap baseline: COMPLETE
 
-## Locked grammar target
+Checkpoint: `a2a2bb97f3c8bb95a9ed0a539241698949b0defc`.
 
-- PLAY is transport only.
-- REC is recording/capture only.
-- EDIT is edit/focus/lock only.
-- SELECT changes functional layers/subpages and does not move content selection.
-- White keys own direct positions/cells except explicit manual note entry.
-- Black keys form a contextual action rail only where useful; every active action must be visibly identified.
-- OCT buttons remain position-bank navigation where >16 positions require it; unrelated page actions migrate away.
-- K1-K4 remain musical/value controls rather than hidden page actions.
-- Audio LFO, DOT and Turing/EVOLVE are organized coherently under the MOD/generative family.
+Historical executable baseline is retained in `tools/control_action_pre_remap.c`; encoder debt remains covered by `tools/control_encoder_baseline.c`.
 
-## Current pre-remap page map
+Pre-remap counts:
 
-| Page | REC today | EDIT today | SELECT layers | Black keys today | C1 classification |
-|---|---|---|---:|---|---|
-| HOME | opens SAMPLE | opens RANDOM | 1 | none | REC/EDIT overload |
-| STEP | opens SAMPLE | opens RANDOM; held with white key toggles SKIP | 4 | none; musical with SEL note-entry | REC/EDIT + hidden modifier debt |
-| SEGMENT | opens SAMPLE | opens RANDOM | 2 | none | REC/EDIT overload |
-| LOOP CYCLE | RESET NOW | opens RANDOM | 3 | none | REC/EDIT overload; layer 3 K4 is also RESET |
-| SLOT SEQ | opens SAMPLE | opens RANDOM | 1 | none | REC/EDIT overload |
-| RANDOM | reroll sequence; EDIT+REC = CLEAR | no-op on same page | 1 | none | REC overload + hidden destructive combo |
-| KEY / SCALE | opens SAMPLE | opens RANDOM | 1 | none | REC/EDIT overload |
-| SLOTS | opens SAMPLE | opens RANDOM | 2 | none | REC/EDIT overload |
-| DOT | reroll cells | toggle DOT reset | 4 targets | none | REC/EDIT overload; MOD placement debt |
-| TURING / EVOLVE | reroll register | toggle LOCK | 3 | none | REC overload; EDIT LOCK is valid |
-| SUB | toggle SUB on/off | opens RANDOM; held with white key toggles SUB-step on/off | 5 | none | REC/EDIT + hidden modifier debt |
-| CHORD | toggle CHORD on/off | opens RANDOM | 5 | none | REC/EDIT overload (feature-on build) |
-| GLOBAL | TAP tempo | opens RANDOM | 2 | none | REC/EDIT overload |
-| SOUND | opens SAMPLE | opens RANDOM | 5 | none | REC/EDIT overload; Audio LFO is layer 2 |
-| AUDIO FX | opens SAMPLE | opens RANDOM | 5 | none | REC/EDIT overload |
-| SAMPLE | toggle sample engine on/off | toggle per-step edit mode | 4 | none | REC overload; EDIT state is valid |
+- Chord enabled: 16 pages, 16 non-record REC meanings, 13 EDIT meanings outside the final edit/focus/lock contract, no contextual black-key actions;
+- Chord compiled out: 15 / 15 / 12 / 0.
 
-With Chord enabled the baseline therefore contains 16 non-record REC meanings and 13 EDIT meanings outside the final edit/focus/lock contract. With Chord compiled out those counts are 15 and 12.
+### C1 debt map
 
-## Other action debt confirmed by C1
+| Page | REC before C2 | EDIT before C3 | Other debt |
+|---|---|---|---|
+| HOME | opens SAMPLE | opens RANDOM | - |
+| STEP | opens SAMPLE | opens RANDOM; held+white toggles SKIP | SEL+black key is protected manual note input |
+| SEGMENT | opens SAMPLE | opens RANDOM | - |
+| LOOP | RESET | opens RANDOM | layer 3 K4 also RESET |
+| SLOT SEQ | opens SAMPLE | opens RANDOM | - |
+| RANDOM | reroll; EDIT+REC CLEAR | no-op | OCT DOWN/UP = mask NONE/ALL |
+| KEY/SCALE | opens SAMPLE | opens RANDOM | - |
+| SLOTS | opens SAMPLE | opens RANDOM | - |
+| DOT | reroll | reset toggle | physical FX routes here |
+| TURING/EVOLVE | reroll | LOCK | physical LFO routes here/toggles Turing |
+| SUB | on/off | opens RANDOM; held+white toggles step on/off | - |
+| CHORD | on/off | opens RANDOM | feature-on only |
+| GLOBAL | TAP | opens RANDOM | hidden OCT pair RESET ALL |
+| SOUND | opens SAMPLE | opens RANDOM | actual Audio LFO is layer 2 |
+| AUDIO FX | opens SAMPLE | opens RANDOM | - |
+| SAMPLE | on/off | per-step edit state | - |
 
-### Hidden modifiers / destructive actions
+### SELECT / ALGORITHM / PRESETS
 
-- STEP: hold EDIT + white key toggles `SKIP`.
-- SUB: hold EDIT + white key toggles that SUB 5-SEQ step on/off.
-- RANDOM: hold EDIT + press REC performs destructive `CLEAR`.
-- GLOBAL: OCT DOWN + OCT UP arms `RESET ALL`; repeating the chord within the confirmation window executes it.
-- LOOP CYCLE layer 3: K4 is a momentary `RESET` page action rather than a musical/value edit.
+- SELECT is correct function-layer navigation and does not move selected content.
+- ALGORITHM duplicates SELECT layer movement on layered pages.
+- PRESETS moves the global selected-slot cursor / slot bank without changing engine/audio state.
 
-These functions are preserved during migration but must become visible contextual actions. Destructive actions retain explicit confirmation/hold treatment.
+### Black-key baseline
 
-### OCT
+Before C2, black keys were inert outside the explicit STEP manual-note exception with SEL held.
 
-Allowed position-navigation uses remain:
+## C2 - REC cleanup: COMPLETE
 
-- HOME / STEP bank 1–16 vs 17–32;
-- SLOT SEQ bank navigation;
-- SLOTS bank navigation;
-- TURING 1–16 vs 17–32.
+Implementation/test checkpoint: `f6d1f81660dab8db1de6da4e4650d01482d1ced3`.
 
-Migration debt:
+REC is now reserved for actual recording/capture. Since no capture path exists yet, it is intentionally inert rather than overloaded.
 
-- RANDOM OCT DOWN = randomize mask `NONE`;
-- RANDOM OCT UP = randomize mask `ALL`.
+Stable contextual verb positions introduced by C2:
 
-### SELECT / ALGORITHM / PRESETS encoders
+- **B0** = state toggle;
+- **B1** = trigger / reroll / tap;
+- **B2** = reset;
+- **B3** = destructive action with confirmation.
 
-The reconstructed encoder path confirms three separate facts:
+C2 mappings:
 
-- `SELECT` is the correct function-layer control and does not move selected content.
-- `ALGORITHM` is currently a byte-for-byte semantic duplicate of `SELECT`: it calls the same layer dispatcher on every layered page. This is redundant grammar, not hidden RANDOM functionality.
-- `PRESETS` always moves the global `selected_slot` cursor and derives `slot_bank` from it, even when the current page does not render that cursor. It does not change engine/audio state and is not a hidden RANDOM mask/action path.
+| Page | Contextual action after C2 |
+|---|---|
+| RANDOM | B1 reroll; B3 two-press confirmed CLEAR |
+| GLOBAL | B1 TAP |
+| LOOP | B2 reset |
+| DOT | B1 reroll |
+| TURING | B1 reroll |
+| SUB | B0 on/off |
+| CHORD | B0 on/off |
+| SAMPLE | B0 on/off |
 
-C1 keeps these facts explicit so later cleanup cannot accidentally confuse a redundant layer control with a page action.
+SAMPLE navigation moved from REC to the ENV/SOUND family: ENV opens SOUND; ENV again from SOUND opens SAMPLE; ENV from SAMPLE returns SOUND.
 
-### MOD family
+STEP SEL+black-key remains chromatic manual note entry and takes precedence over contextual actions.
 
-The current physical/navigation grammar is internally inconsistent:
+WP-A's randomizer UI smoke was migrated from REC to RANDOM B1 while preserving the same deterministic HIGH comparison plus LOW/MED/HIGH, WAVE, 4..32 skyline and redraw assertions.
 
-- physical `LFO` opens `TURING / EVOLVE`; pressing it again there toggles Turing on/off;
-- the actual Audio LFO lives under `SOUND` layer 2 (`AUDIO LFO` / footer `LFO RATE DEPTH TARGET`);
-- physical `FX` opens `DOT`; from DOT the same button opens `AUDIO FX`.
+Exact generated outputs after C2:
 
-WP-C must reorganize these without changing DSP behavior.
+- UI SHA-256 `3da137c8faa5800bcfddd8291176e77718bc320d890f20f9f9d0c9cba4aaffb0`;
+- randomizer smoke SHA-256 `71fc32a27fedfb0509ab0ff9eccfc85ba53d90c9b6d6bf48f0915f15c1d5fa13`.
 
-## SELECT contract confirmed
+C2 evidence:
 
-`MELLO_UI_ENC_SELECT` delegates to the existing function-layer dispatcher. C1 verifies that it advances the current function layer/target where a page has multiple layers and does not move the page's selected step/cell/slot/pattern.
+- control audit `40671589758`: PASS;
+- action contract `40671589741`: PASS;
+- REC grammar `40671589777`: PASS;
+- rotary parity `40671589763`: PASS;
+- display integrity `40671589734`: PASS;
+- live-edit `40671589787`: PASS;
+- reconstruction `40671589813`: PASS;
+- target `40671590524`: PASS.
 
-Current layer counts used as the executable baseline:
+## C3 - EDIT cleanup: ACTIVE
 
-- STEP 4
-- SEGMENT 2
-- LOOP 3
-- SLOTS 2
-- DOT 4 targets
-- TURING 3
-- SUB 5
-- CHORD 5 when enabled
-- GLOBAL 2
-- SOUND 5
-- AUDIO FX 5
-- SAMPLE 4
-- HOME, SLOT SEQ, RANDOM and KEY/SCALE: no SELECT layer cycle
+C3 must preserve C2 exactly while changing only EDIT semantics and the actions directly dependent on EDIT.
 
-The companion encoder fixture verifies that ALGORITHM currently mirrors the same layer movement on all of these pages.
+Required migration:
 
-## Black-key baseline
+- generic EDIT -> RANDOM navigation must disappear;
+- RANDOM must remain accessible through a coherent non-EDIT route;
+- Turing EDIT=LOCK remains valid;
+- Sample EDIT=per-step edit state remains valid;
+- STEP held EDIT+white-key SKIP moves to a contextual action on the selected step;
+- SUB held EDIT+white-key step-enable moves to a contextual action on the selected SUB step;
+- DOT EDIT reset toggle must be classified: retain only if it is genuinely an edit/focus/lock state, otherwise migrate to contextual action;
+- SEL+black-key STEP manual note entry remains protected and musical.
 
-Outside manual STEP note entry, black keys are currently inert. That is intentional as a C1 starting point: WP-C can add only the actions that are useful and can keep stable verb positions rather than inheriting legacy behavior.
-
-The explicit exception is STEP manual note entry (`SEL` held), where chromatic black keys remain musical input and must never be interpreted as contextual commands.
-
-## Migration order from this baseline
-
-1. **C2:** remove every unrelated REC meaning while preserving those functions through the contextual-action mechanism.
-2. **C3:** remove EDIT navigation/unrelated toggles; retain true edit/focus/lock semantics and migrate hidden STEP/SUB actions.
-3. **C4:** establish visible contextual black-key actions, destructive confirmation, migrate LOOP K4 RESET, and make MOD navigation coherent.
-4. **C5:** make the resulting action map authoritative for handlers and rendered guidance, then run the full regression/target matrix.
-
-No timing-model, audio-character, FM, random-undo, harmonic-layer or onboarding work belongs in this audit or migration.
+C4 retains responsibility for RANDOM OCT ALL/NONE, GLOBAL RESET ALL, LOOP K4 RESET, final visible rail guidance and MOD navigation cleanup.
