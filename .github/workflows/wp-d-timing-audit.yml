@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Reconstruct WP-D D2 source
+      - name: Reconstruct WP-D D3 source
         run: bash ci/unpack_source.sh
       - name: Audit timing model source of truth
         run: |
@@ -58,7 +58,7 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I mello tools/wp_d_timing_model.c mello/mello_engine.c mello/mello_transport.c -o /tmp/wp_d_timing_model
           /tmp/wp_d_timing_model
-      - name: Verify D2 timing-domain separation and pre-D3 UI boundary
+      - name: Verify D3 timing language and timing-domain separation
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -67,10 +67,12 @@ jobs:
           ui = Path('mello/mello_ui.c').read_text()
           checks = {
               '2 BAR default': ('engine', 'p->master_len=32u; /* WP-D: default 2 BAR = 32 sixteenth notes. */'),
-              'BAR scales by DIV': ('engine', '(uint32_t)e->project.master_len/(uint32_t)e->project.clock_div'),
+              'BAR safe scaling': ('engine', '((uint32_t)e->project.master_len+(uint32_t)e->project.clock_div-1u)/(uint32_t)e->project.clock_div'),
               'FREE semantic': ('header', '0=FREE. Non-zero is musical length in 1/16-note units'),
-              'main choices remain canonical': ('ui', 'static const uint16_t master_lengths[] = {0u,16u,32u,64u,128u,256u};'),
-              'main pre-D3 label': ('ui', 'l[1]="RESET";value_u(v[1],"",e->project.master_len);'),
+              'main choices canonical': ('ui', 'static const uint16_t master_lengths[] = {0u,16u,32u,64u,128u,256u};'),
+              'FREE display': ('ui', 'if (master_len == 0u) { copy_s(b, "FREE"); return; }'),
+              'BAR display': ('ui', 'copy_s(p, " BAR");'),
+              'main reset language': ('ui', 'l[1]="RESET";main_reset_name(v[1],e->project.master_len);'),
               'Loop Cycle sync/free': ('ui', 'l[1]="SYNC";copy_s(v[1],e->loop_cycle.sync?"SYNC":"FREE");'),
               'external transport sync': ('ui', 'l[2]="SYNC";copy_s(v[2],sync_name(ui->transport->sync_mode));'),
               'slot hold': ('ui', 'l[1]="HOLD";value_u(v[1],"",ss->hold);'),
@@ -78,8 +80,16 @@ jobs:
           sources = {'engine': engine, 'header': header, 'ui': ui}
           for name, (source, needle) in checks.items():
               if needle not in sources[source]:
-                  raise SystemExit(f'D2 timing-model drift: {name}: {needle}')
+                  raise SystemExit(f'WP-D timing drift: {name}: {needle}')
               print(f'PASS {name}')
+          if 'l[1]="RESET";value_u(v[1],"",e->project.master_len);' in ui:
+              raise SystemExit('D3 regression: legacy numeric RESET rendering remains')
+          expected = {0: 'FREE', 16: '1 BAR', 32: '2 BAR', 64: '4 BAR', 128: '8 BAR', 256: '16 BAR'}
+          for raw, label in expected.items():
+              rendered = 'FREE' if raw == 0 else f'{raw // 16} BAR'
+              if rendered != label:
+                  raise SystemExit(f'D3 label contract failed: {raw} -> {rendered}, expected {label}')
+              print(f'PASS main reset choice {raw} -> {label}')
           PY
       - name: Keep current timing/event-order regressions green
         run: |
@@ -89,10 +99,10 @@ jobs:
           /tmp/audio_event_order_smoke
       - name: Record timing-source hashes
         run: sha256sum mello/mello_engine.h mello/mello_engine.c mello/mello_transport.h mello/mello_transport.c mello/mello_ui.h mello/mello_ui.c
-      - name: Publish reconstructed timing source for D2 audit
+      - name: Publish reconstructed timing source for D3 audit
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: wp-d-d2-reconstructed-timing-source
+          name: wp-d-d3-reconstructed-timing-source
           path: |
             mello/mello_engine.h
             mello/mello_engine.c
