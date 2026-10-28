@@ -1,12 +1,12 @@
 # PROJECT STATE
 
-Last verified subtask closeout: 2026-10-28
+Last verified work-package closeout: 2026-10-28
 
 ## Repository
 
 - Repo: `joakimskurk/fm1mello`
 - Active branch: `visual-port-home`
-- Verify branch HEAD before editing.
+- Verify current branch HEAD before editing.
 - New chats start with `START_HERE.md`; repo documentation is source of truth.
 - Firmware is reconstructed by `ci/unpack_source.sh` from source chunks plus ordered transforms/tests.
 
@@ -14,56 +14,68 @@ Last verified subtask closeout: 2026-10-28
 
 - WP-A Randomizer intensity + skyline: **COMPLETE**.
 - WP-B Trust and reliability: **COMPLETE**.
-- WP-C Control Grammar v2: **ACTIVE**.
-  - C1 audit: **COMPLETE** at `a2a2bb97f3c8bb95a9ed0a539241698949b0defc`.
-  - C2 REC cleanup: **COMPLETE** at `f6d1f81660dab8db1de6da4e4650d01482d1ced3`.
-  - C3 EDIT cleanup: **COMPLETE** at `91afcd0f1b0146b761055d77fbdd7f95e6126ff3`.
-  - C4 contextual rail / hidden actions / MOD navigation: **COMPLETE** at `84d42c9fa21b2a91db5fa1aff2340c6ef3289a60`.
-  - **ACTIVE SUBTASK: C5 authoritative page-action mapping + full WP-C closeout.**
+- WP-C Control Grammar v2: **COMPLETE**.
+- **ACTIVE WORK PACKAGE: WP-D Timing model.**
 
-Do not begin WP-D before C5 is green and WP-C is documented closed.
+Do not begin WP-E or later work before WP-D is green and documented.
 
-## Retained control contracts
+## WP-C final implementation
 
-C2 reserves REC for real recording/capture and introduced stable contextual verbs. C3 reserves EDIT for genuine edit/focus/lock behavior and moved selected STEP/SUB toggles to B4. STEP `SEL+black` remains chromatic manual note entry and has priority over contextual actions.
+Final implementation/test checkpoint: `2c280184b0c5cd0947f2d4d9149ad12a96188709`.
 
-C4 completes the visible contextual grammar:
+WP-C delivered:
 
-- RANDOM: B1 reroll, B3 confirmed clear, B6 NONE, B7 ALL; OCT does not edit the mask.
-- GLOBAL: B1 tap, B3 confirmed project reset; hidden OCT-pair reset removed.
-- LOOP: B2 reset; layer-3 K4 is inert.
-- TURING: B0 on/off, B1 reroll; EDIT remains LOCK.
-- B5 opens RANDOM on mapped non-RANDOM pages.
-- LFO/MOD navigation cycles Audio LFO -> DOT -> EVOLVE and does not toggle Turing.
-- FX opens AUDIO FX directly.
-- active black-key actions are rendered; inactive action slots are inert.
+- C1 complete deterministic action/encoder audit;
+- C2 REC = record/capture only, with legacy actions migrated to contextual rail;
+- C3 EDIT = edit/focus/lock only, with selected-position actions migrated;
+- C4 visible B0-B7 contextual rail, hidden OCT/K4 action removal and coherent MOD navigation;
+- C5 one authoritative page/slot descriptor shared by contextual handler semantics and rendered guidance.
 
-Exact final C4 generated UI SHA-256: `a3829d2fdc354154021727838b4b17cf8420832f88565a2b2f290b17a06002c5`.
+C5 final descriptor coverage:
 
-## C4 validation evidence
+- Chord enabled: `16 pages / 31 active / 97 inactive` B0-B7 slots;
+- Chord compiled out: `15 pages / 29 active / 91 inactive`;
+- inactive slots are inert;
+- every active hint is descriptor-derived;
+- advertised B5 opens RANDOM on every mapped page;
+- STEP `SEL+black` manual-note priority remains intact.
 
-Implementation/test checkpoint `84d42c9fa21b2a91db5fa1aff2340c6ef3289a60`:
+Exact C5 output locks:
 
-- reconstruction `40701004129`: PASS;
-- contextual rail/MOD `40701004213`: PASS;
-- REC `40701004034`: PASS;
-- EDIT `40701004030`: PASS;
-- action contract `40701004015`: PASS;
-- audit `40701004022`: PASS;
-- rotary `40701004133`: PASS;
-- display `40701004059`: PASS;
-- live-edit `40701004057`: PASS;
-- full target `40701005084`: PASS.
+- UI `f6d26e0d1a57a51b08bf65e878144f5d48bfa248244d97b80c7a0842eb601818`;
+- authoritative mapping test `bf688e15845324e1982336830f20c067118d90923f8ba6da0b692c94dac4914d`;
+- retained C4 context contract `b5479562eb9a4aca5817663e835c04151e0c3337e4c9b131cb4c675daeabddfd`.
 
-Full target retained canonical randomizer semantics, 300 BPM timing, live-edit safety, emulator/browser/Chromium and target memory gates. RAM headroom `21472 B`; pool headroom `17696 B`; package SHA-256 `9747bed2ac5c974aed8b0cf9f340f395c5d566b879e5632162de65b75d9d2864`.
+## Final WP-C evidence
 
-## Active C5 direction
+All 11 gates are green on `2c280184...`:
 
-C4 still contains duplicated knowledge: contextual handler semantics and rendered hint strings are maintained through separate code paths. C5 must centralize this into one authoritative/testable page-action descriptor where practical, then prove behavior/render parity on every current page with Chord enabled and compiled out.
+- authoritative actions `40703570244`;
+- reconstruction `40703570315`;
+- context grammar `40703570196`;
+- REC grammar `40703570212`;
+- EDIT grammar `40703570277`;
+- action contract `40703570204`;
+- control audit `40703570330`;
+- rotary parity `40703570466`;
+- display integrity `40703570254`;
+- live-edit `40703570316`;
+- full target `40703571071`.
 
-C5 must preserve C1-C4 exactly and rerun the complete WP-A/WP-B/WP-C/audio/timing/emulator/browser/80 MHz/Chromium/target matrix. Require >=16 KiB RAM and pool headroom.
+Final target retained canonical randomizer distances, 300 BPM timing, Chord/Reverb technical gates, emulator/browser/Chromium, live-edit reliability and target resource limits. RAM headroom `21472 B`; pool headroom `17696 B`; image `190060 / 581564 B`; package `611545 B`; package SHA-256 `755a098ecbe66a6f8f7697a5787cb240e50a69df2520dc2f10b690f0056b8da1`; provenance PASS.
 
-When C5 is fully green, close WP-C, set WP-D Timing model active, and stop/handoff.
+Physical FM-1 live-edit reproduction remains a later hands-on regression when hardware is available; host/emulator/target evidence remains green.
+
+## Active WP-D direction
+
+WP-D is the timing-model package. Approved rules:
+
+- main sequence defaults to `1 BAR`;
+- choices are `1 / 2 / 4 / 8 / 16 BAR / FREE`;
+- main-sequence bar reset, external/MIDI sync, Loop Cycle `SYNC/FREE`, and Slot/Chain hold length remain distinct concepts;
+- timing labels must make those distinctions explicit.
+
+Begin WP-D with an audit/baseline of current transport reset behavior, default/storage representation and UI labels before implementation. Preserve all WP-A/WP-B/WP-C/audio/performance/target gates.
 
 ## Future sequence
 

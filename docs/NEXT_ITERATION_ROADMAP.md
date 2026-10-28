@@ -1,76 +1,75 @@
 # SkurkyMello FM-1 - stabilization and product-evolution roadmap
 
-Approved direction: 2026-10-25. Updated after WP-C4 closeout: 2026-10-28.
+Approved direction: 2026-10-25. Updated after WP-C closeout: 2026-10-28.
 
 This roadmap is stabilization-first. Approval of later product direction is not permission to implement later work packages early.
 
-See `START_HERE.md` for exact continuation procedure, `PROJECT_STATE.md` for verified checkpoint, `docs/WP_C_CONTROL_AUDIT.md` for the historical control baseline, `CONTROL_GRAMMAR.md` for normative rules and `TESTING.md` for acceptance evidence.
+See `START_HERE.md` for exact continuation procedure, `PROJECT_STATE.md` for verified checkpoint, `CONTROL_GRAMMAR.md` for normative control rules, `docs/WP_C_CONTROL_AUDIT.md` for historical pre-remap baseline and `TESTING.md` for acceptance evidence.
 
 ## WP-A. Randomizer intensity + RANDOM skyline - COMPLETE
 
-Completed 2026-10-26. Implementation `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`; clean reconstruction closeout `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
+Completed 2026-10-26. Implementation `ec48a8d6ddadd3376c2cb58ae36c27ab29177c07`; reconstruction closeout `42cf506be5b127e7f03c763966d1e75cc4a48a85`.
 
 ## WP-B. Trust and reliability - COMPLETE
 
-Completed 2026-10-28. Final implementation/test checkpoint `7c20efbdc391c59118fef3f000689eeafaa176b9`; full target `40604214660`: PASS.
+Completed 2026-10-28. Final checkpoint `7c20efbdc391c59118fef3f000689eeafaa176b9`; target `40604214660`: PASS.
 
-## WP-C. Control Grammar v2 - ACTIVE
+## WP-C. Control Grammar v2 - COMPLETE
 
-Purpose: preserve depth while making one coherent interaction language.
+Completed 2026-10-28. Final implementation/test checkpoint `2c280184b0c5cd0947f2d4d9149ad12a96188709`.
 
-### C1. Audit and baseline - COMPLETE
+WP-C result:
 
-Checkpoint `a2a2bb97f3c8bb95a9ed0a539241698949b0defc`.
-
-### C2. REC cleanup - COMPLETE
-
-Checkpoint `f6d1f81660dab8db1de6da4e4650d01482d1ced3`. REC reserved for record/capture; legacy actions moved to contextual controls.
-
-### C3. EDIT cleanup - COMPLETE
-
-Checkpoint `91afcd0f1b0146b761055d77fbdd7f95e6126ff3`. EDIT restricted to genuine edit/focus/lock; selected STEP/SUB actions moved to B4; DOT reset to B2; RANDOM access to B5.
-
-### C4. Contextual rail and MOD/navigation cleanup - COMPLETE
-
-Implementation/test checkpoint `84d42c9fa21b2a91db5fa1aff2340c6ef3289a60`.
-
-Delivered:
-
-- RANDOM B6/B7 = NONE/ALL; OCT has no RANDOM action semantics;
-- GLOBAL B3 = confirmed reset; hidden OCT chord removed;
-- LOOP K4 reset removed; contextual B2 retained;
-- active black-key actions have rendered guidance and inactive slots are inert;
-- MOD cycles Audio LFO -> DOT -> EVOLVE without hidden state toggles;
+- REC = actual recording/capture only;
+- EDIT = edit/focus/lock only;
+- SELECT = functional-layer navigation;
+- white keys own positions/cells except explicit note-entry;
+- black keys form a visible stable contextual B0-B7 action rail;
+- hidden RANDOM OCT, GLOBAL OCT-reset and LOOP K4 actions removed;
+- Audio LFO, DOT and EVOLVE/Turing grouped coherently under MOD navigation;
 - FX opens AUDIO FX directly;
-- C2/C3, SELECT and manual-note contracts preserved.
+- one authoritative `MelloContextAction` descriptor now drives both contextual handler semantics and rendered action guidance.
 
-Exact generated C4 UI SHA `a3829d2fdc354154021727838b4b17cf8420832f88565a2b2f290b17a06002c5`.
+C5 final parity:
 
-Evidence: reconstruction `40701004129`, context `40701004213`, REC `40701004034`, EDIT `40701004030`, action `40701004015`, audit `40701004022`, rotary `40701004133`, display `40701004059`, live-edit `40701004057`, target `40701005084`: PASS.
+- Chord enabled: `16 pages / 31 active / 97 inactive` slots;
+- Chord compiled out: `15 pages / 29 active / 91 inactive`;
+- C5 UI SHA `f6d26e0d1a57a51b08bf65e878144f5d48bfa248244d97b80c7a0842eb601818`.
 
-### C5. Authoritative mapping contract + WP-C regression closeout - ACTIVE
+Final green runs: authoritative `40703570244`, reconstruction `40703570315`, context `40703570196`, REC `40703570212`, EDIT `40703570277`, action `40703570204`, audit `40703570330`, rotary `40703570466`, display `40703570254`, live-edit `40703570316`, target `40703571071`.
 
-C4 intentionally leaves one structural cleanup for C5: contextual handler semantics and rendered action guidance still encode overlapping page/action knowledge separately.
+Target closeout: RAM headroom `21472 B`, pool headroom `17696 B`, package SHA-256 `755a098ecbe66a6f8f7697a5787cb240e50a69df2520dc2f10b690f0056b8da1`.
 
-C5 requirements:
+## WP-D. Timing model - ACTIVE
 
-- introduce one authoritative/testable page-action descriptor for B0-B7 actions where practical;
-- handler dispatch and rendered guidance consume that descriptor instead of independent page switches;
-- preserve active/inactive slots, stable verb positions and destructive confirmation semantics;
-- cover every current page/action mapping with Chord enabled and compiled out;
-- preserve all C1-C4 rules and behavior;
-- rerun WP-A, WP-B, WP-C, audio/timing, emulator/browser, 80 MHz, Chromium and full target;
-- require >=16 KiB RAM and pool headroom.
+Approved main-sequence product model:
 
-When C5 is green, close WP-C, set WP-D active and stop/handoff.
+- default `1 BAR`;
+- options `1 / 2 / 4 / 8 / 16 BAR / FREE`;
+- main-sequence bar reset is not external/MIDI sync;
+- Loop Cycle `SYNC / FREE` remains a separate timing concept;
+- Slot/Chain hold length remains separate;
+- UI terminology must distinguish these concepts explicitly.
 
-### WP-C exclusions
+### D1. Audit and deterministic baseline
 
-No timing redesign, distortion/Reverb V3, Undo, FM/SOUND randomization, per-step timbre, harmonic replacement or general onboarding polish inside WP-C.
+Before changing timing behavior, enumerate current main-sequence wrap/reset/free-running behavior, transport state, default/project-storage representation, current labels and interaction path. Add deterministic tests that distinguish main reset from Loop Cycle/external sync.
 
-## WP-D. Timing model
+### D2. Main-sequence timing model
 
-Main sequence `1 / 2 / 4 / 8 / 16 BAR / FREE`, default `1 BAR`; external sync, Loop Cycle sync/free and Slot/Chain hold length remain distinct.
+Implement the approved `1 / 2 / 4 / 8 / 16 BAR / FREE` representation and make `1 BAR` the default with the smallest compatible engine/storage migration.
+
+### D3. UI/control language
+
+Expose the timing choices with terminology that cannot be mistaken for MIDI clock or Loop Cycle sync. Preserve the existing control grammar and rotary/action parity.
+
+### D4. Regression closeout
+
+Rerun WP-A, all WP-B/WP-C gates, timing/audio event-order, emulator/browser, 80 MHz, Chromium and target build. Require >=16 KiB RAM and pool headroom. Record exact evidence, set WP-E active, then stop/handoff.
+
+### WP-D exclusions
+
+No distortion expansion, Reverb V3, Undo, FM/SOUND randomization, per-step timbre, harmonic replacement or general onboarding work inside WP-D.
 
 ## WP-E. Audio character
 
@@ -78,7 +77,7 @@ Extreme bounded distortion, Reverb V3 with perceptual A/B, ratchet parity and re
 
 ## WP-F. Undo Last Random
 
-One-level pre-random snapshot after core control/audio gates are stable.
+One-level pre-random snapshot after control/timing/audio stabilization.
 
 ## WP-G. Synth evolution
 
@@ -94,4 +93,4 @@ Splash, HOME hierarchy, Key/Scale, SEQ explanatory hierarchy, contextual hints a
 
 ## WP-J. Final integration gate
 
-Full control, randomizer, audio, visual, feature-flag, target, emulator/browser, memory/headroom and hands-on product audition gates.
+Full control, timing, randomizer, audio, visual, feature-flag, target, emulator/browser, memory/headroom and hands-on product audition gates.
