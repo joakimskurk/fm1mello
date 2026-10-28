@@ -56,3 +56,6 @@ subprocess.run(['python3', 'ci/lock_wp_c5_outputs.py'], check=True)
 # from the control-grammar baseline and lock the generated engine/header separately.
 subprocess.run(['python3', 'ci/patch_wp_d_timing_model.py'], check=True)
 subprocess.run(['python3', 'ci/lock_wp_d_d2_outputs.py'], check=True)
+# WP-D D3 consumes the locked D2/C5 output and changes timing language only.
+subprocess.run(['python3', 'ci/patch_wp_d_timing_ui.py'], check=True)
+subprocess.run(['python3', 'ci/lock_wp_d_d3_outputs.py'], check=True)
