@@ -1,48 +1,47 @@
 # CHANGELOG
 
+## 2026-10-28 - WP-C4 contextual rail and MOD navigation complete
+
+WP-C remains active; C5 authoritative page-action mapping + full WP-C regression closeout is next.
+
+Implementation/test checkpoint: `84d42c9fa21b2a91db5fa1aff2340c6ef3289a60`.
+
+C4 changes:
+
+- moved RANDOM mask NONE/ALL from OCT to contextual B6/B7;
+- removed GLOBAL hidden OCT-pair reset and moved confirmed reset to B3;
+- removed LOOP layer-3 K4 RESET while retaining contextual B2 RESET;
+- made active black-key contextual actions visible and kept inactive slots inert;
+- grouped actual Audio LFO, DOT and Turing/EVOLVE under LFO/MOD navigation;
+- physical LFO/MOD no longer toggles Turing state;
+- FX opens AUDIO FX directly instead of routing through DOT;
+- preserved C2/C3 REC/EDIT semantics, SELECT layers and STEP `SEL+black` manual-note priority;
+- migrated stale target tests to the contextual rail without weakening RANDOM mask assertions;
+- locked generated C4 UI SHA `a3829d2fdc354154021727838b4b17cf8420832f88565a2b2f290b17a06002c5` and visual-smoke SHA `2659928170069c1e52ed4e41ff95e21cfd03d80d540a958b3f43e7b1402bffb1`.
+
+Validation on the final implementation checkpoint:
+
+- reconstruction `40701004129`: PASS;
+- contextual rail/MOD `40701004213`: PASS;
+- REC `40701004034`: PASS;
+- EDIT `40701004030`: PASS;
+- action contract `40701004015`: PASS;
+- audit `40701004022`: PASS;
+- rotary `40701004133`: PASS;
+- display `40701004059`: PASS;
+- live-edit `40701004057`: PASS;
+- full target `40701005084`: PASS;
+- RAM headroom `21472 B`; pool headroom `17696 B`;
+- package SHA-256 `9747bed2ac5c974aed8b0cf9f340f395c5d566b879e5632162de65b75d9d2864`;
+- provenance: PASS.
+
 ## 2026-10-28 - WP-C3 EDIT cleanup complete
 
-WP-C remains active; C4 contextual rail / hidden actions / MOD navigation is next.
-
-Implementation/test checkpoint: `91afcd0f1b0146b761055d77fbdd7f95e6126ff3`.
-
-C3 changes:
-
-- removed generic `EDIT -> RANDOM` navigation;
-- retained only genuine EDIT semantics: Turing `LOCK` and Sample `per-step` edit state;
-- moved STEP `EDIT+white key = SKIP` to contextual B4 on the selected step;
-- moved SUB `EDIT+white key = step enable` to contextual B4 on the selected SUB step;
-- moved DOT reset from EDIT to contextual B2;
-- added contextual B5 as coherent non-EDIT RANDOM access;
-- preserved C2 REC semantics and STEP `SEL+black key` chromatic manual-note priority;
-- added deterministic Chord-on/off current action/EDIT coverage;
-- locked generated C3 UI SHA-256 `c811c6ee8e5d6422a479452c65e0c4720d93d0b979cba3b4bcd1281f95a162da`.
-
-Validation:
-
-- EDIT grammar `40685833340`: PASS;
-- reconstruction `40685833285`: PASS;
-- REC grammar `40685833209`: PASS;
-- control-action contract `40685833243`: PASS;
-- rotary parity `40685833249`: PASS;
-- display integrity `40685833215`: PASS;
-- live-edit `40685833246`: PASS;
-- control audit `40685833273`: PASS;
-- full target `40685833648`: PASS;
-- WP-A randomizer and Chord-off randomizer: PASS;
-- 300 BPM timing: PASS;
-- emulator/browser/80 MHz/Chromium: PASS;
-- RAM headroom `21472 B`; pool headroom `17696 B`;
-- package SHA-256 `6673f3688954809a6b5ce00ed73ba39666764ec2414d224e1f206689e1fe7a52`;
-- provenance attestation: PASS.
-
-C4 is active: move remaining hidden OCT/K4 actions to the contextual rail, make active actions visibly guided, and organize Audio LFO/DOT/Turing coherently under MOD/generative navigation.
+Implementation/test checkpoint `91afcd0f1b0146b761055d77fbdd7f95e6126ff3`. Generic EDIT navigation removed; genuine lock/edit states retained; STEP/SUB selected-position toggles moved to B4; DOT reset to B2; RANDOM access to B5. Full target `40685833648`: PASS.
 
 ## 2026-10-28 - WP-C2 REC cleanup complete
 
-Implementation/test checkpoint `f6d1f81660dab8db1de6da4e4650d01482d1ced3`.
-
-REC is reserved for actual record/capture; B0-B3 contextual slots preserve legacy REC functions, SAMPLE navigation moved to ENV/SOUND, and the WP-A randomizer trigger moved to B1. Final C2 target `40671590524`: PASS.
+Implementation/test checkpoint `f6d1f81660dab8db1de6da4e4650d01482d1ced3`. REC is reserved for actual recording/capture; legacy functions moved to contextual B0-B3; SAMPLE navigation moved to ENV/SOUND. Full target `40671590524`: PASS.
 
 ## 2026-10-28 - WP-C1 control-action audit complete
 

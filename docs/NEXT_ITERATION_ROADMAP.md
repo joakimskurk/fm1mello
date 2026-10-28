@@ -1,10 +1,10 @@
 # SkurkyMello FM-1 - stabilization and product-evolution roadmap
 
-Approved direction: 2026-10-25. Updated after WP-C3 closeout: 2026-10-28.
+Approved direction: 2026-10-25. Updated after WP-C4 closeout: 2026-10-28.
 
 This roadmap is stabilization-first. Approval of later product direction is not permission to implement later work packages early.
 
-See `START_HERE.md` for exact continuation procedure, `PROJECT_STATE.md` for the verified checkpoint, `docs/WP_C_CONTROL_AUDIT.md` for the historical control-migration baseline, `CONTROL_GRAMMAR.md` for normative interaction rules and `TESTING.md` for acceptance gates.
+See `START_HERE.md` for exact continuation procedure, `PROJECT_STATE.md` for verified checkpoint, `docs/WP_C_CONTROL_AUDIT.md` for the historical control baseline, `CONTROL_GRAMMAR.md` for normative rules and `TESTING.md` for acceptance evidence.
 
 ## WP-A. Randomizer intensity + RANDOM skyline - COMPLETE
 
@@ -20,42 +20,49 @@ Purpose: preserve depth while making one coherent interaction language.
 
 ### C1. Audit and baseline - COMPLETE
 
-Checkpoint `a2a2bb97f3c8bb95a9ed0a539241698949b0defc`. Enumerated and tested pre-remap REC, EDIT, SELECT, black-key, OCT, ALGORITHM/PRESETS and page-action behavior.
+Checkpoint `a2a2bb97f3c8bb95a9ed0a539241698949b0defc`.
 
 ### C2. REC cleanup - COMPLETE
 
-Checkpoint `f6d1f81660dab8db1de6da4e4650d01482d1ced3`. REC is reserved for record/capture; legacy functions moved to contextual B0-B3; SAMPLE moved to ENV/SOUND; STEP manual note exception preserved.
+Checkpoint `f6d1f81660dab8db1de6da4e4650d01482d1ced3`. REC reserved for record/capture; legacy actions moved to contextual controls.
 
 ### C3. EDIT cleanup - COMPLETE
 
-Implementation/test checkpoint `91afcd0f1b0146b761055d77fbdd7f95e6126ff3`.
+Checkpoint `91afcd0f1b0146b761055d77fbdd7f95e6126ff3`. EDIT restricted to genuine edit/focus/lock; selected STEP/SUB actions moved to B4; DOT reset to B2; RANDOM access to B5.
 
-- generic EDIT -> RANDOM removed;
-- Turing LOCK and Sample per-step EDIT states retained;
-- STEP/SUB hidden EDIT+white actions moved to selected-position B4;
-- DOT reset moved to B2;
-- B5 opens RANDOM;
-- C2 REC contract and SEL+black note entry preserved;
-- exact generated UI SHA `c811c6ee8e5d6422a479452c65e0c4720d93d0b979cba3b4bcd1281f95a162da`.
+### C4. Contextual rail and MOD/navigation cleanup - COMPLETE
 
-Evidence: EDIT `40685833340`, reconstruction `40685833285`, REC `40685833209`, action contract `40685833243`, rotary `40685833249`, display `40685833215`, live-edit `40685833246`, audit `40685833273`, target `40685833648`: PASS.
+Implementation/test checkpoint `84d42c9fa21b2a91db5fa1aff2340c6ef3289a60`.
 
-Target retained RAM headroom `21472 B`, pool `17696 B`; package SHA-256 `6673f3688954809a6b5ce00ed73ba39666764ec2414d224e1f206689e1fe7a52`.
+Delivered:
 
-### C4. Contextual rail and MOD/navigation cleanup - ACTIVE
+- RANDOM B6/B7 = NONE/ALL; OCT has no RANDOM action semantics;
+- GLOBAL B3 = confirmed reset; hidden OCT chord removed;
+- LOOP K4 reset removed; contextual B2 retained;
+- active black-key actions have rendered guidance and inactive slots are inert;
+- MOD cycles Audio LFO -> DOT -> EVOLVE without hidden state toggles;
+- FX opens AUDIO FX directly;
+- C2/C3, SELECT and manual-note contracts preserved.
 
-- migrate RANDOM mask NONE/ALL away from OCT;
-- migrate GLOBAL RESET ALL away from hidden OCT chord, retaining explicit confirmation;
-- remove LOOP layer-3 K4 RESET and rely on contextual B2;
-- render visible guidance for every active black-key action while inactive slots remain inert;
-- group actual Audio LFO, DOT and Turing/EVOLVE coherently under MOD/generative navigation;
-- physical LFO/MOD navigation must not secretly toggle Turing state;
-- preserve SELECT layer behavior, C2/C3 actions and STEP SEL+black manual-note exception;
-- add deterministic Chord-on/off action/navigation coverage.
+Exact generated C4 UI SHA `a3829d2fdc354154021727838b4b17cf8420832f88565a2b2f290b17a06002c5`.
 
-### C5. Authoritative mapping contract + regression closeout
+Evidence: reconstruction `40701004129`, context `40701004213`, REC `40701004034`, EDIT `40701004030`, action `40701004015`, audit `40701004022`, rotary `40701004133`, display `40701004059`, live-edit `40701004057`, target `40701005084`: PASS.
 
-After C4 only: make one authoritative/testable page-action mapping source drive handler semantics and rendered guidance where practical. Rerun WP-A/WP-B/audio/timing/emulator/browser/80 MHz/Chromium/target; require >=16 KiB RAM and pool headroom. Record exact evidence, set WP-D active, stop/handoff.
+### C5. Authoritative mapping contract + WP-C regression closeout - ACTIVE
+
+C4 intentionally leaves one structural cleanup for C5: contextual handler semantics and rendered action guidance still encode overlapping page/action knowledge separately.
+
+C5 requirements:
+
+- introduce one authoritative/testable page-action descriptor for B0-B7 actions where practical;
+- handler dispatch and rendered guidance consume that descriptor instead of independent page switches;
+- preserve active/inactive slots, stable verb positions and destructive confirmation semantics;
+- cover every current page/action mapping with Chord enabled and compiled out;
+- preserve all C1-C4 rules and behavior;
+- rerun WP-A, WP-B, WP-C, audio/timing, emulator/browser, 80 MHz, Chromium and full target;
+- require >=16 KiB RAM and pool headroom.
+
+When C5 is green, close WP-C, set WP-D active and stop/handoff.
 
 ### WP-C exclusions
 
@@ -63,7 +70,7 @@ No timing redesign, distortion/Reverb V3, Undo, FM/SOUND randomization, per-step
 
 ## WP-D. Timing model
 
-Main sequence `1 / 2 / 4 / 8 / 16 BAR / FREE`, default `1 BAR`; external sync, Loop Cycle sync/free and Slot/Chain hold length remain separate concepts.
+Main sequence `1 / 2 / 4 / 8 / 16 BAR / FREE`, default `1 BAR`; external sync, Loop Cycle sync/free and Slot/Chain hold length remain distinct.
 
 ## WP-E. Audio character
 
