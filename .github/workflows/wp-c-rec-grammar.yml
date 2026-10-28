@@ -17,11 +17,11 @@ jobs:
       - name: Reconstruct WP-C source
         run: bash ci/unpack_source.sh
       - name: Compile C2 contract with Chord enabled
-        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_action_baseline.c mello/*.c -o /tmp/control_c2
+        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_action_contract.c mello/*.c -o /tmp/control_c2
       - name: Validate C2 contract with Chord enabled
         run: /tmp/control_c2
       - name: Compile C2 contract with Chord disabled
-        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_action_baseline.c mello/*.c -o /tmp/control_c2_off
+        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_action_contract.c mello/*.c -o /tmp/control_c2_off
       - name: Validate C2 contract with Chord disabled
         run: /tmp/control_c2_off
       - name: Compile source-parity action semantics
@@ -29,4 +29,4 @@ jobs:
       - name: Validate migrated CLEAR/TAP semantics
         run: /tmp/ui_control_parity
       - name: Record C2 source hash
-        run: sha256sum mello/mello_ui.c tools/control_action_baseline.c tools/ui_control_parity.c
+        run: sha256sum mello/mello_ui.c tools/control_action_contract.c tools/ui_control_parity.c

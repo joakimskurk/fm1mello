@@ -4,6 +4,7 @@ import hashlib
 
 UI = Path('mello/mello_ui.c')
 PRE_UI_SHA = 'b5824ffc4341f69547a63d5e0f281a2c19db920334b0cc5b8829bef844c7911d'
+POST_UI_SHA = '3da137c8faa5800bcfddd8291176e77718bc320d890f20f9f9d0c9cba4aaffb0'
 
 
 def sha(p: Path) -> str:
@@ -67,4 +68,6 @@ for marker in (
         raise SystemExit(f'FAIL: WP-C2 postcondition marker {marker!r}')
 if 'if (pressed & bit_u32(MELLO_UI_BTN_REC))' in s:
     raise SystemExit('FAIL: WP-C2 legacy REC handler remains')
+if post != POST_UI_SHA:
+    raise SystemExit(f'FAIL: WP-C2 final UI hash {post} != {POST_UI_SHA}')
 print(f'PASS: WP-C2 REC cleanup + contextual action migration applied; UI_SHA={post}')
