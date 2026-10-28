@@ -1,10 +1,10 @@
 # SkurkyMello FM-1 - stabilization and product-evolution roadmap
 
-Approved direction: 2026-10-25. Updated after WP-C closeout and WP-D D1 audit: 2026-10-28.
+Approved direction: 2026-10-25. Updated after WP-D closeout: 2026-10-28.
 
 This roadmap is stabilization-first. Approval of later product direction is not permission to implement later work packages early.
 
-See `START_HERE.md` for exact continuation procedure, `PROJECT_STATE.md` for verified checkpoint, `CONTROL_GRAMMAR.md` for normative control rules, `docs/WP_D_TIMING_AUDIT.md` for the pre-D2 timing baseline, `docs/WP_C_CONTROL_AUDIT.md` for historical pre-remap baseline and `TESTING.md` for acceptance evidence.
+See `START_HERE.md` for exact continuation procedure, `PROJECT_STATE.md` for verified checkpoint, `CONTROL_GRAMMAR.md` for normative control rules, `docs/WP_D_CLOSEOUT.md` for final timing evidence, `docs/WP_D_TIMING_AUDIT.md` for the pre-D2 timing baseline, `docs/WP_C_CONTROL_AUDIT.md` for historical pre-remap baseline and `TESTING.md` for acceptance evidence.
 
 ## WP-A. Randomizer intensity + RANDOM skyline - COMPLETE
 
@@ -18,67 +18,69 @@ Completed 2026-10-28. Final checkpoint `7c20efbdc391c59118fef3f000689eeafaa176b9
 
 Completed 2026-10-28. Final implementation/test checkpoint `2c280184b0c5cd0947f2d4d9149ad12a96188709`.
 
-WP-C result:
+WP-C result: REC/EDIT semantics cleaned up; SELECT and white-key roles preserved; visible stable B0-B7 contextual actions; coherent MOD navigation; one authoritative `MelloContextAction` descriptor for handler + rendered guidance.
 
-- REC = actual recording/capture only;
-- EDIT = edit/focus/lock only;
-- SELECT = functional-layer navigation;
-- white keys own positions/cells except explicit note-entry;
-- black keys form a visible stable contextual B0-B7 action rail;
-- hidden RANDOM OCT, GLOBAL OCT-reset and LOOP K4 actions removed;
-- Audio LFO, DOT and EVOLVE/Turing grouped coherently under MOD navigation;
-- FX opens AUDIO FX directly;
-- one authoritative `MelloContextAction` descriptor now drives both contextual handler semantics and rendered action guidance.
+Final target `40703571071`: PASS. RAM headroom `21472 B`, pool headroom `17696 B`.
 
-C5 final parity:
+## WP-D. Timing model - COMPLETE
 
-- Chord enabled: `16 pages / 31 active / 97 inactive` slots;
-- Chord compiled out: `15 pages / 29 active / 91 inactive`;
-- C5 UI SHA `f6d26e0d1a57a51b08bf65e878144f5d48bfa248244d97b80c7a0842eb601818`.
+Completed 2026-10-28. Final implementation/test checkpoint `0cd810b5deb90087d60b181682de7e9ff52682cd`.
 
-Final green runs: authoritative `40703570244`, reconstruction `40703570315`, context `40703570196`, REC `40703570212`, EDIT `40703570277`, action `40703570204`, audit `40703570330`, rotary `40703570466`, display `40703570254`, live-edit `40703570316`, target `40703571071`.
+### D1. Audit and deterministic baseline - COMPLETE
 
-Target closeout: RAM headroom `21472 B`, pool headroom `17696 B`, package SHA-256 `755a098ecbe66a6f8f7697a5787cb240e50a69df2520dc2f10b690f0056b8da1`.
+Mapped legacy `master_len` processed-pulse behavior, storage/defaults, transport reset path and the already-separate external sync, Loop Cycle sync and Slot/Chain HOLD concepts. Permanent baseline: `tools/wp_d_timing_baseline.c` + `docs/WP_D_TIMING_AUDIT.md`.
 
-## WP-D. Timing model - ACTIVE
+### D2. Main-sequence timing model - COMPLETE
 
-Approved main-sequence product model:
+Implemented `FREE / 1 / 2 / 4 / 8 / 16 BAR` with **2 BAR default** while retaining the existing 16-bit storage field/layout. BAR duration is musical across `DIV` changes. Noncanonical stored values are hardened so conversion cannot create a zero runtime reset length.
 
-- default **`2 BAR`**;
-- options `1 / 2 / 4 / 8 / 16 BAR / FREE`;
-- BAR values are musical durations and retain their bar count across sequence pulse-division changes;
-- main-sequence bar reset is not external/MIDI sync;
-- Loop Cycle `SYNC / FREE` remains a separate timing concept;
-- Slot/Chain hold length remains separate;
-- UI terminology must distinguish these concepts explicitly.
+### D3. UI/control language - COMPLETE
 
-### D1. Audit and deterministic baseline - CLOSEOUT GATE
+SEQ renders `RESET` with `FREE`/BAR values. External/MIDI sync, Loop Cycle `SYNC/FREE` and Slot/Chain HOLD retain distinct language and behavior. Existing control grammar/parity stays regression-protected.
 
-The current reconstructed implementation is now enumerated in `docs/WP_D_TIMING_AUDIT.md`. Legacy main reset is `master_len` in processed pulses; `0` means natural/free. External transport sync, Loop Cycle sync and Slot/Chain hold are separate state/event paths.
+### D4. Regression closeout - COMPLETE
 
-`tools/wp_d_timing_baseline.c` provides deterministic runtime coverage for defaults/storage, natural versus forced main reset, Loop Cycle sync separation, Slot Seq hold separation and external MIDI slave timing. The WP-D audit workflow locks both this behavior and the legacy timing labels before D2 intentionally changes them.
+All 11 fast workflows PASS on `0cd810b...`; full target `40763918161` PASS. RAM headroom `21472 B`, pool headroom `17696 B`, image `190156 B`, package `611545 B`, package SHA-256 `bee43ce894a5a26472270b0890f1d64e400bfb68246980f5fe285179a4225b7f`, provenance PASS.
 
-D1 becomes COMPLETE when that workflow is green on the final D1 documentation/CI checkpoint.
+See `docs/WP_D_CLOSEOUT.md` for full evidence.
 
-### D2. Main-sequence timing model
+## WP-E. Audio character - ACTIVE
 
-Implement `1 / 2 / 4 / 8 / 16 BAR / FREE` with **`2 BAR` as the default**. Use the smallest compatible engine/storage migration. A selected BAR value must map to musical bars rather than a fixed raw processed-pulse count, so sequence pulse-division changes cannot silently change the chosen bar duration.
+Goal: make the instrument more characterful without sacrificing realtime trust or the stabilized control/timing grammars.
 
-### D3. UI/control language
+### E1. Audit and deterministic/perceptual baseline - ACTIVE NEXT
 
-Expose the timing choices with terminology that cannot be mistaken for MIDI clock or Loop Cycle sync. Preserve the existing control grammar and rotary/action parity.
+Before changing audio behavior, enumerate and baseline:
 
-### D4. Regression closeout
+- current distortion transfer/range and control path;
+- Reverb V2 implementation, parameters, reference renders and technical gates;
+- ratchet audio/timing behavior and any parity gaps;
+- live parameter smoothing/update paths and allocation/reconfiguration behavior;
+- CPU cost in normal, worst-case and live-edit 80 MHz scenarios;
+- RAM/pool impact and current target headroom;
+- all UI/control mappings touched by these audio parameters.
 
-Rerun WP-A, all WP-B/WP-C gates, timing/audio event-order, emulator/browser, 80 MHz, Chromium and target build. Require >=16 KiB RAM and pool headroom. Record exact evidence, set WP-E active, then stop/handoff.
+Add or extend deterministic tests where current behavior is not already protected. Define perceptual A/B criteria for sound-quality changes before implementation.
 
-### WP-D exclusions
+### E2. Extreme bounded distortion
 
-No distortion expansion, Reverb V3, Undo, FM/SOUND randomization, per-step timbre, harmonic replacement or general onboarding work inside WP-D.
+Expand usable character toward more extreme settings without runaway gain, DC, unsafe clipping, zippering or realtime regressions. Preserve clear parameter semantics.
 
-## WP-E. Audio character
+### E3. Reverb V3
 
-Extreme bounded distortion, Reverb V3 with perceptual A/B, ratchet parity and realtime-safe live smoothing.
+Improve subjective reverb quality. Technical IR/tail/predelay gates remain necessary, but perceptual A/B is the acceptance criterion. Do not accept a numerically green but audibly worse reverb.
+
+### E4. Ratchet parity + realtime-safe live smoothing
+
+Close any audited ratchet parity gaps and ensure audio-character controls can be changed live without render-thread allocation, unsafe rebuilds or audible state corruption.
+
+### WP-E closeout
+
+Rerun all WP-A/WP-B/WP-C/WP-D gates plus audio-specific deterministic/perceptual A/B, emulator/browser, 80 MHz, Chromium and target build. Require >=16 KiB RAM and pool headroom. Record exact evidence, activate WP-F, then stop/handoff.
+
+### WP-E exclusions
+
+No Undo Last Random, ANALOG/FM expansion, SOUND randomization, per-step timbre, harmonic-layer replacement or general onboarding work inside WP-E.
 
 ## WP-F. Undo Last Random
 
