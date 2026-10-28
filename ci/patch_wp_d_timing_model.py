@@ -6,7 +6,7 @@ ENGINE = Path('mello/mello_engine.c')
 HEADER = Path('mello/mello_engine.h')
 PRE_ENGINE_SHA = '7c9b7428920f787225c383ae4e6ba08a8e1ac5a2a95064b3d7d14ea0f8d3c64d'
 PRE_HEADER_SHA = '5a431221418d3f2c90d6094303a6eab03f13757d211284381251f004d29fa2f8'
-POST_ENGINE_SHA = 'b76dd8f25a1e2b218e0e32652578001cf073ca50f6198e95af9866b3cfd51937'
+POST_ENGINE_SHA = 'daa00773838efe5d511c81afcdc84ba3e8bef42c6e08d368de5843c643f7670c'
 POST_HEADER_SHA = '769ea7e8b7a1be51d38bbd48e5eb09e39114dd79ca363dcb70b235e1483cdab8'
 
 
@@ -46,9 +46,11 @@ s = replace_one(
     s,
     '    e->loop_pulse_length=e->project.master_len>0u?(uint32_t)e->project.master_len:natural;',
     '    /* WP-D: master_len is a musical 1/16-note duration. Runtime sequence\n'
-    '     * pulses are scaled by clock_div so BAR duration does not change with DIV. */\n'
+    '     * pulses are scaled by clock_div so BAR duration does not change with DIV.\n'
+    '     * Canonical UI values divide exactly; ceil keeps malformed legacy/storage\n'
+    '     * values non-zero and safe without changing the six supported choices. */\n'
     '    e->loop_pulse_length=e->project.master_len>0u\n'
-    '        ? (uint32_t)e->project.master_len/(uint32_t)e->project.clock_div\n'
+    '        ? ((uint32_t)e->project.master_len+(uint32_t)e->project.clock_div-1u)/(uint32_t)e->project.clock_div\n'
     '        : natural;',
     'bar-to-processed-pulse conversion',
 )
