@@ -1,0 +1,79 @@
+name: WP-D timing model audit
+
+on:
+  push:
+    branches: [visual-port-home]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  timing-audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Reconstruct final WP-C source
+        run: bash ci/unpack_source.sh
+      - name: Audit timing model source of truth
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          files = [
+              Path('mello/mello_engine.h'), Path('mello/mello_engine.c'),
+              Path('mello/mello_transport.h'), Path('mello/mello_transport.c'),
+              Path('mello/mello_ui.h'), Path('mello/mello_ui.c'),
+              Path('mello/mello_storage.h'), Path('mello/mello_storage.c'),
+          ]
+          needles = (
+              'seq_len', 'sequence', 'reset', 'sync', 'free', 'bar', 'clock',
+              'tick', 'loop_cycle', 'slot_seq', 'chain', 'hold', 'bpm',
+              'project_defaults', 'storage', 'serialize', 'deserialize',
+          )
+          for path in files:
+              if not path.exists():
+                  print(f'--- missing {path} ---')
+                  continue
+              lines = path.read_text().splitlines()
+              hits = []
+              for i, line in enumerate(lines):
+                  low = line.lower()
+                  if any(n in low for n in needles):
+                      hits.append((max(0, i - 5), min(len(lines), i + 8)))
+              merged=[]
+              for a,b in hits:
+                  if merged and a <= merged[-1][1] + 1:
+                      merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+                  else:
+                      merged.append((a,b))
+              print(f'=== {path} hits={len(hits)} windows={len(merged)} ===')
+              for n,(a,b) in enumerate(merged,1):
+                  print(f'--- {path}:{a+1}-{b} window {n} ---')
+                  for j in range(a,b):
+                      print(f'{j+1:5d}: {lines[j]}')
+
+          for path, names in (
+              (Path('mello/mello_engine.c'), ('mello_project_defaults', 'mello_engine_tick')),
+              (Path('mello/mello_transport.c'), ('mello_transport_init', 'mello_transport_tick', 'mello_transport_clock')),
+              (Path('mello/mello_ui.c'), ('draw_global', 'adjust_global', 'render_body', 'render_footer')),
+          ):
+              if not path.exists(): continue
+              lines=path.read_text().splitlines()
+              for name in names:
+                  starts=[i for i,l in enumerate(lines) if name in l and ('(' in l)]
+                  print(f'=== targeted {path}:{name} matches={len(starts)} ===')
+                  for start in starts[:6]:
+                      a=max(0,start-3); b=min(len(lines),start+90)
+                      for j in range(a,b): print(f'{j+1:5d}: {lines[j]}')
+                      print('---')
+          PY
+      - name: Keep current timing/event-order regressions green
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I mello tools/audio_timing_stress.c mello/*.c -o /tmp/audio_timing_stress
+          /tmp/audio_timing_stress
+          cc -std=c11 -Wall -Wextra -Werror -I mello tools/audio_event_order_smoke.c mello/*.c -o /tmp/audio_event_order_smoke
+          /tmp/audio_event_order_smoke
+      - name: Record timing-source hashes
+        run: sha256sum mello/mello_engine.h mello/mello_engine.c mello/mello_transport.h mello/mello_transport.c mello/mello_ui.h mello/mello_ui.c
