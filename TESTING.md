@@ -77,7 +77,9 @@ Hosted emulator timing varies with runner load; acceptance uses established thre
 
 ## Active WP-D testing direction
 
-Before changing timing behavior, create deterministic coverage for current main-sequence reset/free-running behavior, stored/default value, transport reset boundary and rendered timing language. The approved target is main sequence `1 / 2 / 4 / 8 / 16 BAR / FREE` with `1 BAR` default while external/MIDI sync, Loop Cycle `SYNC/FREE` and Slot/Chain hold remain separate.
+D1 deterministic coverage lives in `tools/wp_d_timing_baseline.c` and `docs/WP_D_TIMING_AUDIT.md`. It locks the pre-D2 main reset/free-running behavior, stored legacy `master_len`, transport reset boundary and separation from external sync, Loop Cycle `SYNC/FREE` and Slot/Chain HOLD. The D1 workflow also locks the legacy rendered timing labels before D2 intentionally changes them.
+
+The approved target is main sequence `1 / 2 / 4 / 8 / 16 BAR / FREE` with **`2 BAR` default**. BAR values are musical duration: changing sequence pulse division must not change the selected number of bars.
 
 WP-D must preserve the full WP-A/WP-B/WP-C/audio/emulator/browser/80 MHz/Chromium/target matrix and retain >=16 KiB RAM and pool headroom.
 
