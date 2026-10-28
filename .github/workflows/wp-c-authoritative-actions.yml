@@ -1,0 +1,54 @@
+name: WP-C authoritative action mapping gate
+
+on:
+  push:
+    branches: [visual-port-home]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authoritative-actions:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Reconstruct WP-C source
+        run: bash ci/unpack_source.sh
+      - name: Compile C5 page-action parity with Chord enabled
+        run: cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_authoritative_mapping.c mello/*.c -o /tmp/control_c5
+      - name: Validate C5 page-action parity with Chord enabled
+        run: /tmp/control_c5
+      - name: Compile C5 page-action parity with Chord disabled
+        run: cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_authoritative_mapping.c mello/*.c -o /tmp/control_c5_off
+      - name: Validate C5 page-action parity with Chord disabled
+        run: /tmp/control_c5_off
+      - name: Keep C4 behavior contract green
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I mello tools/control_context_contract.c mello/*.c -o /tmp/control_c4
+          /tmp/control_c4
+          cc -std=c11 -Wall -Wextra -Werror -DMELLO_FEATURE_CHORD_MACHINE=0 -I mello tools/control_context_contract.c mello/*.c -o /tmp/control_c4_off
+          /tmp/control_c4_off
+      - name: Assert one authoritative descriptor drives handler and guidance
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('mello/mello_ui.c').read_text()
+          required=(
+              'WP-C5 authoritative contextual-action mapping',
+              'static const MelloContextAction context_actions',
+              'const MelloContextAction *a = context_action(ui->page, action);',
+              'const MelloContextAction *a = context_action(ui->page, i);',
+          )
+          for marker in required:
+              if marker not in s: raise SystemExit(f'FAIL: missing C5 structural marker {marker!r}')
+          start=s.index('static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)\n{')
+          end=s.index('\n}\n',start)+3
+          body=s[start:end]
+          if 'switch (ui->page)' in body: raise SystemExit('FAIL: contextual handler still carries page mapping')
+          if 'B5:RANDOM' in s or 'B1:RND B3:CLR2' in s: raise SystemExit('FAIL: combined contextual hints are still separately hard-coded')
+          print('PASS: C5 handler and renderer consume the shared contextual descriptor')
+          PY
+      - name: Record C5 generated source hashes
+        run: sha256sum mello/mello_ui.c tools/control_authoritative_mapping.c tools/control_context_contract.c

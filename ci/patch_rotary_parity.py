@@ -49,3 +49,5 @@ subprocess.run(['python3', 'ci/patch_control_grammar_c4_cleanup.py'], check=True
 subprocess.run(['python3', 'ci/patch_control_grammar_c4_tests.py'], check=True)
 subprocess.run(['python3', 'ci/patch_control_grammar_c4_visual_smoke.py'], check=True)
 subprocess.run(['python3', 'ci/lock_wp_c4_outputs.py'], check=True)
+# C5 consumes the exact locked C4 output and centralizes page/action knowledge.
+subprocess.run(['python3', 'ci/patch_control_grammar_c5.py'], check=True)
