@@ -1,10 +1,10 @@
 # SkurkyMello FM-1 - stabilization and product-evolution roadmap
 
-Approved direction: 2026-10-25. Updated after WP-C closeout: 2026-10-28.
+Approved direction: 2026-10-25. Updated after WP-C closeout and WP-D D1 audit: 2026-10-28.
 
 This roadmap is stabilization-first. Approval of later product direction is not permission to implement later work packages early.
 
-See `START_HERE.md` for exact continuation procedure, `PROJECT_STATE.md` for verified checkpoint, `CONTROL_GRAMMAR.md` for normative control rules, `docs/WP_C_CONTROL_AUDIT.md` for historical pre-remap baseline and `TESTING.md` for acceptance evidence.
+See `START_HERE.md` for exact continuation procedure, `PROJECT_STATE.md` for verified checkpoint, `CONTROL_GRAMMAR.md` for normative control rules, `docs/WP_D_TIMING_AUDIT.md` for the pre-D2 timing baseline, `docs/WP_C_CONTROL_AUDIT.md` for historical pre-remap baseline and `TESTING.md` for acceptance evidence.
 
 ## WP-A. Randomizer intensity + RANDOM skyline - COMPLETE
 
@@ -44,20 +44,25 @@ Target closeout: RAM headroom `21472 B`, pool headroom `17696 B`, package SHA-25
 
 Approved main-sequence product model:
 
-- default `1 BAR`;
+- default **`2 BAR`**;
 - options `1 / 2 / 4 / 8 / 16 BAR / FREE`;
+- BAR values are musical durations and retain their bar count across sequence pulse-division changes;
 - main-sequence bar reset is not external/MIDI sync;
 - Loop Cycle `SYNC / FREE` remains a separate timing concept;
 - Slot/Chain hold length remains separate;
 - UI terminology must distinguish these concepts explicitly.
 
-### D1. Audit and deterministic baseline
+### D1. Audit and deterministic baseline - CLOSEOUT GATE
 
-Before changing timing behavior, enumerate current main-sequence wrap/reset/free-running behavior, transport state, default/project-storage representation, current labels and interaction path. Add deterministic tests that distinguish main reset from Loop Cycle/external sync.
+The current reconstructed implementation is now enumerated in `docs/WP_D_TIMING_AUDIT.md`. Legacy main reset is `master_len` in processed pulses; `0` means natural/free. External transport sync, Loop Cycle sync and Slot/Chain hold are separate state/event paths.
+
+`tools/wp_d_timing_baseline.c` provides deterministic runtime coverage for defaults/storage, natural versus forced main reset, Loop Cycle sync separation, Slot Seq hold separation and external MIDI slave timing. The WP-D audit workflow locks both this behavior and the legacy timing labels before D2 intentionally changes them.
+
+D1 becomes COMPLETE when that workflow is green on the final D1 documentation/CI checkpoint.
 
 ### D2. Main-sequence timing model
 
-Implement the approved `1 / 2 / 4 / 8 / 16 BAR / FREE` representation and make `1 BAR` the default with the smallest compatible engine/storage migration.
+Implement `1 / 2 / 4 / 8 / 16 BAR / FREE` with **`2 BAR` as the default**. Use the smallest compatible engine/storage migration. A selected BAR value must map to musical bars rather than a fixed raw processed-pulse count, so sequence pulse-division changes cannot silently change the chosen bar duration.
 
 ### D3. UI/control language
 
