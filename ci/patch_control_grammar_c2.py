@@ -3,8 +3,10 @@ from pathlib import Path
 import hashlib
 
 UI = Path('mello/mello_ui.c')
+RANDOM_SMOKE = Path('tools/random_wave_overview_smoke.c')
 PRE_UI_SHA = 'b5824ffc4341f69547a63d5e0f281a2c19db920334b0cc5b8829bef844c7911d'
 POST_UI_SHA = '3da137c8faa5800bcfddd8291176e77718bc320d890f20f9f9d0c9cba4aaffb0'
+PRE_RANDOM_SMOKE_SHA = 'e9f5de542f27c04399dfbde5765a4b760988b3ba992b9027e31b4a89562efd40'
 
 
 def sha(p: Path) -> str:
@@ -13,6 +15,8 @@ def sha(p: Path) -> str:
 
 if sha(UI) != PRE_UI_SHA:
     raise SystemExit(f'FAIL: WP-C2 UI base hash {sha(UI)} != {PRE_UI_SHA}')
+if sha(RANDOM_SMOKE) != PRE_RANDOM_SMOKE_SHA:
+    raise SystemExit(f'FAIL: WP-C2 randomizer smoke base hash {sha(RANDOM_SMOKE)} != {PRE_RANDOM_SMOKE_SHA}')
 
 s = UI.read_text()
 
@@ -70,4 +74,19 @@ if 'if (pressed & bit_u32(MELLO_UI_BTN_REC))' in s:
     raise SystemExit('FAIL: WP-C2 legacy REC handler remains')
 if post != POST_UI_SHA:
     raise SystemExit(f'FAIL: WP-C2 final UI hash {post} != {POST_UI_SHA}')
-print(f'PASS: WP-C2 REC cleanup + contextual action migration applied; UI_SHA={post}')
+
+# WP-A's UI smoke must use the migrated RANDOM trigger without weakening any
+# LOW/MED/HIGH, WAVE, skyline or redraw assertions. B1 is the second physical
+# black-key action slot and maps to note index 3 on the FM-1 keyboard.
+r = RANDOM_SMOKE.read_text()
+old_trigger = '    mello_ui_input(&ui,0,1,1u<<MELLO_UI_BTN_REC,0,1u<<MELLO_UI_BTN_REC,0,0);\n'
+new_trigger = '    mello_ui_input(&ui,0,1,0,0,0,1u<<3,0);\n'
+old_error = 'die("REC did not use selected intensity")'
+new_error = 'die("B1 reroll did not use selected intensity")'
+if r.count(old_trigger) != 1 or r.count(old_error) != 1:
+    raise SystemExit(f'FAIL: WP-C2 randomizer smoke trigger markers trigger={r.count(old_trigger)} error={r.count(old_error)}')
+r = r.replace(old_trigger, new_trigger, 1).replace(old_error, new_error, 1)
+RANDOM_SMOKE.write_text(r)
+random_post = sha(RANDOM_SMOKE)
+
+print(f'PASS: WP-C2 REC cleanup + contextual action migration applied; UI_SHA={post}; RANDOM_SMOKE_SHA={random_post}')
