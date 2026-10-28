@@ -1,57 +1,58 @@
 # CHANGELOG
 
-## 2026-10-28 - WP-C2 REC cleanup complete
+## 2026-10-28 - WP-C3 EDIT cleanup complete
 
-WP-C remains active; C3 EDIT cleanup is next.
+WP-C remains active; C4 contextual rail / hidden actions / MOD navigation is next.
 
-Implementation/test checkpoint: `f6d1f81660dab8db1de6da4e4650d01482d1ced3`.
+Implementation/test checkpoint: `91afcd0f1b0146b761055d77fbdd7f95e6126ff3`.
 
-C2 changes:
+C3 changes:
 
-- REC now has no unrelated page-action meanings and is reserved for actual recording/capture; no capture implementation exists yet, so REC is intentionally inert rather than overloaded;
-- introduced stable contextual slots: B0 state toggle, B1 trigger/reroll/tap, B2 reset, B3 destructive/confirmed;
-- migrated RANDOM reroll/CLEAR, GLOBAL TAP, LOOP reset, DOT/TURING reroll and SUB/CHORD/SAMPLE toggles off REC without deleting functionality;
-- moved SAMPLE navigation into the ENV/SOUND family;
-- preserved STEP `SEL+black key` chromatic manual-note entry as an explicit exception;
-- migrated the WP-A randomizer UI smoke from REC to RANDOM B1 without changing LOW/MED/HIGH, WAVE, skyline or redraw assertions;
-- locked generated C2 UI SHA `3da137c8faa5800bcfddd8291176e77718bc320d890f20f9f9d0c9cba4aaffb0` and migrated randomizer-smoke SHA `71fc32a27fedfb0509ab0ff9eccfc85ba53d90c9b6d6bf48f0915f15c1d5fa13`.
+- removed generic `EDIT -> RANDOM` navigation;
+- retained only genuine EDIT semantics: Turing `LOCK` and Sample `per-step` edit state;
+- moved STEP `EDIT+white key = SKIP` to contextual B4 on the selected step;
+- moved SUB `EDIT+white key = step enable` to contextual B4 on the selected SUB step;
+- moved DOT reset from EDIT to contextual B2;
+- added contextual B5 as coherent non-EDIT RANDOM access;
+- preserved C2 REC semantics and STEP `SEL+black key` chromatic manual-note priority;
+- added deterministic Chord-on/off current action/EDIT coverage;
+- locked generated C3 UI SHA-256 `c811c6ee8e5d6422a479452c65e0c4720d93d0b979cba3b4bcd1281f95a162da`.
 
 Validation:
 
-- control audit `40671589758`: PASS;
-- control-action contract `40671589741`: PASS;
-- REC grammar `40671589777`: PASS;
-- rotary parity `40671589763`: PASS;
-- display integrity `40671589734`: PASS;
-- live-edit `40671589787`: PASS;
-- reconstruction `40671589813`: PASS;
-- full target `40671590524`: PASS;
+- EDIT grammar `40685833340`: PASS;
+- reconstruction `40685833285`: PASS;
+- REC grammar `40685833209`: PASS;
+- control-action contract `40685833243`: PASS;
+- rotary parity `40685833249`: PASS;
+- display integrity `40685833215`: PASS;
+- live-edit `40685833246`: PASS;
+- control audit `40685833273`: PASS;
+- full target `40685833648`: PASS;
+- WP-A randomizer and Chord-off randomizer: PASS;
+- 300 BPM timing: PASS;
+- emulator/browser/80 MHz/Chromium: PASS;
 - RAM headroom `21472 B`; pool headroom `17696 B`;
-- package SHA-256 `cb09e296517f2f699fdf2b926e2baba7de033b52b498be765850cf5709615c12`.
+- package SHA-256 `6673f3688954809a6b5ce00ed73ba39666764ec2414d224e1f206689e1fe7a52`;
+- provenance attestation: PASS.
 
-C3 is active: remove generic EDIT navigation, retain true edit/focus/lock meanings, migrate hidden STEP/SUB EDIT+key actions, and classify/migrate DOT reset.
+C4 is active: move remaining hidden OCT/K4 actions to the contextual rail, make active actions visibly guided, and organize Audio LFO/DOT/Turing coherently under MOD/generative navigation.
+
+## 2026-10-28 - WP-C2 REC cleanup complete
+
+Implementation/test checkpoint `f6d1f81660dab8db1de6da4e4650d01482d1ced3`.
+
+REC is reserved for actual record/capture; B0-B3 contextual slots preserve legacy REC functions, SAMPLE navigation moved to ENV/SOUND, and the WP-A randomizer trigger moved to B1. Final C2 target `40671590524`: PASS.
 
 ## 2026-10-28 - WP-C1 control-action audit complete
 
-C1 baseline checkpoint: `a2a2bb97f3c8bb95a9ed0a539241698949b0defc`.
-
-Added deterministic pre-remap coverage for REC/EDIT/SELECT/black keys/OCT/ALGORITHM/PRESETS and hidden page actions, plus `docs/WP_C_CONTROL_AUDIT.md`. The audit identified the exact legacy overloads that C2-C4 must migrate rather than delete.
+C1 baseline checkpoint `a2a2bb97f3c8bb95a9ed0a539241698949b0defc`. Added deterministic pre-remap coverage and `docs/WP_C_CONTROL_AUDIT.md`.
 
 ## 2026-10-28 - WP-B trust and reliability complete
 
-WP-B final implementation/test checkpoint: `7c20efbdc391c59118fef3f000689eeafaa176b9`.
+WP-B final checkpoint `7c20efbdc391c59118fef3f000689eeafaa176b9`; target `40604214660`: PASS. B1 live-edit, B2 rotary parity and B3 display integrity remain regression-protected.
 
-B1 live-edit, B2 rotary parity and B3 display integrity are complete. Final gates: reconstruction `40604213816`, live-edit `40604213682`, rotary `40604213768`, display integrity `40604213707`, target `40604214660`: PASS. RAM headroom `21472 B`, pool `17696 B`, package SHA-256 `b0bf86215ab4c547c668c54c3f023ff05fb7f4e87b728bcb7e84365a02cebf1e`.
-
-The physical FM-1 live-edit symptom remains a later hands-on regression because hardware is not currently available.
-
-## 2026-10-28 - WP-B2 rotary display/handler parity complete
-
-Checkpoint `85a3c376b47829af6d6abdd3264ec75cb37d42bf`; rotary `40599056435`, reconstruction `40599056475`, B1 `40599056403`, target `40599056945`: PASS.
-
-## 2026-10-27 - WP-B1 live-edit audio reliability complete
-
-Checkpoint `b90d4fc23e2f0715d00544bdb5cc878404f8ee64`; live-edit `40596812842`, reconstruction `40596812864`, target `40596813400`: PASS.
+Physical FM-1 live-edit reproduction remains a later hands-on regression because hardware is not currently available.
 
 ## 2026-10-26 - WP-A randomizer intensity + RANDOM skyline complete
 
