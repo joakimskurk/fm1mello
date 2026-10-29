@@ -2,9 +2,9 @@
 
 #define UI_RGB(r, g, b)                                                                                      \
     ((uint16_t)((((uint16_t)(r) & 0xF8u) << 8) | (((uint16_t)(g) & 0xFCu) << 3) | ((uint16_t)(b) >> 3)))
-#define UI_BLACK   UI_RGB(0, 0, 0)
-#define UI_PANEL   UI_RGB(3, 15, 10)
-#define UI_PANEL2  UI_RGB(6, 24, 16)
+#define UI_BLACK   UI_RGB(4, 14, 8)   /* the ground: the HTML's #040E08, not black */
+#define UI_PANEL   UI_RGB(6, 24, 16)
+#define UI_PANEL2  UI_RGB(13, 36, 24)
 #define UI_DIM     UI_RGB(68, 112, 78)
 #define UI_MID     UI_RGB(92, 166, 111)
 #define UI_WHITE   UI_RGB(225, 255, 238)
@@ -1324,6 +1324,7 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
     default: break;
     }
     mark_edit(ui);
+    ui->dirty |= MELLO_UI_DIRTY_HEADER; /* the header takes the layer's colour */
 }
 
 static void adjust_select(MelloUi *ui, int16_t delta)
@@ -2129,13 +2130,14 @@ static uint16_t ui_page_accent(MelloUi *ui)
     case MELLO_UI_SLOTS: return UI_BLUE;
     case MELLO_UI_RANDOM: return UI_PURPLE;
     case MELLO_UI_DOT: return ui_dot_colour(ui->selected_dot_target);
-    case MELLO_UI_TURING: return UI_BLUE;
+    case MELLO_UI_TURING: return UI_PURPLE; /* the MOD family, as the HTML's LFO */
     case MELLO_UI_AUDIO_FX:
-        return ui->fx_subpage == 0u ? UI_CORAL : (ui->fx_subpage <= 2u ? UI_BLUE : UI_PURPLE);
+        /* As the HTML colours them: distortion coral, delay turquoise, reverb green. */
+        return ui->fx_subpage == 0u ? UI_CORAL : (ui->fx_subpage <= 2u ? UI_CYAN : UI_ACC);
     case MELLO_UI_SOUND_RESERVED:
         return ui->sound_subpage == 0u
                    ? UI_CYAN
-                   : (ui->sound_subpage == 2u ? UI_BLUE : (ui->sound_subpage == 3u ? UI_GOLD : UI_ACC));
+                   : (ui->sound_subpage == 2u ? UI_PURPLE : (ui->sound_subpage == 3u ? UI_GOLD : UI_ACC));
     case MELLO_UI_SAMPLE_RESERVED: return UI_BLUE;
     case MELLO_UI_HOME:
     case MELLO_UI_SEQ_STEP:
@@ -2386,8 +2388,8 @@ static void draw_home(MelloUi *ui, const MelloUiDrawOps *o)
                                                                : "SGL";
         p = copy_s(b, "S");
         p = put_u32(p, (uint32_t)si + 1u);
-        p = copy_s(p, " MIDI ");
-        put_u32(p, mello_resolve_step_midi(&e->project, s));
+        p = copy_s(p, " ");
+        midi_note_name(p, mello_resolve_step_midi(&e->project, s));
         o->text(o->ctx, 8, 156, 96, 0, b, UI_WHITE, 0);
         p = copy_s(b, "P");
         p = put_u32(p, s->pulses);
@@ -2426,7 +2428,16 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
     char b[32], status[12], *p;
     uint16_t accent = ui_page_accent(ui);
     o->fill(o->ctx, 0, 0, 240, 30, UI_PANEL);
-    o->text(o->ctx, 4, 7, 88, 0, "SKURKYMELLO", UI_WHITE, 0);
+    if (e) { /* the key, where the wordmark was: the HTML's title line ("C minor") */
+        char key[24], *q;
+        static const char *n[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+        static const char *sc[MELLO_SCALE_COUNT] = {"CHROM", "MINOR", "DORIAN", "PHRYG", "LYDIAN", "MIXO",
+                                                    "PENTA", "mPENT", "DIM",   "WHOLE", "AUG",    "MAJOR"};
+        q = copy_s(key, n[e->project.root_note % 12u]);
+        q = copy_s(q, " ");
+        (void)copy_s(q, sc[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR]);
+        o->text(o->ctx, 4, 7, 88, 0, key, UI_GOLD, 0);
+    }
     p = copy_s(b, mello_ui_page_name(ui->page));
     if (e &&
         (ui->page == MELLO_UI_HOME || ui->page == MELLO_UI_SEQ_STEP || ui->page == MELLO_UI_SEQ_SEGMENT)) {
@@ -3858,6 +3869,20 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
     }
 }
 
+/* The colour of K1-K4's value: the page's, except where the HTML colours each control: HOME's macros by domain and
+ * the envelope's A D S R letters. */
+static uint16_t knob_colour(MelloUi *ui, uint8_t k)
+{
+    static const uint16_t macro[4] = {UI_CYAN, UI_GOLD, UI_ACC, UI_CORAL};
+    static const uint16_t adsr[4] = {UI_GOLD, UI_CORAL, UI_CYAN, UI_PURPLE};
+    static const uint16_t route[4] = {UI_ACC, UI_CYAN, UI_BLUE, UI_CORAL};
+    k &= 3u;
+    if (ui->page == MELLO_UI_HOME && ui->held_step == MELLO_UI_NO_STEP) return macro[k];
+    if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage == 1u) return adsr[k];
+    if (ui->page == MELLO_UI_TURING && ui->tm_subpage >= 1u) return route[k];
+    return ui_page_accent(ui);
+}
+
 static void draw_footer(MelloUi *ui, const MelloUiDrawOps *o)
 {
     char v[4][24];
@@ -3865,14 +3890,7 @@ static void draw_footer(MelloUi *ui, const MelloUiDrawOps *o)
     uint8_t k;
     footer_texts(ui, l, v);
     draw_control_hint(ui, o);
-    for (k = 0u; k < 4u; ++k) {
-        uint16_t c = ui_page_accent(ui);
-        if (ui->page == MELLO_UI_TURING && ui->tm_subpage >= 1u) {
-            static const uint16_t route_col[4] = {UI_ACC, UI_CYAN, UI_BLUE, UI_CORAL};
-            c = route_col[k];
-        }
-        footer_pair(o, k, l[k], v[k], c);
-    }
+    for (k = 0u; k < 4u; ++k) footer_pair(o, k, l[k], v[k], knob_colour(ui, k));
 }
 
 static void draw_status(MelloUi *ui, const MelloUiDrawOps *o)
@@ -3980,6 +3998,8 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
         o->text(o->ctx, 12, 124, 216, 0, "SELECT: LAYER", UI_DIM, 1);
     } else {
         uint8_t k = (uint8_t)(ui->readout - 1u);
+        accent = knob_colour(ui, k);
+        ui_frame(o, 6, 44, 228, 112, accent);
         o->text(o->ctx, 12, 76, 216, 1, l[k], accent, 1);
         o->text(o->ctx, 12, 110, 216, 1, v[k][0] ? v[k] : "-", UI_WHITE, 1);
     }
