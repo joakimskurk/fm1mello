@@ -37,7 +37,7 @@ APP_SLOT = fm1pkg_make.APP_SLOT
 LOADER_LOAD = 0x01C0A800
 LOADER_NAME = b"usb_hid_ota.bin"    # the file name the SPL looks for
 DOCKER_IMAGE = os.environ.get("JIELI_DOCKER_IMAGE", "debian:bookworm-slim")
-CFLAGS = ["-Os", "-ffunction-sections", "-fno-builtin", "-Wall", "-Wno-unused-function"]
+CFLAGS = ["-O2", "-ffunction-sections", "-fno-builtin", "-Wall", "-Wno-unused-function"]
 LINE = re.compile(r"^\s*([0-9a-f]+):\s+((?:[0-9a-f]{2} )+)\s*\t(.*)$")
 
 # SDK files of AC79NN_SDK_V1.2.1_2023-12-13 (the tested version)
@@ -47,7 +47,7 @@ SDK_SHA256 = {
     "cfg/eq_cfg_hw.bin": "41167491bffed4651750719c973d2758adeb9021a5670d02d6a53c85ed80ea7d",
 }
 
-PRODUCT = "FM-1_990"                # Dinghy: 99N (OUR_LOADER in the installer wants FM-1_9NN). Your fork: pick your own
+PRODUCT = os.environ.get("MELLO_PRODUCT", "")  # required explicit SkurkyMello FM-1_9NN identity
 VERSION = None                      # APP_VER for release builds
 
 
@@ -273,14 +273,21 @@ def main():
     ap.add_argument("--release", metavar="X.Y", help="release build: identity FM-1_9XY, version string X.Y")
     ap.add_argument("--sdk", type=Path, help="JieLi AC79 SDK checkout (default: $AC79_SDK)")
     a = ap.parse_args()
-    name = "dinghy.fwsc"
+    name = "skurkymello-dev.fwsc"
     if a.release:                   # one digit each: the identity has room for two (X.Y; a .Z only in the text)
         m = re.fullmatch(r"(\d)\.(\d)(\.\d)?(-[A-Za-z0-9]+)?", a.release)
         if not m:
             raise SystemExit(f"--release {a.release}: use X.Y, X.Y.Z or X.Y-suffix, one digit each")
-        PRODUCT = "FM-1_99" + m[2]
+        if not re.fullmatch(r"FM-1_9\d\d", PRODUCT):
+            raise SystemExit("MELLO_PRODUCT must be a unique FM-1_9NN identity")
+        if PRODUCT.startswith("FM-1_99"):
+            raise SystemExit("MELLO_PRODUCT must not use Dinghy's FM-1_99N range")
         VERSION = m[1] + "." + m[2] + (m[3] or "")
-        name = f"dinghy-{a.release}.fwsc"
+        name = f"skurkymello-{a.release}.fwsc"
+    if not re.fullmatch(r"FM-1_9\d\d", PRODUCT):
+        raise SystemExit("MELLO_PRODUCT must be set to a unique FM-1_9NN identity")
+    if PRODUCT.startswith("FM-1_99"):
+        raise SystemExit("MELLO_PRODUCT must not use Dinghy's FM-1_99N range")
     fm1pkg_make.SDK = a.sdk
     for rel, sha in SDK_SHA256.items():          # fail early without the SDK
         if hashlib.sha256(fm1pkg_make.sdk_file(rel)).hexdigest() != sha:

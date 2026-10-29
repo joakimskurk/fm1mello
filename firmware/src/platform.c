@@ -54,7 +54,7 @@ static volatile uint32_t fm1_ms;                /* milliseconds since power-on (
 #define RING_PUBLISH() __asm__ volatile("" ::: "memory")
 #include "libc.c"
 #include "lcd.c"
-#define CV_MAX (240u * 64u)                     /* the biggest text box drawn at once */
+#define CV_MAX (240u * 32u)                     /* Mello: FONT_L is the tallest canvas user */
 #include "gfx.c"
 
 #define FS 44100u                               /* the sample rate */
@@ -68,7 +68,11 @@ static volatile uint32_t fm1_ms;                /* milliseconds since power-on (
 
 /* ---- flash: read anywhere; erase / program only the update's staging area and the settings sector */
 #define SETTINGS_AT 0x000FC000u                 /* one 4 KiB sector of Felucca's globals area */
-#define FL_RANGE_OK(off, n) (FL_IN(off, n, FL_OTA_LO, FL_OTA_HI) || FL_IN(off, n, SETTINGS_AT, SETTINGS_AT + 0x1000u))
+#define MELLO_STORAGE_LO 0x00098000u
+#define MELLO_STORAGE_HI 0x000E0000u
+#define FL_RANGE_OK(off, n) (FL_IN(off, n, FL_OTA_LO, FL_OTA_HI) || \
+                             FL_IN(off, n, SETTINGS_AT, SETTINGS_AT + 0x1000u) || \
+                             FL_IN(off, n, MELLO_STORAGE_LO, MELLO_STORAGE_HI))
 #include "fm1_flash.h"
 static uint8_t flash_ok;
 static int st_read(uint32_t off, void *dst, uint32_t n)
