@@ -85,6 +85,11 @@ of the HTML (`tools/tone-ref/shoot.mjs`).
 - [x] Switches by direction (no flip per detent), acceleration, the HTML's colours and dark-green ground, the key in
       the header, SAVE short = save / held = SLOTS, SAVED / UNSAVED / SAVE OFF on the status line, true help texts.
 - [x] KEYS (EDIT): the keys play the lead (stopped), set the root (playing), step-record (REC).
+- [x] The HTML's visual expression: text on its real background (no black boxes), HOME's steps as the HTML's lanes
+      (gradient bars, note letters, the playing step brighter), SOUND / MOD LFO / FX / GLOBAL as the HTML's synth panel
+      (spaced titles, label/value rows, green ring sliders, pills), rounded frames everywhere, the readout as a panel.
+- [ ] The same treatment for STEP, SEGMENT, LOOP, SLOT SEQ, SLOTS, SUB, CHORD and SAMPLE (they have the colours and
+      rounded frames, not yet the panel layout).
 - [ ] The momentary performance keys: FILL, SUB MUTE, REPEAT, REVERSE, RESTART (they need engine support).
 - [ ] Note names in HOME's step bars as the HTML's lanes; the remaining pages' bodies in music units.
 - [ ] Randomizer "skyline": its length and bar width follow the sequence length.
