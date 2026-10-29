@@ -48,6 +48,18 @@ def fx_coeffs(f):
 
 
 fx_text = ""
+# The dedicated sub's filter: Tone.Filter lowpass -24, Q 0.8 dB, f = subFilterHz(t) = 40 * 55^t (line 1146).
+vals = []
+for i in range(101):
+    f = min(40 * 55 ** (i / 100), FS / 2 * 0.999)
+    w0 = 2 * math.pi * f / FS
+    alpha = math.sin(w0) / (2 * 10 ** (0.8 / 20))
+    a0, c = 1 + alpha, math.cos(w0)
+    q = lambda v: int(round(v / a0 * (1 << 28)))
+    vals.append((q((1 - c) / 2), q(1 - c), q((1 - c) / 2), q(-2 * c), q(1 - alpha)))
+fx_text += "/* subFilterHz(t) = 40 * 55^t Hz, Q 0.8 dB: one biquad, used twice. */\n"
+fx_text += "static const ToneSubBiquadCoeff SUB_FILTER_BIQUAD_Q28[101] = {\n%s,\n};\n" % ",\n".join(
+    "    {%d, %d, %d, %d, %d}" % v for v in vals)
 for name, base, ratio, helper in FX:
     vals = [fx_coeffs(base * ratio ** (i / 100)) for i in range(101)]
     body = ",\n".join("    {%d, %d, %d, %d, %d}" % v for v in vals)
@@ -67,4 +79,4 @@ static const ToneSubBiquadCoeff MAIN_FILTER_BIQUAD_Q28[MAIN_FILTER_RESES][MAIN_F
 {fx_text}#endif
 """
 out.write_text(text)
-print(f"wrote {out.relative_to(out.parents[2])}: {RESES} x {CUTS} main biquads, 3 x 101 FX tone biquads")
+print(f"wrote {out.relative_to(out.parents[2])}: {RESES} x {CUTS} main biquads, 4 x 101 sub and FX tone biquads")
