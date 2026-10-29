@@ -59,6 +59,30 @@ From HOME: start, randomize, undo, shape the sound, set the tempo, mute steps an
 Today's cross-page chains go: ENV→SAMPLE, LFO→DOT→TURING. The ENV button no longer ends up on the LFO (fixed),
 the sample layer moves to GLOBAL, and DOT and EVOLVE become layers of MOD.
 
+## The look: the HTML's
+
+From screenshots of the HTML (`node tools/tone-ref/shoot.mjs OUT`, full page, stopped and playing). The FM-1's palette
+already uses the HTML's colours; what changes is how they are used.
+
+- **Ground**: very dark green (HTML #04140B), not black; panels #0D2418 / #061810, lines #2A5C3A, muted text #4D9966.
+- **One colour per domain, as the HTML colours its sections**:
+
+| Domain | Colour | HTML |
+|---|---|---|
+| Steps, sequence, HOME | green #00DD88 | step bars, STEPS |
+| OSC / FILTER | turquoise #00FFEE | CUTOFF 3264Hz |
+| Envelope | A yellow · D coral · S turquoise · R purple | the ADSR letters |
+| LFO, MOD, RANDOM | purple #CC55FF | LFO buttons, ⚡ RANDOM |
+| Sub, follower, key/scale selection | yellow #FFCC00 | SUB OSC, OCT, selected |
+| Distortion, DRIVE | coral #FF7755 | DISTORTION |
+| Delay | turquoise #00FFEE | DELAY values |
+| Reverb, SPACE | green #00DD88 | REVERB values |
+| Stop, clear, destructive | red/pink #FF3377 | STOP, RESET ALL |
+
+  Where the HTML gives no reason (DOT's four targets, the segments A-F), the FM-1 keeps its own colours.
+- **Steps on HOME** as the HTML's lanes: tall bars, the note name in the bar, the playing step brighter.
+- **Labels** small, uppercase, letter-spaced; values in the domain's colour.
+
 ## Rules everywhere
 
 - **No on/off on a rotary.** Booleans go on black keys or EDIT, with their state visible.
