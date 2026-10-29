@@ -162,7 +162,7 @@ static void sync_audio_config(void)
 
 static void app_main(void)
 {
-    uint32_t last_render_ms = 0u;
+    uint32_t last_render_ms = 0u, last_service_ms = 0xFFFFFFFFu;
     MelloUiDrawOps draw = ui_draw_ops();
 
     mello_project_defaults(&project);
@@ -248,6 +248,18 @@ static void app_main(void)
 #endif
             mello_transport_midi_in(&mt, st, d1, d2, now_us);
         }
+
+        /* The rest once a millisecond, not on every wake (the 10 kHz key-scan timer wakes the loop): keys are
+         * debounced in that interrupt and their edges wait, the transport looks 15 ms ahead, the screen is served at
+         * 50 Hz. It used to run 10 000 times a second, ~35 M instructions an emulated second, half the emulator's
+         * load besides the sound. */
+        if (fm1_ms == last_service_ms) {
+#ifndef DINGHY_HOST
+            fm1_idle();
+#endif
+            continue;
+        }
+        last_service_ms = fm1_ms;
 
         pressed = fm1_input_edges(&released);
         notes = fm1_input_note_edges();
