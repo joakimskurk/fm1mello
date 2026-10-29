@@ -358,16 +358,10 @@ static void lead_attack(MelloAudio *a, uint8_t note, uint8_t vel, bool slide)
         a->lead.inc = a->lead.target_inc;
         a->lead.slide_left = 0u;
     }
+    /* HTML: the follower sub (subOsc) never glides; only the lead's portamento is set per step. */
     a->lead.sub_target_inc = shifted_note_inc(note, a->config.follower_sub_octave);
-    if (slide && a->config.slide_ms) {
-        n = ms_samples(a->config.slide_ms);
-        if (n < 1u) n = 1u;
-        a->lead.sub_slide_left = n;
-        a->lead.sub_slide_step = ((int32_t)a->lead.sub_target_inc - (int32_t)a->lead.sub_inc) / (int32_t)n;
-    } else {
-        a->lead.sub_inc = a->lead.sub_target_inc;
-        a->lead.sub_slide_left = 0u;
-    }
+    a->lead.sub_inc = a->lead.sub_target_inc;
+    a->lead.sub_slide_left = 0u;
     tone_attack_begin(TONE_ENV(&a->lead), a->config.attack_ms);
 }
 static void lead_release(MelloAudio *a)
@@ -1403,8 +1397,10 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             lead = osc_sample(a->config.osc_wave, a->lead.phase, pwm);
             if (a->config.follower_sub_on && a->config.follower_sub_level) {
                 a->lead.sub_phase += a->lead.sub_inc;
+                /* HTML: subOsc is triggered at vel * level and then passes Gain(level): level squared. */
+                int32_t lv = (int32_t)a->config.follower_sub_level;
                 lead += q15mul(osc_sample(a->config.follower_sub_wave, a->lead.sub_phase, 500u),
-                               (int32_t)a->config.follower_sub_level * 32767 / 1000);
+                               lv * lv / 1000 * 32767 / 1000);
             }
             lead = q15mul(lead, (a->lead.env_q24 >> 8));
             lead = q15mul(lead, (int32_t)a->lead.velocity * 258);

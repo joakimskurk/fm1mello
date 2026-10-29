@@ -1,24 +1,24 @@
 [
  {
   "name": "lead_pluck_dry",
-  "level_db": 0.7,
+  "level_db": 0.4,
   "env_db": 2.0,
-  "tone_db": 3.4,
-  "worst_band_hz": 125,
-  "worst_db": 11.4,
+  "tone_db": 1.8,
+  "worst_band_hz": 5040,
+  "worst_db": -4.7,
   "peak_html_dbfs": -16.3,
-  "peak_c_dbfs": -17.1,
+  "peak_c_dbfs": -17.0,
   "rt60_html_c": null
  },
  {
   "name": "lead_run_dry",
-  "level_db": 1.0,
+  "level_db": 0.7,
   "env_db": 2.3,
-  "tone_db": 4.4,
-  "worst_band_hz": 99,
-  "worst_db": 12.3,
+  "tone_db": 1.9,
+  "worst_band_hz": 79,
+  "worst_db": 10.0,
   "peak_html_dbfs": -13.9,
-  "peak_c_dbfs": -14.8,
+  "peak_c_dbfs": -14.7,
   "rt60_html_c": null
  },
  {
@@ -67,27 +67,27 @@
  },
  {
   "name": "drive_dry",
-  "level_db": 0.5,
+  "level_db": 0.3,
   "env_db": 1.4,
-  "tone_db": 4.2,
-  "worst_band_hz": 157,
-  "worst_db": 13.0,
+  "tone_db": 1.9,
+  "worst_band_hz": 10079,
+  "worst_db": 11.2,
   "peak_html_dbfs": -11.0,
   "peak_c_dbfs": -14.2,
   "rt60_html_c": null
  },
  {
   "name": "run_full",
-  "level_db": 0.8,
-  "env_db": 4.6,
-  "tone_db": 3.4,
-  "worst_band_hz": 157,
-  "worst_db": 12.6,
+  "level_db": 0.5,
+  "env_db": 4.4,
+  "tone_db": 1.7,
+  "worst_band_hz": 250,
+  "worst_db": 4.2,
   "peak_html_dbfs": -13.3,
   "peak_c_dbfs": -14.6,
   "rt60_html_c": [
    2.37,
-   6.06
+   6.04
   ]
  },
  {
