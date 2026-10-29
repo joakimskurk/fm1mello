@@ -1,0 +1,111 @@
+{
+  "comment": "Fixed inputs rendered by both the HTML reference (render.mjs) and the C port (tests/parity/render_stimuli.c). Times in seconds, params in the HTML's own units (0..1 knobs, seconds). 'fx': 'dry' sets the delay and reverb sends to 0, 'reverb' only the delay send, 'full' is the HTML as it is. 'lead' notes go to the lead Synth and the follower sub as triggerNote does for a SINGLE gate; 'sub' notes go to the dedicated sub as triggerSub does.",
+  "sample_rate": 44100,
+  "bpm": 80,
+  "stimuli": [
+    {
+      "name": "lead_pluck_dry",
+      "what": "one C4 step on the default patch: envelope, level, filter at default",
+      "seconds": 1.0,
+      "fx": "dry",
+      "params": {},
+      "lead": [{"t": 0.05, "dur": 0.15375, "midi": 60, "vel": 0.72}]
+    },
+    {
+      "name": "lead_run_dry",
+      "what": "eight 16ths up C minor at 80 BPM, one accent: pluck shape, overlap, slide off",
+      "seconds": 2.2,
+      "fx": "dry",
+      "params": {},
+      "lead": [
+        {"t": 0.05, "dur": 0.15375, "midi": 60, "vel": 0.95},
+        {"t": 0.2375, "dur": 0.15375, "midi": 62, "vel": 0.72},
+        {"t": 0.425, "dur": 0.15375, "midi": 63, "vel": 0.72},
+        {"t": 0.6125, "dur": 0.15375, "midi": 65, "vel": 0.72},
+        {"t": 0.8, "dur": 0.15375, "midi": 67, "vel": 0.72},
+        {"t": 0.9875, "dur": 0.15375, "midi": 68, "vel": 0.72},
+        {"t": 1.175, "dur": 0.15375, "midi": 70, "vel": 0.72},
+        {"t": 1.3625, "dur": 0.15375, "midi": 72, "vel": 0.72}
+      ]
+    },
+    {
+      "name": "filter_res0_dry",
+      "what": "held C2 saw, cut 0.4, res 0, no follower: filter shape without resonance",
+      "seconds": 1.2,
+      "fx": "dry",
+      "params": {"filterCut": 0.4, "filterRes": 0.0, "subOscOn": false, "sustain": 1.0},
+      "lead": [{"t": 0.05, "dur": 1.0, "midi": 36, "vel": 0.72}]
+    },
+    {
+      "name": "filter_res05_dry",
+      "what": "as filter_res0_dry with res 0.5 (Q 7.5 dB per biquad)",
+      "seconds": 1.2,
+      "fx": "dry",
+      "params": {"filterCut": 0.4, "filterRes": 0.5, "subOscOn": false, "sustain": 1.0},
+      "lead": [{"t": 0.05, "dur": 1.0, "midi": 36, "vel": 0.72}]
+    },
+    {
+      "name": "filter_res1_dry",
+      "what": "as filter_res0_dry with res 1.0 (Q 15 dB): screams into the waveshaper clip",
+      "seconds": 1.2,
+      "fx": "dry",
+      "params": {"filterCut": 0.4, "filterRes": 1.0, "subOscOn": false, "sustain": 1.0},
+      "lead": [{"t": 0.05, "dur": 1.0, "midi": 36, "vel": 0.72}]
+    },
+    {
+      "name": "sub_dry",
+      "what": "dedicated sub, four C2 steps on the default sub patch, lead silent",
+      "seconds": 1.2,
+      "fx": "dry",
+      "params": {},
+      "sub": [
+        {"t": 0.05, "dur": 0.16875, "midi": 36},
+        {"t": 0.2375, "dur": 0.16875, "midi": 36},
+        {"t": 0.425, "dur": 0.16875, "midi": 43},
+        {"t": 0.6125, "dur": 0.16875, "midi": 36}
+      ]
+    },
+    {
+      "name": "drive_dry",
+      "what": "the run with DIST AMT 0.8, CHAR 0.35: the waveshaper's drive",
+      "seconds": 2.2,
+      "fx": "dry",
+      "params": {"distAmt": 0.8},
+      "lead": [
+        {"t": 0.05, "dur": 0.15375, "midi": 60, "vel": 0.95},
+        {"t": 0.2375, "dur": 0.15375, "midi": 62, "vel": 0.72},
+        {"t": 0.425, "dur": 0.15375, "midi": 63, "vel": 0.72},
+        {"t": 0.6125, "dur": 0.15375, "midi": 65, "vel": 0.72}
+      ]
+    },
+    {
+      "name": "run_full",
+      "what": "the run with the default delay and reverb: the whole chain, with tails",
+      "seconds": 6.0,
+      "fx": "full",
+      "params": {},
+      "lead": [
+        {"t": 0.05, "dur": 0.15375, "midi": 60, "vel": 0.95},
+        {"t": 0.2375, "dur": 0.15375, "midi": 62, "vel": 0.72},
+        {"t": 0.425, "dur": 0.15375, "midi": 63, "vel": 0.72},
+        {"t": 0.6125, "dur": 0.15375, "midi": 65, "vel": 0.72},
+        {"t": 0.8, "dur": 0.15375, "midi": 67, "vel": 0.72},
+        {"t": 0.9875, "dur": 0.15375, "midi": 68, "vel": 0.72},
+        {"t": 1.175, "dur": 0.15375, "midi": 70, "vel": 0.72},
+        {"t": 1.3625, "dur": 0.15375, "midi": 72, "vel": 0.72}
+      ],
+      "sub": [
+        {"t": 0.05, "dur": 0.16875, "midi": 36},
+        {"t": 0.8, "dur": 0.16875, "midi": 36}
+      ]
+    },
+    {
+      "name": "reverb_click",
+      "what": "one 10 ms C5 blip with the default reverb, delay off: after the blip only the reverb's tail is left",
+      "seconds": 5.0,
+      "fx": "reverb",
+      "params": {"attack": 0.001, "decay": 0.01, "sustain": 0.0, "release": 0.005, "filterCut": 1.0, "subOscOn": false},
+      "lead": [{"t": 0.05, "dur": 0.01, "midi": 72, "vel": 0.95}]
+    }
+  ]
+}

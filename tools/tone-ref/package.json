@@ -1,0 +1,13 @@
+{
+  "name": "skurkymello-tone-ref",
+  "private": true,
+  "description": "Renders reference/skurkymello.html's sound chain with Tone.Offline, as golden files for the C port",
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "23.11.1",
+    "tone": "14.9.17"
+  }
+}

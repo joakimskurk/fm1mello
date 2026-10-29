@@ -1,0 +1,107 @@
+[
+ {
+  "name": "lead_pluck_dry",
+  "level_db": 11.6,
+  "env_db": 5.0,
+  "tone_db": 5.6,
+  "worst_band_hz": 8000,
+  "worst_db": 25.8,
+  "peak_html_dbfs": -16.3,
+  "peak_c_dbfs": -14.1,
+  "rt60_html_c": null
+ },
+ {
+  "name": "lead_run_dry",
+  "level_db": 11.3,
+  "env_db": 2.5,
+  "tone_db": 6.7,
+  "worst_band_hz": 8000,
+  "worst_db": 25.6,
+  "peak_html_dbfs": -13.9,
+  "peak_c_dbfs": -11.7,
+  "rt60_html_c": null
+ },
+ {
+  "name": "filter_res0_dry",
+  "level_db": 10.4,
+  "env_db": 2.6,
+  "tone_db": 4.5,
+  "worst_band_hz": 2000,
+  "worst_db": 19.3,
+  "peak_html_dbfs": -20.2,
+  "peak_c_dbfs": -13.0,
+  "rt60_html_c": null
+ },
+ {
+  "name": "filter_res05_dry",
+  "level_db": 5.3,
+  "env_db": 2.9,
+  "tone_db": 7.1,
+  "worst_band_hz": 6350,
+  "worst_db": -21.1,
+  "peak_html_dbfs": -14.3,
+  "peak_c_dbfs": -14.9,
+  "rt60_html_c": null
+ },
+ {
+  "name": "filter_res1_dry",
+  "level_db": -2.8,
+  "env_db": 4.2,
+  "tone_db": 11.7,
+  "worst_band_hz": 6350,
+  "worst_db": -32.0,
+  "peak_html_dbfs": -13.8,
+  "peak_c_dbfs": -15.6,
+  "rt60_html_c": null
+ },
+ {
+  "name": "sub_dry",
+  "level_db": 7.4,
+  "env_db": 2.8,
+  "tone_db": 3.2,
+  "worst_band_hz": 5040,
+  "worst_db": -12.8,
+  "peak_html_dbfs": -26.2,
+  "peak_c_dbfs": -19.0,
+  "rt60_html_c": null
+ },
+ {
+  "name": "drive_dry",
+  "level_db": 11.0,
+  "env_db": 2.1,
+  "tone_db": 4.0,
+  "worst_band_hz": 157,
+  "worst_db": 12.8,
+  "peak_html_dbfs": -11.0,
+  "peak_c_dbfs": -4.9,
+  "rt60_html_c": null
+ },
+ {
+  "name": "run_full",
+  "level_db": 11.0,
+  "env_db": 4.9,
+  "tone_db": 6.3,
+  "worst_band_hz": 8000,
+  "worst_db": 25.6,
+  "peak_html_dbfs": -13.3,
+  "peak_c_dbfs": -9.6,
+  "rt60_html_c": [
+   2.37,
+   6.74
+  ]
+ },
+ {
+  "name": "reverb_click",
+  "level_db": 0.0,
+  "env_db": 18.1,
+  "tone_db": 21.8,
+  "worst_band_hz": 12699,
+  "worst_db": 51.1,
+  "peak_html_dbfs": -17.7,
+  "peak_c_dbfs": -12.3,
+  "rt60_html_c": [
+   2.55,
+   5.66
+  ]
+ }
+]
