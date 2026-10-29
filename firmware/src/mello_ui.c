@@ -2137,13 +2137,15 @@ static const char *sync_name(MelloSyncMode m)
     return m == MELLO_SYNC_SLAVE ? "SLAVE" : m == MELLO_SYNC_MASTER ? "MASTER" : "OFF";
 }
 
+/* Every frame with the HTML's rounded corners (a corner pixel left out) once it is big enough to show them. */
 static void ui_frame(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t colour)
 {
+    int16_t r = w >= 6 && h >= 6 ? 1 : 0;
     if (w < 2 || h < 2) return;
-    o->fill(o->ctx, x, y, w, 1, colour);
-    o->fill(o->ctx, x, (int16_t)(y + h - 1), w, 1, colour);
-    o->fill(o->ctx, x, y, 1, h, colour);
-    o->fill(o->ctx, (int16_t)(x + w - 1), y, 1, h, colour);
+    o->fill(o->ctx, (int16_t)(x + r), y, (int16_t)(w - 2 * r), 1, colour);
+    o->fill(o->ctx, (int16_t)(x + r), (int16_t)(y + h - 1), (int16_t)(w - 2 * r), 1, colour);
+    o->fill(o->ctx, x, (int16_t)(y + r), 1, (int16_t)(h - 2 * r), colour);
+    o->fill(o->ctx, (int16_t)(x + w - 1), (int16_t)(y + r), 1, (int16_t)(h - 2 * r), colour);
 }
 
 /* The HTML's drawing vocabulary, from rectangles: rounded frames and fills (corners cut by a pixel), vertical
@@ -2329,7 +2331,7 @@ static uint16_t ui_page_accent(MelloUi *ui)
     case MELLO_UI_SEQ_STEP:
         if (e) return ui_segment_colour(ui_segment_for_step(&e->project, ui->selected_step));
         return UI_ACC;
-    case MELLO_UI_GLOBAL: return UI_SOFT;
+    case MELLO_UI_GLOBAL: return UI_ACC; /* the HTML's own green, as its title bar */
     default: return UI_ACC;
     }
 }
@@ -2896,12 +2898,12 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         uint8_t i, len = e->loop_cycle.length;
         if (len < 2u) len = 2u;
         if (len > MELLO_MAX_LOOP_CYCLE_STEPS) len = MELLO_MAX_LOOP_CYCLE_STEPS;
-        o->text(o->ctx, 8, 33, 96, 0, e->loop_cycle.active ? "LOOP CYCLE" : "AUDITION",
+        o->text(o->ctx, 8, 33, 80, 0, e->loop_cycle.active ? "LOOP CYCLE" : "AUDITION",
                 e->loop_cycle.active ? UI_GOLD : UI_BLUE, 0);
         value_u(a, "STEP", (uint32_t)ui->selected_loop_step + 1u);
-        o->text(o->ctx, 107, 33, 48, 0, a, UI_WHITE, 1);
+        o->text(o->ctx, 96, 33, 48, 0, a, UI_BRIGHT, 0);
         value_u(a, "LEN", len);
-        o->text(o->ctx, 157, 33, 40, 0, a, UI_MID, 1);
+        o->text(o->ctx, 152, 33, 40, 0, a, UI_MID, 0);
         o->text(o->ctx, 200, 33, 32, 0, e->loop_cycle.sync ? "SYNC" : "FREE",
                 e->loop_cycle.sync ? UI_GOLD : UI_DIM, 2);
         for (i = 0u; i < 3u; ++i) {
@@ -3133,10 +3135,10 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         }
         o->text(o->ctx, 8, 153, 48, 0, dot_mode_name(c->mode), colour, 0);
         value_u(a, "LEN", c->length);
-        o->text(o->ctx, 57, 153, 48, 0, a, UI_MID, 0);
+        o->text(o->ctx, 64, 153, 48, 0, a, UI_MID, 0);
         value_u(a, "DEP", c->amount / 10u);
-        o->text(o->ctx, 106, 153, 56, 0, a, colour, 0);
-        o->text(o->ctx, 164, 153, 68, 0, c->follow ? "FOLLOW" : (c->reset ? "RESET" : "FREE"),
+        o->text(o->ctx, 120, 153, 56, 0, a, colour, 0);
+        o->text(o->ctx, 184, 153, 48, 0, c->follow ? "FOLLOW" : (c->reset ? "RESET" : "FREE"),
                 c->follow ? UI_BLUE : UI_DIM, 2);
         break;
     }
@@ -3298,38 +3300,7 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         break;
     }
 #endif
-    case MELLO_UI_GLOBAL:
-        o->text(o->ctx, 8, 33, 70, 0, ui->global_subpage ? "MIDI" : "CLOCK", UI_GOLD, 0);
-        o->text(o->ctx, 82, 33, 150, 0, sync_name(ui->transport->sync_mode), UI_BLUE, 2);
-        if (!ui->global_subpage) {
-            uint16_t bpm = mello_transport_effective_bpm(ui->transport);
-            value_u(a, "BPM", bpm);
-            o->text(o->ctx, 8, 58, 72, 1, a, UI_ACC, 0);
-            ui_hbar(o, 84, 69, 148, bpm > 250u ? 250u : bpm, 250u, UI_ACC);
-            value_u(a, "DIV", e->project.clock_div);
-            o->text(o->ctx, 8, 104, 60, 0, a, UI_BLUE, 0);
-            o->text(o->ctx, 72, 104, 88, 0,
-                    ui->transport->midi_note_out_enabled ? "NOTEOUT ON" : "NOTEOUT OFF",
-                    ui->transport->midi_note_out_enabled ? UI_GOLD : UI_DIM, 1);
-            o->text(o->ctx, 162, 104, 70, 0, ui->transport->running ? "RUN" : "STOP",
-                    ui->transport->running ? UI_ACC : UI_DIM, 2);
-        } else {
-            value_u(a, "LEAD", (uint32_t)ui->transport->midi_channel + 1u);
-            value_u(b, "SUB", (uint32_t)ui->transport->midi_sub_channel + 1u);
-            o->text(o->ctx, 8, 58, 104, 1, a, UI_ACC, 0);
-            o->text(o->ctx, 120, 58, 112, 1, b, UI_GOLD, 2);
-            o->text(o->ctx, 8, 108, 96, 0, ui->transport->midi_fixed_length ? "FIXED LEN" : "GATE LEN",
-                    ui->transport->midi_fixed_length ? UI_BLUE : UI_DIM, 0);
-            value_u(a, "MS", ui->transport->midi_fixed_len_ms);
-            o->text(o->ctx, 108, 108, 124, 0, a, UI_MID, 2);
-            ui_hbar(o, 8, 137, 224,
-                    ui->transport->midi_fixed_len_ms > 2000u ? 2000u : ui->transport->midi_fixed_len_ms,
-                    2000u, UI_BLUE);
-        }
-        o->text(o->ctx, 8, 154, 224, 0,
-                ui->reset_armed ? "RESET ALL? RST2 AGAIN" : "TAP: TEMPO   RST2: RESET ALL",
-                ui->reset_armed ? UI_RED : UI_DIM, 0);
-        break;
+    case MELLO_UI_GLOBAL: draw_param_panel(ui, o); break;
     case MELLO_UI_SOUND_RESERVED: draw_param_panel(ui, o); break;
     case MELLO_UI_AUDIO_FX: draw_param_panel(ui, o); break;
     case MELLO_UI_SAMPLE_RESERVED: {
@@ -3571,6 +3542,8 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 17: v = f->reverb_level, m = 3000u; break;
         default: return false;
         }
+    } else if (ui->page == MELLO_UI_GLOBAL && ui->global_subpage == 0u && k == 0u) {
+        v = e->project.bpm > 20u ? e->project.bpm - 20u : 0u, m = 230u; /* 20..250 BPM */
     } else
         return false;
     *val = (uint16_t)(v > m ? m : v);
