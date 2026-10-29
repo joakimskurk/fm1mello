@@ -1,12 +1,20 @@
 #include "mello_storage.h"
 
-enum { SEC_META = 1, SEC_WORKING = 2, SEC_SLOTS = 3, SEC_SLOT_SEQ = 4, SEC_FX = 5 };
+enum { SEC_META = 1, SEC_WORKING = 2, SEC_SLOTS = 3, SEC_SLOT_SEQ = 4, SEC_FX = 5, SEC_CHORD = 6 };
 
-enum { SECVER_META = 1, SECVER_WORKING = 1, SECVER_SLOTS = 1, SECVER_SLOT_SEQ = 1, SECVER_FX = 1 };
+enum {
+    SECVER_META = 1,
+    SECVER_WORKING = 1,
+    SECVER_SLOTS = 1,
+    SECVER_SLOT_SEQ = 1,
+    SECVER_FX = 1,
+    SECVER_CHORD = 1
+};
 
 #define SAMPLE_WIRE_SIZE   83u
 #define SNAPSHOT_WIRE_SIZE 528u
 #define FX_WIRE_SIZE       34u
+#define CHORD_WIRE_SIZE    (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
 #define SLOT_SEQ_WIRE_SIZE (2u + MELLO_MAX_SLOT_SEQ_STEPS * 3u)
 #define SLOT_WIRE_SIZE     (1u + (MELLO_SLOT_NAME_CHARS + 1u) + SNAPSHOT_WIRE_SIZE)
 
@@ -462,6 +470,70 @@ static bool decode_fx(Reader *r, MelloFxConfig *c)
            rd_u16(r, &c->reverb_tone) && rd_u16(r, &c->reverb_level);
 }
 
+#if MELLO_FEATURE_CHORD_MACHINE
+/* The working Chord Machine config. A reader without this section (an older or chord-off build) skips it. */
+static void encode_chord(Writer *w, const MelloChordConfig *c)
+{
+    uint8_t i;
+    wr_u8(w, c->on ? 1u : 0u);
+    wr_u8(w, (uint8_t)c->trigger);
+    wr_u8(w, (uint8_t)c->mode);
+    wr_u8(w, c->length);
+    wr_u8(w, c->voices);
+    wr_u16(w, c->level);
+    wr_u8(w, (uint8_t)c->wave);
+    wr_u16(w, c->gate_amount);
+    wr_u16(w, c->attack_ms);
+    wr_u16(w, c->release_ms);
+    for (i = 0u; i < MELLO_CHORD_MAX_STEPS; ++i) {
+        wr_u8(w, c->steps[i].degree);
+        wr_u8(w, (uint8_t)c->steps[i].shape);
+        wr_u8(w, c->steps[i].inversion);
+        wr_i8(w, c->steps[i].octave);
+        wr_u8(w, c->steps[i].spread);
+        wr_u8(w, c->steps[i].hold);
+    }
+    wr_u16(w, c->grid_cells);
+    wr_u8(w, (uint8_t)c->grid_mode);
+    wr_u8(w, c->grid_length);
+    wr_u8(w, c->grid_reset ? 1u : 0u);
+    wr_u8(w, c->grid_follow ? 1u : 0u);
+    wr_u16(w, c->grid_amount);
+    wr_u8(w, c->pattern_length);
+    for (i = 0u; i < MELLO_CHORD_PATTERN_STEPS; ++i) wr_u8(w, c->pattern_masks[i]);
+}
+/* Out-of-range values are left to mello_engine_chord_set_config's sanitizer. */
+static bool decode_chord(Reader *r, MelloChordConfig *c)
+{
+    uint8_t i, on, trigger, mode, wave, shape, grid_mode, reset, follow;
+    if (!rd_u8(r, &on) || !rd_u8(r, &trigger) || !rd_u8(r, &mode) || !rd_u8(r, &c->length) ||
+        !rd_u8(r, &c->voices) || !rd_u16(r, &c->level) || !rd_u8(r, &wave) || !rd_u16(r, &c->gate_amount) ||
+        !rd_u16(r, &c->attack_ms) || !rd_u16(r, &c->release_ms))
+        return false;
+    c->on = on != 0u;
+    c->trigger = (MelloChordTrigger)trigger;
+    c->mode = (MelloChordMode)mode;
+    c->wave = (MelloWaveform)wave;
+    for (i = 0u; i < MELLO_CHORD_MAX_STEPS; ++i) {
+        MelloChordStep *st = &c->steps[i];
+        if (!rd_u8(r, &st->degree) || !rd_u8(r, &shape) || !rd_u8(r, &st->inversion) ||
+            !rd_i8(r, &st->octave) || !rd_u8(r, &st->spread) || !rd_u8(r, &st->hold))
+            return false;
+        st->shape = (MelloChordShape)shape;
+    }
+    if (!rd_u16(r, &c->grid_cells) || !rd_u8(r, &grid_mode) || !rd_u8(r, &c->grid_length) ||
+        !rd_u8(r, &reset) || !rd_u8(r, &follow) || !rd_u16(r, &c->grid_amount) ||
+        !rd_u8(r, &c->pattern_length))
+        return false;
+    c->grid_mode = (MelloDotMode)grid_mode;
+    c->grid_reset = reset != 0u;
+    c->grid_follow = follow != 0u;
+    for (i = 0u; i < MELLO_CHORD_PATTERN_STEPS; ++i)
+        if (!rd_u8(r, &c->pattern_masks[i])) return false;
+    return true;
+}
+#endif
+
 static void encode_snapshot(Writer *w, const MelloPatternSlot *s)
 {
     uint8_t i;
@@ -511,6 +583,10 @@ static bool encode_payload(Writer *w, const MelloEngine *e)
     encode_snapshot(w, &current);
     section_header(w, SEC_FX, SECVER_FX, FX_WIRE_SIZE);
     encode_fx(w, &e->fx);
+#if MELLO_FEATURE_CHORD_MACHINE
+    section_header(w, SEC_CHORD, SECVER_CHORD, CHORD_WIRE_SIZE);
+    encode_chord(w, &e->chord);
+#endif
     for (i = 0u; i < MELLO_MAX_SLOTS; ++i)
         if (e->slots[i].valid) valid_count++;
     section_header(w, SEC_SLOTS, SECVER_SLOTS, 1u + (uint32_t)valid_count * SLOT_WIRE_SIZE);
@@ -592,6 +668,13 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             memset(&fx, 0, sizeof(fx));
             if (len != FX_WIRE_SIZE || !decode_fx(&r, &fx)) return false;
             if (apply && e) mello_engine_fx_set_config(e, &fx);
+#if MELLO_FEATURE_CHORD_MACHINE
+        } else if (id == SEC_CHORD && ver == SECVER_CHORD) {
+            MelloChordConfig chord;
+            mello_chord_defaults(&chord);
+            if (len != CHORD_WIRE_SIZE || !decode_chord(&r, &chord)) return false;
+            if (apply && e) mello_engine_chord_set_config(e, &chord);
+#endif
         } else if (id == SEC_SLOTS && ver == SECVER_SLOTS) {
             uint8_t count, i;
             if (len < 1u || !rd_u8(&r, &count) || len != 1u + (uint32_t)count * SLOT_WIRE_SIZE) return false;
