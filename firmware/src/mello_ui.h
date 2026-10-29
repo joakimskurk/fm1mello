@@ -139,6 +139,7 @@ typedef struct {
     uint8_t audition_key; /* the key playing the lead, 0xFF none */
     uint8_t audition_note;
     bool audition_release;
+    int8_t keys_octave; /* KEYS: OCT-/OCT+ move the keyboard, -2..+2 */
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
 
     uint8_t selected_step;

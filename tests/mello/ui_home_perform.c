@@ -254,7 +254,25 @@ int main(void)
         mello_ui_set_held_notes(&u, 0u);
         if (mello_resolve_step_midi(&t.engine.project, &t.engine.project.steps[0]) != 63u || u.keys_rec_pos != 1u)
             return fail("step-record did not write D#4 to step 1");
-        mello_ui_input(&u, 0u, 30400u, rec, 0u, rec, 0u, e);
+        {
+            uint32_t up = 1u << MELLO_UI_BTN_OCT_UP, down = 1u << MELLO_UI_BTN_OCT_DOWN;
+            mello_ui_input(&u, 0u, 30310u, down, 0u, down, 0u, e); /* OCT-: C4's key is C3 */
+            mello_ui_set_held_notes(&u, key);
+            mello_ui_input(&u, 0u, 30320u, 0u, 0u, 0u, key, e);
+            mello_ui_set_held_notes(&u, 0u);
+            if (mello_resolve_step_midi(&t.engine.project, &t.engine.project.steps[1]) != 48u)
+                return fail("step-record did not write C3 an octave down");
+            mello_ui_input(&u, 0u, 30330u, rec, 0u, rec, 0u, e); /* REC off: play */
+            mello_ui_input(&u, 0u, 30340u, up, 0u, up, 0u, e);
+            mello_ui_input(&u, 0u, 30350u, up, 0u, up, 0u, e); /* OCT+ twice: C5 */
+            sunk_n = 0u;
+            mello_ui_set_held_notes(&u, key);
+            mello_ui_input(&u, 0u, 30360u, 0u, 0u, 0u, key, e);
+            mello_ui_set_held_notes(&u, 0u);
+            mello_ui_input(&u, 0u, 30370u, 0u, 0u, 0u, 0u, e);
+            if (sunk_n < 1u || sunk[0].note != 72u) return fail("OCT+ did not move the keyboard to C5");
+            mello_ui_input(&u, 0u, 30380u, down, 0u, down, 0u, e);
+        }
         t.running = true;
         mello_ui_set_held_notes(&u, 1u << 2); /* G3 = 55 */
         mello_ui_input(&u, 0u, 30500u, 0u, 0u, 0u, 1u << 2, e);
@@ -266,6 +284,6 @@ int main(void)
     }
 
     puts("PASS: HOME macros, hold-a-step edit, tap selects, hold + black keys = step flags, keys past the length inert, step LEDs, "
-         "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN, SAVE short/held, acceleration, direction switches, KEYS play/step-record/root");
+         "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN, SAVE short/held, acceleration, direction switches, KEYS play/step-record/root/octaves");
     return 0;
 }
