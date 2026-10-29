@@ -236,6 +236,7 @@ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage
     ui->seen_slot_seq_pos = 0xFFu;
     ui->seen_tm_pos = -2;
     ui->seen_dot_cell = -2;
+    ui->dot_trail[0] = ui->dot_trail[1] = -1;
     ui->held_step = MELLO_UI_NO_STEP;
     ui->audition_key = 0xFFu;
     ui->seen_sub_x_pos = -2;
@@ -2060,6 +2061,8 @@ void mello_ui_tick(MelloUi *ui)
     if (save_state(ui) != ui->seen_save_state) ui->dirty |= MELLO_UI_DIRTY_STATUS;
     /* The DOT page is otherwise static, but its read position moves with the transport: redraw on that alone. */
     if (ui->page == MELLO_UI_DOT && ui->seen_dot_cell != e->dot_active_cell[ui->selected_dot_target]) {
+        ui->dot_trail[1] = ui->dot_trail[0]; /* where it was: drawn fading */
+        ui->dot_trail[0] = ui->seen_dot_cell;
         ui->seen_dot_cell = e->dot_active_cell[ui->selected_dot_target];
         ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
     }
@@ -3165,36 +3168,54 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         break;
     }
     case MELLO_UI_DOT: {
+        /* The HTML's dot matrix, and a step past it: the four matrices as pills; a 4 x 4 of rounded cells with a
+         * dot in each, the cells that are on glowing in the matrix's colour, the cells past its length dark; the
+         * read position framed bright with a fading trail of where it was, so its direction shows; the run mode
+         * as pills under it. */
         MelloDotMatrixConfig *c = &e->dot[ui->selected_dot_target];
-        static const char *tn[4] = {"ACC", "FLT", "RAT", "SUB"};
+        static const char *tn[4] = {"ACCENT", "FILTER", "RATCH", "SUB"};
+        static const char *mn[4] = {"HOR", "VER", "SNK", "RND"};
         static const uint16_t tc[4] = {UI_CORAL, UI_CYAN, UI_MAGENTA, UI_GOLD};
-        uint8_t i, r, col;
+        uint8_t i, r, col, len = c->length < 1u ? 1u : c->length;
         uint16_t colour = tc[ui->selected_dot_target];
-        /* Target tabs keep the four original matrix identities visible at once. */
+        int8_t at = e->dot_active_cell[ui->selected_dot_target];
         for (i = 0u; i < 4u; ++i) {
-            int16_t tx = (int16_t)(8 + i * 57u);
-            ui_frame(o, tx, 33, 52, 17, i == ui->selected_dot_target ? tc[i] : UI_PANEL2);
-            o->text(o->ctx, tx + 2, 38, 48, 0, tn[i], i == ui->selected_dot_target ? tc[i] : UI_DIM, 1);
+            int16_t tx = (int16_t)(4 + i * 58u);
+            bool sel = i == ui->selected_dot_target;
+            if (sel) ui_round_fill(o, tx, 32, 56, 17, ui_mix(tc[i], UI_BLACK, 170));
+            ui_round_frame(o, tx, 32, 56, 17, sel ? tc[i] : UI_LINE);
+            o->text(o->ctx, (int16_t)(tx + 2), 33, 52, 0, tn[i], sel ? UI_BRIGHT : ui_mix(tc[i], UI_BLACK, 110), 1);
         }
-        /* Large 4x4 matrix: fill = enabled, bright inset frame = current read position. */
-        for (r = 0u; r < 4u; ++r) {
+        for (r = 0u; r < 4u; ++r)
             for (col = 0u; col < 4u; ++col) {
                 uint8_t idx = (uint8_t)(r * 4u + col);
-                int16_t x = (int16_t)(20 + col * 51u);
-                int16_t y = (int16_t)(57 + r * 23u);
-                uint8_t on = (c->cells & (uint16_t)(1u << idx)) ? 1u : 0u;
-                o->fill(o->ctx, x, y, 45, 18, on ? colour : UI_PANEL);
-                ui_frame(o, x, y, 45, 18, on ? colour : UI_PANEL2);
-                if (e->dot_active_cell[ui->selected_dot_target] == (int8_t)idx)
-                    ui_frame(o, x + 2, y + 2, 41, 14, UI_WHITE);
+                int16_t x = (int16_t)(8 + col * 57u), y = (int16_t)(53 + r * 23u);
+                bool on = (c->cells & (uint16_t)(1u << idx)) != 0u, inside = idx < len;
+                bool here = at == (int8_t)idx, trail1 = ui->dot_trail[0] == (int8_t)idx,
+                     trail2 = ui->dot_trail[1] == (int8_t)idx;
+                uint16_t fillc = !inside ? UI_BLACK : on ? ui_mix(colour, UI_PANEL, here ? 40 : 150) : UI_PANEL;
+                uint16_t edge = here     ? colour
+                                : trail1 ? ui_mix(colour, UI_PANEL, 110)
+                                : trail2 ? ui_mix(colour, UI_PANEL, 170)
+                                : on     ? ui_mix(colour, UI_PANEL, 90)
+                                         : (inside ? UI_LINE : UI_TRACK);
+                ui_round_fill(o, x, y, 52, 20, fillc);
+                ui_round_frame(o, x, y, 52, 20, edge);
+                if (here) ui_round_frame(o, (int16_t)(x + 1), (int16_t)(y + 1), 50, 18, colour); /* a thicker frame */
+                if (inside) /* the HTML's dot in each cell: bright where on or read */
+                    o->fill(o->ctx, (int16_t)(x + 24), (int16_t)(y + 8), here ? 4 : 2, here ? 4 : 2,
+                            here ? UI_BRIGHT : (on ? UI_BRIGHT : UI_LINE));
             }
+        for (i = 0u; i < 4u; ++i) {
+            int16_t mx = (int16_t)(4 + i * 34u);
+            bool sel = (uint8_t)c->mode == i;
+            if (sel) ui_round_fill(o, mx, 147, 32, 17, ui_mix(colour, UI_BLACK, 170));
+            ui_round_frame(o, mx, 147, 32, 17, sel ? colour : UI_LINE);
+            o->text(o->ctx, (int16_t)(mx + 4), 148, 24, 0, mn[i], sel ? UI_BRIGHT : UI_DIM, 1);
         }
-        o->text(o->ctx, 8, 153, 48, 0, dot_mode_name(c->mode), colour, 0);
-        value_u(a, "LEN", c->length);
-        o->text(o->ctx, 64, 153, 48, 0, a, UI_MID, 0);
-        value_u(a, "DEP", c->amount / 10u);
-        o->text(o->ctx, 120, 153, 56, 0, a, colour, 0);
-        o->text(o->ctx, 184, 153, 48, 0, c->follow ? "FOLLOW" : (c->reset ? "RESET" : "FREE"),
+        (void)copy_s(put_u32(a, c->amount / 10u), "%");
+        o->text(o->ctx, 144, 148, 40, 0, a, colour, 2);
+        o->text(o->ctx, 188, 148, 46, 0, c->follow ? "FOLLOW" : (c->reset ? "RESET" : "FREE"),
                 c->follow ? UI_BLUE : UI_DIM, 2);
         break;
     }
@@ -4156,6 +4177,84 @@ static uint16_t knob_colour(MelloUi *ui, uint8_t k)
     return ui_page_accent(ui);
 }
 
+static const uint16_t EXP_NEG_Q15[65] = { /* 32767 * e^(-i / 8): the envelope curve's exponential parts */
+    32767, 28917, 25519, 22520, 19874, 17539, 15478, 13659, 12054, 10638, 9388, 8285, 7311,
+    6452, 5694, 5025, 4435, 3913, 3454, 3048, 2690, 2374, 2095, 1849, 1631, 1440,
+    1271, 1121, 989, 873, 771, 680, 600, 530, 467, 412, 364, 321, 283,
+    250, 221, 195, 172, 152, 134, 118, 104, 92, 81, 72, 63, 56,
+    49, 43, 38, 34, 30, 26, 23, 21, 18, 16, 14, 12, 11,
+};
+
+/* e^(-t / tau) in Q15 for t / tau in 1/8 steps (0 past 8). */
+static int32_t exp_neg_q15(int32_t eighths)
+{
+    return eighths >= 64 ? 0 : EXP_NEG_Q15[eighths < 0 ? 0 : eighths];
+}
+
+/* The amp envelope's curve over the panel's top: attack (linear), decay and release (Tone's exponential approach,
+ * tau = D / ln 200 roughly, as mello_audio's TONE_ENV) and a held sustain, each in its letter's colour. The times
+ * share 3/4 of the width by their length, the sustain hold the rest. */
+static void draw_env_curve(const MelloUiDrawOps *o, const MelloSoundConfig *c, int16_t x0, int16_t y0, int16_t w,
+                           int16_t h)
+{
+    static const uint16_t col[4] = {UI_GOLD, UI_CORAL, UI_CYAN, UI_PURPLE};
+    uint32_t a = c->attack_ms, d = c->decay_ms, r = c->release_ms, sum = a + d + r, s = c->sustain_permille;
+    int16_t wa, wd, ws, wr, x;
+    if (sum == 0u) sum = 1u;
+    wa = (int16_t)((uint32_t)(w * 3 / 4) * a / sum);
+    wd = (int16_t)((uint32_t)(w * 3 / 4) * d / sum);
+    wr = (int16_t)((uint32_t)(w * 3 / 4) * r / sum);
+    if (wa < 2) wa = 2;
+    if (wd < 3) wd = 3;
+    if (wr < 3) wr = 3;
+    ws = (int16_t)(w - wa - wd - wr);
+    o->fill(o->ctx, x0, (int16_t)(y0 + h - 1), w, 1, UI_LINE); /* the floor */
+    for (x = 0; x < w; ++x) {
+        int32_t lv; /* 0..1000 */
+        uint8_t seg;
+        int16_t y;
+        if (x < wa) {
+            seg = 0u, lv = (int32_t)(1000 * (x + 1) / wa);
+        } else if (x < wa + wd) {
+            int32_t t8 = (int32_t)((x - wa) * 8 * 5 / wd); /* five time constants over the decay (ln 200 ~ 5.3) */
+            seg = 1u, lv = (int32_t)s + ((1000 - (int32_t)s) * exp_neg_q15(t8)) / 32767;
+        } else if (x < wa + wd + ws) {
+            seg = 2u, lv = (int32_t)s;
+        } else {
+            int32_t t8 = (int32_t)((x - wa - wd - ws) * 8 * 5 / wr);
+            seg = 3u, lv = ((int32_t)s * exp_neg_q15(t8)) / 32767;
+        }
+        y = (int16_t)(y0 + h - 2 - (lv * (h - 3)) / 1000);
+        if (y0 + h - 1 - y - 2 > 0)
+            o->fill(o->ctx, (int16_t)(x0 + x), (int16_t)(y + 2), 1, (int16_t)(y0 + h - 1 - y - 2),
+                    ui_mix(col[seg], UI_PANEL, 200)); /* the area, faint */
+        o->fill(o->ctx, (int16_t)(x0 + x), y, 1, 2, col[seg]);    /* the line */
+    }
+}
+
+/* AMP ENVELOPE as the HTML's: the curve, then A D S R rows of letter, slider and value. */
+static void draw_env_panel(MelloUi *ui, const MelloUiDrawOps *o)
+{
+    static const char *letter[4] = {"A", "D", "S", "R"};
+    MelloEngine *e = eng(ui);
+    char v[4][24];
+    const char *l[4];
+    uint8_t k;
+    if (!e) return;
+    footer_texts(ui, l, v);
+    ui_round_fill(o, 4, 31, 232, 138, UI_PANEL);
+    ui_round_frame(o, 4, 31, 232, 138, ui_mix(UI_GOLD, UI_BLACK, 150));
+    ui_spaced(o, 10, 34, 120, "ENVELOPE", UI_GOLD, 0);
+    draw_env_curve(o, &e->sound, 12, 52, 216, 44);
+    for (k = 0u; k < 4u; ++k) {
+        int16_t y = (int16_t)(100 + k * 17);
+        uint16_t c = knob_colour(ui, k), nv, nm;
+        o->text(o->ctx, 10, y, 10, 0, letter[k], c, 0);
+        if (knob_norm(ui, k, &nv, &nm)) ui_slider(o, 24, (int16_t)(y + 5), 146, nv, nm, c);
+        o->text(o->ctx, 174, y, 56, 0, v[k], c, 2);
+    }
+}
+
 /* A layer as the HTML's synth panel: its title spaced in the domain's colour, then K1-K4 as rows, each a label and
  * its value, with the HTML's slider under a continuous value and a pill around a list's or a switch's. The texts are
  * the footer's (footer_texts), the colours knob_colour's (the envelope's A D S R as the HTML's letters). */
@@ -4165,6 +4264,10 @@ static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o)
     const char *l[4], *title = layer_name(ui);
     uint16_t accent = ui_page_accent(ui);
     uint8_t k;
+    if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage == 1u) {
+        draw_env_panel(ui, o);
+        return;
+    }
     footer_texts(ui, l, v);
     ui_round_fill(o, 4, 31, 232, 138, UI_PANEL);
     ui_round_frame(o, 4, 31, 232, 138, ui_mix(accent, UI_BLACK, 150));

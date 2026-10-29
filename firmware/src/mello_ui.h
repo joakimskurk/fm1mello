@@ -180,6 +180,7 @@ typedef struct {
     uint8_t seen_slot_seq_pos;
     int8_t seen_tm_pos;
     int8_t seen_dot_cell; /* the shown DOT matrix's read position, for its playhead */
+    int8_t dot_trail[2];  /* its last two positions, drawn fading */
     int8_t seen_sub_x_pos;
 #if MELLO_FEATURE_CHORD_MACHINE
     uint8_t seen_chord_pos;
