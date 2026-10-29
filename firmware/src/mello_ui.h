@@ -121,6 +121,10 @@ typedef struct {
     uint8_t held_step;    /* MELLO_UI_NO_STEP when none */
     uint8_t held_key;     /* its note key */
     bool held_step_edited;
+    /* SAVE: a short press saves the project, holding it opens SLOTS (on SLOTS a press saves the slot). */
+    uint32_t save_down_ms;
+    bool save_down;
+    uint8_t seen_save_state; /* draw_status's save word, to redraw it when it changes */
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
 
     uint8_t selected_step;

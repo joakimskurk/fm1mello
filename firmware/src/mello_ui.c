@@ -1356,6 +1356,7 @@ static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
 }
 
 static const char *layer_name(const MelloUi *ui);
+static uint8_t save_state(const MelloUi *ui);
 static void show_readout(MelloUi *ui, uint8_t what, uint32_t now_ms)
 {
     ui->readout = what;
@@ -1748,8 +1749,10 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
     if (pressed & bit_u32(MELLO_UI_BTN_SAVE)) {
         if (ui->page == MELLO_UI_SLOTS)
             save_selected_slot(ui, now_ms);
-        else
-            mello_ui_set_page(ui, MELLO_UI_SLOTS);
+        else {
+            ui->save_down = true; /* short = save now, held = SLOTS: decided in save_button_poll */
+            ui->save_down_ms = now_ms;
+        }
     }
     /* REC is reserved for actual record/capture. No capture path exists yet. */
     if (pressed & bit_u32(MELLO_UI_BTN_OCT_DOWN)) {
@@ -1806,13 +1809,21 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
                     const int16_t encoder_delta[MELLO_UI_ENCODER_COUNT])
 {
     uint8_t i;
-    (void)released_buttons;
     if (!ui || !ui->transport) return;
     if (ui->readout && (int32_t)(now_ms - ui->readout_until_ms) >= 0) { /* its time is up: the body again */
         ui->readout = 0u;
         ui->dirty |= MELLO_UI_DIRTY_BODY;
     }
     handle_buttons(ui, now_us, now_ms, pressed_buttons, held_buttons);
+    if (ui->save_down) {
+        if (!(held_buttons & bit_u32(MELLO_UI_BTN_SAVE)) || (released_buttons & bit_u32(MELLO_UI_BTN_SAVE))) {
+            ui->save_down = false; /* let go early: save the project now */
+            manual_save(ui, now_ms);
+        } else if ((int32_t)(now_ms - ui->save_down_ms) >= 700) {
+            ui->save_down = false; /* held: the pattern slots */
+            mello_ui_set_page(ui, MELLO_UI_SLOTS);
+        }
+    }
     for (i = 0u; i < 27u; ++i)
         if (note_pressed & bit_u32(i)) handle_note_press(ui, now_ms, held_buttons, i);
     if (encoder_delta) adjust_knobs(ui, encoder_delta, now_us, now_ms);
@@ -1852,6 +1863,7 @@ void mello_ui_tick(MelloUi *ui)
     default: break;
     }
 
+    if (save_state(ui) != ui->seen_save_state) ui->dirty |= MELLO_UI_DIRTY_STATUS;
     /* The DOT page is otherwise static, but its read position moves with the transport: redraw on that alone. */
     if (ui->page == MELLO_UI_DOT && ui->seen_dot_cell != e->dot_active_cell[ui->selected_dot_target]) {
         ui->seen_dot_cell = e->dot_active_cell[ui->selected_dot_target];
@@ -2842,7 +2854,7 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         o->text(o->ctx, 84, 95, 148, 0, "KEYS TOGGLE TARGET", UI_DIM, 2);
         ui_frame(o, 8, 112, 224, 18, UI_CORAL);
         o->fill(o->ctx, 11, 113, 218, 16, UI_PANEL);
-        o->text(o->ctx, 12, 113, 216, 0, "REC REROLL   EDIT+REC CLEAR", UI_CORAL, 0);
+        o->text(o->ctx, 12, 113, 216, 0, "RND: REROLL   UNDO: BACK", UI_CORAL, 0);
         draw_random_skyline(ui, o);
         break;
     }
@@ -2864,7 +2876,6 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         }
         value_u(a, "SPAN", e->project.pitch_span_oct);
         o->text(o->ctx, 8, 132, 58, 0, a, UI_BLUE, 0);
-        o->text(o->ctx, 70, 132, 162, 0, "SEL+NOTE FAST PITCH", UI_DIM, 2);
         break;
     }
     case MELLO_UI_SLOTS: {
@@ -3119,7 +3130,7 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                     2000u, UI_BLUE);
         }
         o->text(o->ctx, 8, 154, 224, 0,
-                ui->reset_armed ? "RESET? OCT-+OCT+ AGAIN" : "REC TAP   OCT-+OCT+ RESET",
+                ui->reset_armed ? "RESET ALL? RST2 AGAIN" : "TAP: TEMPO   RST2: RESET ALL",
                 ui->reset_armed ? UI_RED : UI_DIM, 0);
         break;
     case MELLO_UI_SOUND_RESERVED: {
@@ -3893,23 +3904,37 @@ static void draw_footer(MelloUi *ui, const MelloUiDrawOps *o)
     for (k = 0u; k < 4u; ++k) footer_pair(o, k, l[k], v[k], knob_colour(ui, k));
 }
 
+/* The save word on the status line: 0 none (no storage), 1 SAVED, 2 UNSAVED (written when stopped and silent),
+ * 3 SAVE OFF (the flash holds a newer firmware's project: nothing is written). */
+static uint8_t save_state(const MelloUi *ui)
+{
+    const MelloStorage *st = ui->storage;
+    if (!st || !st->io.read) return 0u;
+    if (st->last_save_result == MELLO_STORAGE_SAVE_PROTECTED) return 3u;
+    return st->dirty || st->manual_pending ? 2u : 1u;
+}
+
 static void draw_status(MelloUi *ui, const MelloUiDrawOps *o)
 {
     char b[48], *p;
     MelloEngine *e = eng(ui);
+    uint8_t sv = save_state(ui);
+    static const char *sw[4] = {"", "SAVED", "UNSAVED", "SAVE OFF"};
+    static const uint16_t sc[4] = {UI_DIM, UI_ACC, UI_CORAL, UI_RED};
     o->fill(o->ctx, 0, 220, 240, 20, UI_PANEL2);
-    p = copy_s(b, "S");
+    p = copy_s(b, "STEP ");
     p = put_u32(p, ui->transport->display_step == 0xFFu ? 0u : (uint32_t)ui->transport->display_step + 1u);
-    p = copy_s(p, " P");
-    p = put_u32(p, (uint32_t)ui->transport->display_pulse + 1u);
-    p = copy_s(p, " G");
-    p = put_u32(p,
-                ui->transport->display_segment == 0xFFu ? 0u : (uint32_t)ui->transport->display_segment + 1u);
+    if (e) {
+        p = copy_s(p, "/");
+        p = put_u32(p, e->project.seq_len);
+    }
     if (e && e->active_slot >= 0) {
-        p = copy_s(p, " SLOT ");
+        p = copy_s(p, "  SLOT ");
         put_u32(p, (uint32_t)e->active_slot + 1u);
     }
-    o->text(o->ctx, 4, 222, 232, 0, b, UI_MID, 0);
+    o->text(o->ctx, 4, 222, 140, 0, b, UI_MID, 0);
+    o->text(o->ctx, 148, 222, 88, 0, sw[sv], sc[sv], 2);
+    ui->seen_save_state = sv;
 }
 
 typedef struct {

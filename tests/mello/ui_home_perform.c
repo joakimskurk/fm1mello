@@ -166,7 +166,26 @@ int main(void)
         if (u.selected_slot != 4u || u.readout != MELLO_UI_READOUT_PATTERN) return fail("PRESETS did not find slot 5");
     }
 
+    /* SAVE: short = save the project, held 0.7 s = SLOTS. */
+    {
+        int16_t e[MELLO_UI_ENCODER_COUNT] = {0};
+        uint32_t save = 1u << MELLO_UI_BTN_SAVE;
+        mello_ui_set_page(&u, MELLO_UI_HOME);
+        st.manual_pending = false;
+        mello_ui_input(&u, 0u, 5000u, save, 0u, save, 0u, e);
+        mello_ui_input(&u, 0u, 5200u, 0u, save, 0u, 0u, e);
+        if (!st.manual_pending || u.page != MELLO_UI_HOME) return fail("a short SAVE did not save");
+        st.manual_pending = false;
+        mello_ui_input(&u, 0u, 6000u, save, 0u, save, 0u, e);
+        mello_ui_input(&u, 0u, 6400u, 0u, 0u, save, 0u, e);
+        if (u.page != MELLO_UI_HOME) return fail("SAVE opened SLOTS too soon");
+        mello_ui_input(&u, 0u, 6750u, 0u, 0u, save, 0u, e);
+        if (u.page != MELLO_UI_SLOTS || st.manual_pending) return fail("a held SAVE did not open SLOTS");
+        mello_ui_input(&u, 0u, 6900u, 0u, save, 0u, 0u, e);
+        if (st.manual_pending) return fail("letting go after the hold saved");
+    }
+
     puts("PASS: HOME macros, hold-a-step edit, tap toggles on release, keys past the length inert, step LEDs, "
-         "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN");
+         "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN, SAVE short/held");
     return 0;
 }
