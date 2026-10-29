@@ -247,6 +247,17 @@ static int16_t osc_sample(MelloWaveform wave, uint32_t phase, uint32_t inc, uint
     default: return 0;
     }
 }
+/* A Tone oscillator as the HTML plays it: Web Audio normalizes a PeriodicWave to peak 1, and Tone's saw and square
+ * (2047 partials) overshoot to 1.179 at the jump (Gibbs), so Chrome plays them at 0.848 (-1.43 dB). Triangle and sine
+ * peak at 1; Tone's pulse is a thresholded triangle, not a PeriodicWave. The chord layer is not in the HTML and keeps
+ * osc_sample's levels. */
+static int32_t tone_osc_sample(MelloWaveform wave, uint32_t phase, uint32_t inc, uint16_t pwm)
+{
+    int32_t y = osc_sample(wave, phase, inc, pwm);
+    if (wave == MELLO_WAVE_SAW) return (y * 27805) >> 15;
+    if (wave == MELLO_WAVE_SQUARE) return (y * 27794) >> 15;
+    return y;
+}
 /* |a * b| must stay below 2^31: |a| <= 65535 with |b| <= 32767 is safe. */
 static int32_t q15mul(int32_t a, int32_t b)
 {
@@ -1566,13 +1577,13 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 pwm = (uint16_t)(pb + (lfo * sw) / 32767);
             }
             a->lead.phase += inc;
-            lead = osc_sample(a->config.osc_wave, a->lead.phase, inc, pwm);
+            lead = tone_osc_sample(a->config.osc_wave, a->lead.phase, inc, pwm);
             if (fsub_level) {
                 a->lead.sub_phase += a->lead.sub_inc;
                 /* HTML: subOsc is triggered at vel * level and then passes Gain(level): level squared. */
                 int32_t lv = fsub_level;
                 lead +=
-                    q15mul(osc_sample(a->config.follower_sub_wave, a->lead.sub_phase, a->lead.sub_inc, 500u),
+                    q15mul(tone_osc_sample(a->config.follower_sub_wave, a->lead.sub_phase, a->lead.sub_inc, 500u),
                            lv * lv / 1000 * 32767 / 1000);
             }
             lead = q15mul(lead, (a->lead.env_q24 >> 8));
@@ -1582,7 +1593,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             const ToneSubBiquadCoeff *bc = &SUB_FILTER_BIQUAD_Q28[a->sub_config.cut / 10u];
             int32_t filtered;
             a->sub.phase += a->sub.inc;
-            sub = osc_sample(a->sub_config.wave, a->sub.phase, a->sub.inc, 500u);
+            sub = tone_osc_sample(a->sub_config.wave, a->sub.phase, a->sub.inc, 500u);
             sub = q15mul(sub, a->sub.env_q24 >> 8);
             sub = q15mul(sub, (int32_t)a->sub.velocity * 258);
             /* HTML: Tone.Filter rolloff=-24 => two cascaded biquads, both Q=.8. */
@@ -1651,7 +1662,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         }
         {
             /* HTML: Tone.Distortion is always in the path (wet = distMix, 1 by default). At AMT 0 its curve is
-             * y = x/3 with a hard clip at +-1: the HTML's gain staging. 2x oversampling as for the sub. */
+             * y = x/3 with a hard clip at +-1: the HTML's gain staging. 2x oversampling as for the sub: it aliases
+             * about as much as the HTML's 4x (drive_high, -34.5 vs -33.8 dB). */
             int32_t x = clamp32(mix, -32767, 32767), wet, mid;
             mid = a->main_dist_prev + ((x - a->main_dist_prev) >> 1);
             wet = (tone_shape(a->main_dist_curve, mid) + tone_shape(a->main_dist_curve, x)) / 2;
