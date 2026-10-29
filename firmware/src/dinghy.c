@@ -247,7 +247,7 @@ static void app_main(void)
         for (i = 0u; i < MELLO_UI_ENCODER_COUNT; ++i) enc[i] = (int16_t)fm1_enc_take(i);
 
         mello_ui_input(&ui, now_us, fm1_ms, pressed, released, fm1_in.buttons, notes, enc);
-        mello_transport_poll(&mt, now_us);
+        mello_transport_poll_ahead(&mt, now_us, MELLO_TRANSPORT_LOOKAHEAD_US);
         if (last_running && !mt.running) mello_audio_all_notes_off(&audio);
         last_running = mt.running;
         sync_audio_config();

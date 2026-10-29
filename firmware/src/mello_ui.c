@@ -1531,7 +1531,8 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
         if (ui->transport->running)
             mello_transport_stop(ui->transport);
         else
-            mello_transport_start(ui->transport, now_us);
+            /* Start one lookahead out, so the first step reaches the audio before its block, like the rest. */
+            mello_transport_start(ui->transport, now_us + MELLO_TRANSPORT_LOOKAHEAD_US);
         ui->dirty |= MELLO_UI_DIRTY_HEADER | MELLO_UI_DIRTY_STATUS | MELLO_UI_DIRTY_LEDS;
     }
     if (pressed & bit_u32(MELLO_UI_BTN_HOME)) {

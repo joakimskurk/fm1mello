@@ -351,10 +351,14 @@ static void poll_master_clock(MelloTransport *t, uint32_t now_us)
 
 void mello_transport_poll(MelloTransport *t, uint32_t now_us)
 {
+    mello_transport_poll_ahead(t, now_us, 0u);
+}
+void mello_transport_poll_ahead(MelloTransport *t, uint32_t now_us, uint32_t ahead_us)
+{
     if (!t) return;
     dispatch_scheduled(t, now_us);
     poll_master_clock(t, now_us);
-    poll_internal_transport(t, now_us);
+    poll_internal_transport(t, now_us + ahead_us);
     dispatch_scheduled(t, now_us);
 }
 

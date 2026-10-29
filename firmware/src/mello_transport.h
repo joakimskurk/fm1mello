@@ -83,6 +83,11 @@ void mello_transport_set_bpm(MelloTransport *t, uint16_t bpm);
 void mello_transport_start(MelloTransport *t, uint32_t now_us);
 void mello_transport_stop(MelloTransport *t);
 void mello_transport_poll(MelloTransport *t, uint32_t now_us);
+/* As mello_transport_poll, but the internal clock's pulses are computed up to ahead_us early. Their events
+ * still carry their exact due times (audio and scheduled MIDI play them on time), so a pulse never lands in
+ * an audio block that was rendered before the main loop saw it. MIDI clock and scheduled MIDI go out at now. */
+void mello_transport_poll_ahead(MelloTransport *t, uint32_t now_us, uint32_t ahead_us);
+#define MELLO_TRANSPORT_LOOKAHEAD_US 15000u /* one 256-frame block (5.8 ms) + main-loop stalls */
 void mello_transport_midi_in(MelloTransport *t, uint8_t status, uint8_t d1, uint8_t d2, uint32_t now_us);
 
 uint16_t mello_transport_effective_bpm(const MelloTransport *t);
