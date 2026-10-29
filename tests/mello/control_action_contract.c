@@ -104,10 +104,16 @@ static void verify_sample_navigation(void)
     setup(&p, &t, &st, &u, MELLO_UI_HOME);
     buttons(&u, 100u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED) fail("ENV", "HOME did not open SOUND");
+    /* ENV again: SOUND's next layer (OSC -> ENV -> FOLLOWER); SAMPLE is GLOBAL's (GLO again). */
     buttons(&u, 200u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SAMPLE_RESERVED) fail("ENV", "SOUND did not cycle to SAMPLE");
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 1u) fail("ENV", "SOUND did not go to AMP ENV");
     buttons(&u, 300u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED) fail("ENV", "SAMPLE did not cycle to SOUND");
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 3u) fail("ENV", "SOUND did not skip the LFO");
+    buttons(&u, 400u, bit_u32(MELLO_UI_BTN_GLO), 0u);
+    buttons(&u, 500u, bit_u32(MELLO_UI_BTN_GLO), 0u);
+    if (u.page != MELLO_UI_SAMPLE_RESERVED) fail("GLO", "GLOBAL did not go on to SAMPLE");
+    buttons(&u, 600u, bit_u32(MELLO_UI_BTN_ENV), 0u);
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u) fail("ENV", "did not open SOUND on OSC");
 }
 
 static void verify_context_actions(void)

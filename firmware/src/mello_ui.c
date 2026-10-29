@@ -170,7 +170,7 @@ static uint8_t page_button(MelloUi *ui)
     case MELLO_UI_GLOBAL: return MELLO_UI_BTN_GLO;
     case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? MELLO_UI_BTN_LFO : MELLO_UI_BTN_ENV;
     case MELLO_UI_AUDIO_FX: return MELLO_UI_BTN_FX;
-    case MELLO_UI_SAMPLE_RESERVED: return MELLO_UI_BTN_ENV;
+    case MELLO_UI_SAMPLE_RESERVED: return MELLO_UI_BTN_GLO;
     case MELLO_UI_HOME:
     default: return MELLO_UI_BTN_HOME;
     }
@@ -264,6 +264,30 @@ void mello_ui_set_page(MelloUi *ui, MelloUiPage page)
     mark_full(ui);
 }
 
+/* A page on its first layer: page buttons open pages this way, so what a button shows never depends on history. */
+static void open_page(MelloUi *ui, MelloUiPage page)
+{
+    switch (page) {
+    case MELLO_UI_SEQ_STEP: ui->step_subpage = 0u; break;
+    case MELLO_UI_SEQ_SEGMENT: ui->segment_subpage = 0u; break;
+    case MELLO_UI_SEQ_LOOP: ui->loop_subpage = 0u; break;
+    case MELLO_UI_SLOTS: ui->slots_subpage = 0u; break;
+    case MELLO_UI_DOT: ui->selected_dot_target = 0u; break;
+    case MELLO_UI_TURING: ui->tm_subpage = 0u; break;
+    case MELLO_UI_SUB: ui->sub_subpage = 0u; break;
+#if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_UI_CHORD: ui->chord_subpage = 0u; break;
+#endif
+    case MELLO_UI_GLOBAL: ui->global_subpage = 0u; break;
+    case MELLO_UI_SOUND_RESERVED: ui->sound_subpage = 0u; break;
+    case MELLO_UI_AUDIO_FX: ui->fx_subpage = 0u; break;
+    case MELLO_UI_SAMPLE_RESERVED: ui->sample_subpage = 0u; break;
+    default: break;
+    }
+    mello_ui_set_page(ui, page);
+    mark_full(ui);
+}
+
 static void seq_button(MelloUi *ui)
 {
     switch (ui->page) {
@@ -271,7 +295,7 @@ static void seq_button(MelloUi *ui)
     case MELLO_UI_SEQ_SEGMENT: mello_ui_set_page(ui, MELLO_UI_SEQ_LOOP); break;
     case MELLO_UI_SEQ_LOOP: mello_ui_set_page(ui, MELLO_UI_SEQ_SLOTSEQ); break;
     case MELLO_UI_SEQ_SLOTSEQ: mello_ui_set_page(ui, MELLO_UI_SEQ_STEP); break;
-    default: mello_ui_set_page(ui, MELLO_UI_SEQ_STEP); break;
+    default: open_page(ui, MELLO_UI_SEQ_STEP); break;
     }
 }
 
@@ -1313,7 +1337,11 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
         ui->global_subpage = wrap_u8((int32_t)ui->global_subpage + (delta > 0 ? 1 : -1), 2u);
         break;
     case MELLO_UI_SOUND_RESERVED:
-        ui->sound_subpage = wrap_u8((int32_t)ui->sound_subpage + (delta > 0 ? 1 : -1), 5u);
+        /* OSC, ENV, FOLLOWER, LEVEL: the LFO (subpage 2) is MOD's, reached with the LFO button. */
+        if (ui->sound_subpage == 2u) return;
+        do
+            ui->sound_subpage = wrap_u8((int32_t)ui->sound_subpage + (delta > 0 ? 1 : -1), 5u);
+        while (ui->sound_subpage == 2u);
         break;
     case MELLO_UI_AUDIO_FX:
         ui->fx_subpage = wrap_u8((int32_t)ui->fx_subpage + (delta > 0 ? 1 : -1), 5u);
@@ -1356,6 +1384,7 @@ static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
 }
 
 static const char *layer_name(const MelloUi *ui);
+static const char *domain_name(const MelloUi *ui);
 static uint8_t save_state(const MelloUi *ui);
 static void show_readout(MelloUi *ui, uint8_t what, uint32_t now_ms)
 {
@@ -1699,29 +1728,28 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
             mark_edit(ui);
         }
     }
-    if (pressed & bit_u32(MELLO_UI_BTN_SEL)) mello_ui_set_page(ui, MELLO_UI_KEY_SCALE);
-    if (pressed & bit_u32(MELLO_UI_BTN_FX)) mello_ui_set_page(ui, MELLO_UI_AUDIO_FX);
-    if (pressed & bit_u32(MELLO_UI_BTN_LFO)) {
-        if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage == 2u) {
-            mello_ui_set_page(ui, MELLO_UI_DOT);
-        } else if (ui->page == MELLO_UI_DOT) {
-            mello_ui_set_page(ui, MELLO_UI_TURING);
-        } else {
+    /* Page buttons (UI_ICEBERG.md): from elsewhere a button opens its page on the first layer, so the screen never
+     * depends on history; pressed again on its own page it goes to the next layer. */
+    if (pressed & bit_u32(MELLO_UI_BTN_SEL)) open_page(ui, MELLO_UI_KEY_SCALE);
+    if (pressed & bit_u32(MELLO_UI_BTN_FX)) {
+        if (ui->page == MELLO_UI_AUDIO_FX)
+            adjust_algorithm(ui, 1);
+        else
+            open_page(ui, MELLO_UI_AUDIO_FX);
+    }
+    if (pressed & bit_u32(MELLO_UI_BTN_LFO)) { /* MOD: LFO -> DOT -> EVOLVE -> LFO */
+        if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage == 2u)
+            open_page(ui, MELLO_UI_DOT);
+        else if (ui->page == MELLO_UI_DOT)
+            open_page(ui, MELLO_UI_TURING);
+        else {
+            open_page(ui, MELLO_UI_SOUND_RESERVED);
             ui->sound_subpage = 2u;
-            if (ui->page == MELLO_UI_SOUND_RESERVED)
-                mark_full(ui);
-            else
-                mello_ui_set_page(ui, MELLO_UI_SOUND_RESERVED);
         }
     }
-    if (pressed & bit_u32(MELLO_UI_BTN_ARP)) {
+    if (pressed & bit_u32(MELLO_UI_BTN_ARP)) { /* BASS: SUB -> CHORD -> SUB */
 #if MELLO_FEATURE_CHORD_MACHINE
-        if (ui->page == MELLO_UI_SUB)
-            mello_ui_set_page(ui, MELLO_UI_CHORD);
-        else if (ui->page == MELLO_UI_CHORD)
-            mello_ui_set_page(ui, MELLO_UI_SUB);
-        else
-            mello_ui_set_page(ui, MELLO_UI_SUB);
+        open_page(ui, ui->page == MELLO_UI_SUB ? MELLO_UI_CHORD : MELLO_UI_SUB);
 #else
         if (ui->page == MELLO_UI_SUB) {
             MelloSubConfig c = e->sub;
@@ -1729,22 +1757,16 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
             mello_engine_sub_set_config(e, &c);
             mark_edit(ui);
         } else
-            mello_ui_set_page(ui, MELLO_UI_SUB);
+            open_page(ui, MELLO_UI_SUB);
 #endif
     }
-    if (pressed & bit_u32(MELLO_UI_BTN_GLO)) mello_ui_set_page(ui, MELLO_UI_GLOBAL);
-    if (pressed & bit_u32(MELLO_UI_BTN_ENV)) {
-        /* The SOUND page's AUDIO LFO subpage belongs to the LFO button: ENV never lands there (it kept the
-         * subpage LFO left, so after one LFO press ENV showed the LFO and OSC/ENV were out of reach). */
+    if (pressed & bit_u32(MELLO_UI_BTN_GLO)) /* GLOBAL -> SAMPLE -> GLOBAL */
+        open_page(ui, ui->page == MELLO_UI_GLOBAL ? MELLO_UI_SAMPLE_RESERVED : MELLO_UI_GLOBAL);
+    if (pressed & bit_u32(MELLO_UI_BTN_ENV)) { /* SOUND: OSC -> ENV -> FOLLOWER -> LEVEL (the LFO is MOD's) */
         if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage != 2u)
-            mello_ui_set_page(ui, MELLO_UI_SAMPLE_RESERVED);
-        else {
-            if (ui->sound_subpage == 2u) ui->sound_subpage = 0u;
-            if (ui->page == MELLO_UI_SOUND_RESERVED)
-                mark_full(ui);
-            else
-                mello_ui_set_page(ui, MELLO_UI_SOUND_RESERVED);
-        }
+            adjust_algorithm(ui, 1);
+        else
+            open_page(ui, MELLO_UI_SOUND_RESERVED);
     }
     if (pressed & bit_u32(MELLO_UI_BTN_SAVE)) {
         if (ui->page == MELLO_UI_SLOTS)
@@ -2450,7 +2472,7 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
         (void)copy_s(q, sc[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR]);
         o->text(o->ctx, 4, 7, 88, 0, key, UI_GOLD, 0);
     }
-    p = copy_s(b, mello_ui_page_name(ui->page));
+    p = copy_s(b, domain_name(ui));
     if (e &&
         (ui->page == MELLO_UI_HOME || ui->page == MELLO_UI_SEQ_STEP || ui->page == MELLO_UI_SEQ_SEGMENT)) {
         uint8_t seg = ui->page == MELLO_UI_SEQ_SEGMENT ? ui->selected_segment
@@ -3956,6 +3978,16 @@ static void fit_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, 
     f->raw->text(f->raw->ctx, x, y, w, large, text, colour, align);
 }
 
+/* The page's name as the header and the readout show it: LFO, DOT and EVOLVE are one domain, MOD (the LFO
+ * button), whatever page holds them. */
+static const char *domain_name(const MelloUi *ui)
+{
+    if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage == 2u) return "MOD LFO";
+    if (ui->page == MELLO_UI_DOT) return "MOD DOT";
+    if (ui->page == MELLO_UI_TURING) return "MOD EVOLVE";
+    return mello_ui_page_name(ui->page);
+}
+
 /* The name of the layer SELECT shows on the current page, or 0 where a page has none. */
 static const char *layer_name(const MelloUi *ui)
 {
@@ -3975,7 +4007,7 @@ static const char *layer_name(const MelloUi *ui)
     case MELLO_UI_TURING: return tm[ui->tm_subpage % 3u];
     case MELLO_UI_SUB: return sub[ui->sub_subpage % 5u];
     case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 2u];
-    case MELLO_UI_SOUND_RESERVED: return snd[ui->sound_subpage % 5u];
+    case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 5u];
     case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 5u];
     case MELLO_UI_SAMPLE_RESERVED: return smp[ui->sample_subpage % 4u];
     case MELLO_UI_HOME: return ui->held_step == MELLO_UI_NO_STEP ? 0 : "HELD STEP";
@@ -4019,7 +4051,7 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
         o->text(o->ctx, 12, 76, 216, 1, label, accent, 1);
         o->text(o->ctx, 12, 110, 216, 1, val, UI_WHITE, 1);
     } else if (ui->readout == MELLO_UI_READOUT_LAYER) {
-        o->text(o->ctx, 12, 86, 216, 1, layer ? layer : mello_ui_page_name(ui->page), accent, 1);
+        o->text(o->ctx, 12, 86, 216, 1, layer ? layer : domain_name(ui), accent, 1);
         o->text(o->ctx, 12, 124, 216, 0, "SELECT: LAYER", UI_DIM, 1);
     } else {
         uint8_t k = (uint8_t)(ui->readout - 1u);

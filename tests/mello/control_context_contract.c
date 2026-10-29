@@ -254,17 +254,15 @@ static void verify_mod_navigation(void)
     press(&u, 400u, bit_u32(MELLO_UI_BTN_LFO), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 2u || t.engine.tm.on != on)
         die("MOD wrap", "physical MOD toggled Turing or failed wrap");
-    /* ENV after LFO: the sound pages from OSC, not the LFO again; ENV there goes on to SAMPLE and back. */
+    /* ENV after LFO: SOUND from OSC, not the LFO again; ENV again steps SOUND's layers, never onto the LFO. */
     press(&u, 410u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u) die("ENV after LFO", "stayed on Audio LFO");
     press(&u, 420u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SAMPLE_RESERVED) die("ENV 2", "did not go on to SAMPLE");
     press(&u, 430u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u) die("ENV 3", "did not come back to OSC");
-    u.sound_subpage = 3u;
-    mello_ui_set_page(&u, MELLO_UI_HOME);
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 3u) die("ENV 3", "did not skip the LFO layer");
+    mello_ui_set_page(&u, MELLO_UI_HOME); /* from elsewhere: always the first layer */
     press(&u, 440u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 3u) die("ENV", "forgot the last sound subpage");
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u) die("ENV", "did not open SOUND on OSC");
 
     mello_ui_set_page(&u, MELLO_UI_HOME);
     press(&u, 500u, bit_u32(MELLO_UI_BTN_FX), 0u);
