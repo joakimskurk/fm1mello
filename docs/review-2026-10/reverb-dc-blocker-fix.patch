@@ -1,0 +1,17 @@
+--- a/mello/mello_audio.c	2026-10-29 00:05:14
++++ b/mello/mello_audio.c	2026-10-29 00:05:14
+@@ -1031,10 +1031,10 @@
+         a->reverb_tone_lp+=q15mul(rv_l-a->reverb_tone_lp,tone_alpha);
+         a->reverb_tone_lp_r+=q15mul(rv_r-a->reverb_tone_lp_r,tone_alpha);
+         {
+-            int32_t hp_l=q15mul(hp_alpha,a->reverb_hp_y1+a->reverb_tone_lp-a->reverb_hp_x1);
+-            int32_t hp_r=q15mul(hp_alpha,a->reverb_hp_y1_r+a->reverb_tone_lp_r-a->reverb_hp_x1_r);
+-            a->reverb_hp_x1=a->reverb_tone_lp;a->reverb_hp_y1=hp_l;
+-            a->reverb_hp_x1_r=a->reverb_tone_lp_r;a->reverb_hp_y1_r=hp_r;
++            /* Dead-band-free DC blocker: Q8 leaky integrator, ~27 Hz corner. */
++            int32_t hp_l=a->reverb_tone_lp-(a->reverb_hp_y1>>8);
++            int32_t hp_r=a->reverb_tone_lp_r-(a->reverb_hp_y1_r>>8);
++            a->reverb_hp_y1+=hp_l;a->reverb_hp_y1_r+=hp_r;(void)hp_alpha;
+             mix_l+=((hp_l*(int32_t)a->fx.reverb_level)/1000)*1150/1000;
+             mix_r+=((hp_r*(int32_t)a->fx.reverb_level)/1000)*1150/1000;
+         }
