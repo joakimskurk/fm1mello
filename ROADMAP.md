@@ -45,13 +45,25 @@ The reference is in place: `make reference` renders `reference/skurkymello.html`
 - [x] FX tone filters -24 dB/oct; rounded biquads (no DC limit cycle)
 - [x] Transport lookahead (0/107 late notes vs 107/107)
 - [x] PolyBLEP saw/square/pulse, interpolated sine
-- CPU (fm1-emu, default pattern): 58.7 M ISR instructions/s, as 0.2-p1 (58.0).
-- [ ] Waveshaper oversampling: at res 0.5 the clip aliases (+16 dB at 2 kHz); the HTML oversamples 4x.
-- [ ] Reverb burst: more energy than the HTML at 60-250 Hz and near 10 kHz.
-- [ ] Samples and chord: Tone envelopes; LFO depths/targets (pitch 4-5x too shallow, AMP on the whole mix);
-      exponential portamento; soft limiter; parameter smoothing; sub filter Q in dB.
-- Note: the output is now as quiet as the HTML (about -10 dB RMS vs 0.2-p1). Raise MASTER, or decide on an
-  outer gain as a product choice.
+- [x] Reverb: slow delay modulation on the FDN lines, allpass-interpolated (per-note level spread 2.5-3.0 -> 1.6-1.8 dB,
+      Tone.Reverb 1.5-1.7; neighbouring notes jumped up to 12.7 dB, now 6.1)
+- [x] Distortion gain compensation across AMT (a departure from the HTML: docs/mello/DECISIONS.md)
+- [x] Audio LFO as the HTML: PITCH +-(80 + 620 depth) cents, FILTER linear in Hz, AMP on the whole mix, PWM symmetric;
+      AMP and PWM swing around the base, as applyLfoRouting's comments intend (DECISIONS.md)
+- [x] Tone's pulse width: duty (1 + width) / 2
+- [x] Portamento as a straight line in pitch; overlapping notes play legato (Tone cancels the pending release)
+- [x] Knob changes ramp as the HTML's rampTo (cutoff, levels, sends, feedback; delay time read between samples)
+- [x] Limiter as Tone.Limiter(-1) instead of a hard clip at -1 dBFS
+- [x] Sub filter Q 0.8 in dB; sample envelopes with Tone's decay/release curves
+- [x] Saw and square at Web Audio's normalized level (-1.43 dB): this was most of the "aliasing at res 0.5"
+- make parity (16 stimuli): level -0.2..0.0 dB on most, tone 0.2-2.0 dB; by design drive_dry/drive_high sit ~10 dB
+  under the HTML (gain compensation). Left: lfo_pwm 4.8 dB (Tone's pulse is not band-limited and aliases),
+  reverb_click 5.3 dB (the tail's low end, and a ~1 LSB floor the float HTML does not have), lead_pluck -0.7 dB level.
+- CPU (fm1-emu, default pattern, 1.5 s): 68.0 M ISR instructions/s, 27.9% of the chip (0.2-p1: 58.0). The main loop
+  sleeps between interrupts, so the web emulator skips ~56% of the cycles at 240 MHz.
+- Not done: the chord layer's envelope (the chord is not in the HTML: nothing to match).
+- Note: the output is as quiet as the HTML (about -10 dB RMS vs 0.2-p1). Raise MASTER, or decide on an outer gain as a
+  product choice.
 
 ## Phase 3: feel = the HTML
 
