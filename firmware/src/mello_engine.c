@@ -2174,9 +2174,43 @@ static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity int
         e->runtime_built = false;
 }
 
+void mello_engine_undo_snapshot(MelloEngine *e)
+{
+    if (!e) return;
+    e->undo_project = e->project;
+    e->undo_sound = e->sound;
+#if MELLO_FEATURE_CHORD_MACHINE
+    e->undo_chord = e->chord;
+#endif
+    e->undo_valid = true;
+}
+
+bool mello_engine_undo_swap(MelloEngine *e)
+{
+    MelloProject p;
+    MelloSoundConfig s;
+    if (!e || !e->undo_valid) return false;
+    p = e->project;
+    e->project = e->undo_project;
+    e->undo_project = p;
+    s = e->sound;
+    e->sound = e->undo_sound;
+    e->undo_sound = s;
+#if MELLO_FEATURE_CHORD_MACHINE
+    {
+        MelloChordConfig c = e->chord;
+        e->chord = e->undo_chord;
+        e->undo_chord = c;
+    }
+#endif
+    (void)mello_engine_rebuild_sequence(e);
+    return true;
+}
+
 void mello_engine_randomize_steps_intensity(MelloEngine *e, MelloRandomizeIntensity intensity)
 {
     if (!e) return;
+    mello_engine_undo_snapshot(e);
     if (intensity == MELLO_RANDOMIZE_MED) {
         mello_engine_randomize_steps(e);
         return;

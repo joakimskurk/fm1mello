@@ -114,6 +114,59 @@ int main(void)
         (leds & (1u << white(8u))))
         return fail("step LEDs");
 
-    puts("PASS: HOME macros, hold-a-step edit, tap toggles on release, keys past the length inert, step LEDs");
+    /* The rail: RND then UNDO gives back the pattern, UNDO again redoes; MUT moves pitches only. */
+    t.running = false;
+    {
+        static MelloProject before, rolled;
+        uint8_t b0 = 0u, b1 = 0u, b2 = 0u, i, n = 0u;
+        for (i = 0u; i < 27u; ++i)
+            if (mello_ui_white_key_position(i) < 0) {
+                if (n == 0u) b0 = i;
+                if (n == 1u) b1 = i;
+                if (n == 2u) b2 = i;
+                ++n;
+            }
+        before = t.engine.project;
+        input(&u, 0u, 1u << b0, 0u, 0);
+        rolled = t.engine.project;
+        if (!memcmp(&before.steps, &rolled.steps, sizeof before.steps)) return fail("RND changed nothing");
+        input(&u, 0u, 1u << b1, 0u, 0);
+        if (memcmp(&before.steps, &t.engine.project.steps, sizeof before.steps)) return fail("UNDO did not restore");
+        input(&u, 0u, 1u << b1, 0u, 0);
+        if (memcmp(&rolled.steps, &t.engine.project.steps, sizeof rolled.steps)) return fail("UNDO again did not redo");
+        before = t.engine.project;
+        input(&u, 0u, 1u << b2, 0u, 0);
+        for (i = 0u; i < MELLO_MAX_STEPS; ++i)
+            if (before.steps[i].pulses != t.engine.project.steps[i].pulses ||
+                before.steps[i].skip != t.engine.project.steps[i].skip)
+                return fail("MUT touched more than pitch");
+    }
+
+    /* The encoders: SELECT = tempo, ALGORITHM = intensity, PRESETS = the next saved slot. */
+    {
+        int16_t e[MELLO_UI_ENCODER_COUNT] = {0};
+        uint16_t bpm = t.engine.project.bpm;
+        e[MELLO_UI_ENC_SELECT] = 5;
+        mello_ui_input(&u, 0u, 0u, 0u, 0u, 0u, 0u, e);
+        u.dirty = 0u;
+        mello_ui_input(&u, 0u, 0u, 0u, 0u, 0u, 0u, e);
+        if (t.engine.project.bpm != bpm + 10u || u.readout != MELLO_UI_READOUT_TEMPO) return fail("SELECT is not TEMPO");
+        if (!(u.dirty & MELLO_UI_DIRTY_BODY) || !(u.dirty & MELLO_UI_DIRTY_HEADER))
+            return fail("TEMPO is not redrawn (readout, header)");
+        memset(e, 0, sizeof e);
+        e[MELLO_UI_ENC_ALGORITHM] = 1;
+        u.random_intensity = MELLO_RANDOMIZE_MED;
+        mello_ui_input(&u, 0u, 0u, 0u, 0u, 0u, 0u, e);
+        if (u.random_intensity != MELLO_RANDOMIZE_HIGH) return fail("ALGORITHM is not RANDOM intensity");
+        (void)mello_engine_save_slot(&t.engine, 4u, "FIVE");
+        u.selected_slot = 0u;
+        memset(e, 0, sizeof e);
+        e[MELLO_UI_ENC_PRESETS] = 1;
+        mello_ui_input(&u, 0u, 0u, 0u, 0u, 0u, 0u, e);
+        if (u.selected_slot != 4u || u.readout != MELLO_UI_READOUT_PATTERN) return fail("PRESETS did not find slot 5");
+    }
+
+    puts("PASS: HOME macros, hold-a-step edit, tap toggles on release, keys past the length inert, step LEDs, "
+         "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN");
     return 0;
 }

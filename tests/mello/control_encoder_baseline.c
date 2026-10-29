@@ -102,12 +102,13 @@ static void verify_presets_global_slot_cursor(void)
     MelloStorage st;
     MelloUi u;
     MelloEngine before;
-    setup(&p, &t, &st, &u, MELLO_UI_HOME);
+    /* Off HOME (HOME's PRESETS picks the PATTERN: ui_home_perform). */
+    setup(&p, &t, &st, &u, MELLO_UI_SOUND_RESERVED);
     u.selected_slot = 0u;
     u.slot_bank = 0u;
     before = t.engine;
     turn(&u, MELLO_UI_ENC_PRESETS, +17);
-    if (u.page != MELLO_UI_HOME || u.selected_slot != 17u || u.slot_bank != 1u)
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.selected_slot != 17u || u.slot_bank != 1u)
         fail("PRESETS", "global slot cursor baseline mismatch");
     if (memcmp(&before, &t.engine, sizeof before))
         fail("PRESETS", "global slot cursor unexpectedly changed engine state");

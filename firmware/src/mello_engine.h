@@ -599,6 +599,14 @@ typedef struct {
     MelloFxConfig fx;
     MelloPulseModState last_mod;
 
+    /* Undo for RANDOM and CLEAR: what the pattern was before the last one (mello_engine_undo_swap). */
+    MelloProject undo_project;
+    MelloSoundConfig undo_sound;
+#if MELLO_FEATURE_CHORD_MACHINE
+    MelloChordConfig undo_chord;
+#endif
+    bool undo_valid;
+
     MelloEvent queue[MELLO_EVENT_QUEUE_CAP];
     uint8_t q_head;
     uint8_t q_tail;
@@ -689,6 +697,10 @@ void mello_engine_fx_set_config(MelloEngine *engine, const MelloFxConfig *config
 void mello_engine_set_randomize_mask(MelloEngine *engine, uint16_t mask);
 void mello_engine_randomize_steps(MelloEngine *engine); /* exact MED compatibility path */
 void mello_engine_randomize_steps_intensity(MelloEngine *engine, MelloRandomizeIntensity intensity);
+/* Undo: keep what a destructive edit is about to replace (randomize_steps_intensity does so itself), and swap it
+ * back in. A second swap redoes. Returns false when there is nothing to undo. */
+void mello_engine_undo_snapshot(MelloEngine *engine);
+bool mello_engine_undo_swap(MelloEngine *engine);
 
 bool mello_event_pop(MelloEngine *engine, MelloEvent *out);
 void mello_event_clear(MelloEngine *engine);

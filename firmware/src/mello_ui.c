@@ -410,7 +410,12 @@ typedef enum {
     MELLO_CTX_CHORD_TOGGLE,
     MELLO_CTX_GLOBAL_TAP,
     MELLO_CTX_GLOBAL_RESET,
-    MELLO_CTX_SAMPLE_TOGGLE
+    MELLO_CTX_SAMPLE_TOGGLE,
+    MELLO_CTX_HOME_RANDOM, /* reroll now, at the intensity ALGORITHM sets */
+    MELLO_CTX_UNDO,        /* the pattern before the last RANDOM/CLEAR; again = redo */
+    MELLO_CTX_MUTATE,      /* a LOW reroll of the pitches only */
+    MELLO_CTX_TRANSPOSE_DOWN,
+    MELLO_CTX_TRANSPOSE_UP
 } MelloContextVerb;
 
 typedef struct {
@@ -421,12 +426,19 @@ typedef struct {
 /* WP-C5 authoritative contextual-action mapping. The physical B0-B7 slot,
  * rendered label and handler verb are defined together here. */
 static const MelloContextAction context_actions[MELLO_UI_SAMPLE_RESERVED + 1u][8] = {
-    [MELLO_UI_HOME] = {[5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
+    [MELLO_UI_HOME] = {[0] = {MELLO_CTX_HOME_RANDOM, "RND"},
+                       [1] = {MELLO_CTX_UNDO, "UNDO"},
+                       [2] = {MELLO_CTX_MUTATE, "MUT"},
+                       [3] = {MELLO_CTX_TRANSPOSE_DOWN, "-1"},
+                       [4] = {MELLO_CTX_TRANSPOSE_UP, "+1"},
+                       [5] = {MELLO_CTX_OPEN_RANDOM, "MASK"},
+                       [7] = {MELLO_CTX_RANDOM_CLEAR, "CLR2"}},
     [MELLO_UI_SEQ_STEP] = {[4] = {MELLO_CTX_STEP_SKIP, "SKIP"}, [5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
     [MELLO_UI_SEQ_SEGMENT] = {[5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
     [MELLO_UI_SEQ_LOOP] = {[2] = {MELLO_CTX_LOOP_RESET, "RST"}, [5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
     [MELLO_UI_SEQ_SLOTSEQ] = {[5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
     [MELLO_UI_RANDOM] = {[1] = {MELLO_CTX_RANDOM_REROLL, "RND"},
+                         [2] = {MELLO_CTX_UNDO, "UNDO"},
                          [3] = {MELLO_CTX_RANDOM_CLEAR, "CLR2"},
                          [6] = {MELLO_CTX_RANDOM_NONE, "NONE"},
                          [7] = {MELLO_CTX_RANDOM_ALL, "ALL"}},
@@ -1355,13 +1367,49 @@ static void adjust_knobs(MelloUi *ui, const int16_t enc[MELLO_UI_ENCODER_COUNT],
 {
     uint8_t k;
     uint16_t before = ui->dirty;
+    if (ui->page == MELLO_UI_HOME) {
+        /* HOME's three encoders are fixed globals: TEMPO, RANDOM intensity, PATTERN (to the next saved slot,
+         * switched on the next bar while playing). */
+        MelloEngine *e = eng(ui);
+        int16_t ds = (int16_t)(enc[MELLO_UI_ENC_SELECT]), da = enc[MELLO_UI_ENC_ALGORITHM], dp = enc[MELLO_UI_ENC_PRESETS];
+        if (ds && e) {
+            mello_transport_set_bpm(ui->transport, (uint16_t)clamp_i32((int32_t)e->project.bpm + ds, 20, 250));
+            mark_edit(ui);
+            ui->dirty |= MELLO_UI_DIRTY_HEADER; /* the header shows the tempo */
+            show_readout(ui, MELLO_UI_READOUT_TEMPO, now_ms);
+        }
+        if (da) {
+            adjust_random(ui, 0u, da);
+            show_readout(ui, MELLO_UI_READOUT_INTENSITY, now_ms);
+        }
+        if (dp && e) {
+            int32_t i = ui->selected_slot, n = e->visible_slot_count < MELLO_MAX_SLOTS ? e->visible_slot_count
+                                                                                       : MELLO_MAX_SLOTS;
+            int32_t step = dp > 0 ? 1 : -1, tries;
+            for (tries = 0; tries < n; ++tries) {
+                i += step;
+                if (i < 0 || i >= n) break;
+                if (mello_engine_slot_valid(e, (uint8_t)i)) {
+                    ui->selected_slot = (uint8_t)i;
+                    (void)mello_engine_request_slot(e, (uint8_t)i);
+                    mark_edit(ui);
+                    break;
+                }
+            }
+            show_readout(ui, MELLO_UI_READOUT_PATTERN, now_ms);
+        }
+        before = ui->dirty; /* keep what HOME's encoders marked */
+    }
     /* The readout shows only what a turn changed: an inert knob, or a page without layers, stays quiet. */
     ui->dirty = 0u;
-    adjust_select(ui, enc[MELLO_UI_ENC_SELECT]);
-    adjust_algorithm(ui, enc[MELLO_UI_ENC_ALGORITHM]);
-    if (ui->dirty && layer_name(ui)) show_readout(ui, MELLO_UI_READOUT_LAYER, now_ms);
-    ui->dirty |= before;
-    adjust_presets(ui, enc[MELLO_UI_ENC_PRESETS]);
+    if (ui->page != MELLO_UI_HOME) {
+        adjust_select(ui, enc[MELLO_UI_ENC_SELECT]);
+        adjust_algorithm(ui, enc[MELLO_UI_ENC_ALGORITHM]);
+        if (ui->dirty && layer_name(ui)) show_readout(ui, MELLO_UI_READOUT_LAYER, now_ms);
+        ui->dirty |= before;
+        adjust_presets(ui, enc[MELLO_UI_ENC_PRESETS]);
+    } else
+        ui->dirty |= before;
     for (k = 0u; k < 4u; ++k) {
         int16_t d = enc[MELLO_UI_ENC_KNOB1 + k];
         if (!d) continue;
@@ -1490,9 +1538,39 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         persistent_dirty(ui, now_ms);
         mark_edit(ui);
         break;
+    case MELLO_CTX_HOME_RANDOM:
+        mello_engine_randomize_steps_intensity(e, ui->random_intensity);
+        rebuild(ui);
+        persistent_dirty(ui, now_ms);
+        mark_edit(ui);
+        break;
+    case MELLO_CTX_UNDO:
+        if (mello_engine_undo_swap(e)) {
+            persistent_dirty(ui, now_ms);
+            mark_edit(ui);
+        }
+        break;
+    case MELLO_CTX_MUTATE: {
+        uint16_t mask = e->randomize.mask;
+        mello_engine_set_randomize_mask(e, MELLO_RAND_PITCH);
+        mello_engine_randomize_steps_intensity(e, MELLO_RANDOMIZE_LOW);
+        mello_engine_set_randomize_mask(e, mask);
+        rebuild(ui);
+        persistent_dirty(ui, now_ms);
+        mark_edit(ui);
+        break;
+    }
+    case MELLO_CTX_TRANSPOSE_DOWN:
+    case MELLO_CTX_TRANSPOSE_UP:
+        e->project.root_note = (uint8_t)clamp_i32(
+            (int32_t)e->project.root_note + (a->verb == MELLO_CTX_TRANSPOSE_UP ? 1 : -1), 24, 83);
+        rebuild(ui);
+        mark_edit(ui);
+        break;
     case MELLO_CTX_RANDOM_CLEAR:
         if (ui->reset_armed && (int32_t)(now_ms - ui->reset_confirm_until_ms) <= 0) {
             ui->reset_armed = false;
+            mello_engine_undo_snapshot(e); /* CLEAR can be undone */
             mello_engine_clear_pattern(e);
             persistent_dirty(ui, now_ms);
             mark_edit(ui);
@@ -3241,26 +3319,34 @@ static void footer_pair(const MelloUiDrawOps *o, uint8_t k, const char *label, c
     o->text(o->ctx, x + 2, 204, 56, 0, shown, colour, 1);
 }
 
+/* The black-key strip: one cell per black key, in the keyboard's own groups (3 2 3 2 1 from F#3), so a key is found
+ * by its group and place rather than by a number. A labelled key is a framed cell; a free one a dim dot. */
 static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
 {
-    char b[64];
-    char *p = b;
-    uint8_t i;
-    b[0] = 0;
-    for (i = 0u; i < 8u; ++i) {
-        const MelloContextAction *a = context_action(ui->page, i);
-        char key[4];
-        if (!a || a->verb == MELLO_CTX_NONE || !a->label) continue;
-        if (p != b) p = copy_s(p, " ");
-        key[0] = 'B';
-        key[1] = (char)('0' + i);
-        key[2] = ':';
-        key[3] = 0;
-        p = copy_s(p, key);
-        p = copy_s(p, a->label);
-    }
+    static const uint8_t group_end[5] = {3u, 5u, 8u, 10u, 11u};
+    uint16_t accent = ui_page_accent(ui);
+    int16_t x = 4;
+    uint8_t i, g = 0u;
     o->fill(o->ctx, 0, 172, 240, 16, UI_PANEL2);
-    o->text(o->ctx, 4, 172, 232, 0, b, UI_SOFT, 0);
+    for (i = 0u; i < 11u; ++i) {
+        const MelloContextAction *a = context_action(ui->page, i);
+        if (i == group_end[g]) {
+            x = (int16_t)(x + 4);
+            ++g;
+        }
+        if (a && a->verb != MELLO_CTX_NONE && a->label) {
+            int16_t w = (int16_t)(ui_text_len(a->label) * 8u + 2u);
+            uint16_t c = a->verb == MELLO_CTX_RANDOM_CLEAR || a->verb == MELLO_CTX_GLOBAL_RESET
+                             ? (ui->reset_armed ? UI_RED : UI_DIM)
+                             : accent;
+            ui_frame(o, x, 173, w, 14, UI_PANEL);
+            o->text(o->ctx, (int16_t)(x + 1), 172, (int16_t)(w - 2), 0, a->label, c, 1);
+            x = (int16_t)(x + w + 1);
+        } else {
+            o->fill(o->ctx, (int16_t)(x + 2), 179, 2, 2, UI_DIM);
+            x = (int16_t)(x + 6);
+        }
+    }
 }
 
 /* K1-K4's labels and values on the current page and layer: the footer and the readout both show these. */
@@ -3870,7 +3956,26 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
     o->fill(o->ctx, 0, 30, 240, 142, UI_BLACK); /* in place of the body, not over it: no overdraw, no flicker */
     ui_frame(o, 6, 44, 228, 112, accent);
     o->text(o->ctx, 12, 52, 216, 0, where, UI_DIM, 1);
-    if (ui->readout == MELLO_UI_READOUT_LAYER) {
+    if (ui->readout >= MELLO_UI_READOUT_TEMPO) {
+        MelloEngine *e = eng(ui);
+        char val[24], *q = val;
+        const char *label = "TEMPO";
+        val[0] = 0;
+        if (ui->readout == MELLO_UI_READOUT_TEMPO && e) {
+            q = put_u32(val, e->project.bpm);
+            (void)copy_s(q, " BPM");
+        } else if (ui->readout == MELLO_UI_READOUT_INTENSITY) {
+            label = "RANDOM";
+            (void)copy_s(val, random_intensity_name(ui->random_intensity));
+        } else if (e) {
+            label = "PATTERN";
+            q = copy_s(val, "SLOT ");
+            q = put_u32(q, (uint32_t)ui->selected_slot + 1u);
+            if (!mello_engine_slot_valid(e, ui->selected_slot)) (void)copy_s(val, "NO SLOTS");
+        }
+        o->text(o->ctx, 12, 76, 216, 1, label, accent, 1);
+        o->text(o->ctx, 12, 110, 216, 1, val, UI_WHITE, 1);
+    } else if (ui->readout == MELLO_UI_READOUT_LAYER) {
         o->text(o->ctx, 12, 86, 216, 1, layer ? layer : mello_ui_page_name(ui->page), accent, 1);
         o->text(o->ctx, 12, 124, 216, 0, "SELECT: LAYER", UI_DIM, 1);
     } else {

@@ -4,7 +4,7 @@
 #include <string.h>
 
 typedef struct {
-    char hint[64];
+    char hint[96];
     unsigned buttons[14];
 } Capture;
 
@@ -15,12 +15,12 @@ typedef struct {
 } HintCase;
 
 static const HintCase hints[] = {
-    {"HOME", MELLO_UI_HOME, "B5:RANDOM"},
+    {"HOME", MELLO_UI_HOME, "B0:RND B1:UNDO B2:MUT B3:-1 B4:+1 B5:MASK B7:CLR2"},
     {"STEP", MELLO_UI_SEQ_STEP, "B4:SKIP B5:RANDOM"},
     {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B5:RANDOM"},
     {"LOOP", MELLO_UI_SEQ_LOOP, "B2:RST B5:RANDOM"},
     {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B5:RANDOM"},
-    {"RANDOM", MELLO_UI_RANDOM, "B1:RND B3:CLR2 B6:NONE B7:ALL"},
+    {"RANDOM", MELLO_UI_RANDOM, "B1:RND B2:UNDO B3:CLR2 B6:NONE B7:ALL"},
     {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:RANDOM"},
     {"SLOTS", MELLO_UI_SLOTS, "B5:RANDOM"},
     {"DOT", MELLO_UI_DOT, "B1:RND B2:RST B5:RANDOM"},
@@ -34,6 +34,23 @@ static const HintCase hints[] = {
     {"AUDIO FX", MELLO_UI_AUDIO_FX, "B5:RANDOM"},
     {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B5:RANDOM"},
 };
+
+/* The strip shows labels only, in key order: "B0:RND B1:UNDO" is drawn as "RND UNDO". */
+static void labels_of(const char *hint, char *out)
+{
+    *out = 0;
+    while (*hint) {
+        const char *colon = strchr(hint, ':'), *end = strchr(hint, ' ');
+        size_t n;
+        if (!colon) break;
+        if (!end) end = hint + strlen(hint);
+        if (*out) strcat(out, " ");
+        n = strlen(out);
+        memcpy(out + n, colon + 1, (size_t)(end - colon - 1));
+        out[n + (size_t)(end - colon - 1)] = 0;
+        hint = *end ? end + 1 : end;
+    }
+}
 
 static uint32_t bit_u32(unsigned n)
 {
@@ -62,7 +79,10 @@ static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, cons
     (void)large;
     (void)c;
     (void)align;
-    if (y == 172) snprintf(cap->hint, sizeof cap->hint, "%s", s ? s : "");
+    if (y == 172 && s && *s && strlen(cap->hint) + strlen(s) + 2u < sizeof cap->hint) { /* the strip's labels */
+        if (cap->hint[0]) strcat(cap->hint, " ");
+        strcat(cap->hint, s);
+    }
 }
 static void led_key(void *ctx, uint8_t i, bool on)
 {
@@ -141,11 +161,14 @@ static void verify_hints(void)
         Capture cap;
         setup(&p, &t, &st, &u, hints[i].page);
         render(&u, &cap);
-        if (strcmp(cap.hint, hints[i].hint)) {
-            fprintf(stderr, "FAIL: %s hint '%s' != '%s'\n", hints[i].name, cap.hint, hints[i].hint);
-            exit(1);
+        {
+            char want[96];
+            labels_of(hints[i].hint, want);
+            if (strcmp(cap.hint, want)) {
+                fprintf(stderr, "FAIL: %s strip '%s' != '%s'\n", hints[i].name, cap.hint, want);
+                exit(1);
+            }
         }
-        if (strlen(cap.hint) > 29u) die(hints[i].name, "hint exceeds 232 px small-font row");
     }
 }
 
@@ -288,9 +311,9 @@ static void verify_inactive_and_chord(void)
     setup(&p, &t, &st, &u, MELLO_UI_HOME);
     before = t.engine;
     u.dirty = 0u;
-    black(&u, 100u, 0u);
+    black(&u, 100u, 6u); /* B0-B5 and B7 are the HOME rail now; B6 is free */
     if (u.page != MELLO_UI_HOME || memcmp(&before, &t.engine, sizeof before) || u.dirty)
-        die("HOME B0", "inactive rail slot is not inert");
+        die("HOME B6", "inactive rail slot is not inert");
     black(&u, 200u, 5u);
     if (u.page != MELLO_UI_RANDOM) die("HOME B5", "RANDOM access missing");
 #if MELLO_FEATURE_CHORD_MACHINE

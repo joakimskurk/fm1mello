@@ -4,7 +4,7 @@
 #include <string.h>
 
 typedef struct {
-    char hint[64];
+    char hint[96];
 } Capture;
 typedef struct {
     const char *name;
@@ -13,12 +13,12 @@ typedef struct {
 } MapCase;
 
 static const MapCase cases[] = {
-    {"HOME", MELLO_UI_HOME, "B5:RANDOM"},
+    {"HOME", MELLO_UI_HOME, "B0:RND B1:UNDO B2:MUT B3:-1 B4:+1 B5:MASK B7:CLR2"},
     {"STEP", MELLO_UI_SEQ_STEP, "B4:SKIP B5:RANDOM"},
     {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B5:RANDOM"},
     {"LOOP", MELLO_UI_SEQ_LOOP, "B2:RST B5:RANDOM"},
     {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B5:RANDOM"},
-    {"RANDOM", MELLO_UI_RANDOM, "B1:RND B3:CLR2 B6:NONE B7:ALL"},
+    {"RANDOM", MELLO_UI_RANDOM, "B1:RND B2:UNDO B3:CLR2 B6:NONE B7:ALL"},
     {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:RANDOM"},
     {"SLOTS", MELLO_UI_SLOTS, "B5:RANDOM"},
     {"DOT", MELLO_UI_DOT, "B1:RND B2:RST B5:RANDOM"},
@@ -32,6 +32,23 @@ static const MapCase cases[] = {
     {"AUDIO FX", MELLO_UI_AUDIO_FX, "B5:RANDOM"},
     {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B5:RANDOM"},
 };
+
+/* The strip shows labels only, in key order: "B0:RND B1:UNDO" is drawn as "RND UNDO". */
+static void labels_of(const char *hint, char *out)
+{
+    *out = 0;
+    while (*hint) {
+        const char *colon = strchr(hint, ':'), *end = strchr(hint, ' ');
+        size_t n;
+        if (!colon) break;
+        if (!end) end = hint + strlen(hint);
+        if (*out) strcat(out, " ");
+        n = strlen(out);
+        memcpy(out + n, colon + 1, (size_t)(end - colon - 1));
+        out[n + (size_t)(end - colon - 1)] = 0;
+        hint = *end ? end + 1 : end;
+    }
+}
 
 static uint32_t bit_u32(unsigned n)
 {
@@ -60,7 +77,10 @@ static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, cons
     (void)large;
     (void)c;
     (void)align;
-    if (y == 172) snprintf(cap->hint, sizeof cap->hint, "%s", s ? s : "");
+    if (y == 172 && s && *s && strlen(cap->hint) + strlen(s) + 2u < sizeof cap->hint) { /* the strip's labels */
+        if (cap->hint[0]) strcat(cap->hint, " ");
+        strcat(cap->hint, s);
+    }
 }
 static void led_key(void *ctx, uint8_t i, bool on)
 {
@@ -132,7 +152,11 @@ static void verify_every_page_and_inactive_slot(void)
         uint8_t slot;
         setup(&p, &t, &st, &u, cases[i].page);
         render(&u, &cap);
-        if (strcmp(cap.hint, cases[i].hint)) die(cases[i].name, "rendered descriptor hint drift");
+        {
+            char want[96];
+            labels_of(cases[i].hint, want);
+            if (strcmp(cap.hint, want)) die(cases[i].name, "rendered descriptor hint drift");
+        }
         for (slot = 0u; slot < 8u; ++slot) {
             if (has_slot(cases[i].hint, slot)) {
                 ++active;
@@ -151,9 +175,9 @@ static void verify_every_page_and_inactive_slot(void)
         }
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if (active != 31u) die("MAP", "active slot count != 31 with Chord");
+    if (active != 38u) die("MAP", "active slot count != 38 with Chord");
 #else
-    if (active != 29u) die("MAP", "active slot count != 29 without Chord");
+    if (active != 36u) die("MAP", "active slot count != 36 without Chord");
 #endif
     printf("C5 MAP COVERAGE: pages=%u active=%u inactive=%u\n", (unsigned)(sizeof(cases) / sizeof(cases[0])),
            active, inactive);

@@ -69,6 +69,9 @@ typedef enum {
 
 #define MELLO_UI_NO_STEP       0xFFu
 #define MELLO_UI_READOUT_LAYER 5u    /* MelloUi.readout: SELECT changed the layer */
+#define MELLO_UI_READOUT_TEMPO 6u    /* HOME's SELECT, ALGORITHM, PRESETS */
+#define MELLO_UI_READOUT_INTENSITY 7u
+#define MELLO_UI_READOUT_PATTERN 8u
 #define MELLO_UI_READOUT_MS    1200u /* how long the readout stays after the last detent */
 
 enum {
