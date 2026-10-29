@@ -71,6 +71,30 @@ PERFORM HOME (docs/review-2026-10/02_ux.md §5): white keys toggle steps, K1–K
 black keys for RANDOM/UNDO/MUTATE/FILL..., EDIT makes the keys a playable keyboard, REC records steps. At most two
 levels; honest help texts; autosave everything.
 
+The instrument is an iceberg (2026-10-29): it must be very easy to make something good and cool from HOME, and possible
+to dig deeper, but never impossible or unintuitive to find your way. Today there are many parameters on many pages,
+it is hard to find things, and at times hard to see on screen what you are adjusting.
+- [ ] Better visual feedback everywhere: always show which parameter a knob is moving and its value (a large
+      transient readout), and where you are (page, subpage, depth).
+- [ ] Fewer, clearer levels: the everyday controls on the surface, the rest one deliberate step down, grouped so a
+      page is about one thing.
+- [ ] LFO matrix (DOT): the steps no longer show moving through the matrix; bring the playhead back (check whether
+      this is a regression).
+- [ ] Randomizer "skyline": its length and bar width follow the sequence length.
+
+## Phase 5: deeper sound and modulation (2026-10-29 wishlist)
+
+Beyond the HTML: decide each one in docs/mello/DECISIONS.md, keep the defaults sounding as now, and keep the surface
+simple (Phase 3's iceberg).
+- [ ] Synth: optional "grit", inspired by the Access Virus: noise mixed in, noise FM of the pitch, unison voices with
+      detune. The default stays a plain saw, as now. All of it modulatable.
+- [ ] Modulation: generally more parameters as modulation targets.
+- [ ] Randomizer: route to several destinations at once, and an invert option per route, so one parameter mirrors
+      another inverted.
+- [ ] LFO matrix (DOT): more playback orders: reverse, spiral, and others (ping-pong, diagonal, random walk...).
+- [ ] Chord mode: unusable as it is. Redesign it, both the sound and how it is played, so it is usable and makes
+      musical sense (see DECISIONS.md "Harmonic layer" for the earlier candidates).
+
 ## Phase 4: validate, then grow
 
 `docs/mello/HARDWARE_VALIDATION_CHECKLIST.md` on a unit. Then: Dinghy 0.4 (TRS MIDI, clock), Undo Last Random,
