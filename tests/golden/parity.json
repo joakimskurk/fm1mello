@@ -57,7 +57,7 @@
  {
   "name": "sub_dry",
   "level_db": -0.9,
-  "env_db": 2.8,
+  "env_db": 2.9,
   "tone_db": 1.8,
   "worst_band_hz": 5040,
   "worst_db": -5.1,
@@ -146,6 +146,17 @@
   "worst_db": -16.2,
   "peak_html_dbfs": -13.0,
   "peak_c_dbfs": -13.1,
+  "rt60_html_c": null
+ },
+ {
+  "name": "slides",
+  "level_db": 1.2,
+  "env_db": 0.9,
+  "tone_db": 0.5,
+  "worst_band_hz": 79,
+  "worst_db": -2.5,
+  "peak_html_dbfs": -14.6,
+  "peak_c_dbfs": -13.9,
   "rt60_html_c": null
  }
 ]

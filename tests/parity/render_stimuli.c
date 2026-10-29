@@ -50,6 +50,8 @@ static void apply_param(const StimParam *p, MelloSoundConfig *s, MelloFxConfig *
     else if (!strcmp(k, "distCharacter")) fx->dist_character = permille(p->num);
     else if (!strcmp(k, "subLevel")) sub->level = permille(p->num);
     else if (!strcmp(k, "pwmWidth")) s->pwm_permille = permille(p->num);
+    else if (!strcmp(k, "slideTime")) s->slide_ms = ms(p->num);
+    else if (!strcmp(k, "subGlide")) sub->glide_ms = ms(p->num);
     else if (!strcmp(k, "lfoOn")) s->lfo_on = p->num != 0.0;
     else if (!strcmp(k, "lfoRate")) s->lfo_rate_millihz = (uint16_t)(p->num * 1000.0 + 0.5);
     else if (!strcmp(k, "lfoDepth")) s->lfo_depth = permille(p->num);
@@ -115,11 +117,14 @@ static int render(const Stimulus *st, const char *dir)
         ev[n].e.type = MELLO_EVENT_NOTE_ON;
         ev[n].e.note = (uint8_t)x->midi;
         ev[n].e.velocity = vel;
+        ev[n].e.slide = x->slide != 0;
+        ev[n].e.step_index = (uint8_t)i; /* one step per note, as the sequencer's: pairs the OFF with its ON */
         n++;
         memset(&ev[n], 0, sizeof ev[n]);
         ev[n].t = x->t + x->dur;
         ev[n].e.type = MELLO_EVENT_NOTE_OFF;
         ev[n].e.note = (uint8_t)x->midi;
+        ev[n].e.step_index = (uint8_t)i;
         n++;
     }
     for (i = 0; i < st->sub_count; ++i) {
@@ -129,11 +134,13 @@ static int render(const Stimulus *st, const char *dir)
         ev[n].e.type = MELLO_EVENT_SUB_NOTE_ON;
         ev[n].e.note = (uint8_t)x->midi;
         ev[n].e.velocity = 114u; /* triggerSub's fixed 0.9 */
+        ev[n].e.step_index = (uint8_t)i;
         n++;
         memset(&ev[n], 0, sizeof ev[n]);
         ev[n].t = x->t + x->dur;
         ev[n].e.type = MELLO_EVENT_SUB_NOTE_OFF;
         ev[n].e.note = (uint8_t)x->midi;
+        ev[n].e.step_index = (uint8_t)i;
         n++;
     }
     qsort(ev, (size_t)n, sizeof ev[0], by_time);

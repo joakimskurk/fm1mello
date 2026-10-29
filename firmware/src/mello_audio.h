@@ -34,7 +34,9 @@ typedef struct {
     uint32_t phase;
     uint32_t inc;
     uint32_t target_inc;
-    int32_t slide_step;
+    int32_t pitch_q16;  /* the pitch in semitones (MIDI note) << 16: slides move it, inc follows */
+    uint32_t on_tag;    /* the latest NOTE_ON (event_tag): only its own NOTE_OFF releases */
+    int32_t slide_step; /* per sample, in pitch_q16 units */
     uint32_t slide_left;
     uint32_t sub_phase;
     uint32_t sub_inc;
@@ -57,7 +59,9 @@ typedef struct {
     uint32_t phase;
     uint32_t inc;
     uint32_t target_inc;
-    int32_t slide_step;
+    int32_t pitch_q16;  /* as the lead's */
+    uint32_t on_tag;
+    int32_t slide_step; /* per sample, in pitch_q16 units */
     uint32_t slide_left;
     int32_t env_q24;
     int32_t env_step_q24;

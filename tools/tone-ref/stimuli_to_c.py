@@ -16,7 +16,7 @@ lines = [
     "",
     "typedef enum { STIM_FX_FULL, STIM_FX_DRY, STIM_FX_REVERB } StimFx;",
     "typedef struct { const char *key; const char *text; double num; } StimParam;",
-    "typedef struct { double t, dur; int midi; double vel; } StimNote;",
+    "typedef struct { double t, dur; int midi; double vel; int slide; } StimNote;",
     "typedef struct {",
     "    const char *name;",
     "    double seconds;",
@@ -47,8 +47,9 @@ for i, st in enumerate(spec["stimuli"]):
     lines.append(f"static const StimParam stim{i}_params[] = {{{', '.join(plist) or '{0, 0, 0}'}}};")
     for voice in ("lead", "sub"):
         notes = st.get(voice, [])
-        body = ", ".join(f"{{{n['t']!r}, {n['dur']!r}, {n['midi']}, {n.get('vel', 0.9)!r}}}" for n in notes)
-        lines.append(f"static const StimNote stim{i}_{voice}[] = {{{body or '{0, 0, 0, 0}'}}};")
+        body = ", ".join(f"{{{n['t']!r}, {n['dur']!r}, {n['midi']}, {n.get('vel', 0.9)!r}, {int(n.get('slide', False))}}}"
+                         for n in notes)
+        lines.append(f"static const StimNote stim{i}_{voice}[] = {{{body or '{0, 0, 0, 0, 0}'}}};")
     entries.append(
         f'    {{"{st["name"]}", {st["seconds"]!r}, {FX[st["fx"]]}, stim{i}_params, {len(params)}, '
         f'stim{i}_lead, {len(st.get("lead", []))}, stim{i}_sub, {len(st.get("sub", []))}}},'

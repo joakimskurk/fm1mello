@@ -138,6 +138,26 @@
       "fx": "dry",
       "params": {"sustain": 1.0, "decay": 0.05, "release": 0.05, "subOscOn": false, "lfoOn": true, "lfoRate": 3.0, "lfoTarget": "pwm", "lfoDepth": 0.8, "oscType": "pulse", "pwmWidth": 0.3},
       "lead": [{"t": 0.05, "dur": 2.2, "midi": 57, "vel": 0.9}]
+    },
+    {
+      "name": "slides",
+      "what": "legato lead with SLIDE steps (120 ms) up and down an octave, and the sub gliding 80 ms under it",
+      "seconds": 2.6,
+      "fx": "dry",
+      "params": {"slideTime": 0.12, "subGlide": 0.08, "sustain": 0.8, "decay": 0.3, "subOscOn": false},
+      "lead": [
+        {"t": 0.05, "dur": 0.5, "midi": 57, "vel": 0.72},
+        {"t": 0.5, "dur": 0.5, "midi": 69, "vel": 0.72, "slide": true},
+        {"t": 0.95, "dur": 0.5, "midi": 60, "vel": 0.72, "slide": true},
+        {"t": 1.4, "dur": 0.5, "midi": 64, "vel": 0.72},
+        {"t": 1.85, "dur": 0.5, "midi": 52, "vel": 0.72, "slide": true}
+      ],
+      "sub": [
+        {"t": 0.05, "dur": 0.5, "midi": 33},
+        {"t": 0.5, "dur": 0.5, "midi": 40},
+        {"t": 0.95, "dur": 0.9, "midi": 28},
+        {"t": 1.85, "dur": 0.5, "midi": 36}
+      ]
     }
   ]
 }

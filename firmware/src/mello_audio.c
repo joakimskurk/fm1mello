@@ -176,6 +176,46 @@ static uint32_t note_inc(uint8_t note)
 {
     return MIDI_INC[note & 127u];
 }
+/* The increment for a pitch between notes (semitones << 16), interpolated between MIDI notes: within 0.7 cents of
+ * 2^(p/12), which is what Tone's exponentialRampTo on the frequency follows. */
+static uint32_t pitch_inc(int32_t p_q16)
+{
+    int32_t semi = p_q16 >> 16;
+    uint32_t base, f = ((uint32_t)p_q16 >> 8) & 0xFFu;
+    if (semi < 0) return MIDI_INC[0];
+    if (semi >= 127) return MIDI_INC[127];
+    base = MIDI_INC[semi];
+    return base + ((MIDI_INC[semi + 1] - base) >> 8) * f;
+}
+/* Tone.Monophonic.setNote: with portamento, and the voice still above 0.05, the frequency ramps exponentially (a
+ * straight line in pitch) to the note over the portamento time; otherwise it jumps. */
+static void voice_glide_to(uint32_t *inc, uint32_t *target_inc, int32_t *pitch_q16, int32_t *step, uint32_t *left,
+                           uint8_t note, uint16_t glide_ms, int32_t env_q24)
+{
+    int32_t to = (int32_t)note << 16;
+    uint32_t n;
+    *target_inc = note_inc(note);
+    if (glide_ms && *inc && env_q24 > (Q24_ONE / 20) && *pitch_q16 != to) {
+        n = ms_samples(glide_ms);
+        if (n < 1u) n = 1u;
+        *left = n;
+        *step = (to - *pitch_q16) / (int32_t)n;
+    } else {
+        *pitch_q16 = to;
+        *inc = *target_inc;
+        *left = 0u;
+    }
+}
+static void voice_slide_tick(uint32_t *inc, uint32_t target_inc, int32_t *pitch_q16, int32_t step, uint32_t *left)
+{
+    if (--*left == 0u) {
+        *inc = target_inc;
+        *pitch_q16 = (*pitch_q16 + step + 0x8000) & ~0xFFFF; /* lands on the note */
+    } else {
+        *pitch_q16 += step;
+        *inc = pitch_inc(*pitch_q16);
+    }
+}
 static uint32_t shifted_note_inc(uint8_t note, int8_t oct)
 {
     int32_t n = (int32_t)note + (int32_t)oct * 12;
@@ -344,20 +384,12 @@ static void lead_begin_decay(MelloAudio *a)
 }
 static void lead_attack(MelloAudio *a, uint8_t note, uint8_t vel, bool slide)
 {
-    uint32_t n;
     a->lead.note = note;
     a->lead.velocity = vel;
     a->lead.gate = true;
-    a->lead.target_inc = note_inc(note);
-    if (slide && a->config.slide_ms) {
-        n = ms_samples(a->config.slide_ms);
-        if (n < 1u) n = 1u;
-        a->lead.slide_left = n;
-        a->lead.slide_step = ((int32_t)a->lead.target_inc - (int32_t)a->lead.inc) / (int32_t)n;
-    } else {
-        a->lead.inc = a->lead.target_inc;
-        a->lead.slide_left = 0u;
-    }
+    /* HTML: portamento is set per step, slideTime on SLIDE steps and 0 otherwise. */
+    voice_glide_to(&a->lead.inc, &a->lead.target_inc, &a->lead.pitch_q16, &a->lead.slide_step, &a->lead.slide_left,
+                   note, slide ? a->config.slide_ms : 0u, a->lead.env_q24);
     /* HTML: the follower sub (subOsc) never glides; only the lead's portamento is set per step. */
     a->lead.sub_target_inc = shifted_note_inc(note, a->config.follower_sub_octave);
     a->lead.sub_inc = a->lead.sub_target_inc;
@@ -384,23 +416,12 @@ static void sub_begin_decay(MelloAudio *a)
 }
 static void sub_attack(MelloAudio *a, uint8_t note, uint8_t vel)
 {
-    uint32_t n, attack_n;
-    bool glide;
+    uint32_t attack_n;
     a->sub.note = note;
     a->sub.velocity = vel;
     a->sub.gate = true;
-    a->sub.target_inc = note_inc(note);
-    /* Tone.Monophonic only portamentos while the voice is already audible. */
-    glide = a->sub_config.glide_ms && a->sub.inc && a->sub.env_q24 > (Q24_ONE / 20);
-    if (glide) {
-        n = ms_samples(a->sub_config.glide_ms);
-        if (n < 1u) n = 1u;
-        a->sub.slide_left = n;
-        a->sub.slide_step = ((int32_t)a->sub.target_inc - (int32_t)a->sub.inc) / (int32_t)n;
-    } else {
-        a->sub.inc = a->sub.target_inc;
-        a->sub.slide_left = 0u;
-    }
+    voice_glide_to(&a->sub.inc, &a->sub.target_inc, &a->sub.pitch_q16, &a->sub.slide_step, &a->sub.slide_left, note,
+                   a->sub_config.glide_ms, a->sub.env_q24);
     /* Tone.Envelope shortens a retrigger attack by the already-reached level. */
     attack_n = ms_samples(3u);
     if (a->sub.env_q24 > 0 && a->sub.env_q24 < Q24_ONE)
@@ -637,6 +658,13 @@ static void chord_kill(MelloAudio *a)
 }
 #endif
 
+/* Which note an ON/OFF pair belongs to. Tone's triggerAttack cancels the envelope's scheduled release, so in the HTML a
+ * note that starts before the last one's gate ends plays legato: that NOTE_OFF must not release the new note. */
+static uint32_t event_tag(const MelloEvent *e)
+{
+    return (uint32_t)e->step_index | (uint32_t)e->pulse_index << 8 | (uint32_t)e->ratchet_index << 16 |
+           (uint32_t)e->note << 24;
+}
 static void apply_event(MelloAudio *a, const MelloEvent *e)
 {
     if (!a || !e) return;
@@ -664,21 +692,22 @@ static void apply_event(MelloAudio *a, const MelloEvent *e)
     } else if (e->type == MELLO_EVENT_NOTE_ON) {
         a->tm_filter_mod_q15 = e->tm_filter_mod_q15;
         a->tm_decay_mod_q15 = e->tm_decay_mod_q15;
+        a->lead.on_tag = event_tag(e);
         lead_attack(a, e->note, e->velocity, e->slide);
-    } else if (e->type == MELLO_EVENT_NOTE_OFF)
-        lead_release(a);
-    else if (e->type == MELLO_EVENT_SUB_NOTE_ON)
+    } else if (e->type == MELLO_EVENT_NOTE_OFF) {
+        if (event_tag(e) == a->lead.on_tag) lead_release(a);
+    } else if (e->type == MELLO_EVENT_SUB_NOTE_ON) {
+        a->sub.on_tag = event_tag(e);
         sub_attack(a, e->note, e->velocity);
-    else if (e->type == MELLO_EVENT_SUB_NOTE_OFF)
-        sub_release(a)
+    } else if (e->type == MELLO_EVENT_SUB_NOTE_OFF) {
+        if (event_tag(e) == a->sub.on_tag) sub_release(a);
+    }
 #if MELLO_FEATURE_CHORD_MACHINE
-            ;
     else if (e->type == MELLO_EVENT_CHORD_NOTE_ON)
         chord_note_on(a, e->note);
     else if (e->type == MELLO_EVENT_CHORD_NOTE_OFF)
-        chord_note_off(a, e->note)
+        chord_note_off(a, e->note);
 #endif
-            ;
     else if (e->type == MELLO_EVENT_SAMPLE_NOTE_ON)
         sample_attack_voice(a, e);
     else if (e->type == MELLO_EVENT_SAMPLE_NOTE_OFF)
@@ -1455,18 +1484,16 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             (void)env_tick(&a->chord.env_q24, a->chord.env_step_q24, a->chord.env_target_q24,
                            &a->chord.env_stage);
 #endif
-        if (a->lead.slide_left) {
-            a->lead.inc = (uint32_t)((int32_t)a->lead.inc + a->lead.slide_step);
-            if (--a->lead.slide_left == 0u) a->lead.inc = a->lead.target_inc;
-        }
+        if (a->lead.slide_left)
+            voice_slide_tick(&a->lead.inc, a->lead.target_inc, &a->lead.pitch_q16, a->lead.slide_step,
+                             &a->lead.slide_left);
         if (a->lead.sub_slide_left) {
             a->lead.sub_inc = (uint32_t)((int32_t)a->lead.sub_inc + a->lead.sub_slide_step);
             if (--a->lead.sub_slide_left == 0u) a->lead.sub_inc = a->lead.sub_target_inc;
         }
-        if (a->sub.slide_left) {
-            a->sub.inc = (uint32_t)((int32_t)a->sub.inc + a->sub.slide_step);
-            if (--a->sub.slide_left == 0u) a->sub.inc = a->sub.target_inc;
-        }
+        if (a->sub.slide_left)
+            voice_slide_tick(&a->sub.inc, a->sub.target_inc, &a->sub.pitch_q16, a->sub.slide_step,
+                             &a->sub.slide_left);
         if (a->config.lfo_on) {
             uint32_t ph = a->lfo_phase;
             int32_t s0 = SINE_Q15[(uint8_t)(ph >> 24)], s1 = SINE_Q15[(uint8_t)((ph >> 24) + 1u)];

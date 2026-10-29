@@ -133,7 +133,7 @@ function applyLfo(P, synth, mix, filter, seconds) {
 function triggerLead(c, P, n) {
   const note = Tone.Frequency(n.midi, "midi").toNote();
   const subNote = Tone.Frequency(clamp(n.midi + P.subOscOct * 12, 12, 108), "midi").toNote();
-  c.synth.portamento = 0; /* no slide steps in these stimuli */
+  c.synth.portamento = n.slide ? P.slideTime : 0; /* per step: only SLIDE steps glide */
   c.synth.triggerAttackRelease(note, n.dur, n.t, n.vel);
   if (P.subOscOn) c.subOsc.triggerAttackRelease(subNote, n.dur, n.t, n.vel * clamp(P.subOscLevel, 0, 1));
 }

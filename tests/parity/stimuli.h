@@ -4,7 +4,7 @@
 
 typedef enum { STIM_FX_FULL, STIM_FX_DRY, STIM_FX_REVERB } StimFx;
 typedef struct { const char *key; const char *text; double num; } StimParam;
-typedef struct { double t, dur; int midi; double vel; } StimNote;
+typedef struct { double t, dur; int midi; double vel; int slide; } StimNote;
 typedef struct {
     const char *name;
     double seconds;
@@ -21,44 +21,47 @@ typedef struct {
 #define STIM_BPM 80
 
 static const StimParam stim0_params[] = {{0, 0, 0}};
-static const StimNote stim0_lead[] = {{0.05, 0.15375, 60, 0.72}};
-static const StimNote stim0_sub[] = {{0, 0, 0, 0}};
+static const StimNote stim0_lead[] = {{0.05, 0.15375, 60, 0.72, 0}};
+static const StimNote stim0_sub[] = {{0, 0, 0, 0, 0}};
 static const StimParam stim1_params[] = {{0, 0, 0}};
-static const StimNote stim1_lead[] = {{0.05, 0.15375, 60, 0.95}, {0.2375, 0.15375, 62, 0.72}, {0.425, 0.15375, 63, 0.72}, {0.6125, 0.15375, 65, 0.72}, {0.8, 0.15375, 67, 0.72}, {0.9875, 0.15375, 68, 0.72}, {1.175, 0.15375, 70, 0.72}, {1.3625, 0.15375, 72, 0.72}};
-static const StimNote stim1_sub[] = {{0, 0, 0, 0}};
+static const StimNote stim1_lead[] = {{0.05, 0.15375, 60, 0.95, 0}, {0.2375, 0.15375, 62, 0.72, 0}, {0.425, 0.15375, 63, 0.72, 0}, {0.6125, 0.15375, 65, 0.72, 0}, {0.8, 0.15375, 67, 0.72, 0}, {0.9875, 0.15375, 68, 0.72, 0}, {1.175, 0.15375, 70, 0.72, 0}, {1.3625, 0.15375, 72, 0.72, 0}};
+static const StimNote stim1_sub[] = {{0, 0, 0, 0, 0}};
 static const StimParam stim2_params[] = {{"filterCut", 0, 0.4}, {"filterRes", 0, 0.0}, {"subOscOn", 0, 0}, {"sustain", 0, 1.0}};
-static const StimNote stim2_lead[] = {{0.05, 1.0, 36, 0.72}};
-static const StimNote stim2_sub[] = {{0, 0, 0, 0}};
+static const StimNote stim2_lead[] = {{0.05, 1.0, 36, 0.72, 0}};
+static const StimNote stim2_sub[] = {{0, 0, 0, 0, 0}};
 static const StimParam stim3_params[] = {{"filterCut", 0, 0.4}, {"filterRes", 0, 0.5}, {"subOscOn", 0, 0}, {"sustain", 0, 1.0}};
-static const StimNote stim3_lead[] = {{0.05, 1.0, 36, 0.72}};
-static const StimNote stim3_sub[] = {{0, 0, 0, 0}};
+static const StimNote stim3_lead[] = {{0.05, 1.0, 36, 0.72, 0}};
+static const StimNote stim3_sub[] = {{0, 0, 0, 0, 0}};
 static const StimParam stim4_params[] = {{"filterCut", 0, 0.4}, {"filterRes", 0, 1.0}, {"subOscOn", 0, 0}, {"sustain", 0, 1.0}};
-static const StimNote stim4_lead[] = {{0.05, 1.0, 36, 0.72}};
-static const StimNote stim4_sub[] = {{0, 0, 0, 0}};
+static const StimNote stim4_lead[] = {{0.05, 1.0, 36, 0.72, 0}};
+static const StimNote stim4_sub[] = {{0, 0, 0, 0, 0}};
 static const StimParam stim5_params[] = {{0, 0, 0}};
-static const StimNote stim5_lead[] = {{0, 0, 0, 0}};
-static const StimNote stim5_sub[] = {{0.05, 0.16875, 36, 0.9}, {0.2375, 0.16875, 36, 0.9}, {0.425, 0.16875, 43, 0.9}, {0.6125, 0.16875, 36, 0.9}};
+static const StimNote stim5_lead[] = {{0, 0, 0, 0, 0}};
+static const StimNote stim5_sub[] = {{0.05, 0.16875, 36, 0.9, 0}, {0.2375, 0.16875, 36, 0.9, 0}, {0.425, 0.16875, 43, 0.9, 0}, {0.6125, 0.16875, 36, 0.9, 0}};
 static const StimParam stim6_params[] = {{"distAmt", 0, 0.8}};
-static const StimNote stim6_lead[] = {{0.05, 0.15375, 60, 0.95}, {0.2375, 0.15375, 62, 0.72}, {0.425, 0.15375, 63, 0.72}, {0.6125, 0.15375, 65, 0.72}};
-static const StimNote stim6_sub[] = {{0, 0, 0, 0}};
+static const StimNote stim6_lead[] = {{0.05, 0.15375, 60, 0.95, 0}, {0.2375, 0.15375, 62, 0.72, 0}, {0.425, 0.15375, 63, 0.72, 0}, {0.6125, 0.15375, 65, 0.72, 0}};
+static const StimNote stim6_sub[] = {{0, 0, 0, 0, 0}};
 static const StimParam stim7_params[] = {{0, 0, 0}};
-static const StimNote stim7_lead[] = {{0.05, 0.15375, 60, 0.95}, {0.2375, 0.15375, 62, 0.72}, {0.425, 0.15375, 63, 0.72}, {0.6125, 0.15375, 65, 0.72}, {0.8, 0.15375, 67, 0.72}, {0.9875, 0.15375, 68, 0.72}, {1.175, 0.15375, 70, 0.72}, {1.3625, 0.15375, 72, 0.72}};
-static const StimNote stim7_sub[] = {{0.05, 0.16875, 36, 0.9}, {0.8, 0.16875, 36, 0.9}};
+static const StimNote stim7_lead[] = {{0.05, 0.15375, 60, 0.95, 0}, {0.2375, 0.15375, 62, 0.72, 0}, {0.425, 0.15375, 63, 0.72, 0}, {0.6125, 0.15375, 65, 0.72, 0}, {0.8, 0.15375, 67, 0.72, 0}, {0.9875, 0.15375, 68, 0.72, 0}, {1.175, 0.15375, 70, 0.72, 0}, {1.3625, 0.15375, 72, 0.72, 0}};
+static const StimNote stim7_sub[] = {{0.05, 0.16875, 36, 0.9, 0}, {0.8, 0.16875, 36, 0.9, 0}};
 static const StimParam stim8_params[] = {{"attack", 0, 0.001}, {"decay", 0, 0.05}, {"sustain", 0, 1.0}, {"release", 0, 0.005}, {"filterCut", 0, 1.0}, {"subOscOn", 0, 0}};
-static const StimNote stim8_lead[] = {{0.05, 0.05, 72, 0.95}};
-static const StimNote stim8_sub[] = {{0, 0, 0, 0}};
+static const StimNote stim8_lead[] = {{0.05, 0.05, 72, 0.95, 0}};
+static const StimNote stim8_sub[] = {{0, 0, 0, 0, 0}};
 static const StimParam stim9_params[] = {{"sustain", 0, 1.0}, {"decay", 0, 0.05}, {"release", 0, 0.05}, {"subOscOn", 0, 0}, {"lfoOn", 0, 1}, {"lfoRate", 0, 3.0}, {"lfoTarget", "pitch", 0}, {"lfoDepth", 0, 0.5}};
-static const StimNote stim9_lead[] = {{0.05, 2.2, 57, 0.9}};
-static const StimNote stim9_sub[] = {{0, 0, 0, 0}};
+static const StimNote stim9_lead[] = {{0.05, 2.2, 57, 0.9, 0}};
+static const StimNote stim9_sub[] = {{0, 0, 0, 0, 0}};
 static const StimParam stim10_params[] = {{"sustain", 0, 1.0}, {"decay", 0, 0.05}, {"release", 0, 0.05}, {"subOscOn", 0, 0}, {"lfoOn", 0, 1}, {"lfoRate", 0, 3.0}, {"lfoTarget", "filter", 0}, {"lfoDepth", 0, 0.6}, {"filterCut", 0, 0.55}};
-static const StimNote stim10_lead[] = {{0.05, 2.2, 57, 0.9}};
-static const StimNote stim10_sub[] = {{0, 0, 0, 0}};
+static const StimNote stim10_lead[] = {{0.05, 2.2, 57, 0.9, 0}};
+static const StimNote stim10_sub[] = {{0, 0, 0, 0, 0}};
 static const StimParam stim11_params[] = {{"sustain", 0, 1.0}, {"decay", 0, 0.05}, {"release", 0, 0.05}, {"subOscOn", 0, 0}, {"lfoOn", 0, 1}, {"lfoRate", 0, 3.0}, {"lfoTarget", "amp", 0}, {"lfoDepth", 0, 0.7}};
-static const StimNote stim11_lead[] = {{0.05, 2.2, 57, 0.9}};
-static const StimNote stim11_sub[] = {{0, 0, 0, 0}};
+static const StimNote stim11_lead[] = {{0.05, 2.2, 57, 0.9, 0}};
+static const StimNote stim11_sub[] = {{0, 0, 0, 0, 0}};
 static const StimParam stim12_params[] = {{"sustain", 0, 1.0}, {"decay", 0, 0.05}, {"release", 0, 0.05}, {"subOscOn", 0, 0}, {"lfoOn", 0, 1}, {"lfoRate", 0, 3.0}, {"lfoTarget", "pwm", 0}, {"lfoDepth", 0, 0.8}, {"oscType", "pulse", 0}, {"pwmWidth", 0, 0.3}};
-static const StimNote stim12_lead[] = {{0.05, 2.2, 57, 0.9}};
-static const StimNote stim12_sub[] = {{0, 0, 0, 0}};
+static const StimNote stim12_lead[] = {{0.05, 2.2, 57, 0.9, 0}};
+static const StimNote stim12_sub[] = {{0, 0, 0, 0, 0}};
+static const StimParam stim13_params[] = {{"slideTime", 0, 0.12}, {"subGlide", 0, 0.08}, {"sustain", 0, 0.8}, {"decay", 0, 0.3}, {"subOscOn", 0, 0}};
+static const StimNote stim13_lead[] = {{0.05, 0.5, 57, 0.72, 0}, {0.5, 0.5, 69, 0.72, 1}, {0.95, 0.5, 60, 0.72, 1}, {1.4, 0.5, 64, 0.72, 0}, {1.85, 0.5, 52, 0.72, 1}};
+static const StimNote stim13_sub[] = {{0.05, 0.5, 33, 0.9, 0}, {0.5, 0.5, 40, 0.9, 0}, {0.95, 0.9, 28, 0.9, 0}, {1.85, 0.5, 36, 0.9, 0}};
 
 static const Stimulus STIMULI[] = {
     {"lead_pluck_dry", 1.0, STIM_FX_DRY, stim0_params, 0, stim0_lead, 1, stim0_sub, 0},
@@ -74,6 +77,7 @@ static const Stimulus STIMULI[] = {
     {"lfo_filter", 2.5, STIM_FX_DRY, stim10_params, 9, stim10_lead, 1, stim10_sub, 0},
     {"lfo_amp", 2.5, STIM_FX_DRY, stim11_params, 8, stim11_lead, 1, stim11_sub, 0},
     {"lfo_pwm", 2.5, STIM_FX_DRY, stim12_params, 10, stim12_lead, 1, stim12_sub, 0},
+    {"slides", 2.6, STIM_FX_DRY, stim13_params, 5, stim13_lead, 5, stim13_sub, 4},
 };
 #define STIM_COUNT ((int)(sizeof STIMULI / sizeof STIMULI[0]))
 
