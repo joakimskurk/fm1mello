@@ -5,9 +5,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* firmware/src/libc.c provides these on the FM-1, the C library on a computer. */
+/* On the FM-1, dinghy.c includes libc.c (memset, memcpy) before the Mello sources; the host tests use the C library. */
+#ifndef __PI32V2__
 void *(memset)(void *d, int c, size_t n);
 void *(memcpy)(void *d, const void *s, size_t n);
+#endif
 
 #ifdef __cplusplus
 extern "C" {

@@ -10,8 +10,8 @@ sequencer and storage; rewrite the sound to match the HTML, rebuild HOME as an i
 - [x] Mello host tests and Dinghy host mode run with `make test` / `make host`, on Linux and macOS.
 - [x] clang-format, with compiled code proven unchanged.
 - [x] One CI workflow through `zvenson/fm1-build`.
-- [ ] First target build from this tree (needs Docker on the Mac, or a push to GitHub), compared with the
-      A.1 package: same identity, same size class, budgets pass.
+- [x] First target build from this tree, on a Mac with Colima: `./build.sh --release 0.1-dev` gives a package
+      byte-identical to the A.1 package (SHA-256 86a4dbec…b813), identity FM-1_970, budgets pass.
 - [ ] Carry over the checks that only the old `ci/build_target.sh` ran: the RAM/pool budget report
       (`inspect_target_build.py`) and the 80/100 MHz emulator smokes.
 
