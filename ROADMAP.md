@@ -34,13 +34,24 @@ Each fix has a regression test in `tests/mello/` that failed before it; `make te
 
 ## Phase 2: sound = the HTML
 
-- Reference first: render `reference/skurkymello.html` with `Tone.Offline` in headless Chromium for fixed inputs,
-  keep the results as golden files, compare the C render (spectrum, envelope, level). Pin Tone.js to an exact 14.x
-  version first: the page loads `tone@14`, which floats.
-- Then: two biquads with Q in dB, Tone's exponential envelopes, the always-on waveshaper with its 1/3 gain staging,
-  12–20 ms transport lookahead, reverb towards the noise-convolution target (RT60 = 6.9·ln(decay+1)/ln 200).
-- After that: PolyBLEP oscillators, 24 dB FX tone filters, LFO depth, follower level, exponential portamento,
-  soft limiter, parameter smoothing.
+The reference is in place: `make reference` renders `reference/skurkymello.html`'s chain with Tone.Offline
+(tools/tone-ref, Tone 14.9.17), `make parity` holds the C engine against it (tests/golden/parity.json).
+
+- [x] Main filter: two biquads, Q in dB (tone on the filter stimuli 4.5-11.7 -> 0.2-1.5 dB)
+- [x] Tone envelopes for the lead (exponential decay/release, shared with the sub)
+- [x] Always-on waveshaper and the HTML's gain staging (level +10..14 dB -> within +-1.3 dB)
+- [x] Follower sub: level squared, no glide
+- [x] Reverb: Tone.Reverb's RT60, flat loop, x1.05 return (RT60 6.0 -> 2.3 s vs the HTML's 2.4)
+- [x] FX tone filters -24 dB/oct; rounded biquads (no DC limit cycle)
+- [x] Transport lookahead (0/107 late notes vs 107/107)
+- [x] PolyBLEP saw/square/pulse, interpolated sine
+- CPU (fm1-emu, default pattern): 58.7 M ISR instructions/s, as 0.2-p1 (58.0).
+- [ ] Waveshaper oversampling: at res 0.5 the clip aliases (+16 dB at 2 kHz); the HTML oversamples 4x.
+- [ ] Reverb burst: more energy than the HTML at 60-250 Hz and near 10 kHz.
+- [ ] Samples and chord: Tone envelopes; LFO depths/targets (pitch 4-5x too shallow, AMP on the whole mix);
+      exponential portamento; soft limiter; parameter smoothing; sub filter Q in dB.
+- Note: the output is now as quiet as the HTML (about -10 dB RMS vs 0.2-p1). Raise MASTER, or decide on an
+  outer gain as a product choice.
 
 ## Phase 3: feel = the HTML
 
