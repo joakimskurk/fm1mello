@@ -175,10 +175,8 @@ typedef struct {
     int32_t reverb_lp; /* retained compatibility state */
     int32_t reverb_damp;
     int32_t reverb_tone_lp;
-    int32_t reverb_hp_x1;
     int32_t reverb_hp_y1;
     int32_t reverb_tone_lp_r;
-    int32_t reverb_hp_x1_r;
     int32_t reverb_hp_y1_r;
     uint16_t reverb_feedback_q15; /* representative/debug value; per-line gains below */
     uint16_t reverb_pre_samples;

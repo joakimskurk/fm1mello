@@ -1589,18 +1589,17 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 (a->fx.reverb_wet || a->tail_guard_frames)) {
                 int32_t send = fx_in * (int32_t)a->reverb_send_permille / 1000, rv_l = 0, rv_r = 0;
                 uint16_t tone_alpha = REVERB_TONE_ALPHA_Q15[a->fx.reverb_tone / 10u];
-                const int32_t hp_alpha = 32656;
                 reverb_network_step(a, send, &rv_l, &rv_r);
                 a->reverb_tone_lp += q15mul(rv_l - a->reverb_tone_lp, tone_alpha);
                 a->reverb_tone_lp_r += q15mul(rv_r - a->reverb_tone_lp_r, tone_alpha);
                 {
-                    int32_t hp_l = q15mul(hp_alpha, a->reverb_hp_y1 + a->reverb_tone_lp - a->reverb_hp_x1);
-                    int32_t hp_r =
-                        q15mul(hp_alpha, a->reverb_hp_y1_r + a->reverb_tone_lp_r - a->reverb_hp_x1_r);
-                    a->reverb_hp_x1 = a->reverb_tone_lp;
-                    a->reverb_hp_y1 = hp_l;
-                    a->reverb_hp_x1_r = a->reverb_tone_lp_r;
-                    a->reverb_hp_y1_r = hp_r;
+                    /* DC blocker, ~27 Hz: reverb_hp_y1 integrates the DC in Q8 and is subtracted. The old
+                     * q15mul one-pole high-pass floored to a dead band and passed about -150 of DC forever,
+                     * which kept the tail guard armed, so the unit never counted as silent (P1-1). */
+                    int32_t hp_l = a->reverb_tone_lp - (a->reverb_hp_y1 >> 8);
+                    int32_t hp_r = a->reverb_tone_lp_r - (a->reverb_hp_y1_r >> 8);
+                    a->reverb_hp_y1 += hp_l;
+                    a->reverb_hp_y1_r += hp_r;
                     mix_l += ((hp_l * (int32_t)a->fx.reverb_level) / 1000) * 1150 / 1000;
                     mix_r += ((hp_r * (int32_t)a->fx.reverb_level) / 1000) * 1150 / 1000;
                 }
