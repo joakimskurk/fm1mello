@@ -246,6 +246,7 @@ static void app_main(void)
         notes = fm1_input_note_edges();
         for (i = 0u; i < MELLO_UI_ENCODER_COUNT; ++i) enc[i] = (int16_t)fm1_enc_take(i);
 
+        mello_ui_set_held_notes(&ui, fm1_in.notes);
         mello_ui_input(&ui, now_us, fm1_ms, pressed, released, fm1_in.buttons, notes, enc);
         mello_transport_poll_ahead(&mt, now_us, MELLO_TRANSPORT_LOOKAHEAD_US);
         if (last_running && !mt.running) mello_audio_all_notes_off(&audio);

@@ -67,6 +67,7 @@ typedef enum {
     MELLO_UI_SAMPLE_RESERVED
 } MelloUiPage;
 
+#define MELLO_UI_NO_STEP       0xFFu
 #define MELLO_UI_READOUT_LAYER 5u    /* MelloUi.readout: SELECT changed the layer */
 #define MELLO_UI_READOUT_MS    1200u /* how long the readout stays after the last detent */
 
@@ -112,6 +113,11 @@ typedef struct {
     /* The readout: what the last turned control moves, large over the body, until readout_until_ms. */
     uint8_t readout;           /* 0 = none, 1..4 = K1..K4, MELLO_UI_READOUT_LAYER = SELECT changed the layer */
     uint32_t readout_until_ms;
+    /* HOME: a white key held down holds its step (K1-K4 edit it); released without a turn, it toggles the step. */
+    uint32_t held_notes;  /* mello_ui_set_held_notes: the note keys held now */
+    uint8_t held_step;    /* MELLO_UI_NO_STEP when none */
+    uint8_t held_key;     /* its note key */
+    bool held_step_edited;
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
 
     uint8_t selected_step;
@@ -166,6 +172,9 @@ void mello_ui_tick(MelloUi *ui);
 
 /* One non-blocking main-loop input pass. note_pressed is bit 0=F3 .. bit 26=G5.
  * held_buttons is the current level bitmask, while pressed/released are edge masks. */
+/* The note keys held down now (fm1_in.notes), before mello_ui_input each round: HOME's hold-a-step needs the
+ * releases, which the press edges do not carry. */
+void mello_ui_set_held_notes(MelloUi *ui, uint32_t notes);
 void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pressed_buttons,
                     uint32_t released_buttons, uint32_t held_buttons, uint32_t note_pressed,
                     const int16_t encoder_delta[MELLO_UI_ENCODER_COUNT]);

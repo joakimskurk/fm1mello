@@ -232,6 +232,7 @@ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage
     ui->seen_slot_seq_pos = 0xFFu;
     ui->seen_tm_pos = -2;
     ui->seen_dot_cell = -2;
+    ui->held_step = MELLO_UI_NO_STEP;
     ui->seen_sub_x_pos = -2;
 #if MELLO_FEATURE_CHORD_MACHINE
     ui->seen_chord_pos = 0xFFu;
@@ -259,6 +260,7 @@ void mello_ui_set_page(MelloUi *ui, MelloUiPage page)
     if (ui->page == page) return;
     ui->page = page;
     ui->readout = 0u; /* it belonged to the old page */
+    ui->held_step = MELLO_UI_NO_STEP;
     mark_full(ui);
 }
 
@@ -481,7 +483,18 @@ static void handle_note_press(MelloUi *ui, uint32_t now_ms, uint32_t held_button
     if (w < 0) return;
 
     switch (ui->page) {
-    case MELLO_UI_HOME: set_selected_step_from_note(ui, note_index); break;
+    case MELLO_UI_HOME: {
+        /* A step key: hold it to edit the step with K1-K4; let go without turning to switch the step on/off.
+         * Keys past the sequence's length do nothing (they no longer stretch it unseen). */
+        uint8_t idx = (uint8_t)(ui->step_bank * 16u + (uint8_t)w);
+        if (idx >= e->project.seq_len) break;
+        ui->selected_step = idx;
+        ui->held_step = idx;
+        ui->held_key = note_index;
+        ui->held_step_edited = false;
+        ui->dirty |= MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_LEDS;
+        break;
+    }
     case MELLO_UI_SEQ_STEP: set_selected_step_from_note(ui, note_index); break;
     case MELLO_UI_SEQ_SEGMENT:
         if ((uint8_t)w < MELLO_MAX_SEGMENTS) {
@@ -575,11 +588,43 @@ static void handle_note_press(MelloUi *ui, uint32_t now_ms, uint32_t held_button
     if (ui->page == MELLO_UI_SEQ_SLOTSEQ || ui->page == MELLO_UI_SLOTS) persistent_dirty(ui, now_ms);
 }
 
+/* HOME's K1-K4 with no step held: CUTOFF, DECAY (release follows in proportion), SPACE (reverb wet, delay at half:
+ * the defaults 24/12 sit on that line), DRIVE. Live while playing; each detent counts. */
+static void adjust_home_macro(MelloUi *ui, uint8_t knob, int16_t delta)
+{
+    MelloEngine *e = eng(ui);
+    if (knob == 0u || knob == 1u) {
+        MelloSoundConfig c = e->sound;
+        if (knob == 0u)
+            c.filter_cut = (uint16_t)clamp_i32((int32_t)c.filter_cut + delta * 10, 0, 1000);
+        else {
+            int32_t d = c.decay_ms, step = d / 20 > 5 ? d / 20 : 5, nd = clamp_i32(d + delta * step, 5, 1000);
+            c.release_ms = (uint16_t)clamp_i32((int32_t)c.release_ms * nd / (d ? d : 1), 5, 2000);
+            c.decay_ms = (uint16_t)nd;
+        }
+        mello_engine_sound_set_config(e, &c);
+    } else {
+        MelloFxConfig f = e->fx;
+        if (knob == 2u) {
+            f.reverb_wet = (uint16_t)clamp_i32((int32_t)f.reverb_wet + delta * 10, 0, 1000);
+            f.delay_wet = (uint16_t)(f.reverb_wet / 2u);
+        } else
+            f.dist_amount = (uint16_t)clamp_i32((int32_t)f.dist_amount + delta * 10, 0, 1000);
+        mello_engine_fx_set_config(e, &f);
+    }
+    mark_edit(ui);
+}
+
 static void adjust_home(MelloUi *ui, uint8_t knob, int16_t delta)
 {
     MelloEngine *e = eng(ui);
     MelloStep *s;
     if (!e || !delta) return;
+    if (ui->held_step == MELLO_UI_NO_STEP) {
+        adjust_home_macro(ui, knob, delta);
+        return;
+    }
+    ui->held_step_edited = true;
     if (ui->selected_step >= MELLO_MAX_STEPS) ui->selected_step = 0u;
     s = &e->project.steps[ui->selected_step];
     if (knob == 0u) {
@@ -1658,6 +1703,23 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
             mark_edit(ui);
         }
     }
+}
+
+void mello_ui_set_held_notes(MelloUi *ui, uint32_t notes)
+{
+    MelloEngine *e;
+    if (!ui) return;
+    ui->held_notes = notes;
+    if (ui->held_step == MELLO_UI_NO_STEP || (notes & bit_u32(ui->held_key))) return;
+    e = eng(ui);
+    if (e && !ui->held_step_edited && ui->page == MELLO_UI_HOME && ui->held_step < e->project.seq_len) {
+        MelloStep *s = &e->project.steps[ui->held_step]; /* a tap: the step on/off */
+        s->skip = !s->skip;
+        rebuild(ui);
+        mark_edit(ui);
+    }
+    ui->held_step = MELLO_UI_NO_STEP;
+    ui->dirty |= MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
 }
 
 void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pressed_buttons,
@@ -3216,6 +3278,17 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
     case MELLO_UI_HOME: {
         uint8_t si = ui->selected_step < MELLO_MAX_STEPS ? ui->selected_step : 0u;
         MelloStep *s = &e->project.steps[si];
+        if (ui->held_step == MELLO_UI_NO_STEP) {
+            l[0] = "CUTOFF";
+            value_u(v[0], "", e->sound.filter_cut / 10u);
+            l[1] = "DECAY";
+            value_u(v[1], "", e->sound.decay_ms);
+            l[2] = "SPACE";
+            value_u(v[2], "", e->fx.reverb_wet / 10u);
+            l[3] = "DRIVE";
+            value_u(v[3], "", e->fx.dist_amount / 10u);
+            break;
+        }
         l[0] = "PITCH";
         value_i(v[0], "", s->pitch);
         l[1] = "PULSE";
@@ -3776,6 +3849,7 @@ static const char *layer_name(const MelloUi *ui)
     case MELLO_UI_SOUND_RESERVED: return snd[ui->sound_subpage % 5u];
     case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 5u];
     case MELLO_UI_SAMPLE_RESERVED: return smp[ui->sample_subpage % 4u];
+    case MELLO_UI_HOME: return ui->held_step == MELLO_UI_NO_STEP ? 0 : "HELD STEP";
     default: return 0;
     }
 }
@@ -3846,7 +3920,14 @@ static uint32_t calc_key_leds(MelloUi *ui)
     uint32_t mask = 0u;
     uint8_t i;
     if (!e) return 0u;
-    if (ui->page == MELLO_UI_HOME || ui->page == MELLO_UI_SEQ_STEP) {
+    if (ui->page == MELLO_UI_HOME) {
+        /* The steps of this bank: lit = on; the playhead flips its key, so it runs across them. */
+        uint8_t base = (uint8_t)(ui->step_bank * 16u), at = ui->transport->display_step;
+        for (i = 0u; i < 16u; ++i)
+            if (base + i < e->project.seq_len && !e->project.steps[base + i].skip)
+                mask |= bit_u32(white_key_notes[i]);
+        if (ui->transport->running && at >= base && at < base + 16u) mask ^= bit_u32(white_key_notes[at - base]);
+    } else if (ui->page == MELLO_UI_SEQ_STEP) {
         uint8_t p = (uint8_t)(ui->selected_step % 16u);
         if (ui->selected_step / 16u == ui->step_bank) mask |= bit_u32(white_key_notes[p]);
     } else if (ui->page == MELLO_UI_SEQ_SEGMENT) {
