@@ -700,23 +700,23 @@ static void adjust_step(MelloUi *ui, uint8_t knob, int16_t delta)
             s->octave = (int8_t)clamp_i32((int32_t)s->octave + delta, -2, 2);
         else if (knob == 1u) {
             int32_t p = (int32_t)prob_pct(s->probability);
-            p = clamp_i32(p + (delta > 0 ? 5 : -5), 0, 100);
+            p = clamp_i32(p + delta * 5, 0, 100);
             p -= p % 5;
             s->probability = pct_prob((uint8_t)p);
         } else if (knob == 2u)
             s->sample_slot = (uint8_t)clamp_i32((int32_t)s->sample_slot + (delta > 0 ? 1 : -1), 0, 4);
         else if (knob == 3u)
-            s->accent = !s->accent;
+            s->accent = delta > 0;
         break;
     case 2u: /* FLAGS */
         if (knob == 0u)
-            s->accent = !s->accent;
+            s->accent = delta > 0;
         else if (knob == 1u)
-            s->sub = !s->sub;
+            s->sub = delta > 0;
         else if (knob == 2u)
-            s->slide = !s->slide;
+            s->slide = delta > 0;
         else if (knob == 3u)
-            s->skip = !s->skip;
+            s->skip = delta > 0;
         break;
     default: /* SEQ */
         if (knob == 0u) {
@@ -770,7 +770,7 @@ static void adjust_segment(MelloUi *ui, uint8_t knob, int16_t delta)
             e->project.seg_mode[s] =
                 (MelloSegmentMode)wrap_u8((int32_t)e->project.seg_mode[s] + (delta > 0 ? 1 : -1), 3u);
         else if (knob == 3u)
-            e->project.seg_skip[s] = !e->project.seg_skip[s];
+            e->project.seg_skip[s] = delta > 0;
     } else {
         if (knob == 0u) {
             e->project.seg_count = (uint8_t)clamp_i32((int32_t)e->project.seg_count + delta, 1, 6);
@@ -784,7 +784,7 @@ static void adjust_segment(MelloUi *ui, uint8_t knob, int16_t delta)
         } else if (knob == 2u) {
             e->project.seg_repeats[s] = (uint8_t)clamp_i32((int32_t)e->project.seg_repeats[s] + delta, 1, 4);
         } else if (knob == 3u)
-            e->project.seg_skip[s] = !e->project.seg_skip[s];
+            e->project.seg_skip[s] = delta > 0;
     }
     rebuild(ui);
     mark_edit(ui);
@@ -828,9 +828,9 @@ static void adjust_loop(MelloUi *ui, uint8_t knob, int16_t delta)
             mello_engine_loop_cycle_set_length(
                 e, (uint8_t)clamp_i32((int32_t)e->loop_cycle.length + delta, 2, 8));
         else if (knob == 1u)
-            mello_engine_loop_cycle_set_sync(e, !e->loop_cycle.sync);
+            mello_engine_loop_cycle_set_sync(e, delta > 0);
         else if (knob == 2u)
-            mello_engine_loop_cycle_set_active(e, !e->loop_cycle.active);
+            mello_engine_loop_cycle_set_active(e, delta > 0);
         else if (knob == 3u)
             return;
     }
@@ -911,9 +911,9 @@ static void adjust_dot(MelloUi *ui, uint8_t knob, int16_t delta)
     else if (knob == 1u)
         c.length = (uint8_t)clamp_i32((int32_t)c.length + delta, 1, 16);
     else if (knob == 2u)
-        c.amount = (uint16_t)clamp_i32((int32_t)c.amount + (delta > 0 ? 10 : -10), 0, 1000);
+        c.amount = (uint16_t)clamp_i32((int32_t)c.amount + delta * 10, 0, 1000);
     else if (knob == 3u)
-        c.follow = !c.follow;
+        c.follow = delta > 0;
     mello_engine_dot_set_config(e, t, &c);
     mark_edit(ui);
 }
@@ -926,7 +926,7 @@ static void adjust_turing(MelloUi *ui, uint8_t knob, int16_t delta)
     c = e->tm;
     if (ui->tm_subpage == 0u) {
         if (knob == 0u)
-            c.mutation_prob = (uint16_t)clamp_i32((int32_t)c.mutation_prob + (delta > 0 ? 5 : -5), 0, 500);
+            c.mutation_prob = (uint16_t)clamp_i32((int32_t)c.mutation_prob + delta * 5, 0, 500);
         else if (knob == 1u) {
             int32_t idx =
                 option_index_u8(tm_lengths, (uint8_t)(sizeof tm_lengths / sizeof tm_lengths[0]), c.length);
@@ -939,13 +939,13 @@ static void adjust_turing(MelloUi *ui, uint8_t knob, int16_t delta)
             c.offset = (int8_t)clamp_i32((int32_t)c.offset + delta, -31, 31);
     } else if (ui->tm_subpage == 1u) {
         uint8_t mask = (uint8_t)(1u << knob);
-        c.routes ^= mask;
+        c.routes = delta > 0 ? (uint8_t)(c.routes | mask) : (uint8_t)(c.routes & (uint8_t)~mask);
     } else {
         uint16_t *d = knob == 0u   ? &c.depth_gate
                       : knob == 1u ? &c.depth_filter
                       : knob == 2u ? &c.depth_octave
                                    : &c.depth_decay;
-        *d = (uint16_t)clamp_i32((int32_t)*d + (delta > 0 ? 10 : -10), 0, 1000);
+        *d = (uint16_t)clamp_i32((int32_t)*d + delta * 10, 0, 1000);
     }
     mello_engine_tm_set_config(e, &c);
     mark_edit(ui);
@@ -970,25 +970,25 @@ static void adjust_sub(MelloUi *ui, uint8_t knob, int16_t delta)
             c.octave = (int8_t)clamp_i32((int32_t)c.octave + delta, -2, 1);
     } else if (ui->sub_subpage == 1u) {
         if (knob == 0u)
-            c.x_on = !c.x_on;
+            c.x_on = delta > 0;
         else if (knob == 1u) {
             if (delta > 0)
                 c.x_length = c.x_length == 2u ? 3u : 5u;
             else
                 c.x_length = c.x_length == 5u ? 3u : 2u;
         } else if (knob == 2u)
-            c.x_reset = !c.x_reset;
+            c.x_reset = delta > 0;
         else if (knob == 3u)
-            c.gate_amount = (uint16_t)clamp_i32((int32_t)c.gate_amount + (delta > 0 ? 50 : -50), 150, 1200);
+            c.gate_amount = (uint16_t)clamp_i32((int32_t)c.gate_amount + delta * 50, 150, 1200);
     } else if (ui->sub_subpage == 2u) {
         if (knob == 0u)
-            xs->on = !xs->on;
+            xs->on = delta > 0;
         else if (knob == 1u)
             xs->tone = (uint8_t)wrap_u8((int32_t)xs->tone + (delta > 0 ? 1 : -1), 8u);
         else if (knob == 2u)
             xs->octave = (int8_t)clamp_i32((int32_t)xs->octave + delta, -2, 2);
         else if (knob == 3u)
-            c.gate_amount = (uint16_t)clamp_i32((int32_t)c.gate_amount + (delta > 0 ? 50 : -50), 150, 1200);
+            c.gate_amount = (uint16_t)clamp_i32((int32_t)c.gate_amount + delta * 50, 150, 1200);
     } else if (ui->sub_subpage == 3u) {
         if (knob == 0u)
             c.level = (uint16_t)clamp_i32((int32_t)c.level + delta * 10, 0, 1000);
@@ -1079,7 +1079,7 @@ static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
         else if (knob == 2u)
             c.grid_amount = (uint16_t)clamp_i32((int32_t)c.grid_amount + delta * 10, 0, 1000);
         else
-            c.grid_follow = !c.grid_follow;
+            c.grid_follow = delta > 0;
     } else {
         uint8_t p = ui->selected_chord_pattern % c.pattern_length;
         if (knob == 0u)
@@ -1107,11 +1107,11 @@ static void adjust_sound(MelloUi *ui, uint8_t knob, int16_t delta)
         if (knob == 0u)
             c.osc_wave = (MelloWaveform)wrap_u8((int32_t)c.osc_wave + (delta > 0 ? 1 : -1), 6u);
         else if (knob == 1u)
-            c.pwm_permille = (uint16_t)clamp_i32((int32_t)c.pwm_permille + (delta > 0 ? 10 : -10), 50, 950);
+            c.pwm_permille = (uint16_t)clamp_i32((int32_t)c.pwm_permille + delta * 10, 50, 950);
         else if (knob == 2u)
-            c.filter_cut = (uint16_t)clamp_i32((int32_t)c.filter_cut + (delta > 0 ? 10 : -10), 0, 1000);
+            c.filter_cut = (uint16_t)clamp_i32((int32_t)c.filter_cut + delta * 10, 0, 1000);
         else
-            c.filter_res = (uint16_t)clamp_i32((int32_t)c.filter_res + (delta > 0 ? 10 : -10), 0, 1000);
+            c.filter_res = (uint16_t)clamp_i32((int32_t)c.filter_res + delta * 10, 0, 1000);
     } else if (ui->sound_subpage == 1u) {
         if (knob == 0u)
             c.attack_ms = (uint16_t)clamp_i32((int32_t)c.attack_ms + delta * 5, 1, 500);
@@ -1123,16 +1123,19 @@ static void adjust_sound(MelloUi *ui, uint8_t knob, int16_t delta)
             c.release_ms = (uint16_t)clamp_i32((int32_t)c.release_ms + delta * 10, 5, 2000);
     } else if (ui->sound_subpage == 2u) {
         if (knob == 0u)
-            c.lfo_on = !c.lfo_on;
+            c.lfo_on = delta > 0;
         else if (knob == 1u)
-            c.lfo_rate_millihz = (uint16_t)clamp_i32((int32_t)c.lfo_rate_millihz + delta * 100, 8, 20000);
+        { /* ~6% a detent: 0.008-20 Hz is a log range, as the HTML's slider (lfoRateToSlider) */
+            int32_t r = c.lfo_rate_millihz, st = r / 16 > 1 ? r / 16 : 1;
+            c.lfo_rate_millihz = (uint16_t)clamp_i32(r + delta * st, 8, 20000);
+        }
         else if (knob == 2u)
             c.lfo_depth = (uint16_t)clamp_i32((int32_t)c.lfo_depth + delta * 10, 0, 1000);
         else
             c.lfo_target = (MelloLfoTarget)wrap_u8((int32_t)c.lfo_target + (delta > 0 ? 1 : -1), 4u);
     } else if (ui->sound_subpage == 3u) {
         if (knob == 0u)
-            c.follower_sub_on = !c.follower_sub_on;
+            c.follower_sub_on = delta > 0;
         else if (knob == 1u)
             c.follower_sub_level = (uint16_t)clamp_i32((int32_t)c.follower_sub_level + delta * 10, 0, 1000);
         else if (knob == 2u)
@@ -1175,7 +1178,7 @@ static void adjust_audio_fx(MelloUi *ui, uint8_t knob, int16_t delta)
             c.delay_level = (uint16_t)clamp_i32((int32_t)c.delay_level + delta * 10, 0, 1500);
     } else if (ui->fx_subpage == 2u) {
         if (knob == 0u)
-            c.delay_sync = !c.delay_sync;
+            c.delay_sync = delta > 0;
         else if (knob == 1u)
             c.delay_div = wrap_u8((int32_t)c.delay_div + (delta > 0 ? 1 : -1), 4u);
         else if (knob == 2u)
@@ -1216,9 +1219,9 @@ static void adjust_sample(MelloUi *ui, uint8_t knob, int16_t delta)
         else if (knob == 1u)
             sl->dist = (uint16_t)clamp_i32((int32_t)sl->dist + delta * 10, 0, 1000);
         else if (knob == 2u)
-            sl->track = !sl->track;
+            sl->track = delta > 0;
         else
-            sl->loop = !sl->loop;
+            sl->loop = delta > 0;
     } else if (ui->sample_subpage == 1u) {
         if (knob == 0u)
             sl->coarse_semitones = (int8_t)clamp_i32((int32_t)sl->coarse_semitones + delta, -24, 24);
@@ -1236,9 +1239,9 @@ static void adjust_sample(MelloUi *ui, uint8_t knob, int16_t delta)
             sl->trim_end =
                 (uint16_t)clamp_i32((int32_t)sl->trim_end + delta * 5, (int32_t)sl->trim_start + 1, 1000);
         else if (knob == 2u)
-            sl->track = !sl->track;
+            sl->track = delta > 0;
         else
-            sl->loop = !sl->loop;
+            sl->loop = delta > 0;
     } else {
         if (knob == 0u)
             sl->attack_ms = (uint16_t)clamp_i32((int32_t)sl->attack_ms + delta * 5, 1, 2000);
@@ -1289,7 +1292,7 @@ static void adjust_global(MelloUi *ui, uint8_t knob, int16_t delta, uint32_t now
             mello_transport_set_sync(
                 t, (MelloSyncMode)wrap_u8((int32_t)t->sync_mode + (delta > 0 ? 1 : -1), 3u), now_us);
         else if (knob == 3u)
-            mello_transport_set_midi_note_out(t, !t->midi_note_out_enabled);
+            mello_transport_set_midi_note_out(t, delta > 0);
     } else {
         if (knob == 0u)
             mello_transport_set_midi_channel(t,
@@ -1298,7 +1301,7 @@ static void adjust_global(MelloUi *ui, uint8_t knob, int16_t delta, uint32_t now
             mello_transport_set_midi_sub_channel(
                 t, (uint8_t)clamp_i32((int32_t)t->midi_sub_channel + 1 + delta, 1, 16));
         else if (knob == 2u)
-            mello_transport_set_midi_fixed_length(t, !t->midi_fixed_length, t->midi_fixed_len_ms);
+            mello_transport_set_midi_fixed_length(t, delta > 0, t->midi_fixed_len_ms);
         else if (knob == 3u)
             mello_transport_set_midi_fixed_length(
                 t, t->midi_fixed_length,
@@ -1393,10 +1396,30 @@ static void show_readout(MelloUi *ui, uint8_t what, uint32_t now_ms)
     ui->dirty |= MELLO_UI_DIRTY_BODY;
 }
 
-static void adjust_knobs(MelloUi *ui, const int16_t enc[MELLO_UI_ENCODER_COUNT], uint32_t now_us,
+/* Acceleration: detents that come fast count more (x2 under 60 ms apart, x4 under 25 ms), so a sweep crosses a
+ * range in a turn or two while slow turning stays exact. Handlers that step a list use only the sign, so lists
+ * (waves, modes, scales) never run away. */
+static int16_t accelerate(MelloUi *ui, uint8_t encoder, int16_t d, uint32_t now_ms)
+{
+    uint32_t gap;
+    if (!d) return 0;
+    gap = now_ms - ui->enc_last_ms[encoder];
+    ui->enc_last_ms[encoder] = now_ms;
+    if (gap == 0u) return d; /* same millisecond: one round's detents already arrive together as d */
+    if (gap < 25u) return (int16_t)(d * 4);
+    if (gap < 60u) return (int16_t)(d * 2);
+    return d;
+}
+
+static void adjust_knobs(MelloUi *ui, const int16_t enc_in[MELLO_UI_ENCODER_COUNT], uint32_t now_us,
                          uint32_t now_ms)
 {
+    int16_t enc[MELLO_UI_ENCODER_COUNT];
     uint8_t k;
+    for (k = 0u; k < MELLO_UI_ENCODER_COUNT; ++k)
+        enc[k] = k == MELLO_UI_ENC_SELECT || (k >= MELLO_UI_ENC_KNOB1 && k <= MELLO_UI_ENC_KNOB4)
+                     ? accelerate(ui, k, enc_in[k], now_ms)
+                     : enc_in[k];
     uint16_t before = ui->dirty;
     if (ui->page == MELLO_UI_HOME) {
         /* HOME's three encoders are fixed globals: TEMPO, RANDOM intensity, PATTERN (to the next saved slot,

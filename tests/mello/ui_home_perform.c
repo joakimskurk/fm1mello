@@ -185,7 +185,31 @@ int main(void)
         if (st.manual_pending) return fail("letting go after the hold saved");
     }
 
+    /* Acceleration: a detent 10 ms after the last counts x4, one 500 ms later x1. Switches follow direction. */
+    {
+        int16_t e[MELLO_UI_ENCODER_COUNT] = {0};
+        uint16_t c0;
+        mello_ui_set_page(&u, MELLO_UI_HOME);
+        e[MELLO_UI_ENC_KNOB1] = -1;
+        mello_ui_input(&u, 0u, 20000u, 0u, 0u, 0u, 0u, e);
+        c0 = t.engine.sound.filter_cut;
+        mello_ui_input(&u, 0u, 20010u, 0u, 0u, 0u, 0u, e);
+        if (t.engine.sound.filter_cut != c0 - 40u) return fail("a fast detent did not count x4");
+        mello_ui_input(&u, 0u, 20510u, 0u, 0u, 0u, 0u, e);
+        if (t.engine.sound.filter_cut != c0 - 50u) return fail("a slow detent did not count x1");
+        mello_ui_set_page(&u, MELLO_UI_SOUND_RESERVED);
+        u.sound_subpage = 3u; /* FOLLOWER: K1 = on/off */
+        memset(e, 0, sizeof e);
+        e[MELLO_UI_ENC_KNOB1] = 1;
+        mello_ui_input(&u, 0u, 21000u, 0u, 0u, 0u, 0u, e);
+        mello_ui_input(&u, 0u, 21500u, 0u, 0u, 0u, 0u, e);
+        if (!t.engine.sound.follower_sub_on) return fail("right twice did not leave the switch on");
+        e[MELLO_UI_ENC_KNOB1] = -1;
+        mello_ui_input(&u, 0u, 22000u, 0u, 0u, 0u, 0u, e);
+        if (t.engine.sound.follower_sub_on) return fail("left did not switch it off");
+    }
+
     puts("PASS: HOME macros, hold-a-step edit, tap toggles on release, keys past the length inert, step LEDs, "
-         "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN, SAVE short/held");
+         "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN, SAVE short/held, acceleration, direction switches");
     return 0;
 }

@@ -125,6 +125,7 @@ typedef struct {
     uint32_t save_down_ms;
     bool save_down;
     uint8_t seen_save_state; /* draw_status's save word, to redraw it when it changes */
+    uint32_t enc_last_ms[MELLO_UI_ENCODER_COUNT]; /* each encoder's last detent, for acceleration */
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
 
     uint8_t selected_step;
