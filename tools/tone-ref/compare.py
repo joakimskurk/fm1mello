@@ -8,7 +8,7 @@ Per stimulus, all in dB:
   env    mean |difference| of the 5 ms RMS envelopes there, after taking out the level difference: shape
   tone   mean |difference| of the 1/3-octave band levels (63 Hz..12.5 kHz) after taking out the level difference
   worst  the band with the largest tone difference, and how large
-  tail   RT60 (s) from the Schroeder curve after the last note, HTML -> C (only where there is a tail)
+  tail   RT60 (s) as T20 x 3 from the Schroeder curve after the last note, HTML -> C (where there is a tail)
 Needs numpy."""
 import json
 import sys
@@ -65,11 +65,11 @@ def rt60(x, start):
     if e.sum() <= 0:
         return None
     edc = db(np.cumsum(e[::-1])[::-1] / e.sum())
-    try:
-        i5, i35 = np.nonzero(edc <= -5)[0][0], np.nonzero(edc <= -35)[0][0]
+    try:  # T20 (-5..-25 dB) x 3: stays clear of the 16-bit floor the C render ends in
+        i5, i25 = np.nonzero(edc <= -5)[0][0], np.nonzero(edc <= -25)[0][0]
     except IndexError:
         return None
-    return 2 * (i35 - i5) / SR
+    return 3 * (i25 - i5) / SR
 
 
 def compare(st):

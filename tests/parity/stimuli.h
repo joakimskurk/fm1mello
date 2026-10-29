@@ -44,8 +44,8 @@ static const StimNote stim6_sub[] = {{0, 0, 0, 0}};
 static const StimParam stim7_params[] = {{0, 0, 0}};
 static const StimNote stim7_lead[] = {{0.05, 0.15375, 60, 0.95}, {0.2375, 0.15375, 62, 0.72}, {0.425, 0.15375, 63, 0.72}, {0.6125, 0.15375, 65, 0.72}, {0.8, 0.15375, 67, 0.72}, {0.9875, 0.15375, 68, 0.72}, {1.175, 0.15375, 70, 0.72}, {1.3625, 0.15375, 72, 0.72}};
 static const StimNote stim7_sub[] = {{0.05, 0.16875, 36, 0.9}, {0.8, 0.16875, 36, 0.9}};
-static const StimParam stim8_params[] = {{"attack", 0, 0.001}, {"decay", 0, 0.01}, {"sustain", 0, 0.0}, {"release", 0, 0.005}, {"filterCut", 0, 1.0}, {"subOscOn", 0, 0}};
-static const StimNote stim8_lead[] = {{0.05, 0.01, 72, 0.95}};
+static const StimParam stim8_params[] = {{"attack", 0, 0.001}, {"decay", 0, 0.05}, {"sustain", 0, 1.0}, {"release", 0, 0.005}, {"filterCut", 0, 1.0}, {"subOscOn", 0, 0}};
+static const StimNote stim8_lead[] = {{0.05, 0.05, 72, 0.95}};
 static const StimNote stim8_sub[] = {{0, 0, 0, 0}};
 
 static const Stimulus STIMULI[] = {

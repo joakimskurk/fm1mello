@@ -197,8 +197,6 @@ typedef struct {
     uint16_t reverb_line_delay[8];
     uint16_t reverb_line_pos[8];
     uint16_t reverb_line_feedback_q15[8];
-    int32_t reverb_line_damp[8];
-    int32_t reverb_line_lf[8];
     uint16_t reverb_send_permille;
     int16_t sub_dist_curve[257];
     int16_t pending_sub_dist_curve[257];

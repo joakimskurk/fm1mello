@@ -101,11 +101,11 @@
     },
     {
       "name": "reverb_click",
-      "what": "one 10 ms C5 blip with the default reverb, delay off: after the blip only the reverb's tail is left",
+      "what": "a 50 ms C5 burst with the default reverb, delay off: after it only the reverb's tail is left",
       "seconds": 5.0,
       "fx": "reverb",
-      "params": {"attack": 0.001, "decay": 0.01, "sustain": 0.0, "release": 0.005, "filterCut": 1.0, "subOscOn": false},
-      "lead": [{"t": 0.05, "dur": 0.01, "midi": 72, "vel": 0.95}]
+      "params": {"attack": 0.001, "decay": 0.05, "sustain": 1.0, "release": 0.005, "filterCut": 1.0, "subOscOn": false},
+      "lead": [{"t": 0.05, "dur": 0.05, "midi": 72, "vel": 0.95}]
     }
   ]
 }

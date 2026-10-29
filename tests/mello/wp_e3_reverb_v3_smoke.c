@@ -151,10 +151,11 @@ int main(void)
 {
     double dark, bright;
     structural_and_stereo_contract();
+    /* Phase 2: the loop is flat, as Tone.Reverb's white-noise IR; TONE is the return filter only (revTone). */
     dark = tone_roughness(150u);
     bright = tone_roughness(900u);
-    assert(dark > 0.0 && bright > dark * 1.6); /* TONE changes feedback spectrum, not only output EQ. */
-    printf("Reverb V3 feedback tone roughness: dark=%.5f bright=%.5f\n", dark, bright);
+    assert(dark > 0.0 && bright > 0.0 && bright < dark * 1.2 && dark < bright * 1.2);
+    printf("Reverb feedback tone roughness (flat loop): dark=%.5f bright=%.5f\n", dark, bright);
     rendered_stereo_contract();
     puts("PASS: WP-E3 Reverb V3 dense 8-line stereo FDN contract");
     return 0;
