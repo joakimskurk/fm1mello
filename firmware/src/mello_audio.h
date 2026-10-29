@@ -144,6 +144,9 @@ typedef struct {
     int16_t sample_decode[MELLO_SAMPLE_SLOT_COUNT][MELLO_SAMPLE_BLOCK_SAMPLES];
     uint32_t sample_last_target_step_q16[MELLO_SAMPLE_SLOT_COUNT];
     MelloSampleBank *sample_bank;
+    uint8_t sample_decode_budget; /* IMA blocks the rest of this render call may decode */
+    uint32_t sample_decodes;      /* diagnostics: IMA blocks decoded since init */
+    uint32_t sample_decode_skips; /* diagnostics: sample frames muted because the budget ran out */
     uint32_t lfo_phase;
     uint32_t lfo_inc;
     int32_t filter1;

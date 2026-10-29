@@ -1,9 +1,10 @@
 #include "mello_audio.h"
 
-#define Q15_ONE       32767
-#define Q24_ONE       (32767 << 8)
-#define AUDIO_US_BASE (1000000u / MELLO_AUDIO_FS)
-#define AUDIO_US_REM  (1000000u % MELLO_AUDIO_FS)
+#define Q15_ONE                    32767
+#define Q24_ONE                    (32767 << 8)
+#define MELLO_SAMPLE_DECODE_BUDGET 20u /* IMA blocks per render call (256 frames): 5 per sample voice */
+#define AUDIO_US_BASE              (1000000u / MELLO_AUDIO_FS)
+#define AUDIO_US_REM               (1000000u % MELLO_AUDIO_FS)
 
 static const uint32_t MIDI_INC[128] = {
     796254,     843601,     893765,    946911,    1003217,   1062871,   1126073,   1193033,    1263974,
@@ -641,16 +642,21 @@ static void sample_attack_voice(MelloAudio *a, const MelloEvent *e)
         env_set_segment(&v->env_step_q24, &v->env_target_q24, v->env_q24, Q24_ONE, ms_samples(c->attack_ms));
     }
 }
-static bool sample_decode_for(MelloAudio *a, MelloAudioSampleVoice *v, uint32_t sample_index)
+/* 1: the block holding sample_index is decoded; 0: it cannot be (stop the voice); -1: this render call's
+ * decode budget is spent (mute this frame). */
+static int sample_decode_for(MelloAudio *a, MelloAudioSampleVoice *v, uint32_t sample_index)
 {
     uint16_t block = (uint16_t)(sample_index / MELLO_SAMPLE_BLOCK_SAMPLES), valid = 0u;
-    if (v->decoded_ready && v->decoded_block == block) return true;
+    if (v->decoded_ready && v->decoded_block == block) return 1;
+    if (!a->sample_decode_budget) return -1;
+    a->sample_decode_budget--;
+    a->sample_decodes++;
     if (!mello_sample_decode_block(a->sample_bank, v->slot, block, a->sample_decode[v->slot], &valid))
-        return false;
+        return 0;
     v->decoded_block = block;
     v->decoded_valid = valid;
     v->decoded_ready = true;
-    return true;
+    return 1;
 }
 static int32_t sample_render_voice(MelloAudio *a, MelloAudioSampleVoice *v)
 {
@@ -680,7 +686,7 @@ static int32_t sample_render_voice(MelloAudio *a, MelloAudioSampleVoice *v)
             if (span < 1u) span = 1u;
             idx = v->trim_start_sample + (idx - v->trim_start_sample) % span;
             v->pos_q16 = (idx << 16) | (v->pos_q16 & 0xFFFFu);
-            v->decoded_ready = false;
+            /* The cached block stays valid: sample_decode_for only decodes when the block changes. */
         } else {
             v->active = false;
             v->env_stage = MELLO_ENV_OFF;
@@ -688,9 +694,17 @@ static int32_t sample_render_voice(MelloAudio *a, MelloAudioSampleVoice *v)
             return 0;
         }
     }
-    if (!sample_decode_for(a, v, idx)) {
-        v->active = false;
-        return 0;
+    {
+        int d = sample_decode_for(a, v, idx);
+        if (d == 0) {
+            v->active = false;
+            return 0;
+        }
+        if (d < 0) { /* over budget (extreme pitch or a loop across a block edge): drop the frame */
+            a->sample_decode_skips++;
+            v->pos_q16 += v->step_q16;
+            return 0;
+        }
     }
     off = idx % MELLO_SAMPLE_BLOCK_SAMPLES;
     if (off >= v->decoded_valid) return 0;
@@ -1352,6 +1366,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
     uint32_t i, t = start_us, terr = 0u;
     if (!a || !out) return;
     apply_pending(a);
+    /* Bound the IMA decode work per call whatever the sample settings (P1-4). Normal playback needs about
+     * one block per voice per 256 frames; four voices at +24 semitones need 16. */
+    a->sample_decode_budget = MELLO_SAMPLE_DECODE_BUDGET;
     if (a->silent && a->q_head == a->q_tail && !a->all_notes_off_pending) {
         a->rendered_frames += frames;
         return;
