@@ -1590,12 +1590,17 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
     }
     if (pressed & bit_u32(MELLO_UI_BTN_GLO)) mello_ui_set_page(ui, MELLO_UI_GLOBAL);
     if (pressed & bit_u32(MELLO_UI_BTN_ENV)) {
-        if (ui->page == MELLO_UI_SOUND_RESERVED)
+        /* The SOUND page's AUDIO LFO subpage belongs to the LFO button: ENV never lands there (it kept the
+         * subpage LFO left, so after one LFO press ENV showed the LFO and OSC/ENV were out of reach). */
+        if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage != 2u)
             mello_ui_set_page(ui, MELLO_UI_SAMPLE_RESERVED);
-        else if (ui->page == MELLO_UI_SAMPLE_RESERVED)
-            mello_ui_set_page(ui, MELLO_UI_SOUND_RESERVED);
-        else
-            mello_ui_set_page(ui, MELLO_UI_SOUND_RESERVED);
+        else {
+            if (ui->sound_subpage == 2u) ui->sound_subpage = 0u;
+            if (ui->page == MELLO_UI_SOUND_RESERVED)
+                mark_full(ui);
+            else
+                mello_ui_set_page(ui, MELLO_UI_SOUND_RESERVED);
+        }
     }
     if (pressed & bit_u32(MELLO_UI_BTN_SAVE)) {
         if (ui->page == MELLO_UI_SLOTS)
