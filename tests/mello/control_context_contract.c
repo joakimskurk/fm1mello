@@ -303,6 +303,25 @@ static void verify_inactive_and_chord(void)
 #endif
 }
 
+/* The DOT page is static except for its read position: when the engine moves it, the page redraws (it did not, so
+ * the matrix sat still while playing), and the key LEDs follow. */
+static void verify_dot_playhead(void)
+{
+    MelloProject p;
+    MelloTransport t;
+    MelloStorage st;
+    MelloUi u;
+    setup(&p, &t, &st, &u, MELLO_UI_DOT);
+    mello_ui_tick(&u);
+    u.dirty = 0u;
+    t.engine.dot_active_cell[u.selected_dot_target] = 5;
+    mello_ui_tick(&u);
+    if (!(u.dirty & MELLO_UI_DIRTY_BODY) || !(u.dirty & MELLO_UI_DIRTY_LEDS)) die("DOT playhead", "not redrawn");
+    u.dirty = 0u;
+    mello_ui_tick(&u);
+    if (u.dirty & MELLO_UI_DIRTY_BODY) die("DOT playhead", "redrawn without a move");
+}
+
 int main(void)
 {
     verify_hints();
@@ -312,6 +331,7 @@ int main(void)
     verify_mod_navigation();
     verify_led_family();
     verify_inactive_and_chord();
+    verify_dot_playhead();
     printf("C4 CONTRACT: hints=%u MOD=LFO>DOT>EVOLVE OCT=nav-only LOOP-K4=inert\n",
            (unsigned)(sizeof(hints) / sizeof(hints[0])));
     puts("PASS: WP-C4 contextual rail, visible guidance and MOD-family navigation stay aligned");

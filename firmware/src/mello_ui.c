@@ -231,6 +231,7 @@ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage
     ui->seen_loop_pos = 0xFFu;
     ui->seen_slot_seq_pos = 0xFFu;
     ui->seen_tm_pos = -2;
+    ui->seen_dot_cell = -2;
     ui->seen_sub_x_pos = -2;
 #if MELLO_FEATURE_CHORD_MACHINE
     ui->seen_chord_pos = 0xFFu;
@@ -1688,6 +1689,11 @@ void mello_ui_tick(MelloUi *ui)
     default: break;
     }
 
+    /* The DOT page is otherwise static, but its read position moves with the transport: redraw on that alone. */
+    if (ui->page == MELLO_UI_DOT && ui->seen_dot_cell != e->dot_active_cell[ui->selected_dot_target]) {
+        ui->seen_dot_cell = e->dot_active_cell[ui->selected_dot_target];
+        ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
+    }
     if (step_changed || other_changed) {
         if (step_changed) {
             ui->home_old_step = ui->seen_step;
@@ -3770,8 +3776,10 @@ static uint32_t calc_key_leds(MelloUi *ui)
         mask |= bit_u32(white_key_notes[ui->selected_slot % 16u]);
     } else if (ui->page == MELLO_UI_DOT) {
         uint16_t bits = e->dot[ui->selected_dot_target].cells;
+        int8_t at = e->dot_active_cell[ui->selected_dot_target];
         for (i = 0u; i < 16u; ++i)
             if (bits & (uint16_t)(1u << i)) mask |= bit_u32(white_key_notes[i]);
+        if (at >= 0 && at < 16) mask ^= bit_u32(white_key_notes[at]); /* the read position: inverted, so it shows */
     } else if (ui->page == MELLO_UI_TURING) {
         uint8_t base = (uint8_t)(ui->tm_bank * 16u);
         for (i = 0u; i < 16u; ++i)
