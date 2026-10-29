@@ -74,13 +74,21 @@ levels; honest help texts; autosave everything.
 The instrument is an iceberg (2026-10-29): it must be very easy to make something good and cool from HOME, and possible
 to dig deeper, but never impossible or unintuitive to find your way. Today there are many parameters on many pages,
 it is hard to find things, and at times hard to see on screen what you are adjusting.
-- [ ] Better visual feedback everywhere: always show which parameter a knob is moving and its value (a large
-      transient readout), and where you are (page, subpage, depth).
-- [ ] Fewer, clearer levels: the everyday controls on the surface, the rest one deliberate step down, grouped so a
-      page is about one thing.
-- [ ] LFO matrix (DOT): the steps no longer show moving through the matrix; bring the playhead back (check whether
-      this is a regression).
+The layout is [docs/mello/UI_ICEBERG.md](docs/mello/UI_ICEBERG.md) (approved 2026-10-29); the look follows screenshots
+of the HTML (`tools/tone-ref/shoot.mjs`).
+- [x] The readout: what a knob moves, its value and where you are, large for 1.2 s; full names and music units.
+- [x] DOT matrix: its read position moves on screen again (DOT was redrawn on edits only).
+- [x] PERFORM HOME: K1-K4 = CUTOFF / DECAY / SPACE / DRIVE; hold a step + turn edits it, a tap mutes it; step LEDs
+      with the playhead; SELECT / ALGORITHM / PRESETS = TEMPO / RANDOM intensity / PATTERN.
+- [x] The black-key strip in the keyboard's groups: RND, UNDO (redo), MUT, transpose -/+, MASK, CLR2 (undoable).
+- [x] Page buttons open the first layer and step layers on re-press; MOD = LFO / DOT / EVOLVE; SAMPLE under GLO.
+- [x] Switches by direction (no flip per detent), acceleration, the HTML's colours and dark-green ground, the key in
+      the header, SAVE short = save / held = SLOTS, SAVED / UNSAVED / SAVE OFF on the status line, true help texts.
+- [x] KEYS (EDIT): the keys play the lead (stopped), set the root (playing), step-record (REC).
+- [ ] The momentary performance keys: FILL, SUB MUTE, REPEAT, REVERSE, RESTART (they need engine support).
+- [ ] Note names in HOME's step bars as the HTML's lanes; the remaining pages' bodies in music units.
 - [ ] Randomizer "skyline": its length and bar width follow the sequence length.
+- [ ] A splash screen with the SKURKYMELLO wordmark (it left the header).
 
 ## Phase 5: deeper sound and modulation (2026-10-29 wishlist)
 
