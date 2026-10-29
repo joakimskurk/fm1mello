@@ -182,28 +182,55 @@ static uint32_t shifted_note_inc(uint8_t note, int8_t oct)
     if (n > 127) n = 127;
     return MIDI_INC[(uint8_t)n];
 }
-static int16_t osc_sample(MelloWaveform wave, uint32_t phase, uint16_t pwm)
-{
-    uint16_t x = (uint16_t)(phase >> 16);
-    switch (wave) {
-    case MELLO_WAVE_SAW: return (int16_t)((int32_t)x - 32768);
-    case MELLO_WAVE_SQUARE: return phase < 0x80000000u ? 32767 : -32767;
-    case MELLO_WAVE_TRIANGLE:
-        return (int16_t)(x < 32768u ? (-32767 + (int32_t)x * 2) : (32767 - (int32_t)(x - 32768u) * 2));
-    case MELLO_WAVE_SINE: return SINE_Q15[(uint8_t)(phase >> 24)];
-    case MELLO_WAVE_PULSE: {
-        uint32_t th = (uint32_t)pwm * 4294967u;
-        return phase < th ? 32767 : -32767;
-    }
-    case MELLO_WAVE_OFF:
-    default: return 0;
-    }
-}
 static int16_t sat16(int32_t x)
 {
     if (x > 32767) return 32767;
     if (x < -32767) return -32767;
     return (int16_t)x;
+}
+/* PolyBLEP: the band-limited step's residual for a jump of 2 (Q15, 1.0 = 32768) at phase 0, for a phase
+ * increment inc. Non-zero only within one sample of the edge, where a 32-bit division finds the position. */
+static int32_t poly_blep_q15(uint32_t phase, uint32_t inc)
+{
+    uint32_t d, x;
+    if (inc < (1u << 15)) return 0; /* below ~0.3 Hz: nothing to band-limit */
+    d = inc >> 15;
+    if (phase < inc) { /* just after the edge: x = t/dt, x + x - x^2 - 1 */
+        x = phase / d;
+        if (x > 32768u) x = 32768u;
+        return (int32_t)(2u * x) - (int32_t)((x * x) >> 15) - 32768;
+    }
+    if (phase > 0u - inc) { /* just before it: x = (1-t)/dt, x^2 - 2x + 1 */
+        x = (0u - phase) / d;
+        if (x > 32768u) x = 32768u;
+        return (int32_t)((x * x) >> 15) - (int32_t)(2u * x) + 32768;
+    }
+    return 0;
+}
+/* The HTML's oscillators are band-limited (Web Audio PeriodicWaves): saw, square and pulse get PolyBLEP,
+ * the sine table is interpolated. inc is the voice's phase increment this sample. */
+static int16_t osc_sample(MelloWaveform wave, uint32_t phase, uint32_t inc, uint16_t pwm)
+{
+    uint16_t x = (uint16_t)(phase >> 16);
+    switch (wave) {
+    case MELLO_WAVE_SAW: return sat16((int32_t)x - 32768 - poly_blep_q15(phase, inc));
+    case MELLO_WAVE_SQUARE:
+        return sat16((phase < 0x80000000u ? 32767 : -32767) + poly_blep_q15(phase, inc) -
+                     poly_blep_q15(phase - 0x80000000u, inc));
+    case MELLO_WAVE_TRIANGLE:
+        return (int16_t)(x < 32768u ? (-32767 + (int32_t)x * 2) : (32767 - (int32_t)(x - 32768u) * 2));
+    case MELLO_WAVE_SINE: {
+        int32_t s0 = SINE_Q15[(uint8_t)(phase >> 24)], s1 = SINE_Q15[(uint8_t)((phase >> 24) + 1u)];
+        return (int16_t)(s0 + (((s1 - s0) * (int32_t)((phase >> 16) & 0xFFu)) >> 8));
+    }
+    case MELLO_WAVE_PULSE: {
+        uint32_t th = (uint32_t)pwm * 4294967u;
+        return sat16((phase < th ? 32767 : -32767) + poly_blep_q15(phase, inc) -
+                     poly_blep_q15(phase - th, inc));
+    }
+    case MELLO_WAVE_OFF:
+    default: return 0;
+    }
 }
 /* |a * b| must stay below 2^31: |a| <= 65535 with |b| <= 32767 is safe. */
 static int32_t q15mul(int32_t a, int32_t b)
@@ -1410,13 +1437,14 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 pwm = (uint16_t)clamp32(pv, 50, 950);
             }
             a->lead.phase += inc;
-            lead = osc_sample(a->config.osc_wave, a->lead.phase, pwm);
+            lead = osc_sample(a->config.osc_wave, a->lead.phase, inc, pwm);
             if (a->config.follower_sub_on && a->config.follower_sub_level) {
                 a->lead.sub_phase += a->lead.sub_inc;
                 /* HTML: subOsc is triggered at vel * level and then passes Gain(level): level squared. */
                 int32_t lv = (int32_t)a->config.follower_sub_level;
-                lead += q15mul(osc_sample(a->config.follower_sub_wave, a->lead.sub_phase, 500u),
-                               lv * lv / 1000 * 32767 / 1000);
+                lead +=
+                    q15mul(osc_sample(a->config.follower_sub_wave, a->lead.sub_phase, a->lead.sub_inc, 500u),
+                           lv * lv / 1000 * 32767 / 1000);
             }
             lead = q15mul(lead, (a->lead.env_q24 >> 8));
             lead = q15mul(lead, (int32_t)a->lead.velocity * 258);
@@ -1426,7 +1454,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             const ToneSubBiquadCoeff *bc = &SUB_FILTER_BIQUAD_Q28[a->sub_config.cut / 10u];
             int32_t filtered;
             a->sub.phase += a->sub.inc;
-            sub = osc_sample(a->sub_config.wave, a->sub.phase, 500u);
+            sub = osc_sample(a->sub_config.wave, a->sub.phase, a->sub.inc, 500u);
             sub = q15mul(sub, a->sub.env_q24 >> 8);
             sub = q15mul(sub, (int32_t)a->sub.velocity * 258);
             /* HTML: Tone.Filter rolloff=-24 => two cascaded biquads, both Q=.8. */
@@ -1452,7 +1480,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 if (a->chord.active[cv]) {
                     int32_t base, soft;
                     a->chord.phase[cv] += a->chord.inc[cv];
-                    base = osc_sample(a->chord_config.wave, a->chord.phase[cv], 500u);
+                    base = osc_sample(a->chord_config.wave, a->chord.phase[cv], a->chord.inc[cv], 500u);
                     /* A quiet sine fundamental thickens the layer without adding the lead's bright edge. */
                     soft = SINE_Q15[(uint8_t)(a->chord.phase[cv] >> 24)];
                     sum += q15mul(base, 22000) + q15mul(soft, 10700);
