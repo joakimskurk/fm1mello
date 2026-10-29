@@ -127,6 +127,9 @@ typedef struct {
     int32_t env_step_q24;
     int32_t env_target_q24;
     MelloEnvStage env_stage;
+    uint32_t env_curve_left; /* Tone.Envelope decay/release, as the lead's */
+    uint32_t env_linear_left;
+    uint32_t env_curve_coeff_q31;
     uint16_t decoded_block;
     uint16_t decoded_valid;
     bool decoded_ready;

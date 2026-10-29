@@ -432,8 +432,8 @@ static uint32_t sample_rate_q16(const MelloSampleSlotConfig *c, uint8_t note)
 static void sample_begin_decay(MelloAudio *a, MelloAudioSampleVoice *v)
 {
     const MelloSampleSlotConfig *c = &a->sample_config.slots[v->slot];
-    env_set_segment(&v->env_step_q24, &v->env_target_q24, v->env_q24, permille_q24(c->sustain_permille),
-                    ms_samples(c->decay_ms));
+    /* HTML: each slot's Tone.AmplitudeEnvelope, exponential decay and release as the lead's. */
+    tone_curve_begin(TONE_ENV(v), permille_q24(c->sustain_permille), c->decay_ms);
 }
 static void sample_release_voice(MelloAudio *a, uint8_t slot)
 {
@@ -445,7 +445,7 @@ static void sample_release_voice(MelloAudio *a, uint8_t slot)
     c = &a->sample_config.slots[slot];
     v->gate = false;
     v->env_stage = MELLO_ENV_RELEASE;
-    env_set_segment(&v->env_step_q24, &v->env_target_q24, v->env_q24, 0, ms_samples(c->release_ms));
+    tone_curve_begin(TONE_ENV(v), 0, c->release_ms);
 }
 static void sample_attack_voice(MelloAudio *a, const MelloEvent *e)
 {
@@ -491,6 +491,7 @@ static void sample_attack_voice(MelloAudio *a, const MelloEvent *e)
         a->sample_last_target_step_q16[slot] = target;
         v->env_stage = MELLO_ENV_ATTACK;
         v->env_q24 = prev_env;
+        v->env_curve_left = v->env_linear_left = 0u;
         env_set_segment(&v->env_step_q24, &v->env_target_q24, v->env_q24, Q24_ONE, ms_samples(c->attack_ms));
     }
 }
@@ -521,11 +522,11 @@ static int32_t sample_render_voice(MelloAudio *a, MelloAudioSampleVoice *v)
         v->step_q16 = (uint32_t)((int32_t)v->step_q16 + v->slide_step_q16);
         if (--v->slide_left == 0u) v->step_q16 = v->target_step_q16;
     }
-    if (v->env_stage == MELLO_ENV_ATTACK || v->env_stage == MELLO_ENV_DECAY ||
-        v->env_stage == MELLO_ENV_RELEASE) {
-        MelloEnvStage before = v->env_stage;
+    if (v->env_stage == MELLO_ENV_ATTACK) {
         (void)env_tick(&v->env_q24, v->env_step_q24, v->env_target_q24, &v->env_stage);
-        if (before == MELLO_ENV_ATTACK && v->env_stage == MELLO_ENV_DECAY) sample_begin_decay(a, v);
+        if (v->env_stage == MELLO_ENV_DECAY) sample_begin_decay(a, v);
+    } else if (v->env_stage == MELLO_ENV_DECAY || v->env_stage == MELLO_ENV_RELEASE) {
+        tone_curve_tick(TONE_ENV(v));
         if (v->env_stage == MELLO_ENV_OFF) {
             v->active = false;
             return 0;
