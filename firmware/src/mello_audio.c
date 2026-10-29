@@ -79,19 +79,11 @@ static const uint16_t SAMPLE_FINE_Q15[201] = {
 };
 
 /* Browser-parity control curves. */
-static const uint16_t MAIN_FILTER_ALPHA_Q15[101] = {
-    847,   893,   941,   991,   1044,  1100,  1159,  1221,  1286,  1354,  1427,  1502,  1582,  1666,  1754,
-    1847,  1944,  2047,  2154,  2267,  2386,  2511,  2642,  2779,  2924,  3075,  3234,  3400,  3575,  3758,
-    3949,  4150,  4360,  4580,  4810,  5050,  5302,  5564,  5838,  6124,  6422,  6733,  7057,  7394,  7745,
-    8109,  8488,  8881,  9288,  9710,  10147, 10598, 11065, 11546, 12041, 12552, 13076, 13614, 14166, 14730,
-    15306, 15894, 16493, 17101, 17717, 18341, 18971, 19605, 20243, 20881, 21519, 22155, 22786, 23412, 24028,
-    24635, 25229, 25808, 26371, 26915, 27438, 27940, 28417, 28870, 29296, 29695, 30067, 30410, 30724, 30871,
-    30871, 30871, 30871, 30871, 30871, 30871, 30871, 30871, 30871, 30871, 30871,
-};
 
 typedef struct {
     int32_t b0, b1, b2, a1, a2;
 } ToneSubBiquadCoeff;
+#include "mello_filter_table.h"
 static const ToneSubBiquadCoeff SUB_FILTER_BIQUAD_Q28[101] = {
     {2172, 4344, 2172, -534956743, 266529975},           {2353, 4706, 2353, -534878399, 266452354},
     {2549, 5097, 2549, -534796844, 266371583},           {2761, 5522, 2761, -534711948, 266287536},
@@ -841,6 +833,57 @@ static int32_t sub_biquad_step(int32_t x, const ToneSubBiquadCoeff *c, int32_t *
     *y1 = y;
     return y;
 }
+/* The main filter's coefficients for cut and res (permille), interpolated between MAIN_FILTER_BIQUAD_Q28's
+ * 0.01-cut and 0.05-res steps. Only recomputed when cut or res changes (per sample under LFO/TM/matrix). */
+static void main_filter_coeffs(MelloAudio *a, uint16_t cut, uint16_t res)
+{
+    uint16_t ci, ri, ci1, ri1;
+    int32_t cf, rf;
+    const ToneSubBiquadCoeff *t00, *t01, *t10, *t11;
+    int64_t v[5][4];
+    uint8_t k;
+    if (a->mf_coeff_valid && a->mf_cut == cut && a->mf_res == res) return;
+    if (cut > 1000u) cut = 1000u;
+    if (res > 1000u) res = 1000u;
+    ci = (uint16_t)(cut / 10u);
+    cf = (int32_t)(cut % 10u); /* tenths of a step */
+    ri = (uint16_t)(res / 50u);
+    rf = (int32_t)(res % 50u); /* fiftieths of a step */
+    ci1 = ci + 1u < MAIN_FILTER_CUTS ? (uint16_t)(ci + 1u) : ci;
+    ri1 = ri + 1u < MAIN_FILTER_RESES ? (uint16_t)(ri + 1u) : ri;
+    t00 = &MAIN_FILTER_BIQUAD_Q28[ri][ci];
+    t01 = &MAIN_FILTER_BIQUAD_Q28[ri][ci1];
+    t10 = &MAIN_FILTER_BIQUAD_Q28[ri1][ci];
+    t11 = &MAIN_FILTER_BIQUAD_Q28[ri1][ci1];
+    v[0][0] = t00->b0, v[0][1] = t01->b0, v[0][2] = t10->b0, v[0][3] = t11->b0;
+    v[1][0] = t00->b1, v[1][1] = t01->b1, v[1][2] = t10->b1, v[1][3] = t11->b1;
+    v[2][0] = t00->b2, v[2][1] = t01->b2, v[2][2] = t10->b2, v[2][3] = t11->b2;
+    v[3][0] = t00->a1, v[3][1] = t01->a1, v[3][2] = t10->a1, v[3][3] = t11->a1;
+    v[4][0] = t00->a2, v[4][1] = t01->a2, v[4][2] = t10->a2, v[4][3] = t11->a2;
+    for (k = 0u; k < 5u; ++k) {
+        /* Only multiplies: no 64-bit division on the target. 1/10 and 1/50 as 6554/65536 and 1311/65536. */
+        int64_t lo = v[k][0] + (((v[k][1] - v[k][0]) * cf * 6554) >> 16);
+        int64_t hi = v[k][2] + (((v[k][3] - v[k][2]) * cf * 6554) >> 16);
+        a->mf_coeff[k] = (int32_t)(lo + (((hi - lo) * rf * 1311) >> 16));
+    }
+    a->mf_cut = cut;
+    a->mf_res = res;
+    a->mf_coeff_valid = true;
+}
+/* One biquad of the main filter, direct form I. States may exceed full scale (both stages together peak at
+ * +30 dB at res 1: 65535 x 31.6 < 2^21), so they are kept within +-2^21. (Not 2^22: -2^22 is a ROM address
+ * to tools/build.py's check.) */
+static int32_t main_biquad_step(const int32_t *c, int32_t *s, int32_t x)
+{
+    int64_t acc = (int64_t)c[0] * x + (int64_t)c[1] * s[0] + (int64_t)c[2] * s[1] - (int64_t)c[3] * s[2] -
+                  (int64_t)c[4] * s[3];
+    int32_t y = clamp32((int32_t)(acc >> 28), -(1 << 21), 1 << 21);
+    s[1] = s[0];
+    s[0] = x;
+    s[3] = s[2];
+    s[2] = y;
+    return y;
+}
 static int16_t tone_distortion_point(uint16_t amount, uint16_t index)
 {
     /* Tone.Distortion waveshaper from Tone.js 14. amount is permille here. */
@@ -1563,15 +1606,12 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         }
         mix = (lead + sub + sample_mix) * 580 / 1000;
         {
-            uint16_t al = MAIN_FILTER_ALPHA_Q15[cut / 10u];
-            int32_t fb = q15mul(a->filter4, (int32_t)a->config.filter_res * 24500 / 1000);
-            int32_t inp = clamp32(mix - fb, -65535, 65535);
-            /* inp and the states span +-65535, so a difference needs q15mul_wide (P0: wrapped and latched). */
-            a->filter1 += q15mul_wide(inp - a->filter1, al);
-            a->filter2 += q15mul_wide(a->filter1 - a->filter2, al);
-            a->filter3 += q15mul_wide(a->filter2 - a->filter3, al);
-            a->filter4 += q15mul_wide(a->filter3 - a->filter4, al);
-            mix = a->filter4;
+            /* HTML: Tone.Filter lowpass -24 = two identical biquads, Q = res*15 dB, f = 80*200^cut. */
+            int32_t y;
+            main_filter_coeffs(a, cut, a->config.filter_res);
+            y = main_biquad_step(a->mf_coeff, a->mf_state[0], clamp32(mix, -65535, 65535));
+            y = main_biquad_step(a->mf_coeff, a->mf_state[1], y);
+            mix = clamp32(y, -65535, 65535);
         }
         {
             int32_t wet = mix;

@@ -149,10 +149,11 @@ typedef struct {
     uint32_t sample_decode_skips; /* diagnostics: sample frames muted because the budget ran out */
     uint32_t lfo_phase;
     uint32_t lfo_inc;
-    int32_t filter1;
-    int32_t filter2;
-    int32_t filter3;
-    int32_t filter4;
+    int32_t mf_state[2][4]; /* main filter: two biquads, x1 x2 y1 y2 each */
+    int32_t mf_coeff[5];    /* b0 b1 b2 a1 a2, Q28, for mf_cut/mf_res */
+    uint16_t mf_cut;
+    uint16_t mf_res;
+    bool mf_coeff_valid;
     int32_t dist_lp;
     int32_t matrix_env_q15;
     int32_t matrix_env_step_q15;
