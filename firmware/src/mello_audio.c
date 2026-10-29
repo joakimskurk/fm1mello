@@ -394,9 +394,16 @@ static int16_t sat16(int32_t x)
     if (x < -32767) return -32767;
     return (int16_t)x;
 }
+/* |a * b| must stay below 2^31: |a| <= 65535 with |b| <= 32767 is safe. */
 static int32_t q15mul(int32_t a, int32_t b)
 {
     return (a * b) >> 15;
+}
+/* For |a| up to 131071 (a difference of two 17-bit values) with 0 <= b <= 32767, or |a| <= 65535 with b up to
+ * 65535: halving a first keeps the product in int32 at the cost of one LSB. No 64-bit multiply (docs/CPU.md). */
+static int32_t q15mul_wide(int32_t a, int32_t b)
+{
+    return ((a >> 1) * b) >> 14;
 }
 static int32_t permille_q24(uint16_t p)
 {
@@ -1474,7 +1481,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             }
             lead = q15mul(lead, (a->lead.env_q24 >> 8));
             lead = q15mul(lead, (int32_t)a->lead.velocity * 258);
-            lead = q15mul(lead, ampmod);
+            lead = q15mul_wide(lead, ampmod); /* ampmod reaches 65534 at depth 1000 */
         }
         if (a->sub.env_q24 > 0 && a->sub_config.on && a->sub_config.wave != MELLO_WAVE_OFF) {
             const ToneSubBiquadCoeff *bc = &SUB_FILTER_BIQUAD_Q28[a->sub_config.cut / 10u];
@@ -1542,10 +1549,11 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             uint16_t al = MAIN_FILTER_ALPHA_Q15[cut / 10u];
             int32_t fb = q15mul(a->filter4, (int32_t)a->config.filter_res * 24500 / 1000);
             int32_t inp = clamp32(mix - fb, -65535, 65535);
-            a->filter1 += q15mul(inp - a->filter1, al);
-            a->filter2 += q15mul(a->filter1 - a->filter2, al);
-            a->filter3 += q15mul(a->filter2 - a->filter3, al);
-            a->filter4 += q15mul(a->filter3 - a->filter4, al);
+            /* inp and the states span +-65535, so a difference needs q15mul_wide (P0: wrapped and latched). */
+            a->filter1 += q15mul_wide(inp - a->filter1, al);
+            a->filter2 += q15mul_wide(a->filter1 - a->filter2, al);
+            a->filter3 += q15mul_wide(a->filter2 - a->filter3, al);
+            a->filter4 += q15mul_wide(a->filter3 - a->filter4, al);
             mix = a->filter4;
         }
         {
