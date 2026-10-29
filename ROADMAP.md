@@ -17,14 +17,20 @@ sequencer and storage; rewrite the sound to match the HTML, rebuild HOME as an i
 
 ## Phase 1: safe on hardware
 
-- P0: ladder filter `q15mul` overflow latches −21903 DC (square + square sub, cutoff ≥ 850).
-- P1: reverb DC keeps `tail_guard` alive, so autosave, SAVE and sample upload never run
-  (fix: `docs/review-2026-10/reverb-dc-blocker-fix.patch`, to re-apply by hand after formatting).
-- P1: step, sound and FX edits never mark storage dirty.
-- P1: a firmware rollback can erase both project banks.
-- P1: Chord Machine settings are not saved.
-- P1: sample decoding in the audio callback is unbounded.
-- First install on a real FM-1: from V15, OCT- rescue, back to V15, save and reboot, 10 minutes of full load.
+Each fix has a regression test in `tests/mello/` that failed before it; `make test` and `make sanitize` pass.
+
+- [x] P0: ladder filter and LFO->AMP `q15mul` overflow latched -21903 DC (`audio_overflow_regression`).
+- [x] P1: reverb DC kept the tail guard armed, so autosave, SAVE and sample upload never ran
+      (`audio_silence_regression`).
+- [x] P1: step, sound and FX edits were never marked dirty; storage now detects any change itself
+      (`storage_autosave_regression`).
+- [x] P1: a firmware rollback could erase the newer firmware's project (`storage_rollback_regression`).
+- [x] P1: Chord Machine settings were not saved; new section SEC_CHORD (`storage_chord_regression`).
+- [x] P1: sample decoding in the audio callback was unbounded; now at most 20 blocks per call
+      (`sample_decode_regression`).
+- [ ] First install on a real FM-1: [docs/mello/FIRST_FLASH.md](docs/mello/FIRST_FLASH.md).
+- Left for later (P2 in the review): MIDI CC113 on channel 16 can clear a sample slot; every save erases 10 sectors
+  (0.5–4 s main-loop stall); the screen does not say when saving is off after a rollback.
 
 ## Phase 2: sound = the HTML
 

@@ -5,14 +5,15 @@ M-VAVE FM-1 as its own firmware. It is built on [Dinghy](https://github.com/zven
 under that, the Felucca / SLOOP platform.
 
 > **Status: prototype, not tested on an FM-1.** The code is Reverb V3 Candidate A.1 (fm1mello `3cd776c`) as plain
-> source. A review in October 2026 found one bug that can latch the output at a loud DC offset and several that
-> lose saved work: see [docs/review-2026-10/REVIEW.md](docs/review-2026-10/REVIEW.md). Fix those (ROADMAP.md,
-> phase 1) before installing it on a unit you care about.
+> source, with the P0/P1 bugs from the October 2026 review fixed (a filter that could latch at a loud DC offset,
+> edits that were never saved): see [docs/review-2026-10/REVIEW.md](docs/review-2026-10/REVIEW.md) and
+> ROADMAP.md. Not yet run on hardware: [docs/mello/FIRST_FLASH.md](docs/mello/FIRST_FLASH.md) is the first test.
 
 ## Work on it
 
 ```sh
 make test          # Mello host tests: seconds, no FM-1, no toolchain
+make sanitize      # the same with UBSan + ASan
 make host          # the whole firmware on this computer: build/host/dinghy.wav and screen PNGs (pip3 install Pillow)
 make format        # clang-format the Mello sources (pip3 install clang-format)
 ```
@@ -36,7 +37,7 @@ Docker (Docker Desktop or Colima) must be running. GitHub Actions builds every p
 (`.github/workflows/build.yml`, through the shared `zvenson/fm1-build` workflow) and attests the package.
 
 Installing: `python3 tools/fm1_install.py build/skurkymello-dev.fwsc` on an FM-1 running official V15. Every flash can
-brick a unit; hold OCT- while switching on to reach the updater, and see Dinghy's README, "When it goes wrong".
+brick a unit; hold OCT- while switching on to reach the updater. The first time: [docs/mello/FIRST_FLASH.md](docs/mello/FIRST_FLASH.md).
 
 ## Where things are
 
