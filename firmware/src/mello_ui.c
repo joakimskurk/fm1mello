@@ -1389,6 +1389,7 @@ static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
 static const char *layer_name(const MelloUi *ui);
 static const char *domain_name(const MelloUi *ui);
 static uint8_t save_state(const MelloUi *ui);
+static void value_millihz(char *b, uint32_t mhz);
 static void show_readout(MelloUi *ui, uint8_t what, uint32_t now_ms)
 {
     ui->readout = what;
@@ -3197,15 +3198,15 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             value_u(a, "REL", e->sound.release_ms);
             o->text(o->ctx, 154, 136, 78, 0, a, UI_MID, 2);
         } else if (ui->sound_subpage == 2u) {
-            ui_wave_icon(o, 8, 54, 224, 54, MELLO_WAVE_SINE, e->sound.lfo_on ? UI_BLUE : UI_DIM);
+            ui_wave_icon(o, 8, 54, 224, 54, MELLO_WAVE_SINE, e->sound.lfo_on ? UI_PURPLE : UI_DIM);
             o->text(o->ctx, 8, 118, 70, 0, e->sound.lfo_on ? "LFO ON" : "LFO OFF",
-                    e->sound.lfo_on ? UI_BLUE : UI_DIM, 0);
+                    e->sound.lfo_on ? UI_PURPLE : UI_DIM, 0);
             o->text(o->ctx, 82, 118, 76, 0, lfo_target_name(e->sound.lfo_target), UI_MID, 1);
-            ui_hbar(o, 162, 122, 70, e->sound.lfo_depth, 1000u, UI_BLUE);
-            value_u(a, "RATE", e->sound.lfo_rate_millihz);
+            ui_hbar(o, 162, 122, 70, e->sound.lfo_depth, 1000u, UI_PURPLE);
+            value_millihz(a, e->sound.lfo_rate_millihz);
             o->text(o->ctx, 8, 142, 104, 0, a, UI_MID, 0);
             value_u(a, "DEP", e->sound.lfo_depth / 10u);
-            o->text(o->ctx, 116, 142, 116, 0, a, UI_BLUE, 2);
+            o->text(o->ctx, 116, 142, 116, 0, a, UI_PURPLE, 2);
         } else if (ui->sound_subpage == 3u) {
             ui_wave_icon(o, 8, 54, 150, 64, e->sound.follower_sub_wave,
                          e->sound.follower_sub_on ? UI_GOLD : UI_DIM);
@@ -3416,6 +3417,53 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
     }
 }
 
+static const uint16_t CUTOFF_HZ[101] = { /* 80 * 200^(i / 100): logFilterHz, the HTML's cutoff in Hz */
+    80, 84, 89, 94, 99, 104, 110, 116, 122, 129, 136, 143,
+    151, 159, 168, 177, 187, 197, 208, 219, 231, 243, 257, 271,
+    285, 301, 317, 334, 353, 372, 392, 413, 436, 460, 485, 511,
+    539, 568, 599, 632, 666, 702, 740, 781, 823, 868, 915, 965,
+    1018, 1073, 1131, 1193, 1258, 1326, 1398, 1475, 1555, 1639, 1729, 1823,
+    1922, 2026, 2137, 2253, 2375, 2505, 2641, 2785, 2936, 3096, 3264, 3442,
+    3629, 3827, 4035, 4255, 4486, 4730, 4988, 5259, 5545, 5847, 6165, 6500,
+    6854, 7227, 7620, 8035, 8472, 8933, 9419, 9932, 10472, 11042, 11643, 12276,
+    12944, 13649, 14391, 15174, 16000,
+};
+
+/* Values in music units, as the HTML shows them: 62%, 180MS / 1.2S, 3264HZ / 2.00HZ, D#4. */
+static void value_pct(char *b, uint32_t permille)
+{
+    (void)copy_s(put_u32(b, (permille + 5u) / 10u), "%");
+}
+static void value_ms(char *b, uint32_t ms)
+{
+    char *p;
+    if (ms < 1000u) {
+        (void)copy_s(put_u32(b, ms), "MS");
+        return;
+    }
+    p = put_u32(b, ms / 1000u);
+    *p++ = '.';
+    *p++ = (char)('0' + (ms % 1000u) / 100u);
+    (void)copy_s(p, "S");
+}
+static void value_cutoff(char *b, uint16_t cut)
+{
+    uint32_t i = cut >= 1000u ? 100u : cut / 10u, f = cut % 10u, hz = CUTOFF_HZ[i];
+    if (i < 100u) hz += ((uint32_t)(CUTOFF_HZ[i + 1u] - CUTOFF_HZ[i]) * f) / 10u;
+    (void)copy_s(put_u32(b, hz), "HZ");
+}
+static void value_millihz(char *b, uint32_t mhz)
+{
+    char *p = put_u32(b, mhz / 1000u);
+    *p++ = '.';
+    if (mhz < 10000u) {
+        *p++ = (char)('0' + (mhz % 1000u) / 100u);
+        *p++ = (char)('0' + (mhz % 100u) / 10u);
+    } else
+        *p++ = (char)('0' + (mhz % 1000u) / 100u);
+    (void)copy_s(p, "HZ");
+}
+
 /* K1-K4's labels and values on the current page and layer: the footer and the readout both show these. */
 static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
 {
@@ -3433,17 +3481,17 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         MelloStep *s = &e->project.steps[si];
         if (ui->held_step == MELLO_UI_NO_STEP) {
             l[0] = "CUTOFF";
-            value_u(v[0], "", e->sound.filter_cut / 10u);
+            value_cutoff(v[0], e->sound.filter_cut);
             l[1] = "DECAY";
-            value_u(v[1], "", e->sound.decay_ms);
+            value_ms(v[1], e->sound.decay_ms);
             l[2] = "SPACE";
-            value_u(v[2], "", e->fx.reverb_wet / 10u);
+            value_pct(v[2], e->fx.reverb_wet);
             l[3] = "DRIVE";
-            value_u(v[3], "", e->fx.dist_amount / 10u);
+            value_pct(v[3], e->fx.dist_amount);
             break;
         }
         l[0] = "PITCH";
-        value_i(v[0], "", s->pitch);
+        midi_note_name(v[0], mello_resolve_step_midi(&e->project, s));
         l[1] = "PULSE";
         value_u(v[1], "", s->pulses);
         l[2] = "RATCH";
@@ -3787,43 +3835,43 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             l[0] = "WAVE";
             copy_s(v[0], wave_name(e->sound.osc_wave));
             l[1] = "PWM";
-            value_u(v[1], "", e->sound.pwm_permille / 10u);
+            value_pct(v[1], e->sound.pwm_permille);
             l[2] = "CUT";
-            value_u(v[2], "", e->sound.filter_cut / 10u);
+            value_cutoff(v[2], e->sound.filter_cut);
             l[3] = "RES";
-            value_u(v[3], "", e->sound.filter_res / 10u);
+            value_pct(v[3], e->sound.filter_res);
         } else if (ui->sound_subpage == 1u) {
             l[0] = "ATK";
-            value_u(v[0], "", e->sound.attack_ms);
+            value_ms(v[0], e->sound.attack_ms);
             l[1] = "DEC";
-            value_u(v[1], "", e->sound.decay_ms);
+            value_ms(v[1], e->sound.decay_ms);
             l[2] = "SUS";
-            value_u(v[2], "", e->sound.sustain_permille / 10u);
+            value_pct(v[2], e->sound.sustain_permille);
             l[3] = "REL";
-            value_u(v[3], "", e->sound.release_ms);
+            value_ms(v[3], e->sound.release_ms);
         } else if (ui->sound_subpage == 2u) {
             l[0] = "LFO";
             copy_s(v[0], e->sound.lfo_on ? "ON" : "OFF");
             l[1] = "RATE";
-            value_u(v[1], "", e->sound.lfo_rate_millihz);
+            value_millihz(v[1], e->sound.lfo_rate_millihz);
             l[2] = "DEPTH";
-            value_u(v[2], "", e->sound.lfo_depth / 10u);
+            value_pct(v[2], e->sound.lfo_depth);
             l[3] = "TARGET";
             copy_s(v[3], lfo_target_name(e->sound.lfo_target));
         } else if (ui->sound_subpage == 3u) {
             l[0] = "SUBOSC";
             copy_s(v[0], e->sound.follower_sub_on ? "ON" : "OFF");
             l[1] = "LEVEL";
-            value_u(v[1], "", e->sound.follower_sub_level / 10u);
+            value_pct(v[1], e->sound.follower_sub_level);
             l[2] = "OCT";
             value_i(v[2], "", e->sound.follower_sub_octave);
             l[3] = "WAVE";
             copy_s(v[3], wave_name(e->sound.follower_sub_wave));
         } else {
             l[0] = "SLIDE";
-            value_u(v[0], "", e->sound.slide_ms);
+            value_ms(v[0], e->sound.slide_ms);
             l[1] = "MASTER";
-            value_u(v[1], "", e->sound.master_level / 10u);
+            value_pct(v[1], e->sound.master_level);
             copy_s(v[2], "-");
             copy_s(v[3], "-");
         }
@@ -3831,45 +3879,45 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
     case MELLO_UI_AUDIO_FX:
         if (ui->fx_subpage == 0u) {
             l[0] = "AMT";
-            value_u(v[0], "", e->fx.dist_amount / 10u);
+            value_pct(v[0], e->fx.dist_amount);
             l[1] = "MIX";
-            value_u(v[1], "", e->fx.dist_mix / 10u);
+            value_pct(v[1], e->fx.dist_mix);
             l[2] = "CHAR";
-            value_u(v[2], "", e->fx.dist_character / 10u);
+            value_pct(v[2], e->fx.dist_character);
             l[3] = "TONE";
-            value_u(v[3], "", e->fx.dist_tone / 10u);
+            value_pct(v[3], e->fx.dist_tone);
         } else if (ui->fx_subpage == 1u) {
             l[0] = "WET";
-            value_u(v[0], "", e->fx.delay_wet / 10u);
+            value_pct(v[0], e->fx.delay_wet);
             l[1] = "FDBK";
-            value_u(v[1], "", e->fx.delay_feedback / 10u);
+            value_pct(v[1], e->fx.delay_feedback);
             l[2] = "TONE";
-            value_u(v[2], "", e->fx.delay_tone / 10u);
+            value_pct(v[2], e->fx.delay_tone);
             l[3] = "LEVEL";
-            value_u(v[3], "", e->fx.delay_level / 10u);
+            value_pct(v[3], e->fx.delay_level);
         } else if (ui->fx_subpage == 2u) {
             l[0] = "SYNC";
             copy_s(v[0], e->fx.delay_sync ? "ON" : "OFF");
             l[1] = "DIV";
             copy_s(v[1], delay_div_name(e->fx.delay_div));
             l[2] = "TIME";
-            value_u(v[2], "", e->fx.delay_time_ms);
+            value_ms(v[2], e->fx.delay_time_ms);
             l[3] = "D.LEVEL";
-            value_u(v[3], "", e->fx.dist_level / 10u);
+            value_pct(v[3], e->fx.dist_level);
         } else if (ui->fx_subpage == 3u) {
             l[0] = "WET";
-            value_u(v[0], "", e->fx.reverb_wet / 10u);
+            value_pct(v[0], e->fx.reverb_wet);
             l[1] = "SIZE";
-            value_u(v[1], "", e->fx.reverb_size / 10u);
+            value_pct(v[1], e->fx.reverb_size);
             l[2] = "DECAY";
-            value_u(v[2], "", e->fx.reverb_decay_ms);
+            value_ms(v[2], e->fx.reverb_decay_ms);
             l[3] = "TONE";
-            value_u(v[3], "", e->fx.reverb_tone / 10u);
+            value_pct(v[3], e->fx.reverb_tone);
         } else {
             l[0] = "PRE";
-            value_u(v[0], "", e->fx.reverb_pre_ms);
+            value_ms(v[0], e->fx.reverb_pre_ms);
             l[1] = "LEVEL";
-            value_u(v[1], "", e->fx.reverb_level / 10u);
+            value_pct(v[1], e->fx.reverb_level);
             copy_s(v[2], "-");
             copy_s(v[3], "-");
         }
@@ -3967,11 +4015,16 @@ static void draw_status(MelloUi *ui, const MelloUiDrawOps *o)
     static const char *sw[4] = {"", "SAVED", "UNSAVED", "SAVE OFF"};
     static const uint16_t sc[4] = {UI_DIM, UI_ACC, UI_CORAL, UI_RED};
     o->fill(o->ctx, 0, 220, 240, 20, UI_PANEL2);
-    p = copy_s(b, "STEP ");
-    p = put_u32(p, ui->transport->display_step == 0xFFu ? 0u : (uint32_t)ui->transport->display_step + 1u);
-    if (e) {
-        p = copy_s(p, "/");
-        p = put_u32(p, e->project.seq_len);
+    if (ui->transport->running && ui->transport->display_step != 0xFFu) {
+        p = copy_s(b, "STEP ");
+        p = put_u32(p, (uint32_t)ui->transport->display_step + 1u);
+        if (e) {
+            p = copy_s(p, "/");
+            p = put_u32(p, e->project.seq_len);
+        }
+    } else { /* stopped: just the length */
+        p = put_u32(b, e ? e->project.seq_len : 0u);
+        p = copy_s(p, " STEPS");
     }
     if (e && e->active_slot >= 0) {
         p = copy_s(p, "  SLOT ");
@@ -4038,6 +4091,25 @@ static const char *layer_name(const MelloUi *ui)
     }
 }
 
+/* The footer's short labels in full, for the readout's large line (13 characters fit). */
+static const char *full_label(const char *l)
+{
+    static const char *map[][2] = {{"CUT", "CUTOFF"},      {"RES", "RESONANCE"},  {"ATK", "ATTACK"},
+                                   {"DEC", "DECAY"},       {"SUS", "SUSTAIN"},    {"REL", "RELEASE"},
+                                   {"PWM", "PULSE WIDTH"}, {"FDBK", "FEEDBACK"},  {"AMT", "AMOUNT"},
+                                   {"CHAR", "CHARACTER"},  {"RATCH", "RATCHET"},  {"OCT", "OCTAVE"},
+                                   {"PRE", "PRE-DELAY"},   {"DIV", "DIVISION"},   {"D.LEVEL", "DIST LEVEL"},
+                                   {"SUBOSC", "SUB OSC"},  {"PROB", "PROBABILITY"}, {"LEN", "LENGTH"},
+                                   {"DEP", "DEPTH"},       {"ACC", "ACCENT"}};
+    uint8_t i;
+    for (i = 0u; i < sizeof map / sizeof map[0]; ++i) {
+        const char *a = l, *b = map[i][0]; /* no strcmp on the target's libc */
+        while (*a && *a == *b) ++a, ++b;
+        if (*a == *b) return map[i][1];
+    }
+    return l;
+}
+
 /* What you are turning, large over the body: where you are (page, layer), the control's name and its value. The
  * same texts as the footer (footer_texts), so the two never disagree. */
 static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
@@ -4046,7 +4118,7 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
     const char *l[4], *layer = layer_name(ui);
     uint16_t accent = ui_page_accent(ui);
     footer_texts(ui, l, v);
-    p = copy_s(p, mello_ui_page_name(ui->page));
+    p = copy_s(p, domain_name(ui));
     if (layer) {
         p = copy_s(p, " / ");
         (void)copy_s(p, layer);
@@ -4080,7 +4152,7 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
         uint8_t k = (uint8_t)(ui->readout - 1u);
         accent = knob_colour(ui, k);
         ui_frame(o, 6, 44, 228, 112, accent);
-        o->text(o->ctx, 12, 76, 216, 1, l[k], accent, 1);
+        o->text(o->ctx, 12, 76, 216, 1, full_label(l[k]), accent, 1);
         o->text(o->ctx, 12, 110, 216, 1, v[k][0] ? v[k] : "-", UI_WHITE, 1);
     }
 }
