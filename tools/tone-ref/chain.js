@@ -11,7 +11,7 @@ const DEFAULTS = { // useState defaults, lines 485-538
   delayWet: 0.12, delaySync: true, delayDiv: "8n", delayTime: 0.25, delayFb: 0.32, delayTone: 0.72, delayLevel: 0.75,
   distAmt: 0, distMix: 1, distCharacter: 0.35, distTone: 0.82, distLevel: 0.9, masterVol: 0.75,
   subOn: true, subLevel: 0.42, subWave: "sine", subDecay: 0.16, subRelease: 0.12, subGlide: 0.02, subCut: 0.45,
-  subDrive: 0,
+  subDrive: 0, lfoOn: false, lfoRate: 2.0, lfoDepth: 0.35, lfoTarget: "filter",
 };
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -31,7 +31,7 @@ function distToneHz(v) { return 320 * Math.pow(38, clamp(v, 0, 1)); }
 function subFilterHz(v) { return 40 * Math.pow(55, clamp(v, 0, 1)); }
 
 /* fx: "full" (the HTML), "dry" (delay and reverb sends 0), "reverb" (delay send 0). */
-async function buildChain(P, fx) {
+async function buildChain(P, fx, seconds) {
   const synthOsc = P.oscType === "pulse" ? { type: "pulse", width: clamp(P.pwmWidth, 0.05, 0.95) }
                                          : { type: P.oscType === "off" ? "sine" : P.oscType };
   const env = { attack: P.attack, decay: P.decay, sustain: P.sustain, release: P.release };
@@ -94,7 +94,39 @@ async function buildChain(P, fx) {
   fxMix.connect(limiter);
   limiter.toDestination();
   Tone.getDestination().volume.value = Tone.gainToDb(P.masterVol);
+  if (P.lfoOn) applyLfo(P, synth, mix, filter, seconds);
   return { synth, subOsc, sub };
+}
+
+/* applyLfoRouting() (lines 1148-1238) for an LFO switched on before the notes. FILTER is the rAF loop of
+ * updateLfoFilterModulation() (1373-1394), which sets the cutoff from Math.sin(2 pi rate Tone.now()) about 60 times a
+ * second; Tone.Offline has no rAF, so the same values are ramped to at 60 Hz (the steps are the browser's, not the
+ * design's; no TM or dot-matrix terms here).
+ * AMP and PWM depart from the HTML (docs/mello/DECISIONS.md): Tone's connectSignal sets a param to 0 before an LFO
+ * drives it, so the HTML's gain swings around 0 (silent at depth 0, polarity flipping) and its width around 0, not
+ * around the base as its comments intend. Here min/max carry the base, which is the intent. */
+function applyLfo(P, synth, mix, filter, seconds) {
+  const d = clamp(P.lfoDepth, 0, 1), rate = Math.max(0.008, P.lfoRate);
+  if (P.lfoTarget === "filter") {
+    const base = clamp(logFilterHz(P.filterCut), 80, 16000), span = base * (0.08 + d * 0.92);
+    for (let t = 0; t < seconds; t += 1 / 60)
+      filter.frequency.linearRampToValueAtTime(Math.max(20, Math.min(20000, base + Math.sin(2 * Math.PI * rate * t) * span)), t);
+    return;
+  }
+  const l = new Tone.LFO({ frequency: rate, min: 0, max: 1, type: "sine" }).start(0);
+  if (P.lfoTarget === "pitch") {
+    const cents = 80 + d * 620;
+    l.min = -cents; l.max = cents;
+    l.connect(synth.detune);
+  } else if (P.lfoTarget === "amp") {
+    const swing = 0.58 * d;
+    l.min = 0.58 - swing; l.max = 0.58 + swing;
+    l.connect(mix.gain);
+  } else if (P.lfoTarget === "pwm" && P.oscType === "pulse") {
+    const base = clamp(P.pwmWidth, 0.05, 0.95), swing = Math.max(0, Math.min(0.42 * d, base - 0.05, 0.95 - base));
+    l.min = base - swing; l.max = base + swing;
+    l.connect(synth.oscillator.width);
+  }
 }
 
 /* triggerNote(), SINGLE gate with one ratchet: the lead and the follower sub get the same duration. */
@@ -129,7 +161,7 @@ async function renderStimulus(st, sampleRate, bpm) {
   const P = Object.assign({}, DEFAULTS, st.params || {});
   const buf = await Tone.Offline(async () => {
     Tone.getTransport().bpm.value = bpm; /* the HTML's transport runs at the pattern BPM: "8n" delay follows it */
-    const c = await buildChain(P, st.fx);
+    const c = await buildChain(P, st.fx, st.seconds);
     for (const n of st.lead || []) triggerLead(c, P, n);
     for (const n of st.sub || []) if (P.subOn) triggerSub(c, P, n);
   }, st.seconds, 2, sampleRate);

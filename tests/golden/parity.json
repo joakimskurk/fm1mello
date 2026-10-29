@@ -27,7 +27,7 @@
   "env_db": 2.1,
   "tone_db": 0.2,
   "worst_band_hz": 99,
-  "worst_db": -1.3,
+  "worst_db": -1.2,
   "peak_html_dbfs": -20.2,
   "peak_c_dbfs": -18.8,
   "rt60_html_c": null
@@ -35,8 +35,8 @@
  {
   "name": "filter_res05_dry",
   "level_db": 1.0,
-  "env_db": 2.3,
-  "tone_db": 3.6,
+  "env_db": 2.4,
+  "tone_db": 3.5,
   "worst_band_hz": 2000,
   "worst_db": 15.7,
   "peak_html_dbfs": -14.3,
@@ -71,7 +71,7 @@
   "env_db": 1.4,
   "tone_db": 1.5,
   "worst_band_hz": 79,
-  "worst_db": -10.7,
+  "worst_db": -10.6,
   "peak_html_dbfs": -11.0,
   "peak_c_dbfs": -20.4,
   "rt60_html_c": null
@@ -87,21 +87,65 @@
   "peak_c_dbfs": -13.2,
   "rt60_html_c": [
    2.41,
-   2.26
+   2.25
   ]
  },
  {
   "name": "reverb_click",
   "level_db": 0.4,
   "env_db": 2.2,
-  "tone_db": 6.6,
+  "tone_db": 6.8,
   "worst_band_hz": 12699,
-  "worst_db": 26.1,
+  "worst_db": 26.2,
   "peak_html_dbfs": -16.8,
   "peak_c_dbfs": -16.1,
   "rt60_html_c": [
    2.69,
    2.34
   ]
+ },
+ {
+  "name": "lfo_pitch",
+  "level_db": 1.3,
+  "env_db": 1.0,
+  "tone_db": 0.8,
+  "worst_band_hz": 8000,
+  "worst_db": 8.5,
+  "peak_html_dbfs": -14.2,
+  "peak_c_dbfs": -13.2,
+  "rt60_html_c": null
+ },
+ {
+  "name": "lfo_filter",
+  "level_db": 1.4,
+  "env_db": 0.8,
+  "tone_db": 1.9,
+  "worst_band_hz": 6350,
+  "worst_db": 10.6,
+  "peak_html_dbfs": -14.8,
+  "peak_c_dbfs": -13.7,
+  "rt60_html_c": null
+ },
+ {
+  "name": "lfo_amp",
+  "level_db": 1.1,
+  "env_db": 1.2,
+  "tone_db": 0.9,
+  "worst_band_hz": 10079,
+  "worst_db": -3.4,
+  "peak_html_dbfs": -12.3,
+  "peak_c_dbfs": -12.2,
+  "rt60_html_c": null
+ },
+ {
+  "name": "lfo_pwm",
+  "level_db": -0.1,
+  "env_db": 0.9,
+  "tone_db": 4.8,
+  "worst_band_hz": 99,
+  "worst_db": -16.2,
+  "peak_html_dbfs": -13.0,
+  "peak_c_dbfs": -13.1,
+  "rt60_html_c": null
  }
 ]

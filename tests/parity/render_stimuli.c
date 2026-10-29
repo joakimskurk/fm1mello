@@ -49,6 +49,15 @@ static void apply_param(const StimParam *p, MelloSoundConfig *s, MelloFxConfig *
     else if (!strcmp(k, "distAmt")) fx->dist_amount = permille(p->num);
     else if (!strcmp(k, "distCharacter")) fx->dist_character = permille(p->num);
     else if (!strcmp(k, "subLevel")) sub->level = permille(p->num);
+    else if (!strcmp(k, "pwmWidth")) s->pwm_permille = permille(p->num);
+    else if (!strcmp(k, "lfoOn")) s->lfo_on = p->num != 0.0;
+    else if (!strcmp(k, "lfoRate")) s->lfo_rate_millihz = (uint16_t)(p->num * 1000.0 + 0.5);
+    else if (!strcmp(k, "lfoDepth")) s->lfo_depth = permille(p->num);
+    else if (!strcmp(k, "lfoTarget"))
+        s->lfo_target = !strcmp(p->text, "pitch") ? MELLO_LFO_PITCH
+                        : !strcmp(p->text, "amp") ? MELLO_LFO_AMP
+                        : !strcmp(p->text, "pwm") ? MELLO_LFO_PWM
+                                                  : MELLO_LFO_FILTER;
     else {
         fprintf(stderr, "render_stimuli: no C mapping for HTML parameter '%s'\n", k);
         exit(2);

@@ -47,6 +47,18 @@ static const StimNote stim7_sub[] = {{0.05, 0.16875, 36, 0.9}, {0.8, 0.16875, 36
 static const StimParam stim8_params[] = {{"attack", 0, 0.001}, {"decay", 0, 0.05}, {"sustain", 0, 1.0}, {"release", 0, 0.005}, {"filterCut", 0, 1.0}, {"subOscOn", 0, 0}};
 static const StimNote stim8_lead[] = {{0.05, 0.05, 72, 0.95}};
 static const StimNote stim8_sub[] = {{0, 0, 0, 0}};
+static const StimParam stim9_params[] = {{"sustain", 0, 1.0}, {"decay", 0, 0.05}, {"release", 0, 0.05}, {"subOscOn", 0, 0}, {"lfoOn", 0, 1}, {"lfoRate", 0, 3.0}, {"lfoTarget", "pitch", 0}, {"lfoDepth", 0, 0.5}};
+static const StimNote stim9_lead[] = {{0.05, 2.2, 57, 0.9}};
+static const StimNote stim9_sub[] = {{0, 0, 0, 0}};
+static const StimParam stim10_params[] = {{"sustain", 0, 1.0}, {"decay", 0, 0.05}, {"release", 0, 0.05}, {"subOscOn", 0, 0}, {"lfoOn", 0, 1}, {"lfoRate", 0, 3.0}, {"lfoTarget", "filter", 0}, {"lfoDepth", 0, 0.6}, {"filterCut", 0, 0.55}};
+static const StimNote stim10_lead[] = {{0.05, 2.2, 57, 0.9}};
+static const StimNote stim10_sub[] = {{0, 0, 0, 0}};
+static const StimParam stim11_params[] = {{"sustain", 0, 1.0}, {"decay", 0, 0.05}, {"release", 0, 0.05}, {"subOscOn", 0, 0}, {"lfoOn", 0, 1}, {"lfoRate", 0, 3.0}, {"lfoTarget", "amp", 0}, {"lfoDepth", 0, 0.7}};
+static const StimNote stim11_lead[] = {{0.05, 2.2, 57, 0.9}};
+static const StimNote stim11_sub[] = {{0, 0, 0, 0}};
+static const StimParam stim12_params[] = {{"sustain", 0, 1.0}, {"decay", 0, 0.05}, {"release", 0, 0.05}, {"subOscOn", 0, 0}, {"lfoOn", 0, 1}, {"lfoRate", 0, 3.0}, {"lfoTarget", "pwm", 0}, {"lfoDepth", 0, 0.8}, {"oscType", "pulse", 0}, {"pwmWidth", 0, 0.3}};
+static const StimNote stim12_lead[] = {{0.05, 2.2, 57, 0.9}};
+static const StimNote stim12_sub[] = {{0, 0, 0, 0}};
 
 static const Stimulus STIMULI[] = {
     {"lead_pluck_dry", 1.0, STIM_FX_DRY, stim0_params, 0, stim0_lead, 1, stim0_sub, 0},
@@ -58,6 +70,10 @@ static const Stimulus STIMULI[] = {
     {"drive_dry", 2.2, STIM_FX_DRY, stim6_params, 1, stim6_lead, 4, stim6_sub, 0},
     {"run_full", 6.0, STIM_FX_FULL, stim7_params, 0, stim7_lead, 8, stim7_sub, 2},
     {"reverb_click", 5.0, STIM_FX_REVERB, stim8_params, 6, stim8_lead, 1, stim8_sub, 0},
+    {"lfo_pitch", 2.5, STIM_FX_DRY, stim9_params, 8, stim9_lead, 1, stim9_sub, 0},
+    {"lfo_filter", 2.5, STIM_FX_DRY, stim10_params, 9, stim10_lead, 1, stim10_sub, 0},
+    {"lfo_amp", 2.5, STIM_FX_DRY, stim11_params, 8, stim11_lead, 1, stim11_sub, 0},
+    {"lfo_pwm", 2.5, STIM_FX_DRY, stim12_params, 10, stim12_lead, 1, stim12_sub, 0},
 };
 #define STIM_COUNT ((int)(sizeof STIMULI / sizeof STIMULI[0]))
 

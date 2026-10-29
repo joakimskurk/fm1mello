@@ -106,6 +106,38 @@
       "fx": "reverb",
       "params": {"attack": 0.001, "decay": 0.05, "sustain": 1.0, "release": 0.005, "filterCut": 1.0, "subOscOn": false},
       "lead": [{"t": 0.05, "dur": 0.05, "midi": 72, "vel": 0.95}]
+    },
+    {
+      "name": "lfo_pitch",
+      "what": "a held A3, Audio LFO on PITCH at depth 0.5 (+-390 cents), 3 Hz",
+      "seconds": 2.5,
+      "fx": "dry",
+      "params": {"sustain": 1.0, "decay": 0.05, "release": 0.05, "subOscOn": false, "lfoOn": true, "lfoRate": 3.0, "lfoTarget": "pitch", "lfoDepth": 0.5},
+      "lead": [{"t": 0.05, "dur": 2.2, "midi": 57, "vel": 0.9}]
+    },
+    {
+      "name": "lfo_filter",
+      "what": "a held A3, Audio LFO on FILTER at depth 0.6, 3 Hz",
+      "seconds": 2.5,
+      "fx": "dry",
+      "params": {"sustain": 1.0, "decay": 0.05, "release": 0.05, "subOscOn": false, "lfoOn": true, "lfoRate": 3.0, "lfoTarget": "filter", "lfoDepth": 0.6, "filterCut": 0.55},
+      "lead": [{"t": 0.05, "dur": 2.2, "midi": 57, "vel": 0.9}]
+    },
+    {
+      "name": "lfo_amp",
+      "what": "a held A3, Audio LFO on AMP at depth 0.7, 3 Hz",
+      "seconds": 2.5,
+      "fx": "dry",
+      "params": {"sustain": 1.0, "decay": 0.05, "release": 0.05, "subOscOn": false, "lfoOn": true, "lfoRate": 3.0, "lfoTarget": "amp", "lfoDepth": 0.7},
+      "lead": [{"t": 0.05, "dur": 2.2, "midi": 57, "vel": 0.9}]
+    },
+    {
+      "name": "lfo_pwm",
+      "what": "a held A3 pulse, Audio LFO on PWM at depth 0.8, 3 Hz",
+      "seconds": 2.5,
+      "fx": "dry",
+      "params": {"sustain": 1.0, "decay": 0.05, "release": 0.05, "subOscOn": false, "lfoOn": true, "lfoRate": 3.0, "lfoTarget": "pwm", "lfoDepth": 0.8, "oscType": "pulse", "pwmWidth": 0.3},
+      "lead": [{"t": 0.05, "dur": 2.2, "midi": 57, "vel": 0.9}]
     }
   ]
 }

@@ -84,6 +84,7 @@ typedef struct {
     int32_t b0, b1, b2, a1, a2;
 } ToneSubBiquadCoeff;
 #include "mello_filter_table.h"
+#include "mello_lfo_table.h"
 static const ToneSubBiquadCoeff SUB_FILTER_BIQUAD_Q28[101] = {
     {2172, 4344, 2172, -534956743, 266529975},           {2353, 4706, 2353, -534878399, 266452354},
     {2549, 5097, 2549, -534796844, 266371583},           {2761, 5522, 2761, -534711948, 266287536},
@@ -224,7 +225,9 @@ static int16_t osc_sample(MelloWaveform wave, uint32_t phase, uint32_t inc, uint
         return (int16_t)(s0 + (((s1 - s0) * (int32_t)((phase >> 16) & 0xFFu)) >> 8));
     }
     case MELLO_WAVE_PULSE: {
-        uint32_t th = (uint32_t)pwm * 4294967u;
+        /* Tone's PulseOscillator thresholds a triangle at -width: the duty is (1 + width) / 2, so the HTML's width
+         * 0.5 (PWM 50) is a 75% pulse, and 0 would be square. */
+        uint32_t th = ((1000u + (uint32_t)pwm) / 2u) * 4294967u;
         return sat16((phase < th ? 32767 : -32767) + poly_blep_q15(phase, inc) -
                      poly_blep_q15(phase - th, inc));
     }
@@ -1465,14 +1468,23 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (--a->sub.slide_left == 0u) a->sub.inc = a->sub.target_inc;
         }
         if (a->config.lfo_on) {
-            a->lfo_phase += a->lfo_inc;
-            lfo = SINE_Q15[(uint8_t)(a->lfo_phase >> 24)];
+            uint32_t ph = a->lfo_phase;
+            int32_t s0 = SINE_Q15[(uint8_t)(ph >> 24)], s1 = SINE_Q15[(uint8_t)((ph >> 24) + 1u)];
+            a->lfo_phase = ph + a->lfo_inc;
+            lfo = s0 + (((s1 - s0) * (int32_t)((ph >> 16) & 0xFFu)) >> 8);
             a->last_lfo = (int16_t)lfo;
             if (a->config.lfo_target == MELLO_LFO_AMP)
+                /* HTML: mix.gain = 0.58 + 0.58 * depth * sin, on the whole mix (applied below). */
                 ampmod = 32767 + (lfo * (int32_t)a->config.lfo_depth / 1000);
             else if (a->config.lfo_target == MELLO_LFO_FILTER) {
-                int32_t cv = (int32_t)cut + ((lfo * (int32_t)a->config.lfo_depth) / 1000) * 220 / 32767;
-                cut = (uint16_t)clamp32(cv, 0, 1000);
+                /* HTML: f = base * (1 + sin * (0.08 + 0.92 * depth)), linear in Hz: on the log cutoff that is
+                 * + 1000 * log200(r), r = 0..2. */
+                int32_t span = 80 + (int32_t)a->config.lfo_depth * 920 / 1000; /* permille */
+                int32_t m = lfo * span / 1000;                                 /* (r - 1) in Q15 */
+                int32_t r64 = clamp32(64 + (m >> 9), 0, 127), rem = m & 511, lo, hi; /* r in 1/64 + rem/512 */
+                lo = LFO_LOG200_PERMILLE[r64];
+                hi = LFO_LOG200_PERMILLE[r64 + 1];
+                cut = (uint16_t)clamp32((int32_t)cut + lo + ((hi - lo) * rem) / 512, 0, 1000);
             }
         }
         if (a->tm_filter_mod_q15) {
@@ -1502,13 +1514,22 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             uint32_t inc = a->lead.inc;
             uint16_t pwm = a->config.pwm_permille;
             if (a->config.lfo_on && a->config.lfo_target == MELLO_LFO_PITCH) {
-                int32_t mod = (lfo * (int32_t)a->config.lfo_depth) / 80000;
-                int32_t delta = ((int32_t)(inc >> 10) * mod) / 4;
-                inc = (uint32_t)clamp32((int32_t)inc + delta, 1, 0x7fffffff);
+                /* HTML: Tone.LFO into synth.detune, +-(80 + 620 * depth) cents (the follower sub is not detuned).
+                 * c is in 1/16 cent; the table steps 25 cents (400). */
+                int32_t c = (lfo * (80 + (int32_t)a->config.lfo_depth * 620 / 1000)) >> 11;
+                uint32_t k = (uint32_t)(c + 700 * 16), idx = k / 400u, rem = k % 400u, r;
+                if (idx > 55u) idx = 55u, rem = 400u;
+                r = LFO_CENTS_RATIO_Q16[idx] +
+                    (uint32_t)(((int32_t)(LFO_CENTS_RATIO_Q16[idx + 1u] - LFO_CENTS_RATIO_Q16[idx]) * (int32_t)rem) /
+                               400);
+                inc = (uint32_t)(((uint64_t)inc * r) >> 16);
             }
             if (a->config.lfo_on && a->config.lfo_target == MELLO_LFO_PWM) {
-                int32_t pv = (int32_t)pwm + ((lfo * (int32_t)a->config.lfo_depth) / 1000) * 420 / 32767;
-                pwm = (uint16_t)clamp32(pv, 50, 950);
+                /* HTML: width + sin * swing, swing = min(0.42 * depth, width - 0.05, 0.95 - width): symmetric. */
+                int32_t sw = (int32_t)a->config.lfo_depth * 420 / 1000, pb = clamp32((int32_t)pwm, 50, 950);
+                if (sw > pb - 50) sw = pb - 50;
+                if (sw > 950 - pb) sw = 950 - pb;
+                pwm = (uint16_t)(pb + (lfo * sw) / 32767);
             }
             a->lead.phase += inc;
             lead = osc_sample(a->config.osc_wave, a->lead.phase, inc, pwm);
@@ -1522,7 +1543,6 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             }
             lead = q15mul(lead, (a->lead.env_q24 >> 8));
             lead = q15mul(lead, (int32_t)a->lead.velocity * 258);
-            lead = q15mul_wide(lead, ampmod); /* ampmod reaches 65534 at depth 1000 */
         }
         if (a->sub.env_q24 > 0 && a->sub_config.on && a->sub_config.wave != MELLO_WAVE_OFF) {
             const ToneSubBiquadCoeff *bc = &SUB_FILTER_BIQUAD_Q28[a->sub_config.cut / 10u];
@@ -1586,6 +1606,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 sample_mix += sample_render_voice(a, &a->sample_voice[sv]);
         }
         mix = (lead + sub + sample_mix) * 580 / 1000;
+        if (ampmod != 32767) mix = q15mul_wide(clamp32(mix, -65535, 65535), ampmod); /* reaches 65534: x2 */
         {
             /* HTML: Tone.Filter lowpass -24 = two identical biquads, Q = res*15 dB, f = 80*200^cut. */
             int32_t y;

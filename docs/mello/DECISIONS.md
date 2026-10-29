@@ -131,6 +131,12 @@ A splash/boot identity screen is required before final product-polish acceptance
   (`build_main_dist_curve`, `MAIN_DIST_MAKEUP_REF`): AMT changes the character, LEVEL changes the loudness. So
   `drive_dry` in `make parity` is ~9 dB below the HTML by design; its tone still matches.
 
+- **Audio LFO on AMP and PWM swings around the base (2026-10-29).** In the HTML, Tone's `connectSignal` sets
+  `mix.gain` and the pulse `width` to 0 before the LFO drives them, so AMP swings the gain around 0 (silent at depth
+  0, the polarity flipping every half cycle) and PWM swings the width around 0 (a square), not around 0.58 and the
+  set width as `applyLfoRouting`'s comments intend. The FM-1 does what the comments say; the reference renderer
+  (tools/tone-ref/chain.js) does the same, so `make parity` measures against the intent.
+
 ## Sequence overview
 
 HOME, STEP, SEGMENT and RANDOM keep a compact 4..32-step visual overview. Do not reintroduce visual paging. At 16 steps the overview must be comfortably readable, while 17..32 must still remain visible and retain meaningful pulse/event information.
