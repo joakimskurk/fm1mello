@@ -12,7 +12,8 @@ static int text_clip_error = 0;
 
 static void smoke_fill(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t colour)
 {
-    (void)ctx; (void)colour;
+    (void)ctx;
+    (void)colour;
     if (x < 0 || y < 0 || w < 0 || h < 0 || x + w > 240 || y + h > 240) {
         fprintf(stderr, "bad fill %d %d %d %d\n", x, y, w, h);
         bounds_error = 1;
@@ -20,20 +21,25 @@ static void smoke_fill(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, ui
     ++fills;
 }
 
-static void smoke_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large,
-                       const char *text_value, uint16_t colour, uint8_t align)
+static void smoke_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, const char *text_value,
+                       uint16_t colour, uint8_t align)
 {
     size_t n = text_value ? strlen(text_value) : 0u;
     int16_t glyph_w = large ? 8 : 6;
-    (void)ctx; (void)colour; (void)align;
+    (void)ctx;
+    (void)colour;
+    (void)align;
     if (text_value) {
         if ((int32_t)n * glyph_w > w) {
-            fprintf(stderr, "likely clipped text '%s': need=%ld width=%d large=%u\n", text_value, (long)n * glyph_w, w, (unsigned)large);
+            fprintf(stderr, "likely clipped text '%s': need=%ld width=%d large=%u\n", text_value,
+                    (long)n * glyph_w, w, (unsigned)large);
             text_clip_error = 1;
         }
         if (strcmp(text_value, "SKURKYMELLO") == 0) saw_brand = 1;
         if (strcmp(text_value, "SUB 5-SEQ") == 0 || strcmp(text_value, "5-SEQ OFF") == 0) saw_sub_5seq = 1;
-        if (strstr(text_value, "X-SUB") || strcmp(text_value, "X OFF") == 0 || strstr(text_value, "X CONFIG") || strstr(text_value, "X STEP")) saw_legacy_xsub = 1;
+        if (strstr(text_value, "X-SUB") || strcmp(text_value, "X OFF") == 0 ||
+            strstr(text_value, "X CONFIG") || strstr(text_value, "X STEP"))
+            saw_legacy_xsub = 1;
     }
     if (x < 0 || y < 0 || w < 0 || x + w > 240 || y > 239) {
         fprintf(stderr, "bad text %d %d %d\n", x, y, w);
@@ -67,9 +73,9 @@ int main(void)
     MelloTransport transport;
     MelloStorage storage;
     MelloUi ui;
-    MelloUiDrawOps ops = { smoke_fill, smoke_text, 0, 0, 0 };
+    MelloUiDrawOps ops = {smoke_fill, smoke_text, 0, 0, 0};
     MelloSampleBank sample_bank;
-    uint8_t sample_dummy[4][1] = {{0},{0},{0},{0}};
+    uint8_t sample_dummy[4][1] = {{0}, {0}, {0}, {0}};
     int16_t encoder_delta[MELLO_UI_ENCODER_COUNT] = {0};
     uint8_t i;
 
@@ -77,7 +83,8 @@ int main(void)
     mello_transport_init(&transport, &project, 123u, 0, 0);
     mello_storage_init(&storage, 0, 0);
     mello_ui_init(&ui, &transport, &storage);
-    mello_sample_bank_init(&sample_bank, sample_dummy[0], sample_dummy[1], sample_dummy[2], sample_dummy[3], 1u);
+    mello_sample_bank_init(&sample_bank, sample_dummy[0], sample_dummy[1], sample_dummy[2], sample_dummy[3],
+                           1u);
     sample_bank.meta[0].loaded = true;
     sample_bank.meta[0].sample_count = MELLO_SAMPLE_SOURCE_RATE;
     memcpy(sample_bank.meta[0].name, "KICK", 5u);
@@ -87,7 +94,10 @@ int main(void)
     mello_ui_attach_sample_bank(&ui, &sample_bank);
 
     if (render_page(&ui, &ops, MELLO_UI_HOME) || fills < 30 || texts < 8) return 2;
-    if (!saw_brand) { fprintf(stderr, "HOME missing SKURKYMELLO brand header\n"); return 29; }
+    if (!saw_brand) {
+        fprintf(stderr, "HOME missing SKURKYMELLO brand header\n");
+        return 29;
+    }
 
     for (i = 0u; i < 4u; ++i) {
         ui.step_subpage = i;
@@ -113,14 +123,16 @@ int main(void)
     encoder_delta[MELLO_UI_ENC_KNOB1] = 1;
     mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, 0u, encoder_delta);
     if (transport.engine.project.seq_len != 20u) {
-        fprintf(stderr, "STEP length legacy 17 -> 20 failed: %u\n", (unsigned)transport.engine.project.seq_len);
+        fprintf(stderr, "STEP length legacy 17 -> 20 failed: %u\n",
+                (unsigned)transport.engine.project.seq_len);
         return 23;
     }
     transport.engine.project.seq_len = 17u;
     encoder_delta[MELLO_UI_ENC_KNOB1] = -1;
     mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, 0u, encoder_delta);
     if (transport.engine.project.seq_len != 16u) {
-        fprintf(stderr, "STEP length legacy 17 -> 16 failed: %u\n", (unsigned)transport.engine.project.seq_len);
+        fprintf(stderr, "STEP length legacy 17 -> 16 failed: %u\n",
+                (unsigned)transport.engine.project.seq_len);
         return 24;
     }
     transport.engine.project.seq_len = 4u;
@@ -243,6 +255,8 @@ int main(void)
         fprintf(stderr, "HOME playhead redraw too broad: fills=%d texts=%d\n", fills, texts);
         return 18;
     }
-    printf("PASS: visual pages stay inside 240x240; branded header + SUB 5-SEQ naming hold; STEP/RANDOM parity holds; HOME incremental redraw fills=%d texts=%d\n", fills, texts);
+    printf("PASS: visual pages stay inside 240x240; branded header + SUB 5-SEQ naming hold; STEP/RANDOM "
+           "parity holds; HOME incremental redraw fills=%d texts=%d\n",
+           fills, texts);
     return 0;
 }

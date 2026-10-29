@@ -1,20 +1,22 @@
 #include "mello_transport.h"
 
-
-#define US_PER_MINUTE 60000000u
-#define US_PER_SIXTEENTH_AT_BPM1 15000000u
-#define MELLO_MAX_CATCHUP_PULSES 8u
+#define US_PER_MINUTE                  60000000u
+#define US_PER_SIXTEENTH_AT_BPM1       15000000u
+#define MELLO_MAX_CATCHUP_PULSES       8u
 #define MELLO_MAX_MASTER_CLOCK_CATCHUP 24u
 
-static bool time_due(uint32_t now, uint32_t due) {
+static bool time_due(uint32_t now, uint32_t due)
+{
     return (int32_t)(now - due) >= 0;
 }
 
-static void send_now(MelloTransport *t, uint8_t st, uint8_t d1, uint8_t d2) {
+static void send_now(MelloTransport *t, uint8_t st, uint8_t d1, uint8_t d2)
+{
     if (t && t->midi_send) t->midi_send(t->midi_ctx, st, d1, d2);
 }
 
-static void recalc_timing(MelloTransport *t) {
+static void recalc_timing(MelloTransport *t)
+{
     uint32_t bpm, div, num;
     if (!t) return;
     bpm = t->engine.project.bpm;
@@ -35,12 +37,16 @@ static void recalc_timing(MelloTransport *t) {
     t->clock_error = 0u;
 }
 
-static uint32_t advance_fractional_deadline(uint32_t due, uint32_t base, uint32_t rem,
-                                            uint32_t den, uint32_t *error) {
+static uint32_t advance_fractional_deadline(uint32_t due, uint32_t base, uint32_t rem, uint32_t den,
+                                            uint32_t *error)
+{
     uint32_t extra = 0u;
     if (den && rem) {
         uint32_t e = *error + rem;
-        if (e >= den) { e -= den; extra = 1u; }
+        if (e >= den) {
+            e -= den;
+            extra = 1u;
+        }
         *error = e;
     }
     return due + base + extra;
@@ -48,7 +54,8 @@ static uint32_t advance_fractional_deadline(uint32_t due, uint32_t base, uint32_
 
 /* Convert a small engine-tick offset to microseconds without 64-bit arithmetic.
  * Scheduled offsets are bounded by current SkurkyMello gate clamps (<= 4 s). */
-static uint32_t ticks_to_us_small(uint32_t ticks, uint16_t bpm) {
+static uint32_t ticks_to_us_small(uint32_t ticks, uint16_t bpm)
+{
     uint32_t q, r, quarter_us, base, rem;
     if (bpm < 20u) bpm = 20u;
     if (bpm > 300u) bpm = 300u;
@@ -60,14 +67,17 @@ static uint32_t ticks_to_us_small(uint32_t ticks, uint16_t bpm) {
     return q * quarter_us + r * base + (r * rem) / MELLO_PPQN;
 }
 
-static void remove_scheduled(MelloTransport *t, uint8_t idx) {
+static void remove_scheduled(MelloTransport *t, uint8_t idx)
+{
     uint8_t i;
     if (!t || idx >= t->scheduled_count) return;
     for (i = idx; i + 1u < t->scheduled_count; ++i) t->scheduled[i] = t->scheduled[i + 1u];
     t->scheduled_count--;
 }
 
-static void schedule_midi(MelloTransport *t, uint32_t due_us, uint8_t status, uint8_t d1, uint8_t d2, MelloVoice voice) {
+static void schedule_midi(MelloTransport *t, uint32_t due_us, uint8_t status, uint8_t d1, uint8_t d2,
+                          MelloVoice voice)
+{
     uint8_t i;
     if (!t) return;
     if (t->scheduled_count >= MELLO_MIDI_SCHEDULE_CAP) {
@@ -82,12 +92,16 @@ static void schedule_midi(MelloTransport *t, uint32_t due_us, uint8_t status, ui
     t->scheduled[i].voice = voice;
 }
 
-static void dispatch_scheduled(MelloTransport *t, uint32_t now_us) {
+static void dispatch_scheduled(MelloTransport *t, uint32_t now_us)
+{
     uint8_t i = 0u;
     if (!t) return;
     while (i < t->scheduled_count) {
         MelloScheduledMidi ev = t->scheduled[i];
-        if (!time_due(now_us, ev.due_us)) { i++; continue; }
+        if (!time_due(now_us, ev.due_us)) {
+            i++;
+            continue;
+        }
         send_now(t, ev.status, ev.data1, ev.data2);
         if ((ev.status & 0xF0u) == 0x90u && ev.data2) {
             uint8_t *cnt = &t->active_note_count[ev.voice == MELLO_VOICE_SUB ? 1u : 0u][ev.data1 & 0x7Fu];
@@ -100,9 +114,10 @@ static void dispatch_scheduled(MelloTransport *t, uint32_t now_us) {
     }
 }
 
-static void all_notes_off(MelloTransport *t) {
+static void all_notes_off(MelloTransport *t)
+{
     uint16_t n;
-    uint8_t lead_status,sub_status;
+    uint8_t lead_status, sub_status;
     if (!t) return;
     lead_status = (uint8_t)(0x80u | (t->midi_channel & 0x0Fu));
     sub_status = (uint8_t)(0x80u | (t->midi_sub_channel & 0x0Fu));
@@ -115,7 +130,8 @@ static void all_notes_off(MelloTransport *t) {
     t->scheduled_count = 0u;
 }
 
-static void consume_engine_events(MelloTransport *t, uint32_t pulse_tick, uint32_t pulse_due_us) {
+static void consume_engine_events(MelloTransport *t, uint32_t pulse_tick, uint32_t pulse_due_us)
+{
     MelloEvent ev;
     if (!t) return;
     while (mello_event_pop(&t->engine, &ev)) {
@@ -135,13 +151,13 @@ static void consume_engine_events(MelloTransport *t, uint32_t pulse_tick, uint32
 #if MELLO_FEATURE_CHORD_MACHINE
                    || ev.type == MELLO_EVENT_CHORD_NOTE_ON || ev.type == MELLO_EVENT_CHORD_NOTE_OFF
 #endif
-                   ) {
+        ) {
             uint32_t delta_ticks = ev.tick - pulse_tick;
             uint32_t due = pulse_due_us + ticks_to_us_small(delta_ticks, t->engine.project.bpm);
             bool is_sub = ev.type == MELLO_EVENT_SUB_NOTE_ON || ev.type == MELLO_EVENT_SUB_NOTE_OFF;
             bool is_on = ev.type == MELLO_EVENT_NOTE_ON || ev.type == MELLO_EVENT_SUB_NOTE_ON
 #if MELLO_FEATURE_CHORD_MACHINE
-                || ev.type == MELLO_EVENT_CHORD_NOTE_ON
+                         || ev.type == MELLO_EVENT_CHORD_NOTE_ON
 #endif
                 ;
             uint8_t ch = is_sub ? t->midi_sub_channel : t->midi_channel;
@@ -149,7 +165,8 @@ static void consume_engine_events(MelloTransport *t, uint32_t pulse_tick, uint32
             uint8_t status_off = (uint8_t)(0x80u | (ch & 0x0Fu));
             MelloVoice voice = is_sub ? MELLO_VOICE_SUB : MELLO_VOICE_LEAD;
 #if MELLO_FEATURE_CHORD_MACHINE
-            if(ev.type==MELLO_EVENT_CHORD_NOTE_ON||ev.type==MELLO_EVENT_CHORD_NOTE_OFF)voice=MELLO_VOICE_CHORD;
+            if (ev.type == MELLO_EVENT_CHORD_NOTE_ON || ev.type == MELLO_EVENT_CHORD_NOTE_OFF)
+                voice = MELLO_VOICE_CHORD;
 #endif
             /* Phase 9 audio sink always receives the source event, regardless of MIDI mode. */
             if (t->event_sink) t->event_sink(t->event_sink_ctx, &ev, due);
@@ -159,7 +176,8 @@ static void consume_engine_events(MelloTransport *t, uint32_t pulse_tick, uint32
             if (is_on) {
                 schedule_midi(t, due, status_on, ev.note, ev.velocity, voice);
                 if (t->midi_fixed_length)
-                    schedule_midi(t, due + (uint32_t)t->midi_fixed_len_ms * 1000u, status_off, ev.note, 0u, voice);
+                    schedule_midi(t, due + (uint32_t)t->midi_fixed_len_ms * 1000u, status_off, ev.note, 0u,
+                                  voice);
             } else if (!t->midi_fixed_length) {
                 schedule_midi(t, due, status_off, ev.note, 0u, voice);
             }
@@ -167,7 +185,8 @@ static void consume_engine_events(MelloTransport *t, uint32_t pulse_tick, uint32
     }
 }
 
-static void process_one_pulse(MelloTransport *t, uint32_t due_us) {
+static void process_one_pulse(MelloTransport *t, uint32_t due_us)
+{
     uint32_t pulse_tick;
     if (!t || !t->running) return;
     pulse_tick = t->engine.now_tick;
@@ -175,7 +194,8 @@ static void process_one_pulse(MelloTransport *t, uint32_t due_us) {
     consume_engine_events(t, pulse_tick, due_us);
 }
 
-static void start_engine(MelloTransport *t, uint32_t now_us, bool from_external) {
+static void start_engine(MelloTransport *t, uint32_t now_us, bool from_external)
+{
     if (!t) return;
     all_notes_off(t);
     mello_engine_start(&t->engine);
@@ -189,7 +209,8 @@ static void start_engine(MelloTransport *t, uint32_t now_us, bool from_external)
 }
 
 void mello_transport_init(MelloTransport *t, const MelloProject *project, uint32_t seed,
-                          MelloMidiSendFn midi_send, void *midi_ctx) {
+                          MelloMidiSendFn midi_send, void *midi_ctx)
+{
     if (!t) return;
     memset(t, 0, sizeof(*t));
     mello_engine_init(&t->engine, project, seed);
@@ -206,7 +227,8 @@ void mello_transport_init(MelloTransport *t, const MelloProject *project, uint32
     recalc_timing(t);
 }
 
-void mello_transport_factory_reset(MelloTransport *t, uint32_t seed) {
+void mello_transport_factory_reset(MelloTransport *t, uint32_t seed)
+{
     MelloMidiSendFn midi_send;
     void *midi_ctx;
     MelloEngineEventSinkFn event_sink;
@@ -221,13 +243,15 @@ void mello_transport_factory_reset(MelloTransport *t, uint32_t seed) {
     mello_transport_set_event_sink(t, event_sink, event_sink_ctx);
 }
 
-void mello_transport_set_event_sink(MelloTransport *t, MelloEngineEventSinkFn sink, void *ctx) {
+void mello_transport_set_event_sink(MelloTransport *t, MelloEngineEventSinkFn sink, void *ctx)
+{
     if (!t) return;
     t->event_sink = sink;
     t->event_sink_ctx = ctx;
 }
 
-void mello_transport_set_sync(MelloTransport *t, MelloSyncMode mode, uint32_t now_us) {
+void mello_transport_set_sync(MelloTransport *t, MelloSyncMode mode, uint32_t now_us)
+{
     if (!t) return;
     if (mode > MELLO_SYNC_MASTER) mode = MELLO_SYNC_OFF;
     if (t->running) mello_transport_stop(t);
@@ -242,27 +266,31 @@ void mello_transport_set_sync(MelloTransport *t, MelloSyncMode mode, uint32_t no
     t->next_clock_us = now_us;
 }
 
-void mello_transport_set_midi_channel(MelloTransport *t, uint8_t channel_1_to_16) {
+void mello_transport_set_midi_channel(MelloTransport *t, uint8_t channel_1_to_16)
+{
     if (!t) return;
     if (channel_1_to_16 < 1u) channel_1_to_16 = 1u;
     if (channel_1_to_16 > 16u) channel_1_to_16 = 16u;
     t->midi_channel = (uint8_t)(channel_1_to_16 - 1u);
 }
 
-void mello_transport_set_midi_sub_channel(MelloTransport *t, uint8_t channel_1_to_16) {
+void mello_transport_set_midi_sub_channel(MelloTransport *t, uint8_t channel_1_to_16)
+{
     if (!t) return;
     if (channel_1_to_16 < 1u) channel_1_to_16 = 1u;
     if (channel_1_to_16 > 16u) channel_1_to_16 = 16u;
     t->midi_sub_channel = (uint8_t)(channel_1_to_16 - 1u);
 }
 
-void mello_transport_set_midi_note_out(MelloTransport *t, bool enabled) {
+void mello_transport_set_midi_note_out(MelloTransport *t, bool enabled)
+{
     if (!t) return;
     if (!enabled) all_notes_off(t);
     t->midi_note_out_enabled = enabled;
 }
 
-void mello_transport_set_midi_fixed_length(MelloTransport *t, bool fixed, uint16_t milliseconds) {
+void mello_transport_set_midi_fixed_length(MelloTransport *t, bool fixed, uint16_t milliseconds)
+{
     if (!t) return;
     if (milliseconds < 20u) milliseconds = 20u;
     if (milliseconds > 2000u) milliseconds = 2000u;
@@ -270,7 +298,8 @@ void mello_transport_set_midi_fixed_length(MelloTransport *t, bool fixed, uint16
     t->midi_fixed_len_ms = milliseconds;
 }
 
-void mello_transport_set_bpm(MelloTransport *t, uint16_t bpm) {
+void mello_transport_set_bpm(MelloTransport *t, uint16_t bpm)
+{
     if (!t) return;
     if (bpm < 20u) bpm = 20u;
     if (bpm > 300u) bpm = 300u;
@@ -278,13 +307,15 @@ void mello_transport_set_bpm(MelloTransport *t, uint16_t bpm) {
     recalc_timing(t);
 }
 
-void mello_transport_start(MelloTransport *t, uint32_t now_us) {
+void mello_transport_start(MelloTransport *t, uint32_t now_us)
+{
     if (!t || t->running) return;
     if (t->sync_mode == MELLO_SYNC_SLAVE) return; /* wait for MIDI Start/Continue */
     start_engine(t, now_us, false);
 }
 
-void mello_transport_stop(MelloTransport *t) {
+void mello_transport_stop(MelloTransport *t)
+{
     if (!t) return;
     if (t->running && t->sync_mode == MELLO_SYNC_MASTER) send_now(t, 0xFCu, 0u, 0u);
     all_notes_off(t);
@@ -293,30 +324,33 @@ void mello_transport_stop(MelloTransport *t) {
     t->slave_clock_phase = 0u;
 }
 
-static void poll_internal_transport(MelloTransport *t, uint32_t now_us) {
+static void poll_internal_transport(MelloTransport *t, uint32_t now_us)
+{
     uint8_t catchup = 0u;
     if (!t || !t->running || t->sync_mode == MELLO_SYNC_SLAVE) return;
     while (time_due(now_us, t->next_pulse_us) && catchup < MELLO_MAX_CATCHUP_PULSES) {
         uint32_t due = t->next_pulse_us;
         process_one_pulse(t, due);
-        t->next_pulse_us = advance_fractional_deadline(t->next_pulse_us, t->pulse_base_us,
-                                                       t->pulse_rem, t->pulse_den, &t->pulse_error);
+        t->next_pulse_us = advance_fractional_deadline(t->next_pulse_us, t->pulse_base_us, t->pulse_rem,
+                                                       t->pulse_den, &t->pulse_error);
         catchup++;
     }
 }
 
-static void poll_master_clock(MelloTransport *t, uint32_t now_us) {
+static void poll_master_clock(MelloTransport *t, uint32_t now_us)
+{
     uint8_t catchup = 0u;
     if (!t || !t->running || t->sync_mode != MELLO_SYNC_MASTER) return;
     while (time_due(now_us, t->next_clock_us) && catchup < MELLO_MAX_MASTER_CLOCK_CATCHUP) {
         send_now(t, 0xF8u, 0u, 0u);
-        t->next_clock_us = advance_fractional_deadline(t->next_clock_us, t->clock_base_us,
-                                                       t->clock_rem, t->clock_den, &t->clock_error);
+        t->next_clock_us = advance_fractional_deadline(t->next_clock_us, t->clock_base_us, t->clock_rem,
+                                                       t->clock_den, &t->clock_error);
         catchup++;
     }
 }
 
-void mello_transport_poll(MelloTransport *t, uint32_t now_us) {
+void mello_transport_poll(MelloTransport *t, uint32_t now_us)
+{
     if (!t) return;
     dispatch_scheduled(t, now_us);
     poll_master_clock(t, now_us);
@@ -324,7 +358,8 @@ void mello_transport_poll(MelloTransport *t, uint32_t now_us) {
     dispatch_scheduled(t, now_us);
 }
 
-static void slave_clock_tick(MelloTransport *t, uint32_t now_us) {
+static void slave_clock_tick(MelloTransport *t, uint32_t now_us)
+{
     uint8_t needed;
     if (!t) return;
     if (t->slave_last_clock_us) {
@@ -354,7 +389,9 @@ static void slave_clock_tick(MelloTransport *t, uint32_t now_us) {
     }
     t->slave_last_clock_us = now_us;
     if (!t->running) return;
-    needed = (uint8_t)(6u * (t->engine.project.clock_div == 2u ? 2u : t->engine.project.clock_div == 4u ? 4u : 1u));
+    needed = (uint8_t)(6u * (t->engine.project.clock_div == 2u   ? 2u
+                             : t->engine.project.clock_div == 4u ? 4u
+                                                                 : 1u));
     t->slave_clock_phase++;
     if (t->slave_clock_phase >= needed) {
         t->slave_clock_phase = 0u;
@@ -362,8 +399,10 @@ static void slave_clock_tick(MelloTransport *t, uint32_t now_us) {
     }
 }
 
-void mello_transport_midi_in(MelloTransport *t, uint8_t status, uint8_t d1, uint8_t d2, uint32_t now_us) {
-    (void)d1; (void)d2;
+void mello_transport_midi_in(MelloTransport *t, uint8_t status, uint8_t d1, uint8_t d2, uint32_t now_us)
+{
+    (void)d1;
+    (void)d2;
     if (!t || t->sync_mode != MELLO_SYNC_SLAVE) return;
     if (status == 0xF8u) {
         slave_clock_tick(t, now_us);
@@ -382,11 +421,13 @@ void mello_transport_midi_in(MelloTransport *t, uint8_t status, uint8_t d1, uint
     }
 }
 
-uint16_t mello_transport_effective_bpm(const MelloTransport *t) {
+uint16_t mello_transport_effective_bpm(const MelloTransport *t)
+{
     if (!t) return 0u;
     return (t->sync_mode == MELLO_SYNC_SLAVE && t->measured_bpm) ? t->measured_bpm : t->engine.project.bpm;
 }
 
-bool mello_transport_schedule_overflowed(const MelloTransport *t) {
+bool mello_transport_schedule_overflowed(const MelloTransport *t)
+{
     return t ? t->schedule_overflow : false;
 }

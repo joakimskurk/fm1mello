@@ -9,16 +9,16 @@
 extern "C" {
 #endif
 
-#define MELLO_STORAGE_FORMAT_VERSION 3u
-#define MELLO_STORAGE_MAGIC 0x374C454Du /* little-endian bytes: M E L 7 */
-#define MELLO_STORAGE_COMMIT_MAGIC 0x21374B4Fu /* little-endian bytes: O K 7 ! */
-#define MELLO_STORAGE_HEADER_SIZE 24u
-#define MELLO_STORAGE_FOOTER_SIZE 8u
-#define MELLO_STORAGE_SECTOR_SIZE 0x1000u
-#define MELLO_STORAGE_BANK_SIZE 0xA000u
-#define MELLO_STORAGE_BANK0_ADDR 0x00098000u
-#define MELLO_STORAGE_BANK1_ADDR (MELLO_STORAGE_BANK0_ADDR + MELLO_STORAGE_BANK_SIZE)
-#define MELLO_STORAGE_AUTOSAVE_DEBOUNCE_MS 2000u
+#define MELLO_STORAGE_FORMAT_VERSION           3u
+#define MELLO_STORAGE_MAGIC                    0x374C454Du /* little-endian bytes: M E L 7 */
+#define MELLO_STORAGE_COMMIT_MAGIC             0x21374B4Fu /* little-endian bytes: O K 7 ! */
+#define MELLO_STORAGE_HEADER_SIZE              24u
+#define MELLO_STORAGE_FOOTER_SIZE              8u
+#define MELLO_STORAGE_SECTOR_SIZE              0x1000u
+#define MELLO_STORAGE_BANK_SIZE                0xA000u
+#define MELLO_STORAGE_BANK0_ADDR               0x00098000u
+#define MELLO_STORAGE_BANK1_ADDR               (MELLO_STORAGE_BANK0_ADDR + MELLO_STORAGE_BANK_SIZE)
+#define MELLO_STORAGE_AUTOSAVE_DEBOUNCE_MS     2000u
 #define MELLO_STORAGE_AUTOSAVE_MIN_INTERVAL_MS 20000u
 
 /* Target note: these two 40 KiB banks occupy 0x98000..0xABFFF. Dinghy 0.3
@@ -88,15 +88,16 @@ MelloStorageLoadResult mello_storage_load(MelloStorage *storage, MelloEngine *en
 
 /* Direct save is intended for tests and explicit safe/silent app points. It never
  * erases the currently-active valid bank; a new record is committed in the other bank. */
-MelloStorageSaveResult mello_storage_save_now(MelloStorage *storage, const MelloEngine *engine, uint32_t now_ms);
+MelloStorageSaveResult mello_storage_save_now(MelloStorage *storage, const MelloEngine *engine,
+                                              uint32_t now_ms);
 
 /* Deferred save policy: mark_dirty is for edits/autosave, request_save is an explicit
  * user SAVE. poll writes only when safe_to_write is true. Explicit SAVE bypasses the
  * debounce/min-interval but never the safe/silent requirement. */
 void mello_storage_mark_dirty(MelloStorage *storage, uint32_t now_ms);
 void mello_storage_request_save(MelloStorage *storage, uint32_t now_ms);
-MelloStorageSaveResult mello_storage_poll(MelloStorage *storage, const MelloEngine *engine,
-                                          uint32_t now_ms, bool safe_to_write);
+MelloStorageSaveResult mello_storage_poll(MelloStorage *storage, const MelloEngine *engine, uint32_t now_ms,
+                                          bool safe_to_write);
 
 /* Deterministic helpers used by host tests and diagnostics. */
 bool mello_storage_measure_payload(const MelloEngine *engine, uint32_t *size_out, uint32_t *crc_out);

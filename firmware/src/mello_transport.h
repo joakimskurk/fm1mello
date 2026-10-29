@@ -10,14 +10,10 @@
 extern "C" {
 #endif
 
-#define MELLO_MIDI_SCHEDULE_CAP 96u
+#define MELLO_MIDI_SCHEDULE_CAP       96u
 #define MELLO_MIDI_CLOCKS_PER_QUARTER 24u
 
-typedef enum {
-    MELLO_SYNC_OFF = 0,
-    MELLO_SYNC_SLAVE = 1,
-    MELLO_SYNC_MASTER = 2
-} MelloSyncMode;
+typedef enum { MELLO_SYNC_OFF = 0, MELLO_SYNC_SLAVE = 1, MELLO_SYNC_MASTER = 2 } MelloSyncMode;
 
 typedef void (*MelloMidiSendFn)(void *ctx, uint8_t status, uint8_t data1, uint8_t data2);
 typedef void (*MelloEngineEventSinkFn)(void *ctx, const MelloEvent *event, uint32_t due_us);

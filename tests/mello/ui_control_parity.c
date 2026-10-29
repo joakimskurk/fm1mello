@@ -7,21 +7,26 @@ static unsigned event_calls;
 
 static void midi_send(void *ctx, uint8_t status, uint8_t d1, uint8_t d2)
 {
-    (void)ctx; (void)status; (void)d1; (void)d2;
+    (void)ctx;
+    (void)status;
+    (void)d1;
+    (void)d2;
     ++midi_calls;
 }
 
 static void event_sink(void *ctx, const MelloEvent *event, uint32_t due_us)
 {
-    (void)ctx; (void)event; (void)due_us;
+    (void)ctx;
+    (void)event;
+    (void)due_us;
     ++event_calls;
 }
 
 static int canonical_step(const MelloStep *s, uint8_t index)
 {
     return s->pitch == (int8_t)(index % 7u) && s->pulses == 1u && s->ratchet == 1u &&
-           s->gate == MELLO_GATE_SINGLE && s->octave == 0 && !s->slide && !s->skip &&
-           !s->accent && !s->sub && s->sample_slot == 1u && s->probability == 65535u;
+           s->gate == MELLO_GATE_SINGLE && s->octave == 0 && !s->slide && !s->skip && !s->accent && !s->sub &&
+           s->sample_slot == 1u && s->probability == 65535u;
 }
 
 static int canonical_loop_step(const MelloLoopCycleStep *s)
@@ -56,7 +61,7 @@ int main(void)
     MelloStorage storage;
     MelloUi ui;
     MelloSampleBank bank;
-    uint8_t dummy[4][1] = {{0},{0},{0},{0}};
+    uint8_t dummy[4][1] = {{0}, {0}, {0}, {0}};
     uint8_t i;
 
     mello_project_defaults(&project);
@@ -116,15 +121,22 @@ int main(void)
             return 4;
         }
     }
-    if (transport.engine.loop_cycle_pos || transport.engine.loop_cycle_tick || transport.engine.loop_cycle_count) return 5;
-    if (!transport.engine.loop_cycle.active || transport.engine.loop_cycle.sync || transport.engine.loop_cycle.length != 6u) return 6;
+    if (transport.engine.loop_cycle_pos || transport.engine.loop_cycle_tick ||
+        transport.engine.loop_cycle_count)
+        return 5;
+    if (!transport.engine.loop_cycle.active || transport.engine.loop_cycle.sync ||
+        transport.engine.loop_cycle.length != 6u)
+        return 6;
     if (transport.engine.project.seq_len != 20u || transport.engine.project.bpm != 137u ||
         transport.engine.project.root_note != 67u || transport.engine.project.scale != MELLO_SCALE_DORIAN ||
-        transport.engine.project.seg_count != 3u || transport.engine.project.master_len != 64u) return 7;
-    if (transport.engine.randomize.mask != (MELLO_RAND_PITCH | MELLO_RAND_GATE) ||
-        !transport.engine.tm.on || transport.engine.dot[0].cells != 0xA55Au) return 8;
+        transport.engine.project.seg_count != 3u || transport.engine.project.master_len != 64u)
+        return 7;
+    if (transport.engine.randomize.mask != (MELLO_RAND_PITCH | MELLO_RAND_GATE) || !transport.engine.tm.on ||
+        transport.engine.dot[0].cells != 0xA55Au)
+        return 8;
     if (!transport.engine.slot_seq.active || transport.engine.slot_seq.length != 8u ||
-        transport.engine.slot_seq.steps[0].slot != 3 || !mello_engine_slot_valid(&transport.engine, 2u)) return 9;
+        transport.engine.slot_seq.steps[0].slot != 3 || !mello_engine_slot_valid(&transport.engine, 2u))
+        return 9;
     if (!storage.dirty || ui.reset_armed) return 10;
 
     /* Exact TAP math is preserved; only the trigger moved from REC to B1. */
@@ -163,13 +175,17 @@ int main(void)
     black_input(&ui, 8000u, 3u);
     if (transport.running || ui.page != MELLO_UI_HOME || ui.reset_armed) return 17;
     if (transport.engine.project.seq_len != 16u || transport.engine.project.bpm != 80u ||
-        transport.engine.project.root_note != 60u || transport.engine.project.scale != MELLO_SCALE_MINOR) return 18;
+        transport.engine.project.root_note != 60u || transport.engine.project.scale != MELLO_SCALE_MINOR)
+        return 18;
     if (transport.sync_mode != MELLO_SYNC_OFF || transport.midi_channel != 0u ||
-        transport.midi_sub_channel != 1u || transport.midi_note_out_enabled) return 19;
+        transport.midi_sub_channel != 1u || transport.midi_note_out_enabled)
+        return 19;
     if (transport.engine.slot_seq.active || mello_engine_slot_valid(&transport.engine, 5u) ||
-        transport.engine.randomize.mask != MELLO_RAND_ALL) return 20;
+        transport.engine.randomize.mask != MELLO_RAND_ALL)
+        return 20;
     if (transport.midi_send != midi_send || transport.midi_ctx != (void *)0x1234 ||
-        transport.event_sink != event_sink || transport.event_sink_ctx != (void *)0x5678) return 21;
+        transport.event_sink != event_sink || transport.event_sink_ctx != (void *)0x5678)
+        return 21;
     if (ui.sample_bank != &bank || !storage.dirty || !storage.manual_pending) return 22;
 
     /* An expired B3 confirmation re-arms instead of resetting. */

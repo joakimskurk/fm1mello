@@ -1,0 +1,16 @@
+# SkurkyMello sources (firmware/src/mello_*, dinghy.c, tests/mello). The Dinghy platform files keep upstream's style.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 110
+BreakBeforeBraces: Linux
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AlignConsecutiveMacros: true
+AlignTrailingComments: true
+PointerAlignment: Right
+SortIncludes: Never
+IndentCaseLabels: false
+SpaceAfterCStyleCast: false
+ReflowComments: false

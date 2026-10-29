@@ -9,7 +9,8 @@
 static void drain_events(MelloEngine *e)
 {
     MelloEvent ev;
-    while (mello_event_pop(e, &ev)) { }
+    while (mello_event_pop(e, &ev)) {
+    }
 }
 
 static MelloProject plain_project(uint8_t div, uint16_t master_len)
@@ -156,6 +157,7 @@ int main(void)
     test_storage_shape_is_unchanged();
     test_other_timing_domains_remain_separate();
     puts("WP-D D2 timing model PASS");
-    puts("BAR matrix: 1/2/4/8/16 x DIV 1/2/4 remains musical; default=2 BAR; FREE natural; malformed nonzero safe");
+    puts("BAR matrix: 1/2/4/8/16 x DIV 1/2/4 remains musical; default=2 BAR; FREE natural; malformed nonzero "
+         "safe");
     return 0;
 }

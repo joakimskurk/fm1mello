@@ -10,11 +10,11 @@
 extern "C" {
 #endif
 
-#define MELLO_AUDIO_FS 44100u
-#define MELLO_AUDIO_EVENT_CAP 128u
-#define MELLO_AUDIO_EVENT_LANES 4u
+#define MELLO_AUDIO_FS             44100u
+#define MELLO_AUDIO_EVENT_CAP      128u
+#define MELLO_AUDIO_EVENT_LANES    4u
 #define MELLO_AUDIO_EVENT_LANE_CAP (MELLO_AUDIO_EVENT_CAP / MELLO_AUDIO_EVENT_LANES)
-#define MELLO_AUDIO_DELAY_SAMPLES 65536u
+#define MELLO_AUDIO_DELAY_SAMPLES  65536u
 #define MELLO_AUDIO_REVERB_SAMPLES 24576u
 
 typedef struct {
@@ -22,7 +22,13 @@ typedef struct {
     MelloEvent event;
 } MelloAudioQueuedEvent;
 
-typedef enum { MELLO_ENV_OFF=0, MELLO_ENV_ATTACK, MELLO_ENV_DECAY, MELLO_ENV_SUSTAIN, MELLO_ENV_RELEASE } MelloEnvStage;
+typedef enum {
+    MELLO_ENV_OFF = 0,
+    MELLO_ENV_ATTACK,
+    MELLO_ENV_DECAY,
+    MELLO_ENV_SUSTAIN,
+    MELLO_ENV_RELEASE
+} MelloEnvStage;
 
 typedef struct {
     uint32_t phase;
@@ -213,15 +219,18 @@ typedef struct {
 #endif
 } MelloAudio;
 
-void mello_audio_init(MelloAudio *a, int16_t *delay_buffer, uint32_t delay_capacity, int16_t *reverb_buffer, uint32_t reverb_capacity);
-void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *sound, const MelloFxConfig *fx, const MelloSubConfig *sub, const MelloSampleConfig *sample);
+void mello_audio_init(MelloAudio *a, int16_t *delay_buffer, uint32_t delay_capacity, int16_t *reverb_buffer,
+                      uint32_t reverb_capacity);
+void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *sound, const MelloFxConfig *fx,
+                            const MelloSubConfig *sub, const MelloSampleConfig *sample);
 #if MELLO_FEATURE_CHORD_MACHINE
 void mello_audio_set_chord_config(MelloAudio *a, const MelloChordConfig *chord);
 #endif
 void mello_audio_attach_sample_bank(MelloAudio *a, MelloSampleBank *bank);
 bool mello_audio_push_engine_event(MelloAudio *a, const MelloEvent *event, uint32_t due_us);
 void mello_audio_event_sink(void *ctx, const MelloEvent *event, uint32_t due_us);
-void mello_audio_render(MelloAudio *a, int32_t *out_stereo, uint32_t frames, uint32_t block_start_us, uint16_t bpm);
+void mello_audio_render(MelloAudio *a, int32_t *out_stereo, uint32_t frames, uint32_t block_start_us,
+                        uint16_t bpm);
 void mello_audio_all_notes_off(MelloAudio *a);
 bool mello_audio_queue_overflowed(const MelloAudio *a);
 bool mello_audio_is_silent(const MelloAudio *a);

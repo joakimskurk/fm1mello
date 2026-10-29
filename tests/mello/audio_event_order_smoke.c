@@ -34,15 +34,15 @@ int main(void)
     /* Reproduce the original bug exactly: pairwise chord events put a future OFF between
      * current ONs, then a current lead ON arrives after those future events. All current
      * attacks must become visible on the first rendered frame. */
-    if(!push_ev(&a, MELLO_EVENT_CHORD_NOTE_ON, 60u, 1000u))return 10;
-    if(!push_ev(&a, MELLO_EVENT_CHORD_NOTE_OFF, 60u, 5000u))return 11;
-    if(!push_ev(&a, MELLO_EVENT_CHORD_NOTE_ON, 64u, 1000u))return 12;
-    if(!push_ev(&a, MELLO_EVENT_CHORD_NOTE_OFF, 64u, 5000u))return 13;
-    if(!push_ev(&a, MELLO_EVENT_CHORD_NOTE_ON, 67u, 1000u))return 14;
-    if(!push_ev(&a, MELLO_EVENT_CHORD_NOTE_OFF, 67u, 5000u))return 15;
-    if(!push_ev(&a, MELLO_EVENT_CHORD_NOTE_ON, 71u, 1000u))return 16;
-    if(!push_ev(&a, MELLO_EVENT_CHORD_NOTE_OFF, 71u, 5000u))return 17;
-    if(!push_ev(&a, MELLO_EVENT_NOTE_ON, 72u, 1000u))return 18;
+    if (!push_ev(&a, MELLO_EVENT_CHORD_NOTE_ON, 60u, 1000u)) return 10;
+    if (!push_ev(&a, MELLO_EVENT_CHORD_NOTE_OFF, 60u, 5000u)) return 11;
+    if (!push_ev(&a, MELLO_EVENT_CHORD_NOTE_ON, 64u, 1000u)) return 12;
+    if (!push_ev(&a, MELLO_EVENT_CHORD_NOTE_OFF, 64u, 5000u)) return 13;
+    if (!push_ev(&a, MELLO_EVENT_CHORD_NOTE_ON, 67u, 1000u)) return 14;
+    if (!push_ev(&a, MELLO_EVENT_CHORD_NOTE_OFF, 67u, 5000u)) return 15;
+    if (!push_ev(&a, MELLO_EVENT_CHORD_NOTE_ON, 71u, 1000u)) return 16;
+    if (!push_ev(&a, MELLO_EVENT_CHORD_NOTE_OFF, 71u, 5000u)) return 17;
+    if (!push_ev(&a, MELLO_EVENT_NOTE_ON, 72u, 1000u)) return 18;
     mello_audio_render(&a, out, 1u, 1000u, 120u);
     if (a.chord.active_count != 4u) {
         fprintf(stderr, "chord onset split by future OFF: active=%u\n", (unsigned)a.chord.active_count);

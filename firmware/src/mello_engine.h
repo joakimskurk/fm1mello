@@ -13,39 +13,39 @@ void *(memcpy)(void *d, const void *s, size_t n);
 extern "C" {
 #endif
 
-#define MELLO_MAX_STEPS 32u
-#define MELLO_MAX_SEGMENTS 6u
-#define MELLO_MAX_BASE_PULSES (MELLO_MAX_STEPS * 8u)
-#define MELLO_MAX_RUNTIME_PULSES (MELLO_MAX_BASE_PULSES * 2u)
-#define MELLO_EVENT_QUEUE_CAP 64u
+#define MELLO_MAX_STEPS            32u
+#define MELLO_MAX_SEGMENTS         6u
+#define MELLO_MAX_BASE_PULSES      (MELLO_MAX_STEPS * 8u)
+#define MELLO_MAX_RUNTIME_PULSES   (MELLO_MAX_BASE_PULSES * 2u)
+#define MELLO_EVENT_QUEUE_CAP      64u
 #define MELLO_MAX_LOOP_CYCLE_STEPS 8u
-#define MELLO_MAX_SLOTS 64u
-#define MELLO_SLOT_NAME_CHARS 18u
-#define MELLO_MAX_SLOT_SEQ_STEPS 64u
-#define MELLO_DOT_MATRIX_COUNT 4u
-#define MELLO_DOT_CELL_COUNT 16u
+#define MELLO_MAX_SLOTS            64u
+#define MELLO_SLOT_NAME_CHARS      18u
+#define MELLO_MAX_SLOT_SEQ_STEPS   64u
+#define MELLO_DOT_MATRIX_COUNT     4u
+#define MELLO_DOT_CELL_COUNT       16u
 #ifndef MELLO_FEATURE_CHORD_MACHINE
 #define MELLO_FEATURE_CHORD_MACHINE 1
 #endif
 #if MELLO_FEATURE_CHORD_MACHINE
-#define MELLO_CHORD_MAX_VOICES 4u
-#define MELLO_CHORD_MAX_STEPS 8u
+#define MELLO_CHORD_MAX_VOICES    4u
+#define MELLO_CHORD_MAX_STEPS     8u
 #define MELLO_CHORD_PATTERN_STEPS 8u
 #endif
-#define MELLO_TM_MAX_STEPS 32u
-#define MELLO_SUB_X_MAX_STEPS 5u
+#define MELLO_TM_MAX_STEPS      32u
+#define MELLO_SUB_X_MAX_STEPS   5u
 #define MELLO_SAMPLE_SLOT_COUNT 4u
 
 /* Internal representation only. 16800 PPQN is divisible by MIDI 24 PPQN,
  * 1/16, ratchets 1..8, and source gate fractions 0.40/0.72/0.82/0.88. */
-#define MELLO_PPQN 16800u
-#define MELLO_QUARTER_TICKS MELLO_PPQN
+#define MELLO_PPQN            16800u
+#define MELLO_QUARTER_TICKS   MELLO_PPQN
 #define MELLO_SIXTEENTH_TICKS (MELLO_PPQN / 4u)
 
 /* UI-normalized amounts use integer permille to keep target arithmetic deterministic.
  * Source controls have 0.01 resolution except TM mutation probability (0.005), so permille
  * preserves every source UI value exactly with integer-only arithmetic. */
-#define MELLO_AMOUNT_MAX 1000u
+#define MELLO_AMOUNT_MAX  1000u
 #define MELLO_TM_PROB_MAX 500u
 
 /* Randomize mask bits match the current HTML checkbox set. */
@@ -61,13 +61,13 @@ extern "C" {
 #define MELLO_RAND_PROB    (1u << 9)
 #define MELLO_RAND_SAMPLE  (1u << 10)
 /* Bit 11 stays reserved for CHORD so existing masks never change meaning. */
-#define MELLO_RAND_CHORD   (1u << 11)
-#define MELLO_RAND_WAVE    (1u << 12)
+#define MELLO_RAND_CHORD    (1u << 11)
+#define MELLO_RAND_WAVE     (1u << 12)
 #define MELLO_RAND_BASE_ALL ((1u << 11) - 1u)
 #if MELLO_FEATURE_CHORD_MACHINE
-#define MELLO_RAND_ALL     (MELLO_RAND_BASE_ALL | MELLO_RAND_CHORD | MELLO_RAND_WAVE)
+#define MELLO_RAND_ALL (MELLO_RAND_BASE_ALL | MELLO_RAND_CHORD | MELLO_RAND_WAVE)
 #else
-#define MELLO_RAND_ALL     (MELLO_RAND_BASE_ALL | MELLO_RAND_WAVE)
+#define MELLO_RAND_ALL (MELLO_RAND_BASE_ALL | MELLO_RAND_WAVE)
 #endif
 
 #define MELLO_TM_ROUTE_GATE   (1u << 0)
@@ -77,9 +77,9 @@ extern "C" {
 
 typedef enum {
     MELLO_GATE_SINGLE = 0,
-    MELLO_GATE_HOLD   = 1,
-    MELLO_GATE_REST   = 2,
-    MELLO_GATE_MULTI  = 3
+    MELLO_GATE_HOLD = 1,
+    MELLO_GATE_REST = 2,
+    MELLO_GATE_MULTI = 3
 } MelloGateMode;
 
 typedef enum {
@@ -98,16 +98,9 @@ typedef enum {
     MELLO_SCALE_COUNT
 } MelloScale;
 
-typedef enum {
-    MELLO_SEG_FWD = 0,
-    MELLO_SEG_REV = 1
-} MelloSegmentDirection;
+typedef enum { MELLO_SEG_FWD = 0, MELLO_SEG_REV = 1 } MelloSegmentDirection;
 
-typedef enum {
-    MELLO_SEG_LINEAR = 0,
-    MELLO_SEG_PINGPONG = 1,
-    MELLO_SEG_RANDOM = 2
-} MelloSegmentMode;
+typedef enum { MELLO_SEG_LINEAR = 0, MELLO_SEG_PINGPONG = 1, MELLO_SEG_RANDOM = 2 } MelloSegmentMode;
 
 typedef enum {
     MELLO_SUB_TONE_ROOT = 0,
@@ -120,25 +113,11 @@ typedef enum {
     MELLO_SUB_TONE_OCTAVE
 } MelloSubTone;
 
-typedef enum {
-    MELLO_DOT_ACCENT = 0,
-    MELLO_DOT_FILTER,
-    MELLO_DOT_RATCHET,
-    MELLO_DOT_SUB
-} MelloDotTarget;
+typedef enum { MELLO_DOT_ACCENT = 0, MELLO_DOT_FILTER, MELLO_DOT_RATCHET, MELLO_DOT_SUB } MelloDotTarget;
 
-typedef enum {
-    MELLO_DOT_HORIZONTAL = 0,
-    MELLO_DOT_VERTICAL,
-    MELLO_DOT_SNAKE,
-    MELLO_DOT_RANDOM
-} MelloDotMode;
+typedef enum { MELLO_DOT_HORIZONTAL = 0, MELLO_DOT_VERTICAL, MELLO_DOT_SNAKE, MELLO_DOT_RANDOM } MelloDotMode;
 
-typedef enum {
-    MELLO_TM_RATE_HALF = 0,
-    MELLO_TM_RATE_ONE,
-    MELLO_TM_RATE_DOUBLE
-} MelloTmRate;
+typedef enum { MELLO_TM_RATE_HALF = 0, MELLO_TM_RATE_ONE, MELLO_TM_RATE_DOUBLE } MelloTmRate;
 
 typedef enum {
     MELLO_SUB_MODE_STEP = 0,
@@ -166,74 +145,69 @@ typedef enum {
     MELLO_WAVE_OFF
 } MelloWaveform;
 
-typedef enum {
-    MELLO_LFO_FILTER = 0,
-    MELLO_LFO_PITCH,
-    MELLO_LFO_AMP,
-    MELLO_LFO_PWM
-} MelloLfoTarget;
+typedef enum { MELLO_LFO_FILTER = 0, MELLO_LFO_PITCH, MELLO_LFO_AMP, MELLO_LFO_PWM } MelloLfoTarget;
 
 typedef struct {
     MelloWaveform osc_wave;
-    uint16_t pwm_permille;       /* source 0.05..0.95 => 50..950 */
-    uint16_t attack_ms;          /* 1..500 */
-    uint16_t decay_ms;           /* 5..1000 */
-    uint16_t sustain_permille;   /* 0..1000 */
-    uint16_t release_ms;         /* 5..2000 */
-    uint16_t slide_ms;           /* 0..300 */
-    uint16_t filter_cut;         /* 0..1000 */
-    uint16_t filter_res;         /* 0..1000 */
+    uint16_t pwm_permille;     /* source 0.05..0.95 => 50..950 */
+    uint16_t attack_ms;        /* 1..500 */
+    uint16_t decay_ms;         /* 5..1000 */
+    uint16_t sustain_permille; /* 0..1000 */
+    uint16_t release_ms;       /* 5..2000 */
+    uint16_t slide_ms;         /* 0..300 */
+    uint16_t filter_cut;       /* 0..1000 */
+    uint16_t filter_res;       /* 0..1000 */
     bool lfo_on;
-    uint16_t lfo_rate_millihz;   /* 8..20000 */
-    uint16_t lfo_depth;          /* 0..1000 */
+    uint16_t lfo_rate_millihz; /* 8..20000 */
+    uint16_t lfo_depth;        /* 0..1000 */
     MelloLfoTarget lfo_target;
     bool follower_sub_on;
     uint16_t follower_sub_level; /* 0..1000 */
     int8_t follower_sub_octave;  /* -2..0 */
     MelloWaveform follower_sub_wave;
-    uint16_t master_level;       /* source masterVol 0..1 => 0..1000 */
+    uint16_t master_level; /* source masterVol 0..1 => 0..1000 */
 } MelloSoundConfig;
 
 typedef struct {
-    uint16_t dist_amount;        /* 0..1000 */
-    uint16_t dist_mix;           /* 0..1000 */
-    uint16_t dist_character;     /* 0..1000 */
-    uint16_t dist_tone;          /* 0..1000 */
-    uint16_t dist_level;         /* 200..1400 */
-    uint16_t delay_wet;          /* 0..1000 */
+    uint16_t dist_amount;    /* 0..1000 */
+    uint16_t dist_mix;       /* 0..1000 */
+    uint16_t dist_character; /* 0..1000 */
+    uint16_t dist_tone;      /* 0..1000 */
+    uint16_t dist_level;     /* 200..1400 */
+    uint16_t delay_wet;      /* 0..1000 */
     bool delay_sync;
-    uint8_t delay_div;           /* 0=8n, 1=16n, 2=4n, 3=8t */
-    uint16_t delay_time_ms;      /* 30..1500 */
-    uint16_t delay_feedback;     /* 0..950 */
-    uint16_t delay_tone;         /* 0..1000 */
-    uint16_t delay_level;        /* 0..1500 */
-    uint16_t reverb_wet;         /* 0..1000 */
-    uint16_t reverb_size;        /* 0..1000 */
-    uint16_t reverb_decay_ms;    /* 400..60000 */
-    uint16_t reverb_pre_ms;      /* 0..120 */
-    uint16_t reverb_tone;        /* 0..1000 */
-    uint16_t reverb_level;       /* 0..3000 */
+    uint8_t delay_div;        /* 0=8n, 1=16n, 2=4n, 3=8t */
+    uint16_t delay_time_ms;   /* 30..1500 */
+    uint16_t delay_feedback;  /* 0..950 */
+    uint16_t delay_tone;      /* 0..1000 */
+    uint16_t delay_level;     /* 0..1500 */
+    uint16_t reverb_wet;      /* 0..1000 */
+    uint16_t reverb_size;     /* 0..1000 */
+    uint16_t reverb_decay_ms; /* 400..60000 */
+    uint16_t reverb_pre_ms;   /* 0..120 */
+    uint16_t reverb_tone;     /* 0..1000 */
+    uint16_t reverb_level;    /* 0..3000 */
 } MelloFxConfig;
 
 typedef struct {
-    int8_t coarse_semitones;     /* source -24..+24 */
-    int8_t fine_cents;           /* source -100..+100 */
-    bool track;                  /* true: C4-root pitch tracking */
+    int8_t coarse_semitones; /* source -24..+24 */
+    int8_t fine_cents;       /* source -100..+100 */
+    bool track;              /* true: C4-root pitch tracking */
     bool loop;
-    uint16_t level;              /* source 0..1.5 => 0..1500 */
-    uint16_t dist;               /* source 0..1 => 0..1000 */
-    uint16_t trim_start;         /* normalized 0..1000 */
-    uint16_t trim_end;           /* normalized 0..1000, > trim_start */
-    uint16_t attack_ms;          /* 1..2000 */
-    uint16_t decay_ms;           /* 5..2000 */
-    uint16_t sustain_permille;   /* 0..1000 */
-    uint16_t release_ms;         /* 5..3000 */
+    uint16_t level;            /* source 0..1.5 => 0..1500 */
+    uint16_t dist;             /* source 0..1 => 0..1000 */
+    uint16_t trim_start;       /* normalized 0..1000 */
+    uint16_t trim_end;         /* normalized 0..1000, > trim_start */
+    uint16_t attack_ms;        /* 1..2000 */
+    uint16_t decay_ms;         /* 5..2000 */
+    uint16_t sustain_permille; /* 0..1000 */
+    uint16_t release_ms;       /* 5..3000 */
 } MelloSampleSlotConfig;
 
 typedef struct {
     bool on;
-    bool per_step;               /* source sampleSeq: true=step chooses A-D, false=fixed edit slot */
-    uint8_t edit_slot;           /* 0..3 */
+    bool per_step;     /* source sampleSeq: true=step chooses A-D, false=fixed edit slot */
+    uint8_t edit_slot; /* 0..3 */
     MelloSampleSlotConfig slots[MELLO_SAMPLE_SLOT_COUNT];
 } MelloSampleConfig;
 
@@ -247,8 +221,8 @@ typedef struct {
     bool skip;
     bool accent;
     bool sub;
-    uint8_t sample_slot;   /* source samp: 0=off, 1..4=A..D */
-    uint16_t probability;  /* 0..65535 => 0..1 */
+    uint8_t sample_slot;  /* source samp: 0=off, 1..4=A..D */
+    uint16_t probability; /* 0..65535 => 0..1 */
 } MelloStep;
 
 typedef struct {
@@ -301,12 +275,12 @@ typedef struct {
 } MelloSlotSeqConfig;
 
 typedef struct {
-    uint16_t cells;       /* row-major 4x4 bitset, bit index r*4+c */
+    uint16_t cells; /* row-major 4x4 bitset, bit index r*4+c */
     MelloDotMode mode;
-    uint8_t length;       /* 1..16 */
-    bool reset;           /* source reset=true wraps linear domain at seqLen */
-    bool follow;          /* true: evaluate only on pulseIdx==0 */
-    uint16_t amount;      /* 0..1000 */
+    uint8_t length;  /* 1..16 */
+    bool reset;      /* source reset=true wraps linear domain at seqLen */
+    bool follow;     /* true: evaluate only on pulseIdx==0 */
+    uint16_t amount; /* 0..1000 */
 } MelloDotMatrixConfig;
 
 typedef struct {
@@ -315,9 +289,9 @@ typedef struct {
     uint16_t mutation_prob; /* 0..500 permille */
     uint8_t length;         /* 3..32 */
     MelloTmRate rate;
-    int8_t offset;          /* -31..31 */
-    uint8_t routes;         /* MELLO_TM_ROUTE_* bitmask */
-    uint16_t depth_gate;    /* 0..1000 */
+    int8_t offset;       /* -31..31 */
+    uint8_t routes;      /* MELLO_TM_ROUTE_* bitmask */
+    uint16_t depth_gate; /* 0..1000 */
     uint16_t depth_filter;
     uint16_t depth_octave;
     uint16_t depth_decay;
@@ -338,17 +312,16 @@ typedef struct {
     uint16_t gate_amount;  /* source subGate 0.15..1.20 => 150..1200 permille */
     uint16_t level;        /* source subLevel 0..1 => 0..1000 */
     MelloWaveform wave;
-    uint16_t decay_ms;     /* 30..700 */
-    uint16_t release_ms;   /* 30..1200 */
-    uint16_t glide_ms;     /* 0..200 */
-    uint16_t cut;          /* 0..1000 */
-    uint16_t drive;        /* 0..1000 */
+    uint16_t decay_ms;   /* 30..700 */
+    uint16_t release_ms; /* 30..1200 */
+    uint16_t glide_ms;   /* 0..200 */
+    uint16_t cut;        /* 0..1000 */
+    uint16_t drive;      /* 0..1000 */
     bool x_on;
     bool x_reset;
-    uint8_t x_length;      /* source UI: 2, 3, or 5 */
+    uint8_t x_length; /* source UI: 2, 3, or 5 */
     MelloSubXStep x_steps[MELLO_SUB_X_MAX_STEPS];
 } MelloSubConfig;
-
 
 #if MELLO_FEATURE_CHORD_MACHINE
 typedef enum {
@@ -370,18 +343,15 @@ typedef enum {
     MELLO_CHORD_MODE_COUNT
 } MelloChordMode;
 
-typedef enum {
-    MELLO_CHORD_TRIGGER_STEP = 0,
-    MELLO_CHORD_TRIGGER_GRID
-} MelloChordTrigger;
+typedef enum { MELLO_CHORD_TRIGGER_STEP = 0, MELLO_CHORD_TRIGGER_GRID } MelloChordTrigger;
 
 typedef struct {
-    uint8_t degree;       /* scale degree 0..11; wrapped to current scale */
+    uint8_t degree; /* scale degree 0..11; wrapped to current scale */
     MelloChordShape shape;
-    uint8_t inversion;    /* 0..3 */
-    int8_t octave;        /* -2..2 */
-    uint8_t spread;       /* 0=close, 1..3 progressively wider */
-    uint8_t hold;         /* number of chord triggers before chain advances */
+    uint8_t inversion; /* 0..3 */
+    int8_t octave;     /* -2..2 */
+    uint8_t spread;    /* 0=close, 1..3 progressively wider */
+    uint8_t hold;      /* number of chord triggers before chain advances */
 } MelloChordStep;
 
 typedef struct {
@@ -389,8 +359,8 @@ typedef struct {
     MelloChordTrigger trigger;
     MelloChordMode mode;
     uint8_t length;
-    uint8_t voices;       /* 2..4 */
-    uint16_t level;       /* 0..1000 */
+    uint8_t voices; /* 2..4 */
+    uint16_t level; /* 0..1000 */
     MelloWaveform wave;
     uint16_t gate_amount; /* 100..1200 permille of current chord clock unit */
     uint16_t attack_ms;   /* 1..2000 */
@@ -455,7 +425,8 @@ typedef struct {
     MelloDotMatrixConfig dot[MELLO_DOT_MATRIX_COUNT];
     MelloTmConfig tm;
     uint8_t tm_bool_len;
-    uint8_t tm_bool_reg[MELLO_TM_MAX_STEPS]; /* snapshot saves current bool-array length; load expands to 32 */
+    uint8_t
+        tm_bool_reg[MELLO_TM_MAX_STEPS]; /* snapshot saves current bool-array length; load expands to 32 */
     MelloSubConfig sub;
     MelloRandomizeConfig randomize;
     MelloSoundConfig sound;
@@ -500,19 +471,21 @@ typedef struct {
     uint8_t loop_cycle_index;
     uint8_t slot_seq_index;
     MelloVoice voice;
-    uint8_t sample_slot;          /* 0..3 for SAMPLE events */
+    uint8_t sample_slot; /* 0..3 for SAMPLE events */
     MelloGateMode effective_gate;
     uint8_t effective_ratchet;
     bool effective_accent;
     int8_t tm_index;
     int8_t tm_octave_mod;
-    int16_t tm_filter_mod_q15; /* normalized roughly -0.25..+0.25 */
-    int16_t tm_decay_mod_q15;  /* normalized roughly -0.10..+0.10 */
+    int16_t tm_filter_mod_q15;     /* normalized roughly -0.25..+0.25 */
+    int16_t tm_decay_mod_q15;      /* normalized roughly -0.10..+0.10 */
     uint16_t matrix_filter_amount; /* 0..1000 */
     int8_t dot_cell[MELLO_DOT_MATRIX_COUNT];
 } MelloEvent;
 
-typedef struct { uint32_t state; } MelloPrng;
+typedef struct {
+    uint32_t state;
+} MelloPrng;
 
 typedef struct {
     uint8_t step_index;
@@ -557,8 +530,8 @@ typedef struct {
     uint32_t now_tick;
     uint32_t loop_count;
     uint32_t absolute_pulse;
-    MelloPrng rng;      /* Phase 2/3 traversal + per-pulse probability stream */
-    MelloPrng gen_rng;  /* Phase 6 generative stream; isolated to keep earlier traces stable */
+    MelloPrng rng;     /* Phase 2/3 traversal + per-pulse probability stream */
+    MelloPrng gen_rng; /* Phase 6 generative stream; isolated to keep earlier traces stable */
 
     MelloPulseEntry runtime_pulses[MELLO_MAX_RUNTIME_PULSES];
     MelloPulseEntry build_scratch[MELLO_MAX_BASE_PULSES];
@@ -685,7 +658,8 @@ void mello_engine_slot_seq_reset_position(MelloEngine *engine);
 
 /* Dot Matrix: changing config resets both matrix counters/runtime, like the React cfg effect.
  * Changing cells alone does not reset traversal. */
-void mello_engine_dot_set_config(MelloEngine *engine, MelloDotTarget target, const MelloDotMatrixConfig *config);
+void mello_engine_dot_set_config(MelloEngine *engine, MelloDotTarget target,
+                                 const MelloDotMatrixConfig *config);
 void mello_engine_dot_set_cells(MelloEngine *engine, MelloDotTarget target, uint16_t cells);
 void mello_engine_dot_randomize_cells(MelloEngine *engine, MelloDotTarget target);
 void mello_engine_dot_reset_runtime(MelloEngine *engine);
@@ -702,7 +676,8 @@ void mello_engine_sub_reset_x(MelloEngine *engine);
 #if MELLO_FEATURE_CHORD_MACHINE
 void mello_engine_chord_set_config(MelloEngine *engine, const MelloChordConfig *config);
 void mello_engine_chord_reset(MelloEngine *engine);
-uint8_t mello_engine_resolve_chord_notes(const MelloEngine *engine, uint8_t chord_step, uint8_t out_notes[MELLO_CHORD_MAX_VOICES]);
+uint8_t mello_engine_resolve_chord_notes(const MelloEngine *engine, uint8_t chord_step,
+                                         uint8_t out_notes[MELLO_CHORD_MAX_VOICES]);
 #endif
 void mello_engine_sound_set_config(MelloEngine *engine, const MelloSoundConfig *config);
 void mello_engine_sample_set_config(MelloEngine *engine, const MelloSampleConfig *config);

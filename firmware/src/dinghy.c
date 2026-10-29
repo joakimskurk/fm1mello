@@ -17,7 +17,10 @@
 
 #ifdef DINGHY_HOST
 #ifndef MELLO_HOST_HAS_MICROS
-static uint32_t fm1_micros(void) { return fm1_ms * 1000u; }
+static uint32_t fm1_micros(void)
+{
+    return fm1_ms * 1000u;
+}
 #endif
 #endif
 
@@ -71,8 +74,7 @@ static void sample_idle_cb(void *ctx)
 
 static void app_audio(int32_t *out, uint32_t n)
 {
-    if (audio_ready)
-        mello_audio_render(&audio, out, n, fm1_micros(), mello_transport_effective_bpm(&mt));
+    if (audio_ready) mello_audio_render(&audio, out, n, fm1_micros(), mello_transport_effective_bpm(&mt));
 }
 
 #ifndef DINGHY_HOST
@@ -99,8 +101,8 @@ static void ui_fill(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint1
     (void)ctx;
     lcd_fill(x, y, w, h, colour);
 }
-static void ui_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large,
-                    const char *text, uint16_t colour, uint8_t align)
+static void ui_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, const char *text,
+                    uint16_t colour, uint8_t align)
 {
     (void)ctx;
     draw_text_box(x, y, w, large ? &FONT_L : &FONT_S, text, colour, align);
@@ -180,7 +182,8 @@ static void app_main(void)
             sio.erase4k = mello_flash_erase;
             sio.program = mello_flash_program;
             sio.idle = sample_idle_cb;
-            mello_sample_bank_init(&sample_bank, sample_pool0, sample_pool1, sample_pool2, sample_pool3, MELLO_SAMPLE_DATA_MAX);
+            mello_sample_bank_init(&sample_bank, sample_pool0, sample_pool1, sample_pool2, sample_pool3,
+                                   MELLO_SAMPLE_DATA_MAX);
             mello_sample_store_init(&sample_store, &sio, &sample_bank);
             (void)mello_sample_store_load_all(&sample_store);
             mello_sample_transfer_init(&sample_xfer, &sample_store, sample_midi_out_cb, 0);
@@ -195,7 +198,8 @@ static void app_main(void)
 #endif
 
 #ifndef DINGHY_HOST
-    mello_audio_init(&audio, audio_delay_pool, MELLO_AUDIO_DELAY_SAMPLES, audio_reverb_pool, MELLO_AUDIO_REVERB_SAMPLES);
+    mello_audio_init(&audio, audio_delay_pool, MELLO_AUDIO_DELAY_SAMPLES, audio_reverb_pool,
+                     MELLO_AUDIO_REVERB_SAMPLES);
 #else
     mello_audio_init(&audio, 0, 0u, 0, 0u);
 #endif
@@ -229,7 +233,8 @@ static void app_main(void)
 
         while (midi_get(&st, &d1, &d2)) {
 #ifndef DINGHY_HOST
-            if (sample_ready && mello_sample_transfer_midi_in(&sample_xfer, st, d1, d2, !mt.running && mello_audio_is_silent(&audio))) {
+            if (sample_ready && mello_sample_transfer_midi_in(&sample_xfer, st, d1, d2,
+                                                              !mt.running && mello_audio_is_silent(&audio))) {
                 ui.dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_LEDS;
                 continue;
             }
@@ -239,8 +244,7 @@ static void app_main(void)
 
         pressed = fm1_input_edges(&released);
         notes = fm1_input_note_edges();
-        for (i = 0u; i < MELLO_UI_ENCODER_COUNT; ++i)
-            enc[i] = (int16_t)fm1_enc_take(i);
+        for (i = 0u; i < MELLO_UI_ENCODER_COUNT; ++i) enc[i] = (int16_t)fm1_enc_take(i);
 
         mello_ui_input(&ui, now_us, fm1_ms, pressed, released, fm1_in.buttons, notes, enc);
         mello_transport_poll(&mt, now_us);
@@ -251,11 +255,11 @@ static void app_main(void)
 
 #ifndef DINGHY_HOST
         if (storage_ready)
-            (void)mello_storage_poll(&storage, &mt.engine, fm1_ms, !mt.running && mello_audio_is_silent(&audio));
+            (void)mello_storage_poll(&storage, &mt.engine, fm1_ms,
+                                     !mt.running && mello_audio_is_silent(&audio));
 #endif
 
-        if (mello_ui_dirty(&ui) & MELLO_UI_DIRTY_LEDS)
-            mello_ui_sync_leds(&ui, &draw);
+        if (mello_ui_dirty(&ui) & MELLO_UI_DIRTY_LEDS) mello_ui_sync_leds(&ui, &draw);
 
         /* At most 50 Hz UI service. Dirty regions mean this is not a 240x240 redraw loop. */
         if ((uint32_t)(fm1_ms - last_render_ms) >= 20u && mello_ui_dirty(&ui)) {

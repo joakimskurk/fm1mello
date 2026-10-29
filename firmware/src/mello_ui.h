@@ -12,10 +12,10 @@
 extern "C" {
 #endif
 
-#define MELLO_UI_SCREEN_W 240
-#define MELLO_UI_SCREEN_H 240
-#define MELLO_UI_WHITE_KEYS 16u
-#define MELLO_UI_BUTTON_COUNT 14u
+#define MELLO_UI_SCREEN_W      240
+#define MELLO_UI_SCREEN_H      240
+#define MELLO_UI_WHITE_KEYS    16u
+#define MELLO_UI_BUTTON_COUNT  14u
 #define MELLO_UI_ENCODER_COUNT 7u
 
 /* Logical panel ids deliberately match Dinghy BTN_* / ENC_* numeric ids. */
@@ -69,20 +69,20 @@ typedef enum {
 
 enum {
     MELLO_UI_DIRTY_HEADER = 1u << 0,
-    MELLO_UI_DIRTY_BODY   = 1u << 1,
+    MELLO_UI_DIRTY_BODY = 1u << 1,
     MELLO_UI_DIRTY_FOOTER = 1u << 2,
     MELLO_UI_DIRTY_STATUS = 1u << 3,
-    MELLO_UI_DIRTY_LEDS   = 1u << 4,
-    MELLO_UI_DIRTY_FULL   = 1u << 5,
+    MELLO_UI_DIRTY_LEDS = 1u << 4,
+    MELLO_UI_DIRTY_FULL = 1u << 5,
     MELLO_UI_DIRTY_HOME_PLAYHEAD = 1u << 6,
-    MELLO_UI_DIRTY_SEQ_PLAYHEAD  = 1u << 7,
-    MELLO_UI_DIRTY_ALL    = 0xFFu
+    MELLO_UI_DIRTY_SEQ_PLAYHEAD = 1u << 7,
+    MELLO_UI_DIRTY_ALL = 0xFFu
 };
 
 typedef struct {
     void (*fill)(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t colour);
-    void (*text)(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large,
-                 const char *text, uint16_t colour, uint8_t align);
+    void (*text)(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, const char *text, uint16_t colour,
+                 uint8_t align);
     void (*key_led)(void *ctx, uint8_t key_index, bool on);
     void (*button_led)(void *ctx, uint8_t button_id, bool on);
     void *ctx;
@@ -93,19 +93,19 @@ typedef struct {
     MelloStorage *storage;
     MelloUiPage page;
 
-    uint8_t step_subpage;       /* TRIG, NOTE, FLAGS, SEQ */
-    uint8_t segment_subpage;    /* PLAY, STRUCT */
-    uint8_t loop_subpage;       /* STEP, HARM, LOOP */
-    uint8_t slots_subpage;      /* LOAD, NAME */
-    uint8_t tm_subpage;         /* MAIN, ROUTES, DEPTH */
-    uint8_t sub_subpage;        /* MAIN, 5-SEQ CFG, 5-SEQ STEP */
+    uint8_t step_subpage;    /* TRIG, NOTE, FLAGS, SEQ */
+    uint8_t segment_subpage; /* PLAY, STRUCT */
+    uint8_t loop_subpage;    /* STEP, HARM, LOOP */
+    uint8_t slots_subpage;   /* LOAD, NAME */
+    uint8_t tm_subpage;      /* MAIN, ROUTES, DEPTH */
+    uint8_t sub_subpage;     /* MAIN, 5-SEQ CFG, 5-SEQ STEP */
 #if MELLO_FEATURE_CHORD_MACHINE
-    uint8_t chord_subpage;      /* MAIN, CHAIN, VOICE, GRID, PATTERN */
+    uint8_t chord_subpage; /* MAIN, CHAIN, VOICE, GRID, PATTERN */
 #endif
-    uint8_t global_subpage;     /* CLOCK, MIDI */
-    uint8_t sound_subpage;      /* OSC, ENV, LFO, FOLLOW, PLAY */
-    uint8_t fx_subpage;         /* DIST, DELAY A/B, REVERB A/B */
-    uint8_t sample_subpage;     /* MAIN, PITCH, TRIM, ENV */
+    uint8_t global_subpage;                   /* CLOCK, MIDI */
+    uint8_t sound_subpage;                    /* OSC, ENV, LFO, FOLLOW, PLAY */
+    uint8_t fx_subpage;                       /* DIST, DELAY A/B, REVERB A/B */
+    uint8_t sample_subpage;                   /* MAIN, PITCH, TRIM, ENV */
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
 
     uint8_t selected_step;
@@ -159,9 +159,8 @@ void mello_ui_tick(MelloUi *ui);
 
 /* One non-blocking main-loop input pass. note_pressed is bit 0=F3 .. bit 26=G5.
  * held_buttons is the current level bitmask, while pressed/released are edge masks. */
-void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms,
-                    uint32_t pressed_buttons, uint32_t released_buttons,
-                    uint32_t held_buttons, uint32_t note_pressed,
+void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pressed_buttons,
+                    uint32_t released_buttons, uint32_t held_buttons, uint32_t note_pressed,
                     const int16_t encoder_delta[MELLO_UI_ENCODER_COUNT]);
 
 void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops);

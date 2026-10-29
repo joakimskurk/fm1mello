@@ -1,82 +1,96 @@
 #include "mello_engine.h"
 
-
 #define MELLO_ZERO_SEED_REMAP 0x6D2B79F5u
 
-static const int8_t SCALE_CHROMATIC[] = {0,1,2,3,4,5,6,7,8,9,10,11};
-static const int8_t SCALE_MINOR[] = {0,2,3,5,7,8,10};
-static const int8_t SCALE_DORIAN[] = {0,2,3,5,7,9,10};
-static const int8_t SCALE_PHRYGIAN[] = {0,1,3,5,7,8,10};
-static const int8_t SCALE_LYDIAN[] = {0,2,4,6,7,9,11};
-static const int8_t SCALE_MIXOLYDIAN[] = {0,2,4,5,7,9,10};
-static const int8_t SCALE_PENTATONIC[] = {0,2,4,7,9};
-static const int8_t SCALE_MINOR_PENTATONIC[] = {0,3,5,7,10};
-static const int8_t SCALE_DIMINISHED[] = {0,2,3,5,6,8,9,11};
-static const int8_t SCALE_WHOLE_TONE[] = {0,2,4,6,8,10};
-static const int8_t SCALE_AUGMENTED[] = {0,3,4,7,8,11};
-static const int8_t SCALE_MAJOR[] = {0,2,4,5,7,9,11};
+static const int8_t SCALE_CHROMATIC[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+static const int8_t SCALE_MINOR[] = {0, 2, 3, 5, 7, 8, 10};
+static const int8_t SCALE_DORIAN[] = {0, 2, 3, 5, 7, 9, 10};
+static const int8_t SCALE_PHRYGIAN[] = {0, 1, 3, 5, 7, 8, 10};
+static const int8_t SCALE_LYDIAN[] = {0, 2, 4, 6, 7, 9, 11};
+static const int8_t SCALE_MIXOLYDIAN[] = {0, 2, 4, 5, 7, 9, 10};
+static const int8_t SCALE_PENTATONIC[] = {0, 2, 4, 7, 9};
+static const int8_t SCALE_MINOR_PENTATONIC[] = {0, 3, 5, 7, 10};
+static const int8_t SCALE_DIMINISHED[] = {0, 2, 3, 5, 6, 8, 9, 11};
+static const int8_t SCALE_WHOLE_TONE[] = {0, 2, 4, 6, 8, 10};
+static const int8_t SCALE_AUGMENTED[] = {0, 3, 4, 7, 8, 11};
+static const int8_t SCALE_MAJOR[] = {0, 2, 4, 5, 7, 9, 11};
 
-typedef struct { const int8_t *v; uint8_t n; const char *name; } ScaleDef;
+typedef struct {
+    const int8_t *v;
+    uint8_t n;
+    const char *name;
+} ScaleDef;
 static const ScaleDef SCALES[MELLO_SCALE_COUNT] = {
-    {SCALE_CHROMATIC, 12, "chromatic"},
-    {SCALE_MINOR, 7, "minor"},
-    {SCALE_DORIAN, 7, "dorian"},
-    {SCALE_PHRYGIAN, 7, "phrygian"},
-    {SCALE_LYDIAN, 7, "lydian"},
-    {SCALE_MIXOLYDIAN, 7, "mixolydian"},
-    {SCALE_PENTATONIC, 5, "pentatonic"},
-    {SCALE_MINOR_PENTATONIC, 5, "min penta"},
-    {SCALE_DIMINISHED, 8, "diminished"},
-    {SCALE_WHOLE_TONE, 6, "whole tone"},
-    {SCALE_AUGMENTED, 6, "augmented"},
-    {SCALE_MAJOR, 7, "major"}
-};
+    {SCALE_CHROMATIC, 12, "chromatic"},  {SCALE_MINOR, 7, "minor"},
+    {SCALE_DORIAN, 7, "dorian"},         {SCALE_PHRYGIAN, 7, "phrygian"},
+    {SCALE_LYDIAN, 7, "lydian"},         {SCALE_MIXOLYDIAN, 7, "mixolydian"},
+    {SCALE_PENTATONIC, 5, "pentatonic"}, {SCALE_MINOR_PENTATONIC, 5, "min penta"},
+    {SCALE_DIMINISHED, 8, "diminished"}, {SCALE_WHOLE_TONE, 6, "whole tone"},
+    {SCALE_AUGMENTED, 6, "augmented"},   {SCALE_MAJOR, 7, "major"}};
 
-static uint8_t clamp_u8_i32(int32_t v, uint8_t lo, uint8_t hi) {
+static uint8_t clamp_u8_i32(int32_t v, uint8_t lo, uint8_t hi)
+{
     if (v < (int32_t)lo) return lo;
     if (v > (int32_t)hi) return hi;
     return (uint8_t)v;
 }
 
-static uint8_t clamp_1_8(uint8_t v) {
+static uint8_t clamp_1_8(uint8_t v)
+{
     if (v < 1u) return 1u;
     if (v > 8u) return 8u;
     return v;
 }
 
-static uint8_t clamp_repeat(uint8_t v) {
+static uint8_t clamp_repeat(uint8_t v)
+{
     if (v < 1u) return 1u;
     if (v > 4u) return 4u;
     return v;
 }
 
-static uint16_t clamp_hold(uint16_t v) {
+static uint16_t clamp_hold(uint16_t v)
+{
     if (v < 1u) return 1u;
     if (v > 256u) return 256u;
     return v;
 }
 
-static int8_t clamp_i8(int32_t v, int8_t lo, int8_t hi) {
+static int8_t clamp_i8(int32_t v, int8_t lo, int8_t hi)
+{
     if (v < (int32_t)lo) return lo;
     if (v > (int32_t)hi) return hi;
     return (int8_t)v;
 }
 
-static uint8_t sanitize_visible_slot_count(uint8_t v) {
+static uint8_t sanitize_visible_slot_count(uint8_t v)
+{
     switch (v) {
-        case 2u: case 4u: case 8u: case 16u: case 32u: case 64u: return v;
-        default: return 8u;
+    case 2u:
+    case 4u:
+    case 8u:
+    case 16u:
+    case 32u:
+    case 64u: return v;
+    default: return 8u;
     }
 }
 
-static uint8_t sanitize_slot_seq_length(uint8_t v) {
+static uint8_t sanitize_slot_seq_length(uint8_t v)
+{
     switch (v) {
-        case 2u: case 4u: case 8u: case 16u: case 32u: case 64u: return v;
-        default: return 16u;
+    case 2u:
+    case 4u:
+    case 8u:
+    case 16u:
+    case 32u:
+    case 64u: return v;
+    default: return 16u;
     }
 }
 
-static void sanitize_project(MelloProject *p) {
+static void sanitize_project(MelloProject *p)
+{
     uint8_t i;
     if (!p) return;
     if (p->seq_len < 1u) p->seq_len = 1u;
@@ -97,7 +111,8 @@ static void sanitize_project(MelloProject *p) {
         p->steps[i].ratchet = clamp_1_8(p->steps[i].ratchet);
         if (p->steps[i].gate > MELLO_GATE_MULTI) p->steps[i].gate = MELLO_GATE_SINGLE;
         p->steps[i].octave = clamp_i8(p->steps[i].octave, -2, 2);
-        if (p->steps[i].sample_slot > MELLO_SAMPLE_SLOT_COUNT) p->steps[i].sample_slot = MELLO_SAMPLE_SLOT_COUNT;
+        if (p->steps[i].sample_slot > MELLO_SAMPLE_SLOT_COUNT)
+            p->steps[i].sample_slot = MELLO_SAMPLE_SLOT_COUNT;
     }
     for (i = 0u; i < MELLO_MAX_SEGMENTS; ++i) {
         p->seg_repeats[i] = clamp_repeat(p->seg_repeats[i]);
@@ -106,18 +121,21 @@ static void sanitize_project(MelloProject *p) {
     }
 }
 
-uint8_t mello_loop_cycle_sub_tone(const MelloLoopCycleStep *step) {
+uint8_t mello_loop_cycle_sub_tone(const MelloLoopCycleStep *step)
+{
     return step ? (uint8_t)(step->sub_tone & 0x07u) : MELLO_SUB_TONE_ROOT;
 }
 
-int8_t mello_loop_cycle_sub_transpose(const MelloLoopCycleStep *step) {
+int8_t mello_loop_cycle_sub_transpose(const MelloLoopCycleStep *step)
+{
     uint8_t raw;
     if (!step) return 0;
     raw = (uint8_t)((step->sub_tone >> 3) & 0x1Fu);
     return (int8_t)((raw & 0x10u) ? ((int16_t)raw - 32) : raw);
 }
 
-void mello_loop_cycle_set_sub(MelloLoopCycleStep *step, uint8_t tone, int8_t transpose) {
+void mello_loop_cycle_set_sub(MelloLoopCycleStep *step, uint8_t tone, int8_t transpose)
+{
     uint8_t packed_tr;
     if (!step) return;
     if (tone > MELLO_SUB_TONE_OCTAVE) tone = MELLO_SUB_TONE_ROOT;
@@ -126,7 +144,8 @@ void mello_loop_cycle_set_sub(MelloLoopCycleStep *step, uint8_t tone, int8_t tra
     step->sub_tone = (uint8_t)((tone & 0x07u) | (uint8_t)(packed_tr << 3));
 }
 
-static MelloLoopCycleStep sanitize_loop_step(MelloLoopCycleStep in) {
+static MelloLoopCycleStep sanitize_loop_step(MelloLoopCycleStep in)
+{
     uint8_t sub_tone = mello_loop_cycle_sub_tone(&in);
     int8_t sub_transpose = mello_loop_cycle_sub_transpose(&in);
     in.hold = clamp_hold(in.hold ? in.hold : 16u);
@@ -139,53 +158,55 @@ static MelloLoopCycleStep sanitize_loop_step(MelloLoopCycleStep in) {
     return in;
 }
 
-static void sanitize_loop_config(MelloLoopCycleConfig *c) {
+static void sanitize_loop_config(MelloLoopCycleConfig *c)
+{
     uint8_t i;
-    if(!c)return;
-    if(c->length<2u)c->length=2u;
-    if(c->length>MELLO_MAX_LOOP_CYCLE_STEPS)c->length=MELLO_MAX_LOOP_CYCLE_STEPS;
-    for(i=0u;i<MELLO_MAX_LOOP_CYCLE_STEPS;++i)c->steps[i]=sanitize_loop_step(c->steps[i]);
+    if (!c) return;
+    if (c->length < 2u) c->length = 2u;
+    if (c->length > MELLO_MAX_LOOP_CYCLE_STEPS) c->length = MELLO_MAX_LOOP_CYCLE_STEPS;
+    for (i = 0u; i < MELLO_MAX_LOOP_CYCLE_STEPS; ++i) c->steps[i] = sanitize_loop_step(c->steps[i]);
 }
 
-
 #if MELLO_FEATURE_CHORD_MACHINE
-static MelloChordConfig sanitize_chord_config(MelloChordConfig c){
+static MelloChordConfig sanitize_chord_config(MelloChordConfig c)
+{
     uint8_t i;
-    if(c.trigger>MELLO_CHORD_TRIGGER_GRID)c.trigger=MELLO_CHORD_TRIGGER_STEP;
-    if(c.mode>=MELLO_CHORD_MODE_COUNT)c.mode=MELLO_CHORD_STAB;
-    if(c.length<1u)c.length=1u;
-    if(c.length>MELLO_CHORD_MAX_STEPS)c.length=MELLO_CHORD_MAX_STEPS;
-    if(c.voices<2u)c.voices=2u;
-    if(c.voices>MELLO_CHORD_MAX_VOICES)c.voices=MELLO_CHORD_MAX_VOICES;
-    if(c.level>1000u)c.level=1000u;
-    if(c.wave>MELLO_WAVE_SINE)c.wave=MELLO_WAVE_TRIANGLE;
-    if(c.gate_amount<100u)c.gate_amount=100u;
-    if(c.gate_amount>1200u)c.gate_amount=1200u;
-    if(c.attack_ms<1u)c.attack_ms=1u;
-    if(c.attack_ms>2000u)c.attack_ms=2000u;
-    if(c.release_ms<5u)c.release_ms=5u;
-    if(c.release_ms>4000u)c.release_ms=4000u;
-    if(c.grid_mode>MELLO_DOT_RANDOM)c.grid_mode=MELLO_DOT_HORIZONTAL;
-    if(c.grid_length<1u)c.grid_length=1u;
-    if(c.grid_length>16u)c.grid_length=16u;
-    if(c.grid_amount>1000u)c.grid_amount=1000u;
-    if(c.pattern_length<1u)c.pattern_length=1u;
-    if(c.pattern_length>MELLO_CHORD_PATTERN_STEPS)c.pattern_length=MELLO_CHORD_PATTERN_STEPS;
-    for(i=0u;i<MELLO_CHORD_MAX_STEPS;++i){
-        MelloChordStep *s=&c.steps[i];
-        if(s->shape>=MELLO_CHORD_SHAPE_COUNT)s->shape=MELLO_CHORD_TRIAD;
-        if(s->inversion>3u)s->inversion=3u;
-        s->octave=clamp_i8(s->octave,-2,2);
-        if(s->spread>3u)s->spread=3u;
-        if(s->hold<1u)s->hold=1u;
-        if(s->hold>16u)s->hold=16u;
+    if (c.trigger > MELLO_CHORD_TRIGGER_GRID) c.trigger = MELLO_CHORD_TRIGGER_STEP;
+    if (c.mode >= MELLO_CHORD_MODE_COUNT) c.mode = MELLO_CHORD_STAB;
+    if (c.length < 1u) c.length = 1u;
+    if (c.length > MELLO_CHORD_MAX_STEPS) c.length = MELLO_CHORD_MAX_STEPS;
+    if (c.voices < 2u) c.voices = 2u;
+    if (c.voices > MELLO_CHORD_MAX_VOICES) c.voices = MELLO_CHORD_MAX_VOICES;
+    if (c.level > 1000u) c.level = 1000u;
+    if (c.wave > MELLO_WAVE_SINE) c.wave = MELLO_WAVE_TRIANGLE;
+    if (c.gate_amount < 100u) c.gate_amount = 100u;
+    if (c.gate_amount > 1200u) c.gate_amount = 1200u;
+    if (c.attack_ms < 1u) c.attack_ms = 1u;
+    if (c.attack_ms > 2000u) c.attack_ms = 2000u;
+    if (c.release_ms < 5u) c.release_ms = 5u;
+    if (c.release_ms > 4000u) c.release_ms = 4000u;
+    if (c.grid_mode > MELLO_DOT_RANDOM) c.grid_mode = MELLO_DOT_HORIZONTAL;
+    if (c.grid_length < 1u) c.grid_length = 1u;
+    if (c.grid_length > 16u) c.grid_length = 16u;
+    if (c.grid_amount > 1000u) c.grid_amount = 1000u;
+    if (c.pattern_length < 1u) c.pattern_length = 1u;
+    if (c.pattern_length > MELLO_CHORD_PATTERN_STEPS) c.pattern_length = MELLO_CHORD_PATTERN_STEPS;
+    for (i = 0u; i < MELLO_CHORD_MAX_STEPS; ++i) {
+        MelloChordStep *s = &c.steps[i];
+        if (s->shape >= MELLO_CHORD_SHAPE_COUNT) s->shape = MELLO_CHORD_TRIAD;
+        if (s->inversion > 3u) s->inversion = 3u;
+        s->octave = clamp_i8(s->octave, -2, 2);
+        if (s->spread > 3u) s->spread = 3u;
+        if (s->hold < 1u) s->hold = 1u;
+        if (s->hold > 16u) s->hold = 16u;
     }
-    for(i=0u;i<MELLO_CHORD_PATTERN_STEPS;++i)c.pattern_masks[i]&=0x0Fu;
+    for (i = 0u; i < MELLO_CHORD_PATTERN_STEPS; ++i) c.pattern_masks[i] &= 0x0Fu;
     return c;
 }
 #endif
 
-static uint32_t ms_to_ticks(const MelloProject *p, uint32_t ms) {
+static uint32_t ms_to_ticks(const MelloProject *p, uint32_t ms)
+{
     /* MELLO_PPQN/60 == 280 exactly. Max: 280*250*4000 = 280,000,000,
      * safely inside uint32_t and no target-forbidden 64-bit division. */
     uint32_t bpm = p ? p->bpm : 80u;
@@ -193,8 +214,9 @@ static uint32_t ms_to_ticks(const MelloProject *p, uint32_t ms) {
     return (num + 500u) / 1000u;
 }
 
-static uint32_t clamp_duration_ms_as_ticks(const MelloProject *p, uint32_t raw_ticks,
-                                            uint32_t min_ms, uint32_t max_ms) {
+static uint32_t clamp_duration_ms_as_ticks(const MelloProject *p, uint32_t raw_ticks, uint32_t min_ms,
+                                           uint32_t max_ms)
+{
     uint32_t lo = ms_to_ticks(p, min_ms);
     uint32_t hi = ms_to_ticks(p, max_ms);
     if (raw_ticks < lo) return lo;
@@ -202,12 +224,14 @@ static uint32_t clamp_duration_ms_as_ticks(const MelloProject *p, uint32_t raw_t
     return raw_ticks;
 }
 
-void mello_prng_seed(MelloPrng *rng, uint32_t seed) {
+void mello_prng_seed(MelloPrng *rng, uint32_t seed)
+{
     if (!rng) return;
     rng->state = seed ? seed : MELLO_ZERO_SEED_REMAP;
 }
 
-uint32_t mello_prng_next_u32(MelloPrng *rng) {
+uint32_t mello_prng_next_u32(MelloPrng *rng)
+{
     uint32_t x;
     if (!rng) return 0u;
     x = rng->state;
@@ -219,36 +243,45 @@ uint32_t mello_prng_next_u32(MelloPrng *rng) {
     return x;
 }
 
-static uint32_t rng_bounded(MelloPrng *rng, uint32_t bound) {
+static uint32_t rng_bounded(MelloPrng *rng, uint32_t bound)
+{
     return bound ? (mello_prng_next_u32(rng) % bound) : 0u;
 }
 
-static bool probability_pass(MelloEngine *e, uint16_t p) {
+static bool probability_pass(MelloEngine *e, uint16_t p)
+{
     uint32_t r = mello_prng_next_u32(&e->rng);
     /* UINT32_MAX == 65535 * 65537, so p/65535 maps exactly to p*65537. */
     uint32_t threshold = ((uint32_t)p << 16) | (uint32_t)p;
     return r <= threshold;
 }
 
-static uint16_t gen_unit16(MelloPrng *rng) {
+static uint16_t gen_unit16(MelloPrng *rng)
+{
     return (uint16_t)(mello_prng_next_u32(rng) >> 16);
 }
 
-static bool chance_permille(MelloPrng *rng, uint16_t amount) {
+static bool chance_permille(MelloPrng *rng, uint16_t amount)
+{
     uint32_t lhs = (uint32_t)gen_unit16(rng) * MELLO_AMOUNT_MAX;
     if (amount > MELLO_AMOUNT_MAX) amount = MELLO_AMOUNT_MAX;
     return lhs < (uint32_t)amount * 65536u;
 }
 
-static uint16_t clamp_amount(uint16_t v) { return v > MELLO_AMOUNT_MAX ? MELLO_AMOUNT_MAX : v; }
+static uint16_t clamp_amount(uint16_t v)
+{
+    return v > MELLO_AMOUNT_MAX ? MELLO_AMOUNT_MAX : v;
+}
 
-static uint16_t clamp_u16_range(uint16_t v, uint16_t lo, uint16_t hi) {
+static uint16_t clamp_u16_range(uint16_t v, uint16_t lo, uint16_t hi)
+{
     if (v < lo) return lo;
     if (v > hi) return hi;
     return v;
 }
 
-static MelloSoundConfig sanitize_sound_config(MelloSoundConfig c) {
+static MelloSoundConfig sanitize_sound_config(MelloSoundConfig c)
+{
     if (c.osc_wave > MELLO_WAVE_OFF) c.osc_wave = MELLO_WAVE_SAW;
     c.pwm_permille = clamp_u16_range(c.pwm_permille, 50u, 950u);
     c.attack_ms = clamp_u16_range(c.attack_ms, 1u, 500u);
@@ -268,7 +301,8 @@ static MelloSoundConfig sanitize_sound_config(MelloSoundConfig c) {
     return c;
 }
 
-static MelloSampleSlotConfig sanitize_sample_slot(MelloSampleSlotConfig c) {
+static MelloSampleSlotConfig sanitize_sample_slot(MelloSampleSlotConfig c)
+{
     c.coarse_semitones = clamp_i8(c.coarse_semitones, -24, 24);
     c.fine_cents = clamp_i8(c.fine_cents, -100, 100);
     c.level = clamp_u16_range(c.level, 0u, 1500u);
@@ -277,7 +311,10 @@ static MelloSampleSlotConfig sanitize_sample_slot(MelloSampleSlotConfig c) {
     c.trim_end = clamp_u16_range(c.trim_end, 10u, 1000u);
     if (c.trim_end <= c.trim_start) {
         c.trim_end = (uint16_t)(c.trim_start + 10u);
-        if (c.trim_end > 1000u) { c.trim_end = 1000u; c.trim_start = 990u; }
+        if (c.trim_end > 1000u) {
+            c.trim_end = 1000u;
+            c.trim_start = 990u;
+        }
     }
     c.attack_ms = clamp_u16_range(c.attack_ms, 1u, 2000u);
     c.decay_ms = clamp_u16_range(c.decay_ms, 5u, 2000u);
@@ -286,14 +323,16 @@ static MelloSampleSlotConfig sanitize_sample_slot(MelloSampleSlotConfig c) {
     return c;
 }
 
-static MelloSampleConfig sanitize_sample_config(MelloSampleConfig c) {
+static MelloSampleConfig sanitize_sample_config(MelloSampleConfig c)
+{
     uint8_t i;
     if (c.edit_slot >= MELLO_SAMPLE_SLOT_COUNT) c.edit_slot = 0u;
     for (i = 0u; i < MELLO_SAMPLE_SLOT_COUNT; ++i) c.slots[i] = sanitize_sample_slot(c.slots[i]);
     return c;
 }
 
-static MelloFxConfig sanitize_fx_config(MelloFxConfig c) {
+static MelloFxConfig sanitize_fx_config(MelloFxConfig c)
+{
     c.dist_amount = clamp_amount(c.dist_amount);
     c.dist_mix = clamp_amount(c.dist_mix);
     c.dist_character = clamp_amount(c.dist_character);
@@ -314,18 +353,21 @@ static MelloFxConfig sanitize_fx_config(MelloFxConfig c) {
     return c;
 }
 
-static uint8_t sanitize_tm_length(uint8_t v) {
+static uint8_t sanitize_tm_length(uint8_t v)
+{
     if (v < 3u) return 3u;
     if (v > MELLO_TM_MAX_STEPS) return MELLO_TM_MAX_STEPS;
     return v;
 }
 
-static uint8_t sanitize_sub_x_length(uint8_t v) {
+static uint8_t sanitize_sub_x_length(uint8_t v)
+{
     if (v == 2u || v == 3u || v == 5u) return v;
     return 5u;
 }
 
-static MelloDotMatrixConfig sanitize_dot_config(MelloDotMatrixConfig c) {
+static MelloDotMatrixConfig sanitize_dot_config(MelloDotMatrixConfig c)
+{
     if (c.mode > MELLO_DOT_RANDOM) c.mode = MELLO_DOT_HORIZONTAL;
     if (c.length < 1u) c.length = 1u;
     if (c.length > MELLO_DOT_CELL_COUNT) c.length = MELLO_DOT_CELL_COUNT;
@@ -333,12 +375,14 @@ static MelloDotMatrixConfig sanitize_dot_config(MelloDotMatrixConfig c) {
     return c;
 }
 
-static MelloTmConfig sanitize_tm_config(MelloTmConfig c) {
+static MelloTmConfig sanitize_tm_config(MelloTmConfig c)
+{
     c.mutation_prob = c.mutation_prob > MELLO_TM_PROB_MAX ? MELLO_TM_PROB_MAX : c.mutation_prob;
     c.length = sanitize_tm_length(c.length);
     if (c.rate > MELLO_TM_RATE_DOUBLE) c.rate = MELLO_TM_RATE_ONE;
     c.offset = clamp_i8(c.offset, -31, 31);
-    c.routes &= (uint8_t)(MELLO_TM_ROUTE_GATE | MELLO_TM_ROUTE_FILTER | MELLO_TM_ROUTE_OCTAVE | MELLO_TM_ROUTE_DECAY);
+    c.routes &=
+        (uint8_t)(MELLO_TM_ROUTE_GATE | MELLO_TM_ROUTE_FILTER | MELLO_TM_ROUTE_OCTAVE | MELLO_TM_ROUTE_DECAY);
     c.depth_gate = clamp_amount(c.depth_gate);
     c.depth_filter = clamp_amount(c.depth_filter);
     c.depth_octave = clamp_amount(c.depth_octave);
@@ -346,7 +390,8 @@ static MelloTmConfig sanitize_tm_config(MelloTmConfig c) {
     return c;
 }
 
-static MelloSubConfig sanitize_sub_config(MelloSubConfig c) {
+static MelloSubConfig sanitize_sub_config(MelloSubConfig c)
+{
     uint8_t i;
     if (c.mode > MELLO_SUB_MODE_TM) c.mode = MELLO_SUB_MODE_STEP;
     if (c.euclid_pulses < 1u) c.euclid_pulses = 1u;
@@ -370,7 +415,8 @@ static MelloSubConfig sanitize_sub_config(MelloSubConfig c) {
     return c;
 }
 
-static bool queue_push(MelloEngine *e, const MelloEvent *ev) {
+static bool queue_push(MelloEngine *e, const MelloEvent *ev)
+{
     uint8_t pos, prev;
     if (e->q_count >= MELLO_EVENT_QUEUE_CAP) {
         e->queue_overflow = true;
@@ -379,20 +425,21 @@ static bool queue_push(MelloEngine *e, const MelloEvent *ev) {
     /* Events produced by one engine pulse include current NOTE ONs and future NOTE OFFs.
      * Keep this main-thread-only queue stably ordered by tick before transport publishes
      * them to the audio ISR. Equal-tick events preserve their source order. */
-    pos=e->q_tail;
-    while(pos!=e->q_head){
-        prev=(uint8_t)(pos==0u?MELLO_EVENT_QUEUE_CAP-1u:pos-1u);
-        if((int32_t)(e->queue[prev].tick-ev->tick)<=0)break;
-        e->queue[pos]=e->queue[prev];
-        pos=prev;
+    pos = e->q_tail;
+    while (pos != e->q_head) {
+        prev = (uint8_t)(pos == 0u ? MELLO_EVENT_QUEUE_CAP - 1u : pos - 1u);
+        if ((int32_t)(e->queue[prev].tick - ev->tick) <= 0) break;
+        e->queue[pos] = e->queue[prev];
+        pos = prev;
     }
-    e->queue[pos]=*ev;
-    e->q_tail=(uint8_t)((e->q_tail+1u)%MELLO_EVENT_QUEUE_CAP);
+    e->queue[pos] = *ev;
+    e->q_tail = (uint8_t)((e->q_tail + 1u) % MELLO_EVENT_QUEUE_CAP);
     e->q_count++;
     return true;
 }
 
-bool mello_event_pop(MelloEngine *e, MelloEvent *out) {
+bool mello_event_pop(MelloEngine *e, MelloEvent *out)
+{
     if (!e || !out || e->q_count == 0u) return false;
     *out = e->queue[e->q_head];
     e->q_head = (uint8_t)((e->q_head + 1u) % MELLO_EVENT_QUEUE_CAP);
@@ -400,15 +447,20 @@ bool mello_event_pop(MelloEngine *e, MelloEvent *out) {
     return true;
 }
 
-void mello_event_clear(MelloEngine *e) {
+void mello_event_clear(MelloEngine *e)
+{
     if (!e) return;
     e->q_head = e->q_tail = e->q_count = 0u;
     e->queue_overflow = false;
 }
 
-bool mello_event_overflowed(const MelloEngine *e) { return e ? e->queue_overflow : false; }
+bool mello_event_overflowed(const MelloEngine *e)
+{
+    return e ? e->queue_overflow : false;
+}
 
-void mello_project_defaults(MelloProject *p) {
+void mello_project_defaults(MelloProject *p)
+{
     uint8_t i;
     if (!p) return;
     memset(p, 0, sizeof(*p));
@@ -433,17 +485,22 @@ void mello_project_defaults(MelloProject *p) {
         p->steps[i].probability = 65535u;
     }
     p->seg_count = 1u;
-    p->seg_splits[0]=8u; p->seg_splits[1]=10u; p->seg_splits[2]=12u; p->seg_splits[3]=14u; p->seg_splits[4]=15u;
-    for (i=0u;i<MELLO_MAX_SEGMENTS;++i) {
-        p->seg_repeats[i]=1u;
-        p->seg_direction[i]=MELLO_SEG_FWD;
-        p->seg_mode[i]=MELLO_SEG_LINEAR;
-        p->seg_skip[i]=false;
+    p->seg_splits[0] = 8u;
+    p->seg_splits[1] = 10u;
+    p->seg_splits[2] = 12u;
+    p->seg_splits[3] = 14u;
+    p->seg_splits[4] = 15u;
+    for (i = 0u; i < MELLO_MAX_SEGMENTS; ++i) {
+        p->seg_repeats[i] = 1u;
+        p->seg_direction[i] = MELLO_SEG_FWD;
+        p->seg_mode[i] = MELLO_SEG_LINEAR;
+        p->seg_skip[i] = false;
     }
-    p->master_len=32u; /* WP-D: default 2 BAR = 32 sixteenth notes. */
+    p->master_len = 32u; /* WP-D: default 2 BAR = 32 sixteenth notes. */
 }
 
-void mello_loop_cycle_defaults(MelloLoopCycleConfig *c) {
+void mello_loop_cycle_defaults(MelloLoopCycleConfig *c)
+{
     uint8_t i;
     if (!c) return;
     memset(c, 0, sizeof(*c));
@@ -461,7 +518,8 @@ void mello_loop_cycle_defaults(MelloLoopCycleConfig *c) {
     }
 }
 
-void mello_slot_seq_defaults(MelloSlotSeqConfig *c) {
+void mello_slot_seq_defaults(MelloSlotSeqConfig *c)
+{
     uint8_t i;
     if (!c) return;
     memset(c, 0, sizeof(*c));
@@ -473,7 +531,8 @@ void mello_slot_seq_defaults(MelloSlotSeqConfig *c) {
     }
 }
 
-void mello_dot_matrix_defaults(MelloDotMatrixConfig *c) {
+void mello_dot_matrix_defaults(MelloDotMatrixConfig *c)
+{
     if (!c) return;
     memset(c, 0, sizeof(*c));
     c->cells = 0u;
@@ -484,7 +543,8 @@ void mello_dot_matrix_defaults(MelloDotMatrixConfig *c) {
     c->amount = MELLO_AMOUNT_MAX;
 }
 
-void mello_tm_defaults(MelloTmConfig *c) {
+void mello_tm_defaults(MelloTmConfig *c)
+{
     if (!c) return;
     memset(c, 0, sizeof(*c));
     c->on = false;
@@ -500,7 +560,8 @@ void mello_tm_defaults(MelloTmConfig *c) {
     c->depth_decay = 350u;
 }
 
-void mello_sub_defaults(MelloSubConfig *c) {
+void mello_sub_defaults(MelloSubConfig *c)
+{
     uint8_t i;
     if (!c) return;
     memset(c, 0, sizeof(*c));
@@ -527,28 +588,57 @@ void mello_sub_defaults(MelloSubConfig *c) {
     }
 }
 
-
 #if MELLO_FEATURE_CHORD_MACHINE
-void mello_chord_defaults(MelloChordConfig *c){
-    uint8_t i; static const uint8_t deg[4]={0u,5u,3u,4u};
-    if(!c)return;
-    memset(c,0,sizeof(*c));
-    c->on=false;c->trigger=MELLO_CHORD_TRIGGER_STEP;c->mode=MELLO_CHORD_STAB;c->length=4u;c->voices=3u;
-    c->level=320u;c->wave=MELLO_WAVE_SAW;c->gate_amount=720u;c->attack_ms=22u;c->release_ms=420u;
-    for(i=0u;i<MELLO_CHORD_MAX_STEPS;++i){c->steps[i].degree=deg[i%4u];c->steps[i].shape=MELLO_CHORD_TRIAD;c->steps[i].inversion=0u;c->steps[i].octave=-1;c->steps[i].spread=1u;c->steps[i].hold=2u;}
-    c->grid_cells=0x8888u;c->grid_mode=MELLO_DOT_HORIZONTAL;c->grid_length=16u;c->grid_reset=true;c->grid_follow=false;c->grid_amount=1000u;
-    c->pattern_length=8u;
-    c->pattern_masks[0]=0x1u;c->pattern_masks[1]=0x2u;c->pattern_masks[2]=0xFu;c->pattern_masks[3]=0x4u;
-    c->pattern_masks[4]=0x9u;c->pattern_masks[5]=0x2u;c->pattern_masks[6]=0x6u;c->pattern_masks[7]=0x8u;
+void mello_chord_defaults(MelloChordConfig *c)
+{
+    uint8_t i;
+    static const uint8_t deg[4] = {0u, 5u, 3u, 4u};
+    if (!c) return;
+    memset(c, 0, sizeof(*c));
+    c->on = false;
+    c->trigger = MELLO_CHORD_TRIGGER_STEP;
+    c->mode = MELLO_CHORD_STAB;
+    c->length = 4u;
+    c->voices = 3u;
+    c->level = 320u;
+    c->wave = MELLO_WAVE_SAW;
+    c->gate_amount = 720u;
+    c->attack_ms = 22u;
+    c->release_ms = 420u;
+    for (i = 0u; i < MELLO_CHORD_MAX_STEPS; ++i) {
+        c->steps[i].degree = deg[i % 4u];
+        c->steps[i].shape = MELLO_CHORD_TRIAD;
+        c->steps[i].inversion = 0u;
+        c->steps[i].octave = -1;
+        c->steps[i].spread = 1u;
+        c->steps[i].hold = 2u;
+    }
+    c->grid_cells = 0x8888u;
+    c->grid_mode = MELLO_DOT_HORIZONTAL;
+    c->grid_length = 16u;
+    c->grid_reset = true;
+    c->grid_follow = false;
+    c->grid_amount = 1000u;
+    c->pattern_length = 8u;
+    c->pattern_masks[0] = 0x1u;
+    c->pattern_masks[1] = 0x2u;
+    c->pattern_masks[2] = 0xFu;
+    c->pattern_masks[3] = 0x4u;
+    c->pattern_masks[4] = 0x9u;
+    c->pattern_masks[5] = 0x2u;
+    c->pattern_masks[6] = 0x6u;
+    c->pattern_masks[7] = 0x8u;
 }
 #endif
 
-void mello_randomize_defaults(MelloRandomizeConfig *c) {
+void mello_randomize_defaults(MelloRandomizeConfig *c)
+{
     if (!c) return;
     c->mask = MELLO_RAND_ALL;
 }
 
-void mello_sound_defaults(MelloSoundConfig *c) {
+void mello_sound_defaults(MelloSoundConfig *c)
+{
     if (!c) return;
     memset(c, 0, sizeof(*c));
     c->osc_wave = MELLO_WAVE_SAW;
@@ -571,7 +661,8 @@ void mello_sound_defaults(MelloSoundConfig *c) {
     c->master_level = 750u;
 }
 
-void mello_sample_defaults(MelloSampleConfig *c) {
+void mello_sample_defaults(MelloSampleConfig *c)
+{
     uint8_t i;
     if (!c) return;
     memset(c, 0, sizeof(*c));
@@ -595,107 +686,164 @@ void mello_sample_defaults(MelloSampleConfig *c) {
     }
 }
 
-void mello_fx_defaults(MelloFxConfig *c) {
+void mello_fx_defaults(MelloFxConfig *c)
+{
     if (!c) return;
     memset(c, 0, sizeof(*c));
-    c->dist_amount = 0u; c->dist_mix = 1000u; c->dist_character = 350u; c->dist_tone = 820u; c->dist_level = 900u;
-    c->delay_wet = 120u; c->delay_sync = true; c->delay_div = 0u; c->delay_time_ms = 250u; c->delay_feedback = 320u; c->delay_tone = 720u; c->delay_level = 750u;
-    c->reverb_wet = 240u; c->reverb_size = 700u; c->reverb_decay_ms = 6000u; c->reverb_pre_ms = 12u; c->reverb_tone = 620u; c->reverb_level = 1150u;
+    c->dist_amount = 0u;
+    c->dist_mix = 1000u;
+    c->dist_character = 350u;
+    c->dist_tone = 820u;
+    c->dist_level = 900u;
+    c->delay_wet = 120u;
+    c->delay_sync = true;
+    c->delay_div = 0u;
+    c->delay_time_ms = 250u;
+    c->delay_feedback = 320u;
+    c->delay_tone = 720u;
+    c->delay_level = 750u;
+    c->reverb_wet = 240u;
+    c->reverb_size = 700u;
+    c->reverb_decay_ms = 6000u;
+    c->reverb_pre_ms = 12u;
+    c->reverb_tone = 620u;
+    c->reverb_level = 1150u;
 }
 
-void mello_stored_project_encode(MelloStoredProject *d, const MelloProject *p) {
+void mello_stored_project_encode(MelloStoredProject *d, const MelloProject *p)
+{
     uint8_t i;
     if (!d || !p) return;
     memset(d, 0, sizeof(*d));
     d->seq_len = p->seq_len;
-    d->bpm_lo = (uint8_t)(p->bpm & 0xFFu); d->bpm_hi = (uint8_t)(p->bpm >> 8);
-    d->clock_div = p->clock_div; d->root_note = p->root_note; d->scale = (uint8_t)p->scale; d->global_octave = p->global_octave; d->pitch_span_oct = p->pitch_span_oct;
+    d->bpm_lo = (uint8_t)(p->bpm & 0xFFu);
+    d->bpm_hi = (uint8_t)(p->bpm >> 8);
+    d->clock_div = p->clock_div;
+    d->root_note = p->root_note;
+    d->scale = (uint8_t)p->scale;
+    d->global_octave = p->global_octave;
+    d->pitch_span_oct = p->pitch_span_oct;
     for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
-        const MelloStep *s = &p->steps[i]; MelloStoredStep *o = &d->steps[i];
+        const MelloStep *s = &p->steps[i];
+        MelloStoredStep *o = &d->steps[i];
         uint8_t pulses = clamp_1_8(s->pulses), ratchet = clamp_1_8(s->ratchet);
         int8_t oct = clamp_i8(s->octave, -2, 2);
         o->pitch = s->pitch;
         o->pulse_ratchet = (uint8_t)(((pulses - 1u) & 7u) | (((ratchet - 1u) & 7u) << 3));
-        o->flags = (uint8_t)(((uint8_t)s->gate & 3u) | (((uint8_t)(oct + 2) & 7u) << 2) | (s->slide ? 0x20u : 0u) | (s->skip ? 0x40u : 0u) | (s->accent ? 0x80u : 0u));
+        o->flags = (uint8_t)(((uint8_t)s->gate & 3u) | (((uint8_t)(oct + 2) & 7u) << 2) |
+                             (s->slide ? 0x20u : 0u) | (s->skip ? 0x40u : 0u) | (s->accent ? 0x80u : 0u));
         o->extras = (uint8_t)((s->sub ? 1u : 0u) | ((s->sample_slot & 7u) << 1));
-        o->probability_lo = (uint8_t)(s->probability & 0xFFu); o->probability_hi = (uint8_t)(s->probability >> 8);
+        o->probability_lo = (uint8_t)(s->probability & 0xFFu);
+        o->probability_hi = (uint8_t)(s->probability >> 8);
     }
     d->seg_count = p->seg_count;
     for (i = 0u; i < MELLO_MAX_SEGMENTS - 1u; ++i) d->seg_splits[i] = p->seg_splits[i];
     for (i = 0u; i < MELLO_MAX_SEGMENTS; ++i) {
-        d->seg_repeats[i] = p->seg_repeats[i]; d->seg_direction[i] = (uint8_t)p->seg_direction[i]; d->seg_mode[i] = (uint8_t)p->seg_mode[i];
+        d->seg_repeats[i] = p->seg_repeats[i];
+        d->seg_direction[i] = (uint8_t)p->seg_direction[i];
+        d->seg_mode[i] = (uint8_t)p->seg_mode[i];
         if (p->seg_skip[i]) d->seg_skip_mask |= (uint8_t)(1u << i);
     }
-    d->master_len_lo = (uint8_t)(p->master_len & 0xFFu); d->master_len_hi = (uint8_t)(p->master_len >> 8);
+    d->master_len_lo = (uint8_t)(p->master_len & 0xFFu);
+    d->master_len_hi = (uint8_t)(p->master_len >> 8);
 }
 
-void mello_stored_project_decode(MelloProject *p, const MelloStoredProject *d) {
+void mello_stored_project_decode(MelloProject *p, const MelloStoredProject *d)
+{
     uint8_t i;
     if (!p || !d) return;
     mello_project_defaults(p);
-    p->seq_len = d->seq_len; p->bpm = (uint16_t)((uint16_t)d->bpm_lo | ((uint16_t)d->bpm_hi << 8));
-    p->clock_div = d->clock_div; p->root_note = d->root_note; p->scale = (MelloScale)d->scale; p->global_octave = d->global_octave; p->pitch_span_oct = d->pitch_span_oct;
+    p->seq_len = d->seq_len;
+    p->bpm = (uint16_t)((uint16_t)d->bpm_lo | ((uint16_t)d->bpm_hi << 8));
+    p->clock_div = d->clock_div;
+    p->root_note = d->root_note;
+    p->scale = (MelloScale)d->scale;
+    p->global_octave = d->global_octave;
+    p->pitch_span_oct = d->pitch_span_oct;
     for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
-        const MelloStoredStep *o = &d->steps[i]; MelloStep *st = &p->steps[i];
-        st->pitch = o->pitch; st->pulses = (uint8_t)((o->pulse_ratchet & 7u) + 1u); st->ratchet = (uint8_t)(((o->pulse_ratchet >> 3) & 7u) + 1u);
-        st->gate = (MelloGateMode)(o->flags & 3u); st->octave = (int8_t)((int32_t)((o->flags >> 2) & 7u) - 2);
-        st->slide = (o->flags & 0x20u) != 0u; st->skip = (o->flags & 0x40u) != 0u; st->accent = (o->flags & 0x80u) != 0u;
-        st->sub = (o->extras & 1u) != 0u; st->sample_slot = (uint8_t)((o->extras >> 1) & 7u);
+        const MelloStoredStep *o = &d->steps[i];
+        MelloStep *st = &p->steps[i];
+        st->pitch = o->pitch;
+        st->pulses = (uint8_t)((o->pulse_ratchet & 7u) + 1u);
+        st->ratchet = (uint8_t)(((o->pulse_ratchet >> 3) & 7u) + 1u);
+        st->gate = (MelloGateMode)(o->flags & 3u);
+        st->octave = (int8_t)((int32_t)((o->flags >> 2) & 7u) - 2);
+        st->slide = (o->flags & 0x20u) != 0u;
+        st->skip = (o->flags & 0x40u) != 0u;
+        st->accent = (o->flags & 0x80u) != 0u;
+        st->sub = (o->extras & 1u) != 0u;
+        st->sample_slot = (uint8_t)((o->extras >> 1) & 7u);
         st->probability = (uint16_t)((uint16_t)o->probability_lo | ((uint16_t)o->probability_hi << 8));
     }
     p->seg_count = d->seg_count;
     for (i = 0u; i < MELLO_MAX_SEGMENTS - 1u; ++i) p->seg_splits[i] = d->seg_splits[i];
     for (i = 0u; i < MELLO_MAX_SEGMENTS; ++i) {
-        p->seg_repeats[i] = d->seg_repeats[i]; p->seg_direction[i] = (MelloSegmentDirection)d->seg_direction[i]; p->seg_mode[i] = (MelloSegmentMode)d->seg_mode[i];
+        p->seg_repeats[i] = d->seg_repeats[i];
+        p->seg_direction[i] = (MelloSegmentDirection)d->seg_direction[i];
+        p->seg_mode[i] = (MelloSegmentMode)d->seg_mode[i];
         p->seg_skip[i] = (d->seg_skip_mask & (uint8_t)(1u << i)) != 0u;
     }
     p->master_len = (uint16_t)((uint16_t)d->master_len_lo | ((uint16_t)d->master_len_hi << 8));
     sanitize_project(p);
 }
 
-static void dot_build_order(MelloDotMode mode, uint8_t len, uint8_t out[MELLO_DOT_CELL_COUNT]) {
+static void dot_build_order(MelloDotMode mode, uint8_t len, uint8_t out[MELLO_DOT_CELL_COUNT])
+{
     uint8_t n = 0u, r, c;
     if (len < 1u) len = 1u;
     if (len > MELLO_DOT_CELL_COUNT) len = MELLO_DOT_CELL_COUNT;
     if (mode == MELLO_DOT_VERTICAL) {
-        for (c = 0u; c < 4u && n < len; ++c) for (r = 0u; r < 4u && n < len; ++r) out[n++] = (uint8_t)(r * 4u + c);
+        for (c = 0u; c < 4u && n < len; ++c)
+            for (r = 0u; r < 4u && n < len; ++r) out[n++] = (uint8_t)(r * 4u + c);
     } else if (mode == MELLO_DOT_SNAKE) {
         for (r = 0u; r < 4u && n < len; ++r) {
-            if ((r & 1u) == 0u) for (c = 0u; c < 4u && n < len; ++c) out[n++] = (uint8_t)(r * 4u + c);
-            else for (c = 4u; c > 0u && n < len; --c) out[n++] = (uint8_t)(r * 4u + (c - 1u));
+            if ((r & 1u) == 0u)
+                for (c = 0u; c < 4u && n < len; ++c) out[n++] = (uint8_t)(r * 4u + c);
+            else
+                for (c = 4u; c > 0u && n < len; --c) out[n++] = (uint8_t)(r * 4u + (c - 1u));
         }
     } else {
         for (n = 0u; n < len; ++n) out[n] = n;
     }
-    while (n < MELLO_DOT_CELL_COUNT) { out[n] = n; n++; }
+    while (n < MELLO_DOT_CELL_COUNT) {
+        out[n] = n;
+        n++;
+    }
 }
 
-static void dot_shuffle_order(MelloEngine *e, uint8_t order[MELLO_DOT_CELL_COUNT], uint8_t len) {
+static void dot_shuffle_order(MelloEngine *e, uint8_t order[MELLO_DOT_CELL_COUNT], uint8_t len)
+{
     int32_t i;
     if (!e || len <= 1u) return;
     for (i = (int32_t)len - 1; i > 0; --i) {
         uint8_t j = (uint8_t)rng_bounded(&e->gen_rng, (uint32_t)i + 1u);
-        uint8_t t = order[(uint8_t)i]; order[(uint8_t)i] = order[j]; order[j] = t;
+        uint8_t t = order[(uint8_t)i];
+        order[(uint8_t)i] = order[j];
+        order[j] = t;
     }
 }
 
-void mello_engine_dot_reset_runtime(MelloEngine *e) {
+void mello_engine_dot_reset_runtime(MelloEngine *e)
+{
     uint8_t i;
     if (!e) return;
-    e->dot_tick = 0u; e->dot_follow = 0u;
+    e->dot_tick = 0u;
+    e->dot_follow = 0u;
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) {
         MelloDotMatrixConfig c = sanitize_dot_config(e->dot[i]);
         e->dot[i] = c;
         e->dot_runtime[i].mode = c.mode;
         e->dot_runtime[i].length = c.length;
         e->dot_runtime[i].cycle = -1;
-        dot_build_order(c.mode == MELLO_DOT_RANDOM ? MELLO_DOT_HORIZONTAL : c.mode, c.length, e->dot_runtime[i].order);
+        dot_build_order(c.mode == MELLO_DOT_RANDOM ? MELLO_DOT_HORIZONTAL : c.mode, c.length,
+                        e->dot_runtime[i].order);
         if (c.mode == MELLO_DOT_RANDOM) dot_shuffle_order(e, e->dot_runtime[i].order, c.length);
         e->dot_active_cell[i] = -1;
     }
 }
 
-static void tm_fill_new_registers(MelloEngine *e, uint8_t from, uint8_t to) {
+static void tm_fill_new_registers(MelloEngine *e, uint8_t from, uint8_t to)
+{
     uint8_t i;
     if (!e) return;
     if (to > MELLO_TM_MAX_STEPS) to = MELLO_TM_MAX_STEPS;
@@ -705,12 +853,15 @@ static void tm_fill_new_registers(MelloEngine *e, uint8_t from, uint8_t to) {
     }
 }
 
-void mello_engine_init(MelloEngine *e, const MelloProject *project, uint32_t seed) {
+void mello_engine_init(MelloEngine *e, const MelloProject *project, uint32_t seed)
+{
     uint8_t i;
     if (!e) return;
     memset(e, 0, sizeof(*e));
-    if (project) e->project = *project;
-    else mello_project_defaults(&e->project);
+    if (project)
+        e->project = *project;
+    else
+        mello_project_defaults(&e->project);
     sanitize_project(&e->project);
     mello_loop_cycle_defaults(&e->loop_cycle);
     mello_slot_seq_defaults(&e->slot_seq);
@@ -719,7 +870,9 @@ void mello_engine_init(MelloEngine *e, const MelloProject *project, uint32_t see
     mello_sub_defaults(&e->sub);
 #if MELLO_FEATURE_CHORD_MACHINE
     mello_chord_defaults(&e->chord);
-    e->chord_grid_runtime.cycle=-1;e->chord_grid_active_cell=-1;e->chord_arp_dir=1;
+    e->chord_grid_runtime.cycle = -1;
+    e->chord_grid_active_cell = -1;
+    e->chord_arp_dir = 1;
 #endif
     mello_randomize_defaults(&e->randomize);
     mello_sound_defaults(&e->sound);
@@ -737,194 +890,238 @@ void mello_engine_init(MelloEngine *e, const MelloProject *project, uint32_t see
     tm_fill_new_registers(e, 0u, MELLO_TM_MAX_STEPS);
     mello_engine_dot_reset_runtime(e);
     mello_engine_reset_transport(e);
-    e->runtime_built=false;
+    e->runtime_built = false;
 }
 
-static uint8_t build_bounds(const MelloProject *p, uint8_t bounds[MELLO_MAX_SEGMENTS+1u]) {
-    uint8_t n=p->seq_len;
-    uint8_t sc=p->seg_count;
+static uint8_t build_bounds(const MelloProject *p, uint8_t bounds[MELLO_MAX_SEGMENTS + 1u])
+{
+    uint8_t n = p->seq_len;
+    uint8_t sc = p->seg_count;
     uint8_t i;
-    if(sc<1u)sc=1u;
-    if(sc>MELLO_MAX_SEGMENTS)sc=MELLO_MAX_SEGMENTS;
-    if(sc>n)sc=n;
-    bounds[0]=0u;
-    for(i=0u;i<sc-1u;++i){
-        uint8_t minv=(uint8_t)(bounds[i]+1u);
-        uint8_t remaining=(uint8_t)((sc-1u)-i);
-        uint8_t maxv=(uint8_t)(n-remaining);
-        uint8_t v=p->seg_splits[i];
-        if(v<minv)v=minv;
-        if(v>maxv)v=maxv;
-        bounds[i+1u]=v;
+    if (sc < 1u) sc = 1u;
+    if (sc > MELLO_MAX_SEGMENTS) sc = MELLO_MAX_SEGMENTS;
+    if (sc > n) sc = n;
+    bounds[0] = 0u;
+    for (i = 0u; i < sc - 1u; ++i) {
+        uint8_t minv = (uint8_t)(bounds[i] + 1u);
+        uint8_t remaining = (uint8_t)((sc - 1u) - i);
+        uint8_t maxv = (uint8_t)(n - remaining);
+        uint8_t v = p->seg_splits[i];
+        if (v < minv) v = minv;
+        if (v > maxv) v = maxv;
+        bounds[i + 1u] = v;
     }
-    bounds[sc]=n;
+    bounds[sc] = n;
     return sc;
 }
 
-static uint16_t build_base_range(MelloEngine *e, uint8_t start, uint8_t end) {
-    uint16_t count=0u;
+static uint16_t build_base_range(MelloEngine *e, uint8_t start, uint8_t end)
+{
+    uint16_t count = 0u;
     uint8_t si;
-    for(si=start;si<end && si<e->project.seq_len;++si){
-        const MelloStep *s=&e->project.steps[si];
-        uint8_t pulses,pi;
-        if(s->skip)continue;
-        pulses=clamp_1_8(s->pulses);
-        for(pi=0u;pi<pulses;++pi){
-            if(count>=MELLO_MAX_BASE_PULSES)return count;
-            e->build_scratch[count].step_index=si;
-            e->build_scratch[count].pulse_index=pi;
-            e->build_scratch[count].total_pulses=pulses;
+    for (si = start; si < end && si < e->project.seq_len; ++si) {
+        const MelloStep *s = &e->project.steps[si];
+        uint8_t pulses, pi;
+        if (s->skip) continue;
+        pulses = clamp_1_8(s->pulses);
+        for (pi = 0u; pi < pulses; ++pi) {
+            if (count >= MELLO_MAX_BASE_PULSES) return count;
+            e->build_scratch[count].step_index = si;
+            e->build_scratch[count].pulse_index = pi;
+            e->build_scratch[count].total_pulses = pulses;
             count++;
         }
     }
     return count;
 }
 
-static bool runtime_append(MelloEngine *e, MelloPulseEntry pe) {
-    if(e->runtime_pulse_count>=MELLO_MAX_RUNTIME_PULSES)return false;
-    e->runtime_pulses[e->runtime_pulse_count++]=pe;
+static bool runtime_append(MelloEngine *e, MelloPulseEntry pe)
+{
+    if (e->runtime_pulse_count >= MELLO_MAX_RUNTIME_PULSES) return false;
+    e->runtime_pulses[e->runtime_pulse_count++] = pe;
     return true;
 }
 
-static bool build_segment_runtime(MelloEngine *e, uint8_t project_seg, uint8_t start, uint8_t end, MelloRuntimeSegment *out) {
-    uint16_t base_len,offset,i;
+static bool build_segment_runtime(MelloEngine *e, uint8_t project_seg, uint8_t start, uint8_t end,
+                                  MelloRuntimeSegment *out)
+{
+    uint16_t base_len, offset, i;
     MelloSegmentDirection dir;
     MelloSegmentMode mode;
-    if(e->project.seg_skip[project_seg]){out->offset=e->runtime_pulse_count;out->length=0u;out->project_segment=project_seg;return true;}
-    base_len=build_base_range(e,start,end);
-    offset=e->runtime_pulse_count;
-    dir=e->project.seg_direction[project_seg]==MELLO_SEG_REV?MELLO_SEG_REV:MELLO_SEG_FWD;
-    mode=e->project.seg_mode[project_seg];
-    if(mode>MELLO_SEG_RANDOM)mode=MELLO_SEG_LINEAR;
+    if (e->project.seg_skip[project_seg]) {
+        out->offset = e->runtime_pulse_count;
+        out->length = 0u;
+        out->project_segment = project_seg;
+        return true;
+    }
+    base_len = build_base_range(e, start, end);
+    offset = e->runtime_pulse_count;
+    dir = e->project.seg_direction[project_seg] == MELLO_SEG_REV ? MELLO_SEG_REV : MELLO_SEG_FWD;
+    mode = e->project.seg_mode[project_seg];
+    if (mode > MELLO_SEG_RANDOM) mode = MELLO_SEG_LINEAR;
 
     /* ordered = FWD base, or REV base. */
-    for(i=0u;i<base_len;++i){
-        uint16_t src=(dir==MELLO_SEG_REV)?(uint16_t)(base_len-1u-i):i;
-        if(!runtime_append(e,e->build_scratch[src]))return false;
+    for (i = 0u; i < base_len; ++i) {
+        uint16_t src = (dir == MELLO_SEG_REV) ? (uint16_t)(base_len - 1u - i) : i;
+        if (!runtime_append(e, e->build_scratch[src])) return false;
     }
 
-    if(mode==MELLO_SEG_PINGPONG && base_len>1u){
+    if (mode == MELLO_SEG_PINGPONG && base_len > 1u) {
         /* JS: ordered.concat(ordered.slice(1,-1).reverse()) */
         int32_t j;
-        for(j=(int32_t)base_len-2;j>=1;--j){
-            if(!runtime_append(e,e->runtime_pulses[offset+(uint16_t)j]))return false;
+        for (j = (int32_t)base_len - 2; j >= 1; --j) {
+            if (!runtime_append(e, e->runtime_pulses[offset + (uint16_t)j])) return false;
         }
-    }else if(mode==MELLO_SEG_RANDOM && base_len>1u){
+    } else if (mode == MELLO_SEG_RANDOM && base_len > 1u) {
         /* Fisher-Yates on the already direction-ordered segment list. */
-        uint16_t len=(uint16_t)(e->runtime_pulse_count-offset);
+        uint16_t len = (uint16_t)(e->runtime_pulse_count - offset);
         int32_t j;
-        for(j=(int32_t)len-1;j>0;--j){
-            uint16_t k=(uint16_t)rng_bounded(&e->rng,(uint32_t)j+1u);
-            MelloPulseEntry tmp=e->runtime_pulses[offset+(uint16_t)j];
-            e->runtime_pulses[offset+(uint16_t)j]=e->runtime_pulses[offset+k];
-            e->runtime_pulses[offset+k]=tmp;
+        for (j = (int32_t)len - 1; j > 0; --j) {
+            uint16_t k = (uint16_t)rng_bounded(&e->rng, (uint32_t)j + 1u);
+            MelloPulseEntry tmp = e->runtime_pulses[offset + (uint16_t)j];
+            e->runtime_pulses[offset + (uint16_t)j] = e->runtime_pulses[offset + k];
+            e->runtime_pulses[offset + k] = tmp;
         }
     }
 
-    out->offset=offset;
-    out->length=(uint16_t)(e->runtime_pulse_count-offset);
-    out->project_segment=project_seg;
+    out->offset = offset;
+    out->length = (uint16_t)(e->runtime_pulse_count - offset);
+    out->project_segment = project_seg;
     return true;
 }
 
-bool mello_engine_rebuild_sequence(MelloEngine *e) {
-    uint8_t bounds[MELLO_MAX_SEGMENTS+1u];
-    uint8_t sc,i;
-    uint32_t natural=0u;
-    if(!e)return false;
-    e->runtime_pulse_count=0u;
-    e->runtime_segment_count=0u;
-    sc=build_bounds(&e->project,bounds);
-    for(i=0u;i<sc;++i){
+bool mello_engine_rebuild_sequence(MelloEngine *e)
+{
+    uint8_t bounds[MELLO_MAX_SEGMENTS + 1u];
+    uint8_t sc, i;
+    uint32_t natural = 0u;
+    if (!e) return false;
+    e->runtime_pulse_count = 0u;
+    e->runtime_segment_count = 0u;
+    sc = build_bounds(&e->project, bounds);
+    for (i = 0u; i < sc; ++i) {
         MelloRuntimeSegment seg;
-        if(!build_segment_runtime(e,i,bounds[i],bounds[i+1u],&seg)){
-            e->runtime_built=false;e->has_active_step=false;return false;
+        if (!build_segment_runtime(e, i, bounds[i], bounds[i + 1u], &seg)) {
+            e->runtime_built = false;
+            e->has_active_step = false;
+            return false;
         }
-        if(seg.length>0u){
-            if(e->runtime_segment_count>=MELLO_MAX_SEGMENTS){e->runtime_built=false;e->has_active_step=false;return false;}
-            e->runtime_segments[e->runtime_segment_count++]=seg;
-            natural+=(uint32_t)seg.length*(uint32_t)clamp_repeat(e->project.seg_repeats[i]);
+        if (seg.length > 0u) {
+            if (e->runtime_segment_count >= MELLO_MAX_SEGMENTS) {
+                e->runtime_built = false;
+                e->has_active_step = false;
+                return false;
+            }
+            e->runtime_segments[e->runtime_segment_count++] = seg;
+            natural += (uint32_t)seg.length * (uint32_t)clamp_repeat(e->project.seg_repeats[i]);
         }
     }
     /* WP-D: master_len is a musical 1/16-note duration. Runtime sequence
      * pulses are scaled by clock_div so BAR duration does not change with DIV.
      * Canonical UI values divide exactly; ceil keeps malformed legacy/storage
      * values non-zero and safe without changing the six supported choices. */
-    e->loop_pulse_length=e->project.master_len>0u
-        ? ((uint32_t)e->project.master_len+(uint32_t)e->project.clock_div-1u)/(uint32_t)e->project.clock_div
-        : natural;
-    e->runtime_built=true;
-    e->has_active_step=e->runtime_segment_count>0u;
+    e->loop_pulse_length = e->project.master_len > 0u
+                               ? ((uint32_t)e->project.master_len + (uint32_t)e->project.clock_div - 1u) /
+                                     (uint32_t)e->project.clock_div
+                               : natural;
+    e->runtime_built = true;
+    e->has_active_step = e->runtime_segment_count > 0u;
     return e->has_active_step;
 }
 
-void mello_engine_reset_transport(MelloEngine *e) {
-    if(!e)return;
-    e->now_tick=0u;
-    e->loop_count=0u;
-    e->absolute_pulse=0u;
-    e->active_runtime_segment=0u;
-    e->segment_pulse_pos=0u;
-    e->segment_repeat_done=0u;
-    e->step_index=0u;
-    e->pulse_index=0u;
-    e->has_active_step=false;
+void mello_engine_reset_transport(MelloEngine *e)
+{
+    if (!e) return;
+    e->now_tick = 0u;
+    e->loop_count = 0u;
+    e->absolute_pulse = 0u;
+    e->active_runtime_segment = 0u;
+    e->segment_pulse_pos = 0u;
+    e->segment_repeat_done = 0u;
+    e->step_index = 0u;
+    e->pulse_index = 0u;
+    e->has_active_step = false;
     mello_event_clear(e);
 }
 
-void mello_engine_start(MelloEngine *e) {
-    if(!e || e->playing)return;
+void mello_engine_start(MelloEngine *e)
+{
+    if (!e || e->playing) return;
     /* Source buildSeq() runs on each fresh start, so RANDOM reshuffles here. */
     mello_engine_reset_transport(e);
-    if(e->sub.x_reset){e->sub_x_pos=0u;e->sub_x_active_index=e->sub.x_on?0:-1;}
+    if (e->sub.x_reset) {
+        e->sub_x_pos = 0u;
+        e->sub_x_active_index = e->sub.x_on ? 0 : -1;
+    }
 #if MELLO_FEATURE_CHORD_MACHINE
-    e->chord_grid_tick=0u;e->chord_grid_follow=0u;e->chord_grid_runtime.cycle=-1;e->chord_grid_active_cell=-1;
-    e->chord_chain_pos=0u;e->chord_chain_hold=0u;e->chord_arp_pos=0u;e->chord_arp_dir=1;e->chord_pattern_pos=0u;e->chord_last_count=0u;
+    e->chord_grid_tick = 0u;
+    e->chord_grid_follow = 0u;
+    e->chord_grid_runtime.cycle = -1;
+    e->chord_grid_active_cell = -1;
+    e->chord_chain_pos = 0u;
+    e->chord_chain_hold = 0u;
+    e->chord_arp_pos = 0u;
+    e->chord_arp_dir = 1;
+    e->chord_pattern_pos = 0u;
+    e->chord_last_count = 0u;
 #endif
-    if(!mello_engine_rebuild_sequence(e)){e->playing=true;return;}
-    e->playing=true;
+    if (!mello_engine_rebuild_sequence(e)) {
+        e->playing = true;
+        return;
+    }
+    e->playing = true;
     {
-        MelloRuntimeSegment *seg=&e->runtime_segments[0];
-        MelloPulseEntry *pe=&e->runtime_pulses[seg->offset];
-        e->step_index=pe->step_index;e->pulse_index=pe->pulse_index;
+        MelloRuntimeSegment *seg = &e->runtime_segments[0];
+        MelloPulseEntry *pe = &e->runtime_pulses[seg->offset];
+        e->step_index = pe->step_index;
+        e->pulse_index = pe->pulse_index;
     }
 }
 
-void mello_engine_stop(MelloEngine *e) {
-    if(!e)return;
-    e->playing=false;
-    e->queued_slot=-1;
+void mello_engine_stop(MelloEngine *e)
+{
+    if (!e) return;
+    e->playing = false;
+    e->queued_slot = -1;
     /* Source STOP always clears Loop Cycle hold/count. Position returns to 0 only when ON;
      * OFF freezes the selected harmonic slot across STOP/START. Slot Seq runtime is untouched. */
-    e->loop_cycle_tick=0u;
-    e->loop_cycle_count=0u;
-    if(e->loop_cycle.active)e->loop_cycle_pos=0u;
-    if(e->sub.x_reset){e->sub_x_pos=0u;e->sub_x_active_index=e->sub.x_on?0:-1;}
+    e->loop_cycle_tick = 0u;
+    e->loop_cycle_count = 0u;
+    if (e->loop_cycle.active) e->loop_cycle_pos = 0u;
+    if (e->sub.x_reset) {
+        e->sub_x_pos = 0u;
+        e->sub_x_active_index = e->sub.x_on ? 0 : -1;
+    }
     /* Next start rebuilds just like source buildSeq(). */
-    e->runtime_built=false;
+    e->runtime_built = false;
 }
 
-uint32_t mello_pulse_ticks(const MelloProject *p) {
-    uint8_t div=p?p->clock_div:1u;
-    if(!(div==1u||div==2u||div==4u))div=1u;
-    return MELLO_SIXTEENTH_TICKS*div;
+uint32_t mello_pulse_ticks(const MelloProject *p)
+{
+    uint8_t div = p ? p->clock_div : 1u;
+    if (!(div == 1u || div == 2u || div == 4u)) div = 1u;
+    return MELLO_SIXTEENTH_TICKS * div;
 }
 
-uint8_t mello_resolve_step_midi(const MelloProject *p, const MelloStep *step) {
+uint8_t mello_resolve_step_midi(const MelloProject *p, const MelloStep *step)
+{
     const ScaleDef *sd;
-    int32_t degree,oct,idx,semitone,midi;
-    if(!p||!step)return 60u;
-    sd=&SCALES[p->scale<MELLO_SCALE_COUNT?p->scale:MELLO_SCALE_MINOR];
-    degree=step->pitch;if(degree<0)degree=0;
-    oct=degree/sd->n;idx=degree%sd->n;
-    semitone=sd->v[idx]+oct*12;
-    midi=(int32_t)p->root_note+semitone+((int32_t)p->global_octave+(int32_t)step->octave)*12;
-    return clamp_u8_i32(midi,12u,108u);
+    int32_t degree, oct, idx, semitone, midi;
+    if (!p || !step) return 60u;
+    sd = &SCALES[p->scale < MELLO_SCALE_COUNT ? p->scale : MELLO_SCALE_MINOR];
+    degree = step->pitch;
+    if (degree < 0) degree = 0;
+    oct = degree / sd->n;
+    idx = degree % sd->n;
+    semitone = sd->v[idx] + oct * 12;
+    midi = (int32_t)p->root_note + semitone + ((int32_t)p->global_octave + (int32_t)step->octave) * 12;
+    return clamp_u8_i32(midi, 12u, 108u);
 }
 
 static void current_loop_context(const MelloEngine *e, int32_t *root_out, MelloScale *scale_out,
                                  int8_t *oct_out, int8_t *pitch_out, uint8_t *sub_tone_out,
-                                 int8_t *sub_transpose_out) {
+                                 int8_t *sub_transpose_out)
+{
     const MelloProject *p;
     const MelloLoopCycleStep *lc;
     uint8_t len, pos;
@@ -935,12 +1132,15 @@ static void current_loop_context(const MelloEngine *e, int32_t *root_out, MelloS
     len = e->loop_cycle.length;
     if (len < 2u) len = 2u;
     if (len > MELLO_MAX_LOOP_CYCLE_STEPS) len = MELLO_MAX_LOOP_CYCLE_STEPS;
-    pos = e->loop_cycle.active ? (uint8_t)(e->loop_cycle_pos % len) : (uint8_t)(e->loop_cycle_pos % MELLO_MAX_LOOP_CYCLE_STEPS);
+    pos = e->loop_cycle.active ? (uint8_t)(e->loop_cycle_pos % len)
+                               : (uint8_t)(e->loop_cycle_pos % MELLO_MAX_LOOP_CYCLE_STEPS);
     lc = &e->loop_cycle.steps[pos];
     root = (int32_t)p->root_note;
-    if (lc->root_note >= 0 && lc->root_note <= 11) root = ((int32_t)p->root_note / 12) * 12 + (int32_t)lc->root_note;
+    if (lc->root_note >= 0 && lc->root_note <= 11)
+        root = ((int32_t)p->root_note / 12) * 12 + (int32_t)lc->root_note;
     root += (int32_t)lc->root_offset;
-    scale = (lc->scale_set >= 0 && lc->scale_set < (int8_t)MELLO_SCALE_COUNT) ? (MelloScale)lc->scale_set : p->scale;
+    scale = (lc->scale_set >= 0 && lc->scale_set < (int8_t)MELLO_SCALE_COUNT) ? (MelloScale)lc->scale_set
+                                                                              : p->scale;
     if (root_out) *root_out = root;
     if (scale_out) *scale_out = scale;
     if (oct_out) *oct_out = lc->octave;
@@ -949,11 +1149,12 @@ static void current_loop_context(const MelloEngine *e, int32_t *root_out, MelloS
     if (sub_transpose_out) *sub_transpose_out = mello_loop_cycle_sub_transpose(lc);
 }
 
-static uint8_t resolve_engine_step_midi_mod(const MelloEngine *e, const MelloStep *step, int8_t extra_octave) {
+static uint8_t resolve_engine_step_midi_mod(const MelloEngine *e, const MelloStep *step, int8_t extra_octave)
+{
     const ScaleDef *sd;
-    MelloScale scale=MELLO_SCALE_MINOR;
-    int32_t root=60, degree, oct, idx, semitone, midi;
-    int8_t lc_oct=0, lc_pitch=0;
+    MelloScale scale = MELLO_SCALE_MINOR;
+    int32_t root = 60, degree, oct, idx, semitone, midi;
+    int8_t lc_oct = 0, lc_pitch = 0;
     if (!e || !step) return 60u;
     current_loop_context(e, &root, &scale, &lc_oct, &lc_pitch, NULL, NULL);
     sd = &SCALES[scale < MELLO_SCALE_COUNT ? scale : MELLO_SCALE_MINOR];
@@ -962,11 +1163,16 @@ static uint8_t resolve_engine_step_midi_mod(const MelloEngine *e, const MelloSte
     oct = degree / sd->n;
     idx = degree % sd->n;
     semitone = sd->v[idx] + oct * 12;
-    midi = root + semitone + ((int32_t)e->project.global_octave + (int32_t)step->octave + (int32_t)lc_oct + (int32_t)extra_octave) * 12 + (int32_t)lc_pitch;
+    midi = root + semitone +
+           ((int32_t)e->project.global_octave + (int32_t)step->octave + (int32_t)lc_oct +
+            (int32_t)extra_octave) *
+               12 +
+           (int32_t)lc_pitch;
     return clamp_u8_i32(midi, 12u, 108u);
 }
 
-static int8_t sub_tone_offset(MelloScale scale, uint8_t tone) {
+static int8_t sub_tone_offset(MelloScale scale, uint8_t tone)
+{
     const ScaleDef *sd = &SCALES[scale < MELLO_SCALE_COUNT ? scale : MELLO_SCALE_MINOR];
     uint8_t idx;
     if (tone == MELLO_SUB_TONE_OCTAVE) return 12;
@@ -977,925 +1183,1560 @@ static int8_t sub_tone_offset(MelloScale scale, uint8_t tone) {
     return sd->v[idx];
 }
 
-static uint8_t resolve_sub_midi(const MelloEngine *e, uint8_t x_tone, int8_t x_octave) {
+static uint8_t resolve_sub_midi(const MelloEngine *e, uint8_t x_tone, int8_t x_octave)
+{
     int32_t root, midi;
     MelloScale scale;
     int8_t lc_oct, lc_pitch, lc_sub_transpose;
     uint8_t base_tone;
     current_loop_context(e, &root, &scale, &lc_oct, &lc_pitch, &base_tone, &lc_sub_transpose);
-    midi = root + (int32_t)sub_tone_offset(scale, base_tone) + (int32_t)sub_tone_offset(scale, x_tone)
-         + ((int32_t)e->project.global_octave + (int32_t)lc_oct + (int32_t)e->sub.octave + (int32_t)x_octave) * 12
-         + (int32_t)lc_pitch + (int32_t)lc_sub_transpose;
+    midi =
+        root + (int32_t)sub_tone_offset(scale, base_tone) + (int32_t)sub_tone_offset(scale, x_tone) +
+        ((int32_t)e->project.global_octave + (int32_t)lc_oct + (int32_t)e->sub.octave + (int32_t)x_octave) *
+            12 +
+        (int32_t)lc_pitch + (int32_t)lc_sub_transpose;
     return clamp_u8_i32(midi, 12u, 96u);
 }
 
-static uint8_t current_project_segment(const MelloEngine *e) {
-    if(!e || e->runtime_segment_count==0u || e->active_runtime_segment>=e->runtime_segment_count)return 0u;
+static uint8_t current_project_segment(const MelloEngine *e)
+{
+    if (!e || e->runtime_segment_count == 0u || e->active_runtime_segment >= e->runtime_segment_count)
+        return 0u;
     return e->runtime_segments[e->active_runtime_segment].project_segment;
 }
 
-static void emit_basic(MelloEngine *e,MelloEventType type,uint32_t tick,
-                       uint8_t step_idx,uint8_t pulse_idx,uint8_t total_pulses,
-                       uint8_t note,uint8_t vel,uint8_t ratchet_index,bool slide,bool pass) {
+static void emit_basic(MelloEngine *e, MelloEventType type, uint32_t tick, uint8_t step_idx,
+                       uint8_t pulse_idx, uint8_t total_pulses, uint8_t note, uint8_t vel,
+                       uint8_t ratchet_index, bool slide, bool pass)
+{
     uint8_t i;
     MelloEvent ev;
-    memset(&ev,0,sizeof(ev));
-    ev.tick=tick;ev.type=type;ev.step_index=step_idx;ev.pulse_index=pulse_idx;ev.total_pulses=total_pulses;
-    ev.segment_index=current_project_segment(e);ev.segment_repeat=e->segment_repeat_done;
-    ev.note=note;ev.velocity=vel;ev.ratchet_index=ratchet_index;ev.slide=slide;ev.probability_pass=pass;
-    ev.slot_index=e->active_slot;ev.loop_cycle_index=e->loop_cycle_pos;ev.slot_seq_index=e->slot_seq_pos;
-    ev.voice=(type==MELLO_EVENT_SUB_NOTE_ON||type==MELLO_EVENT_SUB_NOTE_OFF)?MELLO_VOICE_SUB:MELLO_VOICE_LEAD;
-    ev.effective_gate=e->last_mod.effective_gate;ev.effective_ratchet=e->last_mod.effective_ratchet;ev.effective_accent=e->last_mod.effective_accent;
-    ev.tm_index=e->last_mod.tm_index;ev.tm_octave_mod=e->last_mod.tm_octave_mod;ev.tm_filter_mod_q15=e->last_mod.tm_filter_mod_q15;ev.tm_decay_mod_q15=e->last_mod.tm_decay_mod_q15;
-    ev.matrix_filter_amount=e->last_mod.matrix_filter_amount;
-    for(i=0u;i<MELLO_DOT_MATRIX_COUNT;++i)ev.dot_cell[i]=e->last_mod.dot_cell[i];
-    (void)queue_push(e,&ev);
+    memset(&ev, 0, sizeof(ev));
+    ev.tick = tick;
+    ev.type = type;
+    ev.step_index = step_idx;
+    ev.pulse_index = pulse_idx;
+    ev.total_pulses = total_pulses;
+    ev.segment_index = current_project_segment(e);
+    ev.segment_repeat = e->segment_repeat_done;
+    ev.note = note;
+    ev.velocity = vel;
+    ev.ratchet_index = ratchet_index;
+    ev.slide = slide;
+    ev.probability_pass = pass;
+    ev.slot_index = e->active_slot;
+    ev.loop_cycle_index = e->loop_cycle_pos;
+    ev.slot_seq_index = e->slot_seq_pos;
+    ev.voice = (type == MELLO_EVENT_SUB_NOTE_ON || type == MELLO_EVENT_SUB_NOTE_OFF) ? MELLO_VOICE_SUB
+                                                                                     : MELLO_VOICE_LEAD;
+    ev.effective_gate = e->last_mod.effective_gate;
+    ev.effective_ratchet = e->last_mod.effective_ratchet;
+    ev.effective_accent = e->last_mod.effective_accent;
+    ev.tm_index = e->last_mod.tm_index;
+    ev.tm_octave_mod = e->last_mod.tm_octave_mod;
+    ev.tm_filter_mod_q15 = e->last_mod.tm_filter_mod_q15;
+    ev.tm_decay_mod_q15 = e->last_mod.tm_decay_mod_q15;
+    ev.matrix_filter_amount = e->last_mod.matrix_filter_amount;
+    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) ev.dot_cell[i] = e->last_mod.dot_cell[i];
+    (void)queue_push(e, &ev);
 }
 
-static void emit_note_pair(MelloEngine *e,uint32_t on_tick,uint32_t off_tick,
-                           uint8_t step_idx,uint8_t pulse_idx,uint8_t total_pulses,
-                           uint8_t note,uint8_t vel,uint8_t ratchet_index,bool slide,bool pass) {
-    emit_basic(e,MELLO_EVENT_NOTE_ON,on_tick,step_idx,pulse_idx,total_pulses,note,vel,ratchet_index,slide,pass);
-    emit_basic(e,MELLO_EVENT_NOTE_OFF,off_tick,step_idx,pulse_idx,total_pulses,note,0u,ratchet_index,slide,pass);
+static void emit_note_pair(MelloEngine *e, uint32_t on_tick, uint32_t off_tick, uint8_t step_idx,
+                           uint8_t pulse_idx, uint8_t total_pulses, uint8_t note, uint8_t vel,
+                           uint8_t ratchet_index, bool slide, bool pass)
+{
+    emit_basic(e, MELLO_EVENT_NOTE_ON, on_tick, step_idx, pulse_idx, total_pulses, note, vel, ratchet_index,
+               slide, pass);
+    emit_basic(e, MELLO_EVENT_NOTE_OFF, off_tick, step_idx, pulse_idx, total_pulses, note, 0u, ratchet_index,
+               slide, pass);
 }
 
-static void emit_sub_pair(MelloEngine *e,uint32_t on_tick,uint32_t off_tick,
-                          uint8_t step_idx,uint8_t pulse_idx,uint8_t total_pulses,
-                          uint8_t note,bool pass) {
-    emit_basic(e,MELLO_EVENT_SUB_NOTE_ON,on_tick,step_idx,pulse_idx,total_pulses,note,114u,0u,false,pass);
-    emit_basic(e,MELLO_EVENT_SUB_NOTE_OFF,off_tick,step_idx,pulse_idx,total_pulses,note,0u,0u,false,pass);
+static void emit_sub_pair(MelloEngine *e, uint32_t on_tick, uint32_t off_tick, uint8_t step_idx,
+                          uint8_t pulse_idx, uint8_t total_pulses, uint8_t note, bool pass)
+{
+    emit_basic(e, MELLO_EVENT_SUB_NOTE_ON, on_tick, step_idx, pulse_idx, total_pulses, note, 114u, 0u, false,
+               pass);
+    emit_basic(e, MELLO_EVENT_SUB_NOTE_OFF, off_tick, step_idx, pulse_idx, total_pulses, note, 0u, 0u, false,
+               pass);
 }
 
-static void emit_sample_pair(MelloEngine *e,uint32_t on_tick,uint32_t off_tick,
-                             uint8_t step_idx,uint8_t total_pulses,uint8_t note,uint8_t vel,
-                             uint8_t sample_slot,bool slide,bool pass) {
+static void emit_sample_pair(MelloEngine *e, uint32_t on_tick, uint32_t off_tick, uint8_t step_idx,
+                             uint8_t total_pulses, uint8_t note, uint8_t vel, uint8_t sample_slot, bool slide,
+                             bool pass)
+{
     MelloEvent ev;
     uint8_t i;
-    memset(&ev,0,sizeof ev);
-    ev.tick=on_tick; ev.type=MELLO_EVENT_SAMPLE_NOTE_ON; ev.step_index=step_idx; ev.pulse_index=0u; ev.total_pulses=total_pulses;
-    ev.segment_index=current_project_segment(e); ev.segment_repeat=e->segment_repeat_done; ev.note=note; ev.velocity=vel; ev.slide=slide; ev.probability_pass=pass;
-    ev.slot_index=e->active_slot; ev.loop_cycle_index=e->loop_cycle_pos; ev.slot_seq_index=e->slot_seq_pos; ev.voice=MELLO_VOICE_LEAD; ev.sample_slot=sample_slot;
-    ev.effective_gate=e->last_mod.effective_gate; ev.effective_ratchet=e->last_mod.effective_ratchet; ev.effective_accent=e->last_mod.effective_accent;
-    ev.tm_index=e->last_mod.tm_index; ev.tm_octave_mod=e->last_mod.tm_octave_mod; ev.tm_filter_mod_q15=e->last_mod.tm_filter_mod_q15; ev.tm_decay_mod_q15=e->last_mod.tm_decay_mod_q15; ev.matrix_filter_amount=e->last_mod.matrix_filter_amount;
-    for(i=0u;i<MELLO_DOT_MATRIX_COUNT;++i)ev.dot_cell[i]=e->last_mod.dot_cell[i];
-    (void)queue_push(e,&ev);
-    ev.tick=off_tick; ev.type=MELLO_EVENT_SAMPLE_NOTE_OFF; ev.velocity=0u; (void)queue_push(e,&ev);
+    memset(&ev, 0, sizeof ev);
+    ev.tick = on_tick;
+    ev.type = MELLO_EVENT_SAMPLE_NOTE_ON;
+    ev.step_index = step_idx;
+    ev.pulse_index = 0u;
+    ev.total_pulses = total_pulses;
+    ev.segment_index = current_project_segment(e);
+    ev.segment_repeat = e->segment_repeat_done;
+    ev.note = note;
+    ev.velocity = vel;
+    ev.slide = slide;
+    ev.probability_pass = pass;
+    ev.slot_index = e->active_slot;
+    ev.loop_cycle_index = e->loop_cycle_pos;
+    ev.slot_seq_index = e->slot_seq_pos;
+    ev.voice = MELLO_VOICE_LEAD;
+    ev.sample_slot = sample_slot;
+    ev.effective_gate = e->last_mod.effective_gate;
+    ev.effective_ratchet = e->last_mod.effective_ratchet;
+    ev.effective_accent = e->last_mod.effective_accent;
+    ev.tm_index = e->last_mod.tm_index;
+    ev.tm_octave_mod = e->last_mod.tm_octave_mod;
+    ev.tm_filter_mod_q15 = e->last_mod.tm_filter_mod_q15;
+    ev.tm_decay_mod_q15 = e->last_mod.tm_decay_mod_q15;
+    ev.matrix_filter_amount = e->last_mod.matrix_filter_amount;
+    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) ev.dot_cell[i] = e->last_mod.dot_cell[i];
+    (void)queue_push(e, &ev);
+    ev.tick = off_tick;
+    ev.type = MELLO_EVENT_SAMPLE_NOTE_OFF;
+    ev.velocity = 0u;
+    (void)queue_push(e, &ev);
 }
 
-static uint8_t velocity_for_accent(bool accent){return accent?121u:91u;}
+static uint8_t velocity_for_accent(bool accent)
+{
+    return accent ? 121u : 91u;
+}
 
-static void generate_gate_events(MelloEngine *e,const MelloStep *s,bool pass,uint8_t pulse_idx,uint8_t total,
-                                 MelloGateMode gate,uint8_t ratchets,bool accent,int8_t octave_mod) {
-    uint32_t pulse_ticks=mello_pulse_ticks(&e->project);
-    uint8_t note=resolve_engine_step_midi_mod(e,s,octave_mod);
-    uint8_t vel=velocity_for_accent(accent);
-    uint32_t t=e->now_tick;
-    ratchets=clamp_1_8(ratchets);
-    if(gate==MELLO_GATE_REST)return;
-    if(gate==MELLO_GATE_HOLD){
-        if(pulse_idx==0u)emit_basic(e,MELLO_EVENT_NOTE_ON,t,e->step_index,pulse_idx,total,note,vel,0u,s->slide,pass);
-        if(pulse_idx==(uint8_t)(total-1u)){
-            uint32_t off=t+(pulse_ticks*22u)/25u;
-            emit_basic(e,MELLO_EVENT_NOTE_OFF,off,e->step_index,pulse_idx,total,note,0u,0u,s->slide,pass);
+static void generate_gate_events(MelloEngine *e, const MelloStep *s, bool pass, uint8_t pulse_idx,
+                                 uint8_t total, MelloGateMode gate, uint8_t ratchets, bool accent,
+                                 int8_t octave_mod)
+{
+    uint32_t pulse_ticks = mello_pulse_ticks(&e->project);
+    uint8_t note = resolve_engine_step_midi_mod(e, s, octave_mod);
+    uint8_t vel = velocity_for_accent(accent);
+    uint32_t t = e->now_tick;
+    ratchets = clamp_1_8(ratchets);
+    if (gate == MELLO_GATE_REST) return;
+    if (gate == MELLO_GATE_HOLD) {
+        if (pulse_idx == 0u)
+            emit_basic(e, MELLO_EVENT_NOTE_ON, t, e->step_index, pulse_idx, total, note, vel, 0u, s->slide,
+                       pass);
+        if (pulse_idx == (uint8_t)(total - 1u)) {
+            uint32_t off = t + (pulse_ticks * 22u) / 25u;
+            emit_basic(e, MELLO_EVENT_NOTE_OFF, off, e->step_index, pulse_idx, total, note, 0u, 0u, s->slide,
+                       pass);
         }
         return;
     }
-    if(gate==MELLO_GATE_MULTI || (gate==MELLO_GATE_SINGLE && ratchets>1u)){
-        if(ratchets<=1u){
-            uint32_t dur=(pulse_ticks*2u)/5u;
-            emit_note_pair(e,t,t+dur,e->step_index,pulse_idx,total,note,vel,0u,s->slide,pass);
-        }else{
-            uint32_t sub=pulse_ticks/ratchets;
-            uint32_t raw_dur=(sub*18u)/25u;
-            uint32_t dur=clamp_duration_ms_as_ticks(&e->project,raw_dur,10u,250u);
+    if (gate == MELLO_GATE_MULTI || (gate == MELLO_GATE_SINGLE && ratchets > 1u)) {
+        if (ratchets <= 1u) {
+            uint32_t dur = (pulse_ticks * 2u) / 5u;
+            emit_note_pair(e, t, t + dur, e->step_index, pulse_idx, total, note, vel, 0u, s->slide, pass);
+        } else {
+            uint32_t sub = pulse_ticks / ratchets;
+            uint32_t raw_dur = (sub * 18u) / 25u;
+            uint32_t dur = clamp_duration_ms_as_ticks(&e->project, raw_dur, 10u, 250u);
             uint8_t r;
-            for(r=0u;r<ratchets;++r){uint32_t rt=t+sub*r;emit_note_pair(e,rt,rt+dur,e->step_index,pulse_idx,total,note,vel,r,s->slide,pass);}
+            for (r = 0u; r < ratchets; ++r) {
+                uint32_t rt = t + sub * r;
+                emit_note_pair(e, rt, rt + dur, e->step_index, pulse_idx, total, note, vel, r, s->slide,
+                               pass);
+            }
         }
         return;
     }
-    if(pulse_idx==0u){
-        uint32_t total_ticks=pulse_ticks*total;
-        uint32_t raw_dur=(total_ticks*41u)/50u;
-        uint32_t dur=clamp_duration_ms_as_ticks(&e->project,raw_dur,20u,4000u);
-        emit_note_pair(e,t,t+dur,e->step_index,pulse_idx,total,note,vel,0u,s->slide,pass);
+    if (pulse_idx == 0u) {
+        uint32_t total_ticks = pulse_ticks * total;
+        uint32_t raw_dur = (total_ticks * 41u) / 50u;
+        uint32_t dur = clamp_duration_ms_as_ticks(&e->project, raw_dur, 20u, 4000u);
+        emit_note_pair(e, t, t + dur, e->step_index, pulse_idx, total, note, vel, 0u, s->slide, pass);
     }
 }
 
-static void set_current_entry(MelloEngine *e) {
+static void set_current_entry(MelloEngine *e)
+{
     MelloRuntimeSegment *seg;
     MelloPulseEntry *pe;
-    if(!e || e->runtime_segment_count==0u){if(e)e->has_active_step=false;return;}
-    if(e->active_runtime_segment>=e->runtime_segment_count)e->active_runtime_segment=0u;
-    seg=&e->runtime_segments[e->active_runtime_segment];
-    if(seg->length==0u){e->has_active_step=false;return;}
-    if(e->segment_pulse_pos>=seg->length)e->segment_pulse_pos=0u;
-    pe=&e->runtime_pulses[seg->offset+e->segment_pulse_pos];
-    e->step_index=pe->step_index;
-    e->pulse_index=pe->pulse_index;
-    e->has_active_step=true;
+    if (!e || e->runtime_segment_count == 0u) {
+        if (e) e->has_active_step = false;
+        return;
+    }
+    if (e->active_runtime_segment >= e->runtime_segment_count) e->active_runtime_segment = 0u;
+    seg = &e->runtime_segments[e->active_runtime_segment];
+    if (seg->length == 0u) {
+        e->has_active_step = false;
+        return;
+    }
+    if (e->segment_pulse_pos >= seg->length) e->segment_pulse_pos = 0u;
+    pe = &e->runtime_pulses[seg->offset + e->segment_pulse_pos];
+    e->step_index = pe->step_index;
+    e->pulse_index = pe->pulse_index;
+    e->has_active_step = true;
 }
 
-static void advance_segment_traversal(MelloEngine *e) {
-    MelloRuntimeSegment *seg=&e->runtime_segments[e->active_runtime_segment];
-    uint8_t project_seg=seg->project_segment;
-    uint8_t needed=clamp_repeat(e->project.seg_repeats[project_seg]);
+static void advance_segment_traversal(MelloEngine *e)
+{
+    MelloRuntimeSegment *seg = &e->runtime_segments[e->active_runtime_segment];
+    uint8_t project_seg = seg->project_segment;
+    uint8_t needed = clamp_repeat(e->project.seg_repeats[project_seg]);
     e->segment_pulse_pos++;
-    if(e->segment_pulse_pos>=seg->length){
-        e->segment_pulse_pos=0u;
+    if (e->segment_pulse_pos >= seg->length) {
+        e->segment_pulse_pos = 0u;
         e->segment_repeat_done++;
-        if(e->segment_repeat_done>=needed){
-            e->segment_repeat_done=0u;
-            e->active_runtime_segment=(uint8_t)((e->active_runtime_segment+1u)%e->runtime_segment_count);
+        if (e->segment_repeat_done >= needed) {
+            e->segment_repeat_done = 0u;
+            e->active_runtime_segment =
+                (uint8_t)((e->active_runtime_segment + 1u) % e->runtime_segment_count);
         }
     }
 }
 
-static void emit_state_event(MelloEngine *e, MelloEventType type, uint32_t tick) {
-    MelloEvent ev; memset(&ev,0,sizeof(ev)); ev.tick=tick; ev.type=type;
-    ev.step_index=e->step_index; ev.pulse_index=e->pulse_index; ev.segment_index=current_project_segment(e);
-    ev.slot_index=e->active_slot; ev.loop_cycle_index=e->loop_cycle_pos; ev.slot_seq_index=e->slot_seq_pos;
-    (void)queue_push(e,&ev);
+static void emit_state_event(MelloEngine *e, MelloEventType type, uint32_t tick)
+{
+    MelloEvent ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.tick = tick;
+    ev.type = type;
+    ev.step_index = e->step_index;
+    ev.pulse_index = e->pulse_index;
+    ev.segment_index = current_project_segment(e);
+    ev.slot_index = e->active_slot;
+    ev.loop_cycle_index = e->loop_cycle_pos;
+    ev.slot_seq_index = e->slot_seq_pos;
+    (void)queue_push(e, &ev);
 }
 
-void mello_engine_loop_cycle_set_active(MelloEngine *e, bool active){if(!e)return;e->loop_cycle.active=active;if(active&&e->loop_cycle.length&&e->loop_cycle_pos>=e->loop_cycle.length)e->loop_cycle_pos=(uint8_t)(e->loop_cycle_pos%e->loop_cycle.length);}
-void mello_engine_loop_cycle_set_sync(MelloEngine *e, bool sync){if(e)e->loop_cycle.sync=sync;}
-
-void mello_engine_loop_cycle_set_length(MelloEngine *e, uint8_t length) {
-    if(!e)return;
-    if(length<2u)length=2u;
-    if(length>MELLO_MAX_LOOP_CYCLE_STEPS)length=MELLO_MAX_LOOP_CYCLE_STEPS;
-    e->loop_cycle.length=length;
-    e->loop_cycle_tick=0u;
-    if(e->loop_cycle_pos>=length)e->loop_cycle_pos=(uint8_t)(e->loop_cycle_pos%length);
+void mello_engine_loop_cycle_set_active(MelloEngine *e, bool active)
+{
+    if (!e) return;
+    e->loop_cycle.active = active;
+    if (active && e->loop_cycle.length && e->loop_cycle_pos >= e->loop_cycle.length)
+        e->loop_cycle_pos = (uint8_t)(e->loop_cycle_pos % e->loop_cycle.length);
+}
+void mello_engine_loop_cycle_set_sync(MelloEngine *e, bool sync)
+{
+    if (e) e->loop_cycle.sync = sync;
 }
 
-void mello_engine_loop_cycle_set_step(MelloEngine *e, uint8_t index, const MelloLoopCycleStep *step) {
-    if(!e||!step||index>=MELLO_MAX_LOOP_CYCLE_STEPS)return;
-    e->loop_cycle.steps[index]=sanitize_loop_step(*step);
-    e->loop_cycle_tick=0u;
+void mello_engine_loop_cycle_set_length(MelloEngine *e, uint8_t length)
+{
+    if (!e) return;
+    if (length < 2u) length = 2u;
+    if (length > MELLO_MAX_LOOP_CYCLE_STEPS) length = MELLO_MAX_LOOP_CYCLE_STEPS;
+    e->loop_cycle.length = length;
+    e->loop_cycle_tick = 0u;
+    if (e->loop_cycle_pos >= length) e->loop_cycle_pos = (uint8_t)(e->loop_cycle_pos % length);
 }
 
-void mello_engine_loop_cycle_select(MelloEngine *e, uint8_t index) {
-    uint8_t len; if(!e)return; len=e->loop_cycle.length; if(len<2u)len=2u; if(len>MELLO_MAX_LOOP_CYCLE_STEPS)len=MELLO_MAX_LOOP_CYCLE_STEPS;
-    if(e->loop_cycle.active){if(index>=len)index=(uint8_t)(index%len);}
-    else if(index>=MELLO_MAX_LOOP_CYCLE_STEPS)index=(uint8_t)(index%MELLO_MAX_LOOP_CYCLE_STEPS);
-    e->loop_cycle_pos=index;
-    e->loop_cycle_tick=0u;
+void mello_engine_loop_cycle_set_step(MelloEngine *e, uint8_t index, const MelloLoopCycleStep *step)
+{
+    if (!e || !step || index >= MELLO_MAX_LOOP_CYCLE_STEPS) return;
+    e->loop_cycle.steps[index] = sanitize_loop_step(*step);
+    e->loop_cycle_tick = 0u;
 }
 
-void mello_engine_loop_cycle_reset_position(MelloEngine *e) {if(!e)return;e->loop_cycle_pos=0u;e->loop_cycle_tick=0u;e->loop_cycle_count=0u;}
-
-static void copy_name(char dst[MELLO_SLOT_NAME_CHARS+1u], const char *src) {
-    uint8_t i=0u; if(!dst)return; if(src){while(i<MELLO_SLOT_NAME_CHARS && src[i]){dst[i]=src[i];i++;}} dst[i]='\0';
-    while(++i<=MELLO_SLOT_NAME_CHARS)dst[i]='\0';
+void mello_engine_loop_cycle_select(MelloEngine *e, uint8_t index)
+{
+    uint8_t len;
+    if (!e) return;
+    len = e->loop_cycle.length;
+    if (len < 2u) len = 2u;
+    if (len > MELLO_MAX_LOOP_CYCLE_STEPS) len = MELLO_MAX_LOOP_CYCLE_STEPS;
+    if (e->loop_cycle.active) {
+        if (index >= len) index = (uint8_t)(index % len);
+    } else if (index >= MELLO_MAX_LOOP_CYCLE_STEPS)
+        index = (uint8_t)(index % MELLO_MAX_LOOP_CYCLE_STEPS);
+    e->loop_cycle_pos = index;
+    e->loop_cycle_tick = 0u;
 }
 
-static void rebuild_preserving_phase(MelloEngine *e) {
-    uint8_t active=e->active_runtime_segment; uint16_t pos=e->segment_pulse_pos; uint8_t rep=e->segment_repeat_done;
-    e->runtime_built=false; if(!mello_engine_rebuild_sequence(e))return;
-    if(e->runtime_segment_count){
-        e->active_runtime_segment=(uint8_t)(active%e->runtime_segment_count);
-        if(e->runtime_segments[e->active_runtime_segment].length)e->segment_pulse_pos=(uint16_t)(pos%e->runtime_segments[e->active_runtime_segment].length);
-        else e->segment_pulse_pos=0u;
-        e->segment_repeat_done=rep; set_current_entry(e);
+void mello_engine_loop_cycle_reset_position(MelloEngine *e)
+{
+    if (!e) return;
+    e->loop_cycle_pos = 0u;
+    e->loop_cycle_tick = 0u;
+    e->loop_cycle_count = 0u;
+}
+
+static void copy_name(char dst[MELLO_SLOT_NAME_CHARS + 1u], const char *src)
+{
+    uint8_t i = 0u;
+    if (!dst) return;
+    if (src) {
+        while (i < MELLO_SLOT_NAME_CHARS && src[i]) {
+            dst[i] = src[i];
+            i++;
+        }
+    }
+    dst[i] = '\0';
+    while (++i <= MELLO_SLOT_NAME_CHARS) dst[i] = '\0';
+}
+
+static void rebuild_preserving_phase(MelloEngine *e)
+{
+    uint8_t active = e->active_runtime_segment;
+    uint16_t pos = e->segment_pulse_pos;
+    uint8_t rep = e->segment_repeat_done;
+    e->runtime_built = false;
+    if (!mello_engine_rebuild_sequence(e)) return;
+    if (e->runtime_segment_count) {
+        e->active_runtime_segment = (uint8_t)(active % e->runtime_segment_count);
+        if (e->runtime_segments[e->active_runtime_segment].length)
+            e->segment_pulse_pos = (uint16_t)(pos % e->runtime_segments[e->active_runtime_segment].length);
+        else
+            e->segment_pulse_pos = 0u;
+        e->segment_repeat_done = rep;
+        set_current_entry(e);
     }
 }
 
-void mello_engine_clear_pattern(MelloEngine *e) {
+void mello_engine_clear_pattern(MelloEngine *e)
+{
     MelloProject defaults;
     MelloLoopCycleConfig loop_defaults;
     bool loop_active, loop_sync;
     uint8_t loop_length, i;
-    if(!e)return;
+    if (!e) return;
 
     /* Source CLEAR resets only the 32 main steps plus the eight Loop Cycle
      * step records/position. Global sequence, segment and generator settings stay. */
     mello_project_defaults(&defaults);
-    for(i=0u;i<MELLO_MAX_STEPS;++i)e->project.steps[i]=defaults.steps[i];
+    for (i = 0u; i < MELLO_MAX_STEPS; ++i) e->project.steps[i] = defaults.steps[i];
 
-    loop_active=e->loop_cycle.active;
-    loop_sync=e->loop_cycle.sync;
-    loop_length=e->loop_cycle.length;
+    loop_active = e->loop_cycle.active;
+    loop_sync = e->loop_cycle.sync;
+    loop_length = e->loop_cycle.length;
     mello_loop_cycle_defaults(&loop_defaults);
-    for(i=0u;i<MELLO_MAX_LOOP_CYCLE_STEPS;++i)e->loop_cycle.steps[i]=loop_defaults.steps[i];
-    e->loop_cycle.active=loop_active;
-    e->loop_cycle.sync=loop_sync;
-    e->loop_cycle.length=loop_length;
-    e->loop_cycle_pos=0u;
-    e->loop_cycle_tick=0u;
-    e->loop_cycle_count=0u;
+    for (i = 0u; i < MELLO_MAX_LOOP_CYCLE_STEPS; ++i) e->loop_cycle.steps[i] = loop_defaults.steps[i];
+    e->loop_cycle.active = loop_active;
+    e->loop_cycle.sync = loop_sync;
+    e->loop_cycle.length = loop_length;
+    e->loop_cycle_pos = 0u;
+    e->loop_cycle_tick = 0u;
+    e->loop_cycle_count = 0u;
 
-    if(e->playing)rebuild_preserving_phase(e);
-    else e->runtime_built=false;
+    if (e->playing)
+        rebuild_preserving_phase(e);
+    else
+        e->runtime_built = false;
 }
 
-static bool apply_slot(MelloEngine *e, uint8_t index, bool from_slot_seq, uint32_t event_tick) {
-    MelloProject next; uint16_t bpm; MelloLoopCycleConfig preserved_loop; uint8_t lp; uint16_t lt; uint32_t lc; uint8_t i;
-    if(!e||index>=MELLO_MAX_SLOTS||!e->slots[index].valid)return false;
-    bpm=e->project.bpm; mello_stored_project_decode(&next,&e->slots[index].project); next.bpm=bpm; sanitize_project(&next);
-    preserved_loop=e->loop_cycle; lp=e->loop_cycle_pos; lt=e->loop_cycle_tick; lc=e->loop_cycle_count;
-    e->project=next;
+static bool apply_slot(MelloEngine *e, uint8_t index, bool from_slot_seq, uint32_t event_tick)
+{
+    MelloProject next;
+    uint16_t bpm;
+    MelloLoopCycleConfig preserved_loop;
+    uint8_t lp;
+    uint16_t lt;
+    uint32_t lc;
+    uint8_t i;
+    if (!e || index >= MELLO_MAX_SLOTS || !e->slots[index].valid) return false;
+    bpm = e->project.bpm;
+    mello_stored_project_decode(&next, &e->slots[index].project);
+    next.bpm = bpm;
+    sanitize_project(&next);
+    preserved_loop = e->loop_cycle;
+    lp = e->loop_cycle_pos;
+    lt = e->loop_cycle_tick;
+    lc = e->loop_cycle_count;
+    e->project = next;
 
     /* Source snapshots switch all generative config with a slot; Slot Seq preserves only Loop Cycle. */
-    for(i=0u;i<MELLO_DOT_MATRIX_COUNT;++i)e->dot[i]=sanitize_dot_config(e->slots[index].dot[i]);
-    e->tm=sanitize_tm_config(e->slots[index].tm);
+    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) e->dot[i] = sanitize_dot_config(e->slots[index].dot[i]);
+    e->tm = sanitize_tm_config(e->slots[index].tm);
     {
-        uint8_t saved_len=e->slots[index].tm_bool_len;
-        if(saved_len>MELLO_TM_MAX_STEPS)saved_len=MELLO_TM_MAX_STEPS;
-        for(i=0u;i<saved_len;++i)e->tm_bool_reg[i]=e->slots[index].tm_bool_reg[i]?1u:0u;
-        for(i=saved_len;i<MELLO_TM_MAX_STEPS;++i)e->tm_bool_reg[i]=gen_unit16(&e->gen_rng)>=32768u?1u:0u;
-        e->tm_bool_len=MELLO_TM_MAX_STEPS; /* loadSnapshot uses tmEnsureLength(..., MAX_STEPS). */
+        uint8_t saved_len = e->slots[index].tm_bool_len;
+        if (saved_len > MELLO_TM_MAX_STEPS) saved_len = MELLO_TM_MAX_STEPS;
+        for (i = 0u; i < saved_len; ++i) e->tm_bool_reg[i] = e->slots[index].tm_bool_reg[i] ? 1u : 0u;
+        for (i = saved_len; i < MELLO_TM_MAX_STEPS; ++i)
+            e->tm_bool_reg[i] = gen_unit16(&e->gen_rng) >= 32768u ? 1u : 0u;
+        e->tm_bool_len = MELLO_TM_MAX_STEPS; /* loadSnapshot uses tmEnsureLength(..., MAX_STEPS). */
     }
-    if(e->tm_float_len<e->tm.length){
-        for(i=e->tm_float_len;i<e->tm.length;++i)e->tm_float_reg[i]=gen_unit16(&e->gen_rng);
-        e->tm_float_len=e->tm.length;
+    if (e->tm_float_len < e->tm.length) {
+        for (i = e->tm_float_len; i < e->tm.length; ++i) e->tm_float_reg[i] = gen_unit16(&e->gen_rng);
+        e->tm_float_len = e->tm.length;
     }
-    e->sub=sanitize_sub_config(e->slots[index].sub);
-    e->randomize=e->slots[index].randomize;
-    e->sound=sanitize_sound_config(e->slots[index].sound);
-    e->sample=sanitize_sample_config(e->slots[index].sample);
-    e->randomize.mask&=MELLO_RAND_ALL;
+    e->sub = sanitize_sub_config(e->slots[index].sub);
+    e->randomize = e->slots[index].randomize;
+    e->sound = sanitize_sound_config(e->slots[index].sound);
+    e->sample = sanitize_sample_config(e->slots[index].sample);
+    e->randomize.mask &= MELLO_RAND_ALL;
     mello_engine_dot_reset_runtime(e); /* dotMatrixCfg setEffect resets runtime and counters. */
-    if(e->sub.x_reset){e->sub_x_pos=0u;e->sub_x_active_index=e->sub.x_on?0:-1;}
+    if (e->sub.x_reset) {
+        e->sub_x_pos = 0u;
+        e->sub_x_active_index = e->sub.x_on ? 0 : -1;
+    }
 
-    if(from_slot_seq){e->loop_cycle=preserved_loop;sanitize_loop_config(&e->loop_cycle);e->loop_cycle_pos=lp;e->loop_cycle_tick=lt;e->loop_cycle_count=lc;rebuild_preserving_phase(e);}
-    else{e->loop_cycle=e->slots[index].loop_cycle;sanitize_loop_config(&e->loop_cycle);
-         e->loop_cycle_pos=0u;e->loop_cycle_tick=0u;e->loop_cycle_count=0u;e->absolute_pulse=0u;e->active_runtime_segment=0u;e->segment_pulse_pos=0u;e->segment_repeat_done=0u;
-         e->runtime_built=false;(void)mello_engine_rebuild_sequence(e);set_current_entry(e);}
-    e->active_slot=(int8_t)index; emit_state_event(e,MELLO_EVENT_SLOT_CHANGE,event_tick); return true;
+    if (from_slot_seq) {
+        e->loop_cycle = preserved_loop;
+        sanitize_loop_config(&e->loop_cycle);
+        e->loop_cycle_pos = lp;
+        e->loop_cycle_tick = lt;
+        e->loop_cycle_count = lc;
+        rebuild_preserving_phase(e);
+    } else {
+        e->loop_cycle = e->slots[index].loop_cycle;
+        sanitize_loop_config(&e->loop_cycle);
+        e->loop_cycle_pos = 0u;
+        e->loop_cycle_tick = 0u;
+        e->loop_cycle_count = 0u;
+        e->absolute_pulse = 0u;
+        e->active_runtime_segment = 0u;
+        e->segment_pulse_pos = 0u;
+        e->segment_repeat_done = 0u;
+        e->runtime_built = false;
+        (void)mello_engine_rebuild_sequence(e);
+        set_current_entry(e);
+    }
+    e->active_slot = (int8_t)index;
+    emit_state_event(e, MELLO_EVENT_SLOT_CHANGE, event_tick);
+    return true;
 }
 
-void mello_engine_capture_working(const MelloEngine *e, MelloPatternSlot *out) {
+void mello_engine_capture_working(const MelloEngine *e, MelloPatternSlot *out)
+{
     uint8_t i;
-    if(!e||!out)return;
-    memset(out,0,sizeof(*out));
-    out->valid=true;
-    mello_stored_project_encode(&out->project,&e->project);
-    out->loop_cycle=e->loop_cycle;
-    for(i=0u;i<MELLO_DOT_MATRIX_COUNT;++i)out->dot[i]=e->dot[i];
-    out->tm=e->tm;
-    out->tm_bool_len=e->tm_bool_len>MELLO_TM_MAX_STEPS?MELLO_TM_MAX_STEPS:e->tm_bool_len;
-    for(i=0u;i<MELLO_TM_MAX_STEPS;++i)out->tm_bool_reg[i]=(i<out->tm_bool_len&&e->tm_bool_reg[i])?1u:0u;
-    out->sub=e->sub;
-    out->randomize=e->randomize;
-    out->sound=e->sound;
-    out->sample=e->sample;
-    out->fx=e->fx;
+    if (!e || !out) return;
+    memset(out, 0, sizeof(*out));
+    out->valid = true;
+    mello_stored_project_encode(&out->project, &e->project);
+    out->loop_cycle = e->loop_cycle;
+    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) out->dot[i] = e->dot[i];
+    out->tm = e->tm;
+    out->tm_bool_len = e->tm_bool_len > MELLO_TM_MAX_STEPS ? MELLO_TM_MAX_STEPS : e->tm_bool_len;
+    for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i)
+        out->tm_bool_reg[i] = (i < out->tm_bool_len && e->tm_bool_reg[i]) ? 1u : 0u;
+    out->sub = e->sub;
+    out->randomize = e->randomize;
+    out->sound = e->sound;
+    out->sample = e->sample;
+    out->fx = e->fx;
 }
 
-bool mello_engine_restore_working(MelloEngine *e, const MelloPatternSlot *snapshot) {
+bool mello_engine_restore_working(MelloEngine *e, const MelloPatternSlot *snapshot)
+{
     MelloProject p;
-    uint8_t i,saved_len;
-    if(!e||!snapshot)return false;
-    mello_stored_project_decode(&p,&snapshot->project);
-    e->project=p;
-    e->loop_cycle=snapshot->loop_cycle; sanitize_loop_config(&e->loop_cycle);
-    for(i=0u;i<MELLO_DOT_MATRIX_COUNT;++i)e->dot[i]=sanitize_dot_config(snapshot->dot[i]);
-    e->tm=sanitize_tm_config(snapshot->tm);
-    saved_len=snapshot->tm_bool_len>MELLO_TM_MAX_STEPS?MELLO_TM_MAX_STEPS:snapshot->tm_bool_len;
-    for(i=0u;i<saved_len;++i)e->tm_bool_reg[i]=snapshot->tm_bool_reg[i]?1u:0u;
-    for(i=saved_len;i<MELLO_TM_MAX_STEPS;++i)e->tm_bool_reg[i]=gen_unit16(&e->gen_rng)>=32768u?1u:0u;
-    e->tm_bool_len=MELLO_TM_MAX_STEPS;
-    e->sub=sanitize_sub_config(snapshot->sub);
-    e->randomize=snapshot->randomize; e->randomize.mask&=MELLO_RAND_ALL;
-    e->sound=sanitize_sound_config(snapshot->sound);
-    e->sample=sanitize_sample_config(snapshot->sample);
-    e->fx=sanitize_fx_config(snapshot->fx);
-    e->playing=false; e->has_active_step=false; e->step_index=0u; e->pulse_index=0u;
-    e->absolute_pulse=0u; e->loop_count=0u;
-    e->loop_cycle_pos=0u; e->loop_cycle_tick=0u; e->loop_cycle_count=0u;
-    e->active_slot=-1; e->queued_slot=-1;
-    e->slot_seq_pos=0u; e->slot_seq_hold=0u;
-    e->sub_x_pos=0u; e->sub_x_active_index=e->sub.x_on?0:-1;
+    uint8_t i, saved_len;
+    if (!e || !snapshot) return false;
+    mello_stored_project_decode(&p, &snapshot->project);
+    e->project = p;
+    e->loop_cycle = snapshot->loop_cycle;
+    sanitize_loop_config(&e->loop_cycle);
+    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) e->dot[i] = sanitize_dot_config(snapshot->dot[i]);
+    e->tm = sanitize_tm_config(snapshot->tm);
+    saved_len = snapshot->tm_bool_len > MELLO_TM_MAX_STEPS ? MELLO_TM_MAX_STEPS : snapshot->tm_bool_len;
+    for (i = 0u; i < saved_len; ++i) e->tm_bool_reg[i] = snapshot->tm_bool_reg[i] ? 1u : 0u;
+    for (i = saved_len; i < MELLO_TM_MAX_STEPS; ++i)
+        e->tm_bool_reg[i] = gen_unit16(&e->gen_rng) >= 32768u ? 1u : 0u;
+    e->tm_bool_len = MELLO_TM_MAX_STEPS;
+    e->sub = sanitize_sub_config(snapshot->sub);
+    e->randomize = snapshot->randomize;
+    e->randomize.mask &= MELLO_RAND_ALL;
+    e->sound = sanitize_sound_config(snapshot->sound);
+    e->sample = sanitize_sample_config(snapshot->sample);
+    e->fx = sanitize_fx_config(snapshot->fx);
+    e->playing = false;
+    e->has_active_step = false;
+    e->step_index = 0u;
+    e->pulse_index = 0u;
+    e->absolute_pulse = 0u;
+    e->loop_count = 0u;
+    e->loop_cycle_pos = 0u;
+    e->loop_cycle_tick = 0u;
+    e->loop_cycle_count = 0u;
+    e->active_slot = -1;
+    e->queued_slot = -1;
+    e->slot_seq_pos = 0u;
+    e->slot_seq_hold = 0u;
+    e->sub_x_pos = 0u;
+    e->sub_x_active_index = e->sub.x_on ? 0 : -1;
     mello_engine_dot_reset_runtime(e);
-    e->runtime_built=false; e->active_runtime_segment=0u; e->segment_pulse_pos=0u; e->segment_repeat_done=0u;
+    e->runtime_built = false;
+    e->active_runtime_segment = 0u;
+    e->segment_pulse_pos = 0u;
+    e->segment_repeat_done = 0u;
     mello_event_clear(e);
     return mello_engine_rebuild_sequence(e);
 }
 
-bool mello_engine_import_slot(MelloEngine *e, uint8_t index, const MelloPatternSlot *slot) {
+bool mello_engine_import_slot(MelloEngine *e, uint8_t index, const MelloPatternSlot *slot)
+{
     MelloPatternSlot clean;
     MelloProject p;
-    uint8_t i,n;
-    if(!e||!slot||index>=MELLO_MAX_SLOTS)return false;
-    memset(&clean,0,sizeof(clean));
-    clean.valid=slot->valid;
-    copy_name(clean.name,slot->name);
-    mello_stored_project_decode(&p,&slot->project);
-    mello_stored_project_encode(&clean.project,&p);
-    clean.loop_cycle=slot->loop_cycle; sanitize_loop_config(&clean.loop_cycle);
-    for(i=0u;i<MELLO_DOT_MATRIX_COUNT;++i)clean.dot[i]=sanitize_dot_config(slot->dot[i]);
-    clean.tm=sanitize_tm_config(slot->tm);
-    n=slot->tm_bool_len>MELLO_TM_MAX_STEPS?MELLO_TM_MAX_STEPS:slot->tm_bool_len;
-    clean.tm_bool_len=n;
-    for(i=0u;i<n;++i)clean.tm_bool_reg[i]=slot->tm_bool_reg[i]?1u:0u;
-    clean.sub=sanitize_sub_config(slot->sub);
-    clean.randomize=slot->randomize; clean.randomize.mask&=MELLO_RAND_ALL;
-    clean.sound=sanitize_sound_config(slot->sound);
-    clean.sample=sanitize_sample_config(slot->sample);
-    clean.fx=sanitize_fx_config(slot->fx);
-    e->slots[index]=clean;
+    uint8_t i, n;
+    if (!e || !slot || index >= MELLO_MAX_SLOTS) return false;
+    memset(&clean, 0, sizeof(clean));
+    clean.valid = slot->valid;
+    copy_name(clean.name, slot->name);
+    mello_stored_project_decode(&p, &slot->project);
+    mello_stored_project_encode(&clean.project, &p);
+    clean.loop_cycle = slot->loop_cycle;
+    sanitize_loop_config(&clean.loop_cycle);
+    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) clean.dot[i] = sanitize_dot_config(slot->dot[i]);
+    clean.tm = sanitize_tm_config(slot->tm);
+    n = slot->tm_bool_len > MELLO_TM_MAX_STEPS ? MELLO_TM_MAX_STEPS : slot->tm_bool_len;
+    clean.tm_bool_len = n;
+    for (i = 0u; i < n; ++i) clean.tm_bool_reg[i] = slot->tm_bool_reg[i] ? 1u : 0u;
+    clean.sub = sanitize_sub_config(slot->sub);
+    clean.randomize = slot->randomize;
+    clean.randomize.mask &= MELLO_RAND_ALL;
+    clean.sound = sanitize_sound_config(slot->sound);
+    clean.sample = sanitize_sample_config(slot->sample);
+    clean.fx = sanitize_fx_config(slot->fx);
+    e->slots[index] = clean;
     return true;
 }
 
-void mello_engine_clear_slots(MelloEngine *e) {
-    if(!e)return;
-    memset(e->slots,0,sizeof(e->slots));
-    e->active_slot=-1; e->queued_slot=-1;
+void mello_engine_clear_slots(MelloEngine *e)
+{
+    if (!e) return;
+    memset(e->slots, 0, sizeof(e->slots));
+    e->active_slot = -1;
+    e->queued_slot = -1;
 }
 
-bool mello_engine_save_slot(MelloEngine *e, uint8_t index, const char *name) {
+bool mello_engine_save_slot(MelloEngine *e, uint8_t index, const char *name)
+{
     uint8_t i;
-    if(!e||index>=MELLO_MAX_SLOTS)return false;
-    e->slots[index].valid=true;
-    mello_stored_project_encode(&e->slots[index].project,&e->project);
-    e->slots[index].loop_cycle=e->loop_cycle;
-    for(i=0u;i<MELLO_DOT_MATRIX_COUNT;++i)e->slots[index].dot[i]=e->dot[i];
-    e->slots[index].tm=e->tm;
-    e->slots[index].tm_bool_len=e->tm_bool_len;
-    for(i=0u;i<MELLO_TM_MAX_STEPS;++i)e->slots[index].tm_bool_reg[i]=(i<e->tm_bool_len&&e->tm_bool_reg[i])?1u:0u;
-    e->slots[index].sub=e->sub;
-    e->slots[index].randomize=e->randomize;
-    e->slots[index].sound=e->sound;
-    e->slots[index].sample=e->sample;
+    if (!e || index >= MELLO_MAX_SLOTS) return false;
+    e->slots[index].valid = true;
+    mello_stored_project_encode(&e->slots[index].project, &e->project);
+    e->slots[index].loop_cycle = e->loop_cycle;
+    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) e->slots[index].dot[i] = e->dot[i];
+    e->slots[index].tm = e->tm;
+    e->slots[index].tm_bool_len = e->tm_bool_len;
+    for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i)
+        e->slots[index].tm_bool_reg[i] = (i < e->tm_bool_len && e->tm_bool_reg[i]) ? 1u : 0u;
+    e->slots[index].sub = e->sub;
+    e->slots[index].randomize = e->randomize;
+    e->slots[index].sound = e->sound;
+    e->slots[index].sample = e->sample;
     mello_fx_defaults(&e->slots[index].fx); /* source slots strip global audio-FX fields */
-    copy_name(e->slots[index].name,name);
-    e->active_slot=(int8_t)index;
+    copy_name(e->slots[index].name, name);
+    e->active_slot = (int8_t)index;
     return true;
 }
 
-bool mello_engine_request_slot(MelloEngine *e, uint8_t index) {
-    if(!e||index>=MELLO_MAX_SLOTS||!e->slots[index].valid)return false;
-    if(e->playing){e->queued_slot=(e->queued_slot==(int8_t)index)?-1:(int8_t)index;return true;}
-    e->queued_slot=-1;return apply_slot(e,index,false,e->now_tick);
+bool mello_engine_request_slot(MelloEngine *e, uint8_t index)
+{
+    if (!e || index >= MELLO_MAX_SLOTS || !e->slots[index].valid) return false;
+    if (e->playing) {
+        e->queued_slot = (e->queued_slot == (int8_t)index) ? -1 : (int8_t)index;
+        return true;
+    }
+    e->queued_slot = -1;
+    return apply_slot(e, index, false, e->now_tick);
 }
 
-bool mello_engine_slot_valid(const MelloEngine *e, uint8_t index){return e&&index<MELLO_MAX_SLOTS&&e->slots[index].valid;}
-
-void mello_engine_set_visible_slot_count(MelloEngine *e, uint8_t count) {
-    uint8_t i; if(!e)return; e->visible_slot_count=sanitize_visible_slot_count(count);
-    if(e->active_slot>=(int8_t)e->visible_slot_count)e->active_slot=-1;
-    if(e->queued_slot>=(int8_t)e->visible_slot_count)e->queued_slot=-1;
-    for(i=0u;i<MELLO_MAX_SLOT_SEQ_STEPS;++i)if(e->slot_seq.steps[i].slot>=(int8_t)e->visible_slot_count)e->slot_seq.steps[i].slot=-1;
+bool mello_engine_slot_valid(const MelloEngine *e, uint8_t index)
+{
+    return e && index < MELLO_MAX_SLOTS && e->slots[index].valid;
 }
 
-void mello_engine_slot_seq_set_active(MelloEngine *e, bool active){if(e)e->slot_seq.active=active;}
-
-void mello_engine_slot_seq_set_length(MelloEngine *e, uint8_t length) {
-    if(!e)return;
-    e->slot_seq.length=sanitize_slot_seq_length(length);
-    if(e->slot_seq_pos>=e->slot_seq.length)mello_engine_slot_seq_reset_position(e);
+void mello_engine_set_visible_slot_count(MelloEngine *e, uint8_t count)
+{
+    uint8_t i;
+    if (!e) return;
+    e->visible_slot_count = sanitize_visible_slot_count(count);
+    if (e->active_slot >= (int8_t)e->visible_slot_count) e->active_slot = -1;
+    if (e->queued_slot >= (int8_t)e->visible_slot_count) e->queued_slot = -1;
+    for (i = 0u; i < MELLO_MAX_SLOT_SEQ_STEPS; ++i)
+        if (e->slot_seq.steps[i].slot >= (int8_t)e->visible_slot_count) e->slot_seq.steps[i].slot = -1;
 }
 
-void mello_engine_slot_seq_set_step(MelloEngine *e, uint8_t index, int8_t slot, uint16_t hold) {
-    if(!e||index>=MELLO_MAX_SLOT_SEQ_STEPS)return;
-    if(slot<-1||slot>=(int8_t)MELLO_MAX_SLOTS)slot=-1;
-    if(slot>=(int8_t)e->visible_slot_count)slot=-1;
-    e->slot_seq.steps[index].slot=slot;
-    e->slot_seq.steps[index].hold=clamp_hold(hold);
+void mello_engine_slot_seq_set_active(MelloEngine *e, bool active)
+{
+    if (e) e->slot_seq.active = active;
 }
 
-void mello_engine_slot_seq_reset_position(MelloEngine *e){if(!e)return;e->slot_seq_pos=0u;e->slot_seq_hold=0u;}
+void mello_engine_slot_seq_set_length(MelloEngine *e, uint8_t length)
+{
+    if (!e) return;
+    e->slot_seq.length = sanitize_slot_seq_length(length);
+    if (e->slot_seq_pos >= e->slot_seq.length) mello_engine_slot_seq_reset_position(e);
+}
 
-void mello_engine_dot_set_config(MelloEngine *e, MelloDotTarget target, const MelloDotMatrixConfig *config) {
-    if(!e||!config||target>=MELLO_DOT_MATRIX_COUNT)return;
-    e->dot[target]=sanitize_dot_config(*config);
+void mello_engine_slot_seq_set_step(MelloEngine *e, uint8_t index, int8_t slot, uint16_t hold)
+{
+    if (!e || index >= MELLO_MAX_SLOT_SEQ_STEPS) return;
+    if (slot < -1 || slot >= (int8_t)MELLO_MAX_SLOTS) slot = -1;
+    if (slot >= (int8_t)e->visible_slot_count) slot = -1;
+    e->slot_seq.steps[index].slot = slot;
+    e->slot_seq.steps[index].hold = clamp_hold(hold);
+}
+
+void mello_engine_slot_seq_reset_position(MelloEngine *e)
+{
+    if (!e) return;
+    e->slot_seq_pos = 0u;
+    e->slot_seq_hold = 0u;
+}
+
+void mello_engine_dot_set_config(MelloEngine *e, MelloDotTarget target, const MelloDotMatrixConfig *config)
+{
+    if (!e || !config || target >= MELLO_DOT_MATRIX_COUNT) return;
+    e->dot[target] = sanitize_dot_config(*config);
     /* React useEffect([dotMatrixCfg]) rebuilds every route runtime and zeros both counters. */
     mello_engine_dot_reset_runtime(e);
 }
 
-void mello_engine_dot_set_cells(MelloEngine *e, MelloDotTarget target, uint16_t cells) {
-    if(!e||target>=MELLO_DOT_MATRIX_COUNT)return;
-    e->dot[target].cells=cells;
+void mello_engine_dot_set_cells(MelloEngine *e, MelloDotTarget target, uint16_t cells)
+{
+    if (!e || target >= MELLO_DOT_MATRIX_COUNT) return;
+    e->dot[target].cells = cells;
 }
 
-void mello_engine_dot_randomize_cells(MelloEngine *e, MelloDotTarget target) {
-    uint8_t i; uint16_t cells=0u;
-    if(!e||target>=MELLO_DOT_MATRIX_COUNT)return;
-    for(i=0u;i<MELLO_DOT_CELL_COUNT;++i)if(chance_permille(&e->gen_rng,350u))cells|=(uint16_t)(1u<<i);
-    e->dot[target].cells=cells;
-}
-
-static void tm_ensure_lengths(MelloEngine *e, uint8_t len) {
+void mello_engine_dot_randomize_cells(MelloEngine *e, MelloDotTarget target)
+{
     uint8_t i;
-    if(!e)return;
-    len=sanitize_tm_length(len);
-    if(e->tm_bool_len<len){
-        for(i=e->tm_bool_len;i<len;++i)e->tm_bool_reg[i]=gen_unit16(&e->gen_rng)>=32768u?1u:0u;
-        e->tm_bool_len=len;
-    }
-    if(e->tm_float_len<len){
-        for(i=e->tm_float_len;i<len;++i)e->tm_float_reg[i]=gen_unit16(&e->gen_rng);
-        e->tm_float_len=len;
-    }
+    uint16_t cells = 0u;
+    if (!e || target >= MELLO_DOT_MATRIX_COUNT) return;
+    for (i = 0u; i < MELLO_DOT_CELL_COUNT; ++i)
+        if (chance_permille(&e->gen_rng, 350u)) cells |= (uint16_t)(1u << i);
+    e->dot[target].cells = cells;
 }
 
-void mello_engine_tm_set_config(MelloEngine *e, const MelloTmConfig *config) {
-    if(!e||!config)return;
-    e->tm=sanitize_tm_config(*config);
-    tm_ensure_lengths(e,e->tm.length);
-}
-
-void mello_engine_tm_set_length(MelloEngine *e, uint8_t length) {
-    if(!e)return;
-    e->tm.length=sanitize_tm_length(length);
-    tm_ensure_lengths(e,e->tm.length);
-    if(e->tm_active_index>=(int8_t)e->tm.length)e->tm_active_index=-1;
-}
-
-void mello_engine_tm_reroll(MelloEngine *e) {
-    uint8_t i,len;
-    if(!e)return;
-    len=sanitize_tm_length(e->tm.length);
-    for(i=0u;i<len;++i){e->tm_bool_reg[i]=gen_unit16(&e->gen_rng)>=32768u?1u:0u;e->tm_float_reg[i]=gen_unit16(&e->gen_rng);}
-    e->tm_bool_len=len;e->tm_float_len=len;
-}
-
-void mello_engine_tm_set_bool_register(MelloEngine *e, const uint8_t *values, uint8_t count) {
+static void tm_ensure_lengths(MelloEngine *e, uint8_t len)
+{
     uint8_t i;
-    if(!e||!values)return;
-    if(count>MELLO_TM_MAX_STEPS)count=MELLO_TM_MAX_STEPS;
-    for(i=0u;i<count;++i)e->tm_bool_reg[i]=values[i]?1u:0u;
-    e->tm_bool_len=count;
-    tm_ensure_lengths(e,e->tm.length);
+    if (!e) return;
+    len = sanitize_tm_length(len);
+    if (e->tm_bool_len < len) {
+        for (i = e->tm_bool_len; i < len; ++i)
+            e->tm_bool_reg[i] = gen_unit16(&e->gen_rng) >= 32768u ? 1u : 0u;
+        e->tm_bool_len = len;
+    }
+    if (e->tm_float_len < len) {
+        for (i = e->tm_float_len; i < len; ++i) e->tm_float_reg[i] = gen_unit16(&e->gen_rng);
+        e->tm_float_len = len;
+    }
 }
 
-void mello_engine_sub_set_config(MelloEngine *e, const MelloSubConfig *config) {
-    if(!e||!config)return;
-    e->sub=sanitize_sub_config(*config);
-    if(!e->sub.x_on)e->sub_x_active_index=-1;
+void mello_engine_tm_set_config(MelloEngine *e, const MelloTmConfig *config)
+{
+    if (!e || !config) return;
+    e->tm = sanitize_tm_config(*config);
+    tm_ensure_lengths(e, e->tm.length);
 }
 
-void mello_engine_sub_reset_x(MelloEngine *e) {if(!e)return;e->sub_x_pos=0u;e->sub_x_active_index=e->sub.x_on?0:-1;}
+void mello_engine_tm_set_length(MelloEngine *e, uint8_t length)
+{
+    if (!e) return;
+    e->tm.length = sanitize_tm_length(length);
+    tm_ensure_lengths(e, e->tm.length);
+    if (e->tm_active_index >= (int8_t)e->tm.length) e->tm_active_index = -1;
+}
+
+void mello_engine_tm_reroll(MelloEngine *e)
+{
+    uint8_t i, len;
+    if (!e) return;
+    len = sanitize_tm_length(e->tm.length);
+    for (i = 0u; i < len; ++i) {
+        e->tm_bool_reg[i] = gen_unit16(&e->gen_rng) >= 32768u ? 1u : 0u;
+        e->tm_float_reg[i] = gen_unit16(&e->gen_rng);
+    }
+    e->tm_bool_len = len;
+    e->tm_float_len = len;
+}
+
+void mello_engine_tm_set_bool_register(MelloEngine *e, const uint8_t *values, uint8_t count)
+{
+    uint8_t i;
+    if (!e || !values) return;
+    if (count > MELLO_TM_MAX_STEPS) count = MELLO_TM_MAX_STEPS;
+    for (i = 0u; i < count; ++i) e->tm_bool_reg[i] = values[i] ? 1u : 0u;
+    e->tm_bool_len = count;
+    tm_ensure_lengths(e, e->tm.length);
+}
+
+void mello_engine_sub_set_config(MelloEngine *e, const MelloSubConfig *config)
+{
+    if (!e || !config) return;
+    e->sub = sanitize_sub_config(*config);
+    if (!e->sub.x_on) e->sub_x_active_index = -1;
+}
+
+void mello_engine_sub_reset_x(MelloEngine *e)
+{
+    if (!e) return;
+    e->sub_x_pos = 0u;
+    e->sub_x_active_index = e->sub.x_on ? 0 : -1;
+}
 
 #if MELLO_FEATURE_CHORD_MACHINE
-void mello_engine_chord_set_config(MelloEngine *e,const MelloChordConfig *config){
-    if(!e||!config)return;
-    e->chord=sanitize_chord_config(*config);
-    if(e->chord_chain_pos>=e->chord.length)e->chord_chain_pos=0u;
+void mello_engine_chord_set_config(MelloEngine *e, const MelloChordConfig *config)
+{
+    if (!e || !config) return;
+    e->chord = sanitize_chord_config(*config);
+    if (e->chord_chain_pos >= e->chord.length) e->chord_chain_pos = 0u;
 }
-void mello_engine_chord_reset(MelloEngine *e){
-    if(!e)return;
-    e->chord_grid_tick=0u;e->chord_grid_follow=0u;e->chord_grid_runtime.cycle=-1;e->chord_grid_active_cell=-1;
-    e->chord_chain_pos=0u;e->chord_chain_hold=0u;e->chord_arp_pos=0u;e->chord_arp_dir=1;e->chord_pattern_pos=0u;e->chord_last_count=0u;
+void mello_engine_chord_reset(MelloEngine *e)
+{
+    if (!e) return;
+    e->chord_grid_tick = 0u;
+    e->chord_grid_follow = 0u;
+    e->chord_grid_runtime.cycle = -1;
+    e->chord_grid_active_cell = -1;
+    e->chord_chain_pos = 0u;
+    e->chord_chain_hold = 0u;
+    e->chord_arp_pos = 0u;
+    e->chord_arp_dir = 1;
+    e->chord_pattern_pos = 0u;
+    e->chord_last_count = 0u;
 }
 #endif
 
-void mello_engine_sound_set_config(MelloEngine *e, const MelloSoundConfig *c) { if(e&&c)e->sound=sanitize_sound_config(*c); }
-void mello_engine_sample_set_config(MelloEngine *e, const MelloSampleConfig *c) { if(e&&c)e->sample=sanitize_sample_config(*c); }
-void mello_engine_fx_set_config(MelloEngine *e, const MelloFxConfig *c) { if(e&&c)e->fx=sanitize_fx_config(*c); }
-
-void mello_engine_set_randomize_mask(MelloEngine *e, uint16_t mask){if(e)e->randomize.mask=(uint16_t)(mask&MELLO_RAND_ALL);}
-
-static uint16_t prob_from_hundredths(uint8_t hundredths) {
-    uint32_t n=(uint32_t)hundredths*65535u+50u;
-    return (uint16_t)(n/100u);
+void mello_engine_sound_set_config(MelloEngine *e, const MelloSoundConfig *c)
+{
+    if (e && c) e->sound = sanitize_sound_config(*c);
+}
+void mello_engine_sample_set_config(MelloEngine *e, const MelloSampleConfig *c)
+{
+    if (e && c) e->sample = sanitize_sample_config(*c);
+}
+void mello_engine_fx_set_config(MelloEngine *e, const MelloFxConfig *c)
+{
+    if (e && c) e->fx = sanitize_fx_config(*c);
 }
 
-void mello_engine_randomize_steps(MelloEngine *e) {
-    uint8_t i; uint16_t mask; const ScaleDef *sd; uint8_t pmax;
-    static const int8_t oct_choices[5]={0,0,0,1,-1};
-    if(!e)return;
-    mask=(uint16_t)(e->randomize.mask&MELLO_RAND_ALL);
-    sd=&SCALES[e->project.scale<MELLO_SCALE_COUNT?e->project.scale:MELLO_SCALE_MINOR];
-    pmax=(uint8_t)(sd->n*e->project.pitch_span_oct-1u);
-    for(i=0u;i<MELLO_MAX_STEPS;++i){
-        MelloStep *st=&e->project.steps[i];
-        if(mask&MELLO_RAND_PITCH)st->pitch=(int8_t)rng_bounded(&e->gen_rng,(uint32_t)pmax+1u);
-        if(mask&MELLO_RAND_PULSES)st->pulses=chance_permille(&e->gen_rng,600u)?1u:(uint8_t)(rng_bounded(&e->gen_rng,3u)+1u);
-        if(mask&MELLO_RAND_RATCHET){
-            if(chance_permille(&e->gen_rng,780u))st->ratchet=1u;
-            else if(chance_permille(&e->gen_rng,600u))st->ratchet=2u;
-            else st->ratchet=(uint8_t)(rng_bounded(&e->gen_rng,4u)+2u);
+void mello_engine_set_randomize_mask(MelloEngine *e, uint16_t mask)
+{
+    if (e) e->randomize.mask = (uint16_t)(mask & MELLO_RAND_ALL);
+}
+
+static uint16_t prob_from_hundredths(uint8_t hundredths)
+{
+    uint32_t n = (uint32_t)hundredths * 65535u + 50u;
+    return (uint16_t)(n / 100u);
+}
+
+void mello_engine_randomize_steps(MelloEngine *e)
+{
+    uint8_t i;
+    uint16_t mask;
+    const ScaleDef *sd;
+    uint8_t pmax;
+    static const int8_t oct_choices[5] = {0, 0, 0, 1, -1};
+    if (!e) return;
+    mask = (uint16_t)(e->randomize.mask & MELLO_RAND_ALL);
+    sd = &SCALES[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR];
+    pmax = (uint8_t)(sd->n * e->project.pitch_span_oct - 1u);
+    for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
+        MelloStep *st = &e->project.steps[i];
+        if (mask & MELLO_RAND_PITCH) st->pitch = (int8_t)rng_bounded(&e->gen_rng, (uint32_t)pmax + 1u);
+        if (mask & MELLO_RAND_PULSES)
+            st->pulses =
+                chance_permille(&e->gen_rng, 600u) ? 1u : (uint8_t)(rng_bounded(&e->gen_rng, 3u) + 1u);
+        if (mask & MELLO_RAND_RATCHET) {
+            if (chance_permille(&e->gen_rng, 780u))
+                st->ratchet = 1u;
+            else if (chance_permille(&e->gen_rng, 600u))
+                st->ratchet = 2u;
+            else
+                st->ratchet = (uint8_t)(rng_bounded(&e->gen_rng, 4u) + 2u);
         }
-        if(mask&MELLO_RAND_GATE){
-            if(chance_permille(&e->gen_rng,100u))st->gate=MELLO_GATE_REST;
-            else if(chance_permille(&e->gen_rng,200u))st->gate=MELLO_GATE_HOLD;
-            else st->gate=MELLO_GATE_SINGLE;
+        if (mask & MELLO_RAND_GATE) {
+            if (chance_permille(&e->gen_rng, 100u))
+                st->gate = MELLO_GATE_REST;
+            else if (chance_permille(&e->gen_rng, 200u))
+                st->gate = MELLO_GATE_HOLD;
+            else
+                st->gate = MELLO_GATE_SINGLE;
         }
-        if(mask&MELLO_RAND_OCTAVE)st->octave=oct_choices[rng_bounded(&e->gen_rng,5u)];
-        if(mask&MELLO_RAND_ACCENT)st->accent=chance_permille(&e->gen_rng,120u);
-        if(mask&MELLO_RAND_SUB)st->sub=chance_permille(&e->gen_rng,220u);
-        if(mask&MELLO_RAND_SLIDE)st->slide=chance_permille(&e->gen_rng,80u);
-        if(mask&MELLO_RAND_SKIP)st->skip=chance_permille(&e->gen_rng,50u);
-        if(mask&MELLO_RAND_PROB){
-            if(chance_permille(&e->gen_rng,900u))st->probability=65535u;
-            else{
-                uint32_t u=gen_unit16(&e->gen_rng);
-                uint8_t h=(uint8_t)(40u+(uint8_t)((u*50u+32767u)/65535u));
-                st->probability=prob_from_hundredths(h);
+        if (mask & MELLO_RAND_OCTAVE) st->octave = oct_choices[rng_bounded(&e->gen_rng, 5u)];
+        if (mask & MELLO_RAND_ACCENT) st->accent = chance_permille(&e->gen_rng, 120u);
+        if (mask & MELLO_RAND_SUB) st->sub = chance_permille(&e->gen_rng, 220u);
+        if (mask & MELLO_RAND_SLIDE) st->slide = chance_permille(&e->gen_rng, 80u);
+        if (mask & MELLO_RAND_SKIP) st->skip = chance_permille(&e->gen_rng, 50u);
+        if (mask & MELLO_RAND_PROB) {
+            if (chance_permille(&e->gen_rng, 900u))
+                st->probability = 65535u;
+            else {
+                uint32_t u = gen_unit16(&e->gen_rng);
+                uint8_t h = (uint8_t)(40u + (uint8_t)((u * 50u + 32767u) / 65535u));
+                st->probability = prob_from_hundredths(h);
             }
         }
-        if(mask&MELLO_RAND_SAMPLE)st->sample_slot=chance_permille(&e->gen_rng,150u)?0u:(uint8_t)(rng_bounded(&e->gen_rng,MELLO_SAMPLE_SLOT_COUNT)+1u);
+        if (mask & MELLO_RAND_SAMPLE)
+            st->sample_slot = chance_permille(&e->gen_rng, 150u)
+                                  ? 0u
+                                  : (uint8_t)(rng_bounded(&e->gen_rng, MELLO_SAMPLE_SLOT_COUNT) + 1u);
     }
-    if(mask&MELLO_RAND_WAVE){
-        uint32_t wr=rng_bounded(&e->gen_rng,1000u);
-        e->sound.osc_wave=wr<350u?MELLO_WAVE_SAW:(wr<600u?MELLO_WAVE_SQUARE:(wr<800u?MELLO_WAVE_TRIANGLE:(wr<920u?MELLO_WAVE_SINE:MELLO_WAVE_PULSE)));
-        if(e->sound.osc_wave==MELLO_WAVE_PULSE)e->sound.pwm_permille=(uint16_t)(280u+rng_bounded(&e->gen_rng,441u));
+    if (mask & MELLO_RAND_WAVE) {
+        uint32_t wr = rng_bounded(&e->gen_rng, 1000u);
+        e->sound.osc_wave =
+            wr < 350u ? MELLO_WAVE_SAW
+                      : (wr < 600u ? MELLO_WAVE_SQUARE
+                                   : (wr < 800u ? MELLO_WAVE_TRIANGLE
+                                                : (wr < 920u ? MELLO_WAVE_SINE : MELLO_WAVE_PULSE)));
+        if (e->sound.osc_wave == MELLO_WAVE_PULSE)
+            e->sound.pwm_permille = (uint16_t)(280u + rng_bounded(&e->gen_rng, 441u));
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if(mask&MELLO_RAND_CHORD){
-        uint8_t n=e->chord.length<2u?2u:e->chord.length; if(n>4u)n=4u; e->chord.length=n;
-        for(i=0u;i<n;++i){MelloChordStep *cs=&e->chord.steps[i];uint32_t r=rng_bounded(&e->gen_rng,1000u);cs->degree=(uint8_t)rng_bounded(&e->gen_rng,sd->n);cs->shape=r<520u?MELLO_CHORD_TRIAD:(r<780u?MELLO_CHORD_SEVENTH:(r<870u?MELLO_CHORD_SUS2:(r<960u?MELLO_CHORD_SUS4:MELLO_CHORD_POWER)));cs->inversion=(uint8_t)rng_bounded(&e->gen_rng,3u);cs->octave=(int8_t)((int32_t)rng_bounded(&e->gen_rng,3u)-1);cs->spread=(uint8_t)rng_bounded(&e->gen_rng,3u);cs->hold=(uint8_t)(1u+rng_bounded(&e->gen_rng,4u));}
-        for(i=0u;i<e->chord.pattern_length;++i){uint8_t pm=(uint8_t)(1u<<rng_bounded(&e->gen_rng,e->chord.voices));if(chance_permille(&e->gen_rng,380u))pm|=(uint8_t)(1u<<rng_bounded(&e->gen_rng,e->chord.voices));if(chance_permille(&e->gen_rng,180u))pm=(uint8_t)((1u<<e->chord.voices)-1u);e->chord.pattern_masks[i]=(uint8_t)(pm&0x0Fu);}
-        e->chord=sanitize_chord_config(e->chord);
+    if (mask & MELLO_RAND_CHORD) {
+        uint8_t n = e->chord.length < 2u ? 2u : e->chord.length;
+        if (n > 4u) n = 4u;
+        e->chord.length = n;
+        for (i = 0u; i < n; ++i) {
+            MelloChordStep *cs = &e->chord.steps[i];
+            uint32_t r = rng_bounded(&e->gen_rng, 1000u);
+            cs->degree = (uint8_t)rng_bounded(&e->gen_rng, sd->n);
+            cs->shape = r < 520u
+                            ? MELLO_CHORD_TRIAD
+                            : (r < 780u ? MELLO_CHORD_SEVENTH
+                                        : (r < 870u ? MELLO_CHORD_SUS2
+                                                    : (r < 960u ? MELLO_CHORD_SUS4 : MELLO_CHORD_POWER)));
+            cs->inversion = (uint8_t)rng_bounded(&e->gen_rng, 3u);
+            cs->octave = (int8_t)((int32_t)rng_bounded(&e->gen_rng, 3u) - 1);
+            cs->spread = (uint8_t)rng_bounded(&e->gen_rng, 3u);
+            cs->hold = (uint8_t)(1u + rng_bounded(&e->gen_rng, 4u));
+        }
+        for (i = 0u; i < e->chord.pattern_length; ++i) {
+            uint8_t pm = (uint8_t)(1u << rng_bounded(&e->gen_rng, e->chord.voices));
+            if (chance_permille(&e->gen_rng, 380u))
+                pm |= (uint8_t)(1u << rng_bounded(&e->gen_rng, e->chord.voices));
+            if (chance_permille(&e->gen_rng, 180u)) pm = (uint8_t)((1u << e->chord.voices) - 1u);
+            e->chord.pattern_masks[i] = (uint8_t)(pm & 0x0Fu);
+        }
+        e->chord = sanitize_chord_config(e->chord);
     }
 #endif
     sanitize_project(&e->project);
-    if(e->playing)rebuild_preserving_phase(e);else e->runtime_built=false;
+    if (e->playing)
+        rebuild_preserving_phase(e);
+    else
+        e->runtime_built = false;
 }
 
-
-static int32_t random_delta(MelloPrng *rng, int32_t radius) {
-    uint32_t span=(uint32_t)(radius*2+1);
-    return (int32_t)rng_bounded(rng,span)-radius;
+static int32_t random_delta(MelloPrng *rng, int32_t radius)
+{
+    uint32_t span = (uint32_t)(radius * 2 + 1);
+    return (int32_t)rng_bounded(rng, span) - radius;
 }
 
-static uint8_t clamp_u8_random(int32_t v,uint8_t lo,uint8_t hi){
-    if(v<(int32_t)lo)return lo;
-    if(v>(int32_t)hi)return hi;
+static uint8_t clamp_u8_random(int32_t v, uint8_t lo, uint8_t hi)
+{
+    if (v < (int32_t)lo) return lo;
+    if (v > (int32_t)hi) return hi;
     return (uint8_t)v;
 }
 
-static uint16_t clamp_u16_random(int32_t v,uint16_t lo,uint16_t hi){
-    if(v<(int32_t)lo)return lo;
-    if(v>(int32_t)hi)return hi;
+static uint16_t clamp_u16_random(int32_t v, uint16_t lo, uint16_t hi)
+{
+    if (v < (int32_t)lo) return lo;
+    if (v > (int32_t)hi) return hi;
     return (uint16_t)v;
 }
 
-static void randomize_steps_low_high(MelloEngine *e,MelloRandomizeIntensity intensity){
-    uint8_t i;uint16_t mask;const ScaleDef *sd;uint8_t pmax;bool high=intensity==MELLO_RANDOMIZE_HIGH;
-    if(!e)return;
-    mask=(uint16_t)(e->randomize.mask&MELLO_RAND_ALL);
-    sd=&SCALES[e->project.scale<MELLO_SCALE_COUNT?e->project.scale:MELLO_SCALE_MINOR];
-    pmax=(uint8_t)(sd->n*e->project.pitch_span_oct-1u);
-    for(i=0u;i<MELLO_MAX_STEPS;++i){
-        MelloStep *st=&e->project.steps[i];
-        if(mask&MELLO_RAND_PITCH){
-            if(high){uint8_t v=(uint8_t)rng_bounded(&e->gen_rng,(uint32_t)pmax+1u);if(pmax&&v==(uint8_t)st->pitch)v=(uint8_t)((v+1u+rng_bounded(&e->gen_rng,pmax))%((uint32_t)pmax+1u));st->pitch=(int8_t)v;}
-            else st->pitch=(int8_t)clamp_u8_random((int32_t)st->pitch+random_delta(&e->gen_rng,1),0u,pmax);
+static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity intensity)
+{
+    uint8_t i;
+    uint16_t mask;
+    const ScaleDef *sd;
+    uint8_t pmax;
+    bool high = intensity == MELLO_RANDOMIZE_HIGH;
+    if (!e) return;
+    mask = (uint16_t)(e->randomize.mask & MELLO_RAND_ALL);
+    sd = &SCALES[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR];
+    pmax = (uint8_t)(sd->n * e->project.pitch_span_oct - 1u);
+    for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
+        MelloStep *st = &e->project.steps[i];
+        if (mask & MELLO_RAND_PITCH) {
+            if (high) {
+                uint8_t v = (uint8_t)rng_bounded(&e->gen_rng, (uint32_t)pmax + 1u);
+                if (pmax && v == (uint8_t)st->pitch)
+                    v = (uint8_t)((v + 1u + rng_bounded(&e->gen_rng, pmax)) % ((uint32_t)pmax + 1u));
+                st->pitch = (int8_t)v;
+            } else
+                st->pitch =
+                    (int8_t)clamp_u8_random((int32_t)st->pitch + random_delta(&e->gen_rng, 1), 0u, pmax);
         }
-        if(mask&MELLO_RAND_PULSES){
-            if(high)st->pulses=(uint8_t)(1u+rng_bounded(&e->gen_rng,8u));
-            else st->pulses=clamp_u8_random((int32_t)st->pulses+random_delta(&e->gen_rng,1),1u,8u);
+        if (mask & MELLO_RAND_PULSES) {
+            if (high)
+                st->pulses = (uint8_t)(1u + rng_bounded(&e->gen_rng, 8u));
+            else
+                st->pulses = clamp_u8_random((int32_t)st->pulses + random_delta(&e->gen_rng, 1), 1u, 8u);
         }
-        if(mask&MELLO_RAND_RATCHET){
-            if(high){uint32_t r=rng_bounded(&e->gen_rng,1000u);st->ratchet=r<320u?1u:(uint8_t)(2u+rng_bounded(&e->gen_rng,7u));}
-            else st->ratchet=clamp_u8_random((int32_t)st->ratchet+random_delta(&e->gen_rng,1),1u,8u);
+        if (mask & MELLO_RAND_RATCHET) {
+            if (high) {
+                uint32_t r = rng_bounded(&e->gen_rng, 1000u);
+                st->ratchet = r < 320u ? 1u : (uint8_t)(2u + rng_bounded(&e->gen_rng, 7u));
+            } else
+                st->ratchet = clamp_u8_random((int32_t)st->ratchet + random_delta(&e->gen_rng, 1), 1u, 8u);
         }
-        if(mask&MELLO_RAND_GATE){
-            if(high){uint32_t r=rng_bounded(&e->gen_rng,1000u);st->gate=r<120u?MELLO_GATE_REST:(r<300u?MELLO_GATE_HOLD:(r<460u?MELLO_GATE_MULTI:MELLO_GATE_SINGLE));}
-            else if(chance_permille(&e->gen_rng,180u)){uint32_t r=rng_bounded(&e->gen_rng,3u);st->gate=r==0u?MELLO_GATE_SINGLE:(r==1u?MELLO_GATE_HOLD:MELLO_GATE_REST);}
+        if (mask & MELLO_RAND_GATE) {
+            if (high) {
+                uint32_t r = rng_bounded(&e->gen_rng, 1000u);
+                st->gate = r < 120u ? MELLO_GATE_REST
+                                    : (r < 300u ? MELLO_GATE_HOLD
+                                                : (r < 460u ? MELLO_GATE_MULTI : MELLO_GATE_SINGLE));
+            } else if (chance_permille(&e->gen_rng, 180u)) {
+                uint32_t r = rng_bounded(&e->gen_rng, 3u);
+                st->gate = r == 0u ? MELLO_GATE_SINGLE : (r == 1u ? MELLO_GATE_HOLD : MELLO_GATE_REST);
+            }
         }
-        if(mask&MELLO_RAND_OCTAVE){
-            if(high)st->octave=(int8_t)((int32_t)rng_bounded(&e->gen_rng,5u)-2);
-            else st->octave=clamp_i8((int32_t)st->octave+random_delta(&e->gen_rng,1),-2,2);
+        if (mask & MELLO_RAND_OCTAVE) {
+            if (high)
+                st->octave = (int8_t)((int32_t)rng_bounded(&e->gen_rng, 5u) - 2);
+            else
+                st->octave = clamp_i8((int32_t)st->octave + random_delta(&e->gen_rng, 1), -2, 2);
         }
-        if(mask&MELLO_RAND_ACCENT)st->accent=high?chance_permille(&e->gen_rng,500u):(chance_permille(&e->gen_rng,160u)?!st->accent:st->accent);
-        if(mask&MELLO_RAND_SUB)st->sub=high?chance_permille(&e->gen_rng,500u):(chance_permille(&e->gen_rng,150u)?!st->sub:st->sub);
-        if(mask&MELLO_RAND_SLIDE)st->slide=high?chance_permille(&e->gen_rng,420u):(chance_permille(&e->gen_rng,120u)?!st->slide:st->slide);
-        if(mask&MELLO_RAND_SKIP)st->skip=high?chance_permille(&e->gen_rng,260u):(chance_permille(&e->gen_rng,80u)?!st->skip:st->skip);
-        if(mask&MELLO_RAND_PROB){
-            if(high){if(chance_permille(&e->gen_rng,250u))st->probability=65535u;else st->probability=prob_from_hundredths((uint8_t)(20u+rng_bounded(&e->gen_rng,81u)));}
-            else{int32_t d=random_delta(&e->gen_rng,7)*655;st->probability=clamp_u16_random((int32_t)st->probability+d,0u,65535u);}
+        if (mask & MELLO_RAND_ACCENT)
+            st->accent = high ? chance_permille(&e->gen_rng, 500u)
+                              : (chance_permille(&e->gen_rng, 160u) ? !st->accent : st->accent);
+        if (mask & MELLO_RAND_SUB)
+            st->sub = high ? chance_permille(&e->gen_rng, 500u)
+                           : (chance_permille(&e->gen_rng, 150u) ? !st->sub : st->sub);
+        if (mask & MELLO_RAND_SLIDE)
+            st->slide = high ? chance_permille(&e->gen_rng, 420u)
+                             : (chance_permille(&e->gen_rng, 120u) ? !st->slide : st->slide);
+        if (mask & MELLO_RAND_SKIP)
+            st->skip = high ? chance_permille(&e->gen_rng, 260u)
+                            : (chance_permille(&e->gen_rng, 80u) ? !st->skip : st->skip);
+        if (mask & MELLO_RAND_PROB) {
+            if (high) {
+                if (chance_permille(&e->gen_rng, 250u))
+                    st->probability = 65535u;
+                else
+                    st->probability = prob_from_hundredths((uint8_t)(20u + rng_bounded(&e->gen_rng, 81u)));
+            } else {
+                int32_t d = random_delta(&e->gen_rng, 7) * 655;
+                st->probability = clamp_u16_random((int32_t)st->probability + d, 0u, 65535u);
+            }
         }
-        if(mask&MELLO_RAND_SAMPLE){
-            if(high)st->sample_slot=(uint8_t)rng_bounded(&e->gen_rng,MELLO_SAMPLE_SLOT_COUNT+1u);
-            else st->sample_slot=clamp_u8_random((int32_t)st->sample_slot+random_delta(&e->gen_rng,1),0u,MELLO_SAMPLE_SLOT_COUNT);
+        if (mask & MELLO_RAND_SAMPLE) {
+            if (high)
+                st->sample_slot = (uint8_t)rng_bounded(&e->gen_rng, MELLO_SAMPLE_SLOT_COUNT + 1u);
+            else
+                st->sample_slot = clamp_u8_random((int32_t)st->sample_slot + random_delta(&e->gen_rng, 1), 0u,
+                                                  MELLO_SAMPLE_SLOT_COUNT);
         }
     }
-    if(mask&MELLO_RAND_WAVE){
-        if(high){uint8_t w=(uint8_t)rng_bounded(&e->gen_rng,5u);if(w==(uint8_t)e->sound.osc_wave)w=(uint8_t)((w+1u+rng_bounded(&e->gen_rng,4u))%5u);e->sound.osc_wave=(MelloWaveform)w;if(e->sound.osc_wave==MELLO_WAVE_PULSE)e->sound.pwm_permille=(uint16_t)(180u+rng_bounded(&e->gen_rng,641u));}
-        else{int32_t w=(int32_t)e->sound.osc_wave;if(w>=(int32_t)MELLO_WAVE_OFF)w=MELLO_WAVE_SAW;w=(int32_t)clamp_u8_random(w+random_delta(&e->gen_rng,1),MELLO_WAVE_SAW,MELLO_WAVE_PULSE);e->sound.osc_wave=(MelloWaveform)w;if(e->sound.osc_wave==MELLO_WAVE_PULSE)e->sound.pwm_permille=clamp_u16_random((int32_t)e->sound.pwm_permille+random_delta(&e->gen_rng,80),180u,820u);}
+    if (mask & MELLO_RAND_WAVE) {
+        if (high) {
+            uint8_t w = (uint8_t)rng_bounded(&e->gen_rng, 5u);
+            if (w == (uint8_t)e->sound.osc_wave) w = (uint8_t)((w + 1u + rng_bounded(&e->gen_rng, 4u)) % 5u);
+            e->sound.osc_wave = (MelloWaveform)w;
+            if (e->sound.osc_wave == MELLO_WAVE_PULSE)
+                e->sound.pwm_permille = (uint16_t)(180u + rng_bounded(&e->gen_rng, 641u));
+        } else {
+            int32_t w = (int32_t)e->sound.osc_wave;
+            if (w >= (int32_t)MELLO_WAVE_OFF) w = MELLO_WAVE_SAW;
+            w = (int32_t)clamp_u8_random(w + random_delta(&e->gen_rng, 1), MELLO_WAVE_SAW, MELLO_WAVE_PULSE);
+            e->sound.osc_wave = (MelloWaveform)w;
+            if (e->sound.osc_wave == MELLO_WAVE_PULSE)
+                e->sound.pwm_permille = clamp_u16_random(
+                    (int32_t)e->sound.pwm_permille + random_delta(&e->gen_rng, 80), 180u, 820u);
+        }
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if(mask&MELLO_RAND_CHORD){
-        uint8_t n=e->chord.length<2u?2u:e->chord.length;if(n>4u)n=4u;e->chord.length=n;
-        for(i=0u;i<n;++i){MelloChordStep *cs=&e->chord.steps[i];
-            if(high){cs->degree=(uint8_t)rng_bounded(&e->gen_rng,sd->n);cs->shape=(MelloChordShape)rng_bounded(&e->gen_rng,MELLO_CHORD_SHAPE_COUNT);cs->inversion=(uint8_t)rng_bounded(&e->gen_rng,4u);cs->octave=(int8_t)((int32_t)rng_bounded(&e->gen_rng,5u)-2);cs->spread=(uint8_t)rng_bounded(&e->gen_rng,4u);cs->hold=(uint8_t)(1u+rng_bounded(&e->gen_rng,8u));}
-            else{cs->degree=clamp_u8_random((int32_t)cs->degree+random_delta(&e->gen_rng,1),0u,(uint8_t)(sd->n-1u));if(chance_permille(&e->gen_rng,120u))cs->shape=(MelloChordShape)rng_bounded(&e->gen_rng,MELLO_CHORD_SHAPE_COUNT);cs->inversion=clamp_u8_random((int32_t)cs->inversion+random_delta(&e->gen_rng,1),0u,3u);cs->octave=clamp_i8((int32_t)cs->octave+random_delta(&e->gen_rng,1),-2,2);cs->spread=clamp_u8_random((int32_t)cs->spread+random_delta(&e->gen_rng,1),0u,3u);cs->hold=clamp_u8_random((int32_t)cs->hold+random_delta(&e->gen_rng,1),1u,16u);}
+    if (mask & MELLO_RAND_CHORD) {
+        uint8_t n = e->chord.length < 2u ? 2u : e->chord.length;
+        if (n > 4u) n = 4u;
+        e->chord.length = n;
+        for (i = 0u; i < n; ++i) {
+            MelloChordStep *cs = &e->chord.steps[i];
+            if (high) {
+                cs->degree = (uint8_t)rng_bounded(&e->gen_rng, sd->n);
+                cs->shape = (MelloChordShape)rng_bounded(&e->gen_rng, MELLO_CHORD_SHAPE_COUNT);
+                cs->inversion = (uint8_t)rng_bounded(&e->gen_rng, 4u);
+                cs->octave = (int8_t)((int32_t)rng_bounded(&e->gen_rng, 5u) - 2);
+                cs->spread = (uint8_t)rng_bounded(&e->gen_rng, 4u);
+                cs->hold = (uint8_t)(1u + rng_bounded(&e->gen_rng, 8u));
+            } else {
+                cs->degree = clamp_u8_random((int32_t)cs->degree + random_delta(&e->gen_rng, 1), 0u,
+                                             (uint8_t)(sd->n - 1u));
+                if (chance_permille(&e->gen_rng, 120u))
+                    cs->shape = (MelloChordShape)rng_bounded(&e->gen_rng, MELLO_CHORD_SHAPE_COUNT);
+                cs->inversion =
+                    clamp_u8_random((int32_t)cs->inversion + random_delta(&e->gen_rng, 1), 0u, 3u);
+                cs->octave = clamp_i8((int32_t)cs->octave + random_delta(&e->gen_rng, 1), -2, 2);
+                cs->spread = clamp_u8_random((int32_t)cs->spread + random_delta(&e->gen_rng, 1), 0u, 3u);
+                cs->hold = clamp_u8_random((int32_t)cs->hold + random_delta(&e->gen_rng, 1), 1u, 16u);
+            }
         }
-        for(i=0u;i<e->chord.pattern_length;++i){if(high){uint8_t all=(uint8_t)((1u<<e->chord.voices)-1u);e->chord.pattern_masks[i]=(uint8_t)(1u+rng_bounded(&e->gen_rng,all));}else if(chance_permille(&e->gen_rng,180u)){uint8_t bit=(uint8_t)(1u<<rng_bounded(&e->gen_rng,e->chord.voices));e->chord.pattern_masks[i]=(uint8_t)((e->chord.pattern_masks[i]^bit)&0x0Fu);if(!e->chord.pattern_masks[i])e->chord.pattern_masks[i]=bit;}}
-        e->chord=sanitize_chord_config(e->chord);
+        for (i = 0u; i < e->chord.pattern_length; ++i) {
+            if (high) {
+                uint8_t all = (uint8_t)((1u << e->chord.voices) - 1u);
+                e->chord.pattern_masks[i] = (uint8_t)(1u + rng_bounded(&e->gen_rng, all));
+            } else if (chance_permille(&e->gen_rng, 180u)) {
+                uint8_t bit = (uint8_t)(1u << rng_bounded(&e->gen_rng, e->chord.voices));
+                e->chord.pattern_masks[i] = (uint8_t)((e->chord.pattern_masks[i] ^ bit) & 0x0Fu);
+                if (!e->chord.pattern_masks[i]) e->chord.pattern_masks[i] = bit;
+            }
+        }
+        e->chord = sanitize_chord_config(e->chord);
     }
 #endif
-    sanitize_project(&e->project);e->sound=sanitize_sound_config(e->sound);
-    if(e->playing)rebuild_preserving_phase(e);else e->runtime_built=false;
+    sanitize_project(&e->project);
+    e->sound = sanitize_sound_config(e->sound);
+    if (e->playing)
+        rebuild_preserving_phase(e);
+    else
+        e->runtime_built = false;
 }
 
-void mello_engine_randomize_steps_intensity(MelloEngine *e,MelloRandomizeIntensity intensity){
-    if(!e)return;
-    if(intensity==MELLO_RANDOMIZE_MED){mello_engine_randomize_steps(e);return;}
-    if(intensity>MELLO_RANDOMIZE_HIGH)intensity=MELLO_RANDOMIZE_HIGH;
-    randomize_steps_low_high(e,intensity);
-}
-
-static void tm_mutate(MelloEngine *e) {
-    uint8_t i;
-    int32_t delta,next;
-    if(!e||!e->tm.on||e->tm.locked)return;
-    if(e->tm_bool_len==0u)e->tm_bool_len=1u;
-    if(chance_permille(&e->gen_rng,e->tm.mutation_prob)){
-        uint8_t idx=(uint8_t)rng_bounded(&e->gen_rng,e->tm_bool_len);
-        e->tm_bool_reg[idx]=gen_unit16(&e->gen_rng)>=32768u?1u:0u;
+void mello_engine_randomize_steps_intensity(MelloEngine *e, MelloRandomizeIntensity intensity)
+{
+    if (!e) return;
+    if (intensity == MELLO_RANDOMIZE_MED) {
+        mello_engine_randomize_steps(e);
+        return;
     }
-    for(i=0u;i<e->tm_float_len;++i){
-        if(chance_permille(&e->gen_rng,e->tm.mutation_prob)){
-            int32_t centered=(int32_t)gen_unit16(&e->gen_rng)-32768;
-            delta=(centered*3)/5; /* source: (random-.5)*0.3*2 => +/-0.3 */
-            next=(int32_t)e->tm_float_reg[i]+delta;
-            if(next<0)next=0;
-            if(next>65535)next=65535;
-            e->tm_float_reg[i]=(uint16_t)next;
+    if (intensity > MELLO_RANDOMIZE_HIGH) intensity = MELLO_RANDOMIZE_HIGH;
+    randomize_steps_low_high(e, intensity);
+}
+
+static void tm_mutate(MelloEngine *e)
+{
+    uint8_t i;
+    int32_t delta, next;
+    if (!e || !e->tm.on || e->tm.locked) return;
+    if (e->tm_bool_len == 0u) e->tm_bool_len = 1u;
+    if (chance_permille(&e->gen_rng, e->tm.mutation_prob)) {
+        uint8_t idx = (uint8_t)rng_bounded(&e->gen_rng, e->tm_bool_len);
+        e->tm_bool_reg[idx] = gen_unit16(&e->gen_rng) >= 32768u ? 1u : 0u;
+    }
+    for (i = 0u; i < e->tm_float_len; ++i) {
+        if (chance_permille(&e->gen_rng, e->tm.mutation_prob)) {
+            int32_t centered = (int32_t)gen_unit16(&e->gen_rng) - 32768;
+            delta = (centered * 3) / 5; /* source: (random-.5)*0.3*2 => +/-0.3 */
+            next = (int32_t)e->tm_float_reg[i] + delta;
+            if (next < 0) next = 0;
+            if (next > 65535) next = 65535;
+            e->tm_float_reg[i] = (uint16_t)next;
         }
     }
 }
 
-static uint8_t tm_index_for(const MelloEngine *e) {
-    uint8_t len=sanitize_tm_length(e->tm.length); uint32_t base; int32_t idx;
-    if(e->tm.rate==MELLO_TM_RATE_HALF)base=(e->absolute_pulse/2u)%len;
-    else if(e->tm.rate==MELLO_TM_RATE_DOUBLE)base=((e->absolute_pulse%len)*2u)%len;
-    else base=e->absolute_pulse%len;
-    idx=(int32_t)base+(int32_t)e->tm.offset;
-    while(idx<0)idx+=(int32_t)len;
-    idx%=(int32_t)len;
+static uint8_t tm_index_for(const MelloEngine *e)
+{
+    uint8_t len = sanitize_tm_length(e->tm.length);
+    uint32_t base;
+    int32_t idx;
+    if (e->tm.rate == MELLO_TM_RATE_HALF)
+        base = (e->absolute_pulse / 2u) % len;
+    else if (e->tm.rate == MELLO_TM_RATE_DOUBLE)
+        base = ((e->absolute_pulse % len) * 2u) % len;
+    else
+        base = e->absolute_pulse % len;
+    idx = (int32_t)base + (int32_t)e->tm.offset;
+    while (idx < 0) idx += (int32_t)len;
+    idx %= (int32_t)len;
     return (uint8_t)idx;
 }
 
-static int8_t tm_octave_from_value(uint16_t v,uint16_t depth) {
-    int32_t centered=(int32_t)v-32768;
-    int32_t num=centered*4*(int32_t)depth;
-    const int32_t half=32767500; /* (65535*1000)/2 */
-    const int32_t three_half=98302500;
-    if(num>=three_half)return 2;
-    if(num>=half)return 1;
-    if(num>=-half)return 0; /* JS Math.round(-0.5) -> -0 */
-    if(num>=-three_half)return -1;
+static int8_t tm_octave_from_value(uint16_t v, uint16_t depth)
+{
+    int32_t centered = (int32_t)v - 32768;
+    int32_t num = centered * 4 * (int32_t)depth;
+    const int32_t half = 32767500; /* (65535*1000)/2 */
+    const int32_t three_half = 98302500;
+    if (num >= three_half) return 2;
+    if (num >= half) return 1;
+    if (num >= -half) return 0; /* JS Math.round(-0.5) -> -0 */
+    if (num >= -three_half) return -1;
     return -2;
 }
 
-static bool euclid_hit_u32(uint32_t step,uint32_t total,uint32_t pulses,uint32_t rotation) {
-    uint32_t p,i;
-    if(total==0u||pulses==0u)return false;
-    p=pulses<total?pulses:total;
-    i=(step+(rotation%total))%total;
-    return (((i+1u)*p)/total)!=((i*p)/total);
+static bool euclid_hit_u32(uint32_t step, uint32_t total, uint32_t pulses, uint32_t rotation)
+{
+    uint32_t p, i;
+    if (total == 0u || pulses == 0u) return false;
+    p = pulses < total ? pulses : total;
+    i = (step + (rotation % total)) % total;
+    return (((i + 1u) * p) / total) != ((i * p) / total);
 }
 
-static void evaluate_dot_matrices(MelloEngine *e,bool is_step_start,bool *matrix_accent,uint8_t *ratchet_add,bool *matrix_sub,uint16_t *filter_amount) {
+static void evaluate_dot_matrices(MelloEngine *e, bool is_step_start, bool *matrix_accent,
+                                  uint8_t *ratchet_add, bool *matrix_sub, uint16_t *filter_amount)
+{
     uint8_t id;
-    uint32_t tick=e->dot_tick,follow=e->dot_follow;
-    *matrix_accent=false;*ratchet_add=0u;*matrix_sub=false;*filter_amount=0u;
-    for(id=0u;id<MELLO_DOT_MATRIX_COUNT;++id){
-        MelloDotMatrixConfig cfg=sanitize_dot_config(e->dot[id]);
-        MelloDotRuntime *rt=&e->dot_runtime[id];
-        uint32_t linear,base,cycle,pos;uint8_t cell;bool on;
-        e->dot[id]=cfg;
-        if(cfg.follow&&!is_step_start){e->last_mod.dot_cell[id]=e->dot_active_cell[id];continue;}
-        linear=cfg.follow?follow:tick;
-        base=cfg.reset?(linear%(uint32_t)(e->project.seq_len?e->project.seq_len:16u)):linear;
-        cycle=base/cfg.length;
-        if(rt->mode!=cfg.mode||rt->length!=cfg.length){
-            rt->mode=cfg.mode;rt->length=cfg.length;rt->cycle=-1;
-            dot_build_order(cfg.mode==MELLO_DOT_RANDOM?MELLO_DOT_HORIZONTAL:cfg.mode,cfg.length,rt->order);
-            if(cfg.mode==MELLO_DOT_RANDOM)dot_shuffle_order(e,rt->order,cfg.length);
+    uint32_t tick = e->dot_tick, follow = e->dot_follow;
+    *matrix_accent = false;
+    *ratchet_add = 0u;
+    *matrix_sub = false;
+    *filter_amount = 0u;
+    for (id = 0u; id < MELLO_DOT_MATRIX_COUNT; ++id) {
+        MelloDotMatrixConfig cfg = sanitize_dot_config(e->dot[id]);
+        MelloDotRuntime *rt = &e->dot_runtime[id];
+        uint32_t linear, base, cycle, pos;
+        uint8_t cell;
+        bool on;
+        e->dot[id] = cfg;
+        if (cfg.follow && !is_step_start) {
+            e->last_mod.dot_cell[id] = e->dot_active_cell[id];
+            continue;
         }
-        if(cfg.mode==MELLO_DOT_RANDOM&&rt->cycle!=(int32_t)cycle)dot_shuffle_order(e,rt->order,cfg.length);
-        rt->cycle=(int32_t)cycle;
-        pos=base%cfg.length;cell=rt->order[pos];e->dot_active_cell[id]=(int8_t)cell;e->last_mod.dot_cell[id]=(int8_t)cell;
-        on=(cfg.cells&(uint16_t)(1u<<cell))!=0u;
-        if(!on)continue;
-        if(id==MELLO_DOT_ACCENT){if(chance_permille(&e->gen_rng,cfg.amount))*matrix_accent=true;}
-        else if(id==MELLO_DOT_FILTER){if(cfg.amount>*filter_amount)*filter_amount=cfg.amount;}
-        else if(id==MELLO_DOT_RATCHET){if(chance_permille(&e->gen_rng,cfg.amount))*ratchet_add=1u;}
-        else if(id==MELLO_DOT_SUB){if(chance_permille(&e->gen_rng,cfg.amount))*matrix_sub=true;}
+        linear = cfg.follow ? follow : tick;
+        base = cfg.reset ? (linear % (uint32_t)(e->project.seq_len ? e->project.seq_len : 16u)) : linear;
+        cycle = base / cfg.length;
+        if (rt->mode != cfg.mode || rt->length != cfg.length) {
+            rt->mode = cfg.mode;
+            rt->length = cfg.length;
+            rt->cycle = -1;
+            dot_build_order(cfg.mode == MELLO_DOT_RANDOM ? MELLO_DOT_HORIZONTAL : cfg.mode, cfg.length,
+                            rt->order);
+            if (cfg.mode == MELLO_DOT_RANDOM) dot_shuffle_order(e, rt->order, cfg.length);
+        }
+        if (cfg.mode == MELLO_DOT_RANDOM && rt->cycle != (int32_t)cycle)
+            dot_shuffle_order(e, rt->order, cfg.length);
+        rt->cycle = (int32_t)cycle;
+        pos = base % cfg.length;
+        cell = rt->order[pos];
+        e->dot_active_cell[id] = (int8_t)cell;
+        e->last_mod.dot_cell[id] = (int8_t)cell;
+        on = (cfg.cells & (uint16_t)(1u << cell)) != 0u;
+        if (!on) continue;
+        if (id == MELLO_DOT_ACCENT) {
+            if (chance_permille(&e->gen_rng, cfg.amount)) *matrix_accent = true;
+        } else if (id == MELLO_DOT_FILTER) {
+            if (cfg.amount > *filter_amount) *filter_amount = cfg.amount;
+        } else if (id == MELLO_DOT_RATCHET) {
+            if (chance_permille(&e->gen_rng, cfg.amount)) *ratchet_add = 1u;
+        } else if (id == MELLO_DOT_SUB) {
+            if (chance_permille(&e->gen_rng, cfg.amount)) *matrix_sub = true;
+        }
     }
-    e->dot_tick=tick+1u;if(is_step_start)e->dot_follow=follow+1u;
+    e->dot_tick = tick + 1u;
+    if (is_step_start) e->dot_follow = follow + 1u;
 }
-
 
 #if MELLO_FEATURE_CHORD_MACHINE
-static uint8_t chord_scale_degree_midi(const MelloEngine *e,uint8_t degree,int8_t octave){
-    int32_t root=60;MelloScale scale=MELLO_SCALE_MINOR;int8_t lc_oct=0,lc_pitch=0;const ScaleDef *sd;int32_t d,idx,oct,midi;
-    current_loop_context(e,&root,&scale,&lc_oct,&lc_pitch,NULL,NULL);sd=&SCALES[scale<MELLO_SCALE_COUNT?scale:MELLO_SCALE_MINOR];
-    d=degree;idx=d%sd->n;oct=d/sd->n;midi=root+sd->v[idx]+oct*12+((int32_t)e->project.global_octave+(int32_t)lc_oct+(int32_t)octave)*12+(int32_t)lc_pitch;
-    return clamp_u8_i32(midi,12u,108u);
+static uint8_t chord_scale_degree_midi(const MelloEngine *e, uint8_t degree, int8_t octave)
+{
+    int32_t root = 60;
+    MelloScale scale = MELLO_SCALE_MINOR;
+    int8_t lc_oct = 0, lc_pitch = 0;
+    const ScaleDef *sd;
+    int32_t d, idx, oct, midi;
+    current_loop_context(e, &root, &scale, &lc_oct, &lc_pitch, NULL, NULL);
+    sd = &SCALES[scale < MELLO_SCALE_COUNT ? scale : MELLO_SCALE_MINOR];
+    d = degree;
+    idx = d % sd->n;
+    oct = d / sd->n;
+    midi = root + sd->v[idx] + oct * 12 +
+           ((int32_t)e->project.global_octave + (int32_t)lc_oct + (int32_t)octave) * 12 + (int32_t)lc_pitch;
+    return clamp_u8_i32(midi, 12u, 108u);
 }
-uint8_t mello_engine_resolve_chord_notes(const MelloEngine *e,uint8_t chord_step,uint8_t out[MELLO_CHORD_MAX_VOICES]){
-    static const uint8_t tri[4]={0u,2u,4u,6u},sus2[4]={0u,1u,4u,6u},sus4[4]={0u,3u,4u,6u};
-    const MelloChordStep *s;const uint8_t *off=tri;uint8_t n,i,inv;
-    if(!e||!out)return 0u;
-    s=&e->chord.steps[chord_step%e->chord.length];n=e->chord.voices;if(n<2u)n=2u;if(n>4u)n=4u;
-    if(s->shape==MELLO_CHORD_TRIAD&&n>3u)n=3u;else if(s->shape==MELLO_CHORD_POWER&&n>3u)n=3u;
-    if(s->shape==MELLO_CHORD_SUS2)off=sus2;else if(s->shape==MELLO_CHORD_SUS4)off=sus4;
-    for(i=0u;i<n;++i){if(s->shape==MELLO_CHORD_POWER){uint8_t root=chord_scale_degree_midi(e,s->degree,s->octave);static const int8_t po[3]={0,7,12};out[i]=clamp_u8_i32((int32_t)root+po[i],12u,108u);}else out[i]=chord_scale_degree_midi(e,(uint8_t)(s->degree+off[i]),s->octave);}
-    inv=s->inversion;while(inv--&&n>1u){uint8_t x=(uint8_t)(out[0]+12u),j;for(j=0u;j+1u<n;++j)out[j]=out[j+1u];out[n-1u]=x>108u?108u:x;}
-    if(s->spread==1u&&n>2u)out[n-1u]=clamp_u8_i32((int32_t)out[n-1u]+12,12u,108u);
-    else if(s->spread==2u){for(i=1u;i<n;i+=2u)out[i]=clamp_u8_i32((int32_t)out[i]+12,12u,108u);}
-    else if(s->spread>=3u){for(i=1u;i<n;++i)out[i]=clamp_u8_i32((int32_t)out[i]+(i==n-1u?24:12),12u,108u);}
+uint8_t mello_engine_resolve_chord_notes(const MelloEngine *e, uint8_t chord_step,
+                                         uint8_t out[MELLO_CHORD_MAX_VOICES])
+{
+    static const uint8_t tri[4] = {0u, 2u, 4u, 6u}, sus2[4] = {0u, 1u, 4u, 6u}, sus4[4] = {0u, 3u, 4u, 6u};
+    const MelloChordStep *s;
+    const uint8_t *off = tri;
+    uint8_t n, i, inv;
+    if (!e || !out) return 0u;
+    s = &e->chord.steps[chord_step % e->chord.length];
+    n = e->chord.voices;
+    if (n < 2u) n = 2u;
+    if (n > 4u) n = 4u;
+    if (s->shape == MELLO_CHORD_TRIAD && n > 3u)
+        n = 3u;
+    else if (s->shape == MELLO_CHORD_POWER && n > 3u)
+        n = 3u;
+    if (s->shape == MELLO_CHORD_SUS2)
+        off = sus2;
+    else if (s->shape == MELLO_CHORD_SUS4)
+        off = sus4;
+    for (i = 0u; i < n; ++i) {
+        if (s->shape == MELLO_CHORD_POWER) {
+            uint8_t root = chord_scale_degree_midi(e, s->degree, s->octave);
+            static const int8_t po[3] = {0, 7, 12};
+            out[i] = clamp_u8_i32((int32_t)root + po[i], 12u, 108u);
+        } else
+            out[i] = chord_scale_degree_midi(e, (uint8_t)(s->degree + off[i]), s->octave);
+    }
+    inv = s->inversion;
+    while (inv-- && n > 1u) {
+        uint8_t x = (uint8_t)(out[0] + 12u), j;
+        for (j = 0u; j + 1u < n; ++j) out[j] = out[j + 1u];
+        out[n - 1u] = x > 108u ? 108u : x;
+    }
+    if (s->spread == 1u && n > 2u)
+        out[n - 1u] = clamp_u8_i32((int32_t)out[n - 1u] + 12, 12u, 108u);
+    else if (s->spread == 2u) {
+        for (i = 1u; i < n; i += 2u) out[i] = clamp_u8_i32((int32_t)out[i] + 12, 12u, 108u);
+    } else if (s->spread >= 3u) {
+        for (i = 1u; i < n; ++i) out[i] = clamp_u8_i32((int32_t)out[i] + (i == n - 1u ? 24 : 12), 12u, 108u);
+    }
     return n;
 }
-static bool chord_grid_hit(MelloEngine *e,bool is_step_start){
-    MelloChordConfig *c=&e->chord;MelloDotRuntime *rt=&e->chord_grid_runtime;uint32_t linear,base,cycle,pos;uint8_t cell;bool on;
-    if(c->trigger!=MELLO_CHORD_TRIGGER_GRID)return is_step_start;
-    if(c->grid_follow&&!is_step_start)return false;
-    linear=c->grid_follow?e->chord_grid_follow:e->chord_grid_tick;base=c->grid_reset?(linear%(uint32_t)(e->project.seq_len?e->project.seq_len:16u)):linear;cycle=base/c->grid_length;
-    if(rt->mode!=c->grid_mode||rt->length!=c->grid_length){rt->mode=c->grid_mode;rt->length=c->grid_length;rt->cycle=-1;dot_build_order(c->grid_mode==MELLO_DOT_RANDOM?MELLO_DOT_HORIZONTAL:c->grid_mode,c->grid_length,rt->order);if(c->grid_mode==MELLO_DOT_RANDOM)dot_shuffle_order(e,rt->order,c->grid_length);}
-    if(c->grid_mode==MELLO_DOT_RANDOM&&rt->cycle!=(int32_t)cycle)dot_shuffle_order(e,rt->order,c->grid_length);
-    rt->cycle=(int32_t)cycle;pos=base%c->grid_length;cell=rt->order[pos];e->chord_grid_active_cell=(int8_t)cell;on=(c->grid_cells&(uint16_t)(1u<<cell))!=0u;
-    e->chord_grid_tick++;if(is_step_start)e->chord_grid_follow++;return on&&chance_permille(&e->gen_rng,c->grid_amount);
+static bool chord_grid_hit(MelloEngine *e, bool is_step_start)
+{
+    MelloChordConfig *c = &e->chord;
+    MelloDotRuntime *rt = &e->chord_grid_runtime;
+    uint32_t linear, base, cycle, pos;
+    uint8_t cell;
+    bool on;
+    if (c->trigger != MELLO_CHORD_TRIGGER_GRID) return is_step_start;
+    if (c->grid_follow && !is_step_start) return false;
+    linear = c->grid_follow ? e->chord_grid_follow : e->chord_grid_tick;
+    base = c->grid_reset ? (linear % (uint32_t)(e->project.seq_len ? e->project.seq_len : 16u)) : linear;
+    cycle = base / c->grid_length;
+    if (rt->mode != c->grid_mode || rt->length != c->grid_length) {
+        rt->mode = c->grid_mode;
+        rt->length = c->grid_length;
+        rt->cycle = -1;
+        dot_build_order(c->grid_mode == MELLO_DOT_RANDOM ? MELLO_DOT_HORIZONTAL : c->grid_mode,
+                        c->grid_length, rt->order);
+        if (c->grid_mode == MELLO_DOT_RANDOM) dot_shuffle_order(e, rt->order, c->grid_length);
+    }
+    if (c->grid_mode == MELLO_DOT_RANDOM && rt->cycle != (int32_t)cycle)
+        dot_shuffle_order(e, rt->order, c->grid_length);
+    rt->cycle = (int32_t)cycle;
+    pos = base % c->grid_length;
+    cell = rt->order[pos];
+    e->chord_grid_active_cell = (int8_t)cell;
+    on = (c->grid_cells & (uint16_t)(1u << cell)) != 0u;
+    e->chord_grid_tick++;
+    if (is_step_start) e->chord_grid_follow++;
+    return on && chance_permille(&e->gen_rng, c->grid_amount);
 }
-static void emit_chord_note(MelloEngine *e,MelloEventType type,uint32_t tick,uint8_t step,uint8_t pulse,uint8_t total,uint8_t note,uint8_t vel){
-    emit_basic(e,type,tick,step,pulse,total,note,vel,0u,false,true);
+static void emit_chord_note(MelloEngine *e, MelloEventType type, uint32_t tick, uint8_t step, uint8_t pulse,
+                            uint8_t total, uint8_t note, uint8_t vel)
+{
+    emit_basic(e, type, tick, step, pulse, total, note, vel, 0u, false, true);
 }
-static void chord_trigger(MelloEngine *e,const MelloPulseEntry *pe,bool advance_chain){
-    MelloChordConfig *c=&e->chord;MelloChordStep *cs;uint8_t notes[4],n,i,mask=0u,slot;uint32_t dur,unit_ticks;bool fresh;
-    if(!c->on||!pe)return;
-    slot=(uint8_t)(e->chord_chain_pos%c->length);cs=&c->steps[slot];fresh=e->chord_chain_hold==0u;n=mello_engine_resolve_chord_notes(e,slot,notes);
-    if(c->mode==MELLO_CHORD_HOLD){if(fresh){for(i=0u;i<e->chord_last_count;++i)emit_chord_note(e,MELLO_EVENT_CHORD_NOTE_OFF,e->now_tick,pe->step_index,pe->pulse_index,pe->total_pulses,e->chord_last_notes[i],0u);for(i=0u;i<n;++i){emit_chord_note(e,MELLO_EVENT_CHORD_NOTE_ON,e->now_tick,pe->step_index,pe->pulse_index,pe->total_pulses,notes[i],88u);e->chord_last_notes[i]=notes[i];}e->chord_last_count=n;}}
-    else{
-        if(c->mode==MELLO_CHORD_STAB)mask=(uint8_t)((1u<<n)-1u);
-        else if(c->mode==MELLO_CHORD_ARP_UP){mask=(uint8_t)(1u<<(e->chord_arp_pos%n));e->chord_arp_pos=(uint8_t)((e->chord_arp_pos+1u)%n);}
-        else if(c->mode==MELLO_CHORD_ARP_DOWN){uint8_t p=(uint8_t)(e->chord_arp_pos%n);mask=(uint8_t)(1u<<(n-1u-p));e->chord_arp_pos=(uint8_t)((p+1u)%n);}
-        else if(c->mode==MELLO_CHORD_ARP_UPDOWN){uint8_t p=e->chord_arp_pos;if(p>=n)p=(uint8_t)(n-1u);mask=(uint8_t)(1u<<p);if(n>1u){if(e->chord_arp_dir>0){if(p+1u>=n){e->chord_arp_dir=-1;e->chord_arp_pos=(uint8_t)(n-2u);}else e->chord_arp_pos=(uint8_t)(p+1u);}else{if(p==0u){e->chord_arp_dir=1;e->chord_arp_pos=1u;}else e->chord_arp_pos=(uint8_t)(p-1u);}}}
-        else{uint8_t pl=c->pattern_length?c->pattern_length:1u;mask=(uint8_t)(c->pattern_masks[e->chord_pattern_pos%pl]&((1u<<n)-1u));e->chord_pattern_pos=(uint8_t)((e->chord_pattern_pos+1u)%pl);}
+static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advance_chain)
+{
+    MelloChordConfig *c = &e->chord;
+    MelloChordStep *cs;
+    uint8_t notes[4], n, i, mask = 0u, slot;
+    uint32_t dur, unit_ticks;
+    bool fresh;
+    if (!c->on || !pe) return;
+    slot = (uint8_t)(e->chord_chain_pos % c->length);
+    cs = &c->steps[slot];
+    fresh = e->chord_chain_hold == 0u;
+    n = mello_engine_resolve_chord_notes(e, slot, notes);
+    if (c->mode == MELLO_CHORD_HOLD) {
+        if (fresh) {
+            for (i = 0u; i < e->chord_last_count; ++i)
+                emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_OFF, e->now_tick, pe->step_index, pe->pulse_index,
+                                pe->total_pulses, e->chord_last_notes[i], 0u);
+            for (i = 0u; i < n; ++i) {
+                emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_ON, e->now_tick, pe->step_index, pe->pulse_index,
+                                pe->total_pulses, notes[i], 88u);
+                e->chord_last_notes[i] = notes[i];
+            }
+            e->chord_last_count = n;
+        }
+    } else {
+        if (c->mode == MELLO_CHORD_STAB)
+            mask = (uint8_t)((1u << n) - 1u);
+        else if (c->mode == MELLO_CHORD_ARP_UP) {
+            mask = (uint8_t)(1u << (e->chord_arp_pos % n));
+            e->chord_arp_pos = (uint8_t)((e->chord_arp_pos + 1u) % n);
+        } else if (c->mode == MELLO_CHORD_ARP_DOWN) {
+            uint8_t p = (uint8_t)(e->chord_arp_pos % n);
+            mask = (uint8_t)(1u << (n - 1u - p));
+            e->chord_arp_pos = (uint8_t)((p + 1u) % n);
+        } else if (c->mode == MELLO_CHORD_ARP_UPDOWN) {
+            uint8_t p = e->chord_arp_pos;
+            if (p >= n) p = (uint8_t)(n - 1u);
+            mask = (uint8_t)(1u << p);
+            if (n > 1u) {
+                if (e->chord_arp_dir > 0) {
+                    if (p + 1u >= n) {
+                        e->chord_arp_dir = -1;
+                        e->chord_arp_pos = (uint8_t)(n - 2u);
+                    } else
+                        e->chord_arp_pos = (uint8_t)(p + 1u);
+                } else {
+                    if (p == 0u) {
+                        e->chord_arp_dir = 1;
+                        e->chord_arp_pos = 1u;
+                    } else
+                        e->chord_arp_pos = (uint8_t)(p - 1u);
+                }
+            }
+        } else {
+            uint8_t pl = c->pattern_length ? c->pattern_length : 1u;
+            mask = (uint8_t)(c->pattern_masks[e->chord_pattern_pos % pl] & ((1u << n) - 1u));
+            e->chord_pattern_pos = (uint8_t)((e->chord_pattern_pos + 1u) % pl);
+        }
         /* STAB is deliberately pulse-locked: short chord hit. HOLD is the pad/background mode,
          * while ARP/PATTERN also advance on the master pulse. Harmony itself advances on steps. */
-        unit_ticks=mello_pulse_ticks(&e->project);
-        dur=(unit_ticks*(uint32_t)c->gate_amount)/1000u;dur=clamp_duration_ms_as_ticks(&e->project,dur,20u,4000u);
-        for(i=0u;i<n;++i)if(mask&(uint8_t)(1u<<i)){emit_chord_note(e,MELLO_EVENT_CHORD_NOTE_ON,e->now_tick,pe->step_index,pe->pulse_index,pe->total_pulses,notes[i],88u);emit_chord_note(e,MELLO_EVENT_CHORD_NOTE_OFF,e->now_tick+dur,pe->step_index,pe->pulse_index,pe->total_pulses,notes[i],0u);}
+        unit_ticks = mello_pulse_ticks(&e->project);
+        dur = (unit_ticks * (uint32_t)c->gate_amount) / 1000u;
+        dur = clamp_duration_ms_as_ticks(&e->project, dur, 20u, 4000u);
+        for (i = 0u; i < n; ++i)
+            if (mask & (uint8_t)(1u << i)) {
+                emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_ON, e->now_tick, pe->step_index, pe->pulse_index,
+                                pe->total_pulses, notes[i], 88u);
+                emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_OFF, e->now_tick + dur, pe->step_index,
+                                pe->pulse_index, pe->total_pulses, notes[i], 0u);
+            }
     }
-    if(advance_chain){e->chord_chain_hold++;if(e->chord_chain_hold>=cs->hold){e->chord_chain_hold=0u;e->chord_chain_pos=(uint8_t)((slot+1u)%c->length);e->chord_arp_pos=0u;e->chord_arp_dir=1;e->chord_pattern_pos=0u;}}
+    if (advance_chain) {
+        e->chord_chain_hold++;
+        if (e->chord_chain_hold >= cs->hold) {
+            e->chord_chain_hold = 0u;
+            e->chord_chain_pos = (uint8_t)((slot + 1u) % c->length);
+            e->chord_arp_pos = 0u;
+            e->chord_arp_dir = 1;
+            e->chord_pattern_pos = 0u;
+        }
+    }
 }
 #endif
 
-bool mello_engine_advance_pulse(MelloEngine *e) {
+bool mello_engine_advance_pulse(MelloEngine *e)
+{
     MelloRuntimeSegment *seg;
     MelloPulseEntry pe;
     MelloStep *s;
-    bool pass,did_wrap,matrix_accent=false,matrix_sub=false,tm_gate_sub=false,has_gate_override=false;
-    uint8_t ratchet_add=0u,eff_ratchet,main_note;
-    MelloGateMode gate_override=MELLO_GATE_SINGLE,eff_gate;
-    uint16_t matrix_filter=0u;
-    uint32_t pulse_ticks,next_tick,old_loop_ticks;
-    int8_t auto_slot=-1;
+    bool pass, did_wrap, matrix_accent = false, matrix_sub = false, tm_gate_sub = false,
+                         has_gate_override = false;
+    uint8_t ratchet_add = 0u, eff_ratchet, main_note;
+    MelloGateMode gate_override = MELLO_GATE_SINGLE, eff_gate;
+    uint16_t matrix_filter = 0u;
+    uint32_t pulse_ticks, next_tick, old_loop_ticks;
+    int8_t auto_slot = -1;
     uint8_t i;
 
-    if(!e||!e->playing||!e->has_active_step||!e->runtime_built||e->runtime_segment_count==0u)return false;
+    if (!e || !e->playing || !e->has_active_step || !e->runtime_built || e->runtime_segment_count == 0u)
+        return false;
 
-    set_current_entry(e); if(!e->has_active_step)return false;
-    seg=&e->runtime_segments[e->active_runtime_segment]; pe=e->runtime_pulses[seg->offset+e->segment_pulse_pos]; s=&e->project.steps[pe.step_index];
-    e->step_index=pe.step_index;e->pulse_index=pe.pulse_index;
-    old_loop_ticks=e->loop_pulse_length;
+    set_current_entry(e);
+    if (!e->has_active_step) return false;
+    seg = &e->runtime_segments[e->active_runtime_segment];
+    pe = e->runtime_pulses[seg->offset + e->segment_pulse_pos];
+    s = &e->project.steps[pe.step_index];
+    e->step_index = pe.step_index;
+    e->pulse_index = pe.pulse_index;
+    old_loop_ticks = e->loop_pulse_length;
 
-    memset(&e->last_mod,0,sizeof(e->last_mod));
-    e->last_mod.tm_index=-1;
-    for(i=0u;i<MELLO_DOT_MATRIX_COUNT;++i)e->last_mod.dot_cell[i]=e->dot_active_cell[i];
+    memset(&e->last_mod, 0, sizeof(e->last_mod));
+    e->last_mod.tm_index = -1;
+    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) e->last_mod.dot_cell[i] = e->dot_active_cell[i];
 
     /* Source order: evolve registers -> read TM routes -> probability -> Dot Matrix -> pitch/gates/sub. */
-    if(e->tm.on){
-        uint8_t ti;bool b;uint16_t fv;int32_t centered;
-        tm_ensure_lengths(e,e->tm.length);
+    if (e->tm.on) {
+        uint8_t ti;
+        bool b;
+        uint16_t fv;
+        int32_t centered;
+        tm_ensure_lengths(e, e->tm.length);
         tm_mutate(e);
-        ti=tm_index_for(e);e->tm_active_index=(int8_t)ti;
-        b=e->tm_bool_reg[ti]!=0u;fv=e->tm_float_reg[ti];centered=(int32_t)fv-32768;
-        e->last_mod.tm_index=(int8_t)ti;e->last_mod.tm_bool=b;e->last_mod.tm_float=fv;
-        tm_gate_sub=((e->tm.routes&MELLO_TM_ROUTE_GATE)!=0u)&&b;
-        if((e->tm.routes&MELLO_TM_ROUTE_GATE)!=0u && chance_permille(&e->gen_rng,e->tm.depth_gate)){
-            has_gate_override=true;gate_override=b?MELLO_GATE_MULTI:MELLO_GATE_SINGLE;
+        ti = tm_index_for(e);
+        e->tm_active_index = (int8_t)ti;
+        b = e->tm_bool_reg[ti] != 0u;
+        fv = e->tm_float_reg[ti];
+        centered = (int32_t)fv - 32768;
+        e->last_mod.tm_index = (int8_t)ti;
+        e->last_mod.tm_bool = b;
+        e->last_mod.tm_float = fv;
+        tm_gate_sub = ((e->tm.routes & MELLO_TM_ROUTE_GATE) != 0u) && b;
+        if ((e->tm.routes & MELLO_TM_ROUTE_GATE) != 0u && chance_permille(&e->gen_rng, e->tm.depth_gate)) {
+            has_gate_override = true;
+            gate_override = b ? MELLO_GATE_MULTI : MELLO_GATE_SINGLE;
         }
-        if((e->tm.routes&MELLO_TM_ROUTE_FILTER)!=0u)e->last_mod.tm_filter_mod_q15=(int16_t)((centered*(int32_t)e->tm.depth_filter)/4000);
-        if((e->tm.routes&MELLO_TM_ROUTE_OCTAVE)!=0u)e->last_mod.tm_octave_mod=tm_octave_from_value(fv,e->tm.depth_octave);
-        if((e->tm.routes&MELLO_TM_ROUTE_DECAY)!=0u)e->last_mod.tm_decay_mod_q15=(int16_t)((centered*(int32_t)e->tm.depth_decay)/10000);
-    }else{
-        e->tm_active_index=-1;
+        if ((e->tm.routes & MELLO_TM_ROUTE_FILTER) != 0u)
+            e->last_mod.tm_filter_mod_q15 = (int16_t)((centered * (int32_t)e->tm.depth_filter) / 4000);
+        if ((e->tm.routes & MELLO_TM_ROUTE_OCTAVE) != 0u)
+            e->last_mod.tm_octave_mod = tm_octave_from_value(fv, e->tm.depth_octave);
+        if ((e->tm.routes & MELLO_TM_ROUTE_DECAY) != 0u)
+            e->last_mod.tm_decay_mod_q15 = (int16_t)((centered * (int32_t)e->tm.depth_decay) / 10000);
+    } else {
+        e->tm_active_index = -1;
     }
 
-    pass=probability_pass(e,s->probability);
-    eff_gate=has_gate_override?gate_override:(pass?s->gate:MELLO_GATE_REST);
+    pass = probability_pass(e, s->probability);
+    eff_gate = has_gate_override ? gate_override : (pass ? s->gate : MELLO_GATE_REST);
 
-    evaluate_dot_matrices(e,pe.pulse_index==0u,&matrix_accent,&ratchet_add,&matrix_sub,&matrix_filter);
+    evaluate_dot_matrices(e, pe.pulse_index == 0u, &matrix_accent, &ratchet_add, &matrix_sub, &matrix_filter);
 #if MELLO_FEATURE_CHORD_MACHINE
     {
-        bool step_start=pe.pulse_index==0u;
+        bool step_start = pe.pulse_index == 0u;
         bool fire;
-        if(e->chord.trigger==MELLO_CHORD_TRIGGER_GRID)fire=chord_grid_hit(e,step_start);
-        else if(e->chord.mode==MELLO_CHORD_ARP_UP||e->chord.mode==MELLO_CHORD_ARP_DOWN||e->chord.mode==MELLO_CHORD_ARP_UPDOWN||e->chord.mode==MELLO_CHORD_PATTERN)fire=true;
-        else fire=step_start;
+        if (e->chord.trigger == MELLO_CHORD_TRIGGER_GRID)
+            fire = chord_grid_hit(e, step_start);
+        else if (e->chord.mode == MELLO_CHORD_ARP_UP || e->chord.mode == MELLO_CHORD_ARP_DOWN ||
+                 e->chord.mode == MELLO_CHORD_ARP_UPDOWN || e->chord.mode == MELLO_CHORD_PATTERN)
+            fire = true;
+        else
+            fire = step_start;
         /* STEP-mode harmony advances only at logical step boundaries; its arp/pattern clock may tick inside the step. */
-        if(fire)chord_trigger(e,&pe,e->chord.trigger==MELLO_CHORD_TRIGGER_GRID?true:step_start);
+        if (fire) chord_trigger(e, &pe, e->chord.trigger == MELLO_CHORD_TRIGGER_GRID ? true : step_start);
     }
 #endif
-    eff_ratchet=clamp_1_8((uint8_t)(clamp_1_8(s->ratchet)+ratchet_add));
-    e->last_mod.effective_gate=eff_gate;
-    e->last_mod.effective_ratchet=eff_ratchet;
-    e->last_mod.effective_accent=(bool)(s->accent||matrix_accent);
-    e->last_mod.matrix_sub=matrix_sub;
-    e->last_mod.matrix_filter_amount=matrix_filter;
+    eff_ratchet = clamp_1_8((uint8_t)(clamp_1_8(s->ratchet) + ratchet_add));
+    e->last_mod.effective_gate = eff_gate;
+    e->last_mod.effective_ratchet = eff_ratchet;
+    e->last_mod.effective_accent = (bool)(s->accent || matrix_accent);
+    e->last_mod.matrix_sub = matrix_sub;
+    e->last_mod.matrix_filter_amount = matrix_filter;
 
-    main_note=resolve_engine_step_midi_mod(e,s,e->last_mod.tm_octave_mod);
-    emit_basic(e,MELLO_EVENT_PULSE,e->now_tick,pe.step_index,pe.pulse_index,pe.total_pulses,main_note,velocity_for_accent(e->last_mod.effective_accent),0u,s->slide,pass);
-    if(e->segment_pulse_pos==0u)emit_basic(e,MELLO_EVENT_SEGMENT_ENTER,e->now_tick,pe.step_index,pe.pulse_index,pe.total_pulses,main_note,velocity_for_accent(e->last_mod.effective_accent),0u,s->slide,pass);
-    if(pe.pulse_index==0u)emit_basic(e,MELLO_EVENT_STEP_ENTER,e->now_tick,pe.step_index,pe.pulse_index,pe.total_pulses,main_note,velocity_for_accent(e->last_mod.effective_accent),0u,s->slide,pass);
-    generate_gate_events(e,s,pass,pe.pulse_index,pe.total_pulses,eff_gate,eff_ratchet,e->last_mod.effective_accent,e->last_mod.tm_octave_mod);
+    main_note = resolve_engine_step_midi_mod(e, s, e->last_mod.tm_octave_mod);
+    emit_basic(e, MELLO_EVENT_PULSE, e->now_tick, pe.step_index, pe.pulse_index, pe.total_pulses, main_note,
+               velocity_for_accent(e->last_mod.effective_accent), 0u, s->slide, pass);
+    if (e->segment_pulse_pos == 0u)
+        emit_basic(e, MELLO_EVENT_SEGMENT_ENTER, e->now_tick, pe.step_index, pe.pulse_index, pe.total_pulses,
+                   main_note, velocity_for_accent(e->last_mod.effective_accent), 0u, s->slide, pass);
+    if (pe.pulse_index == 0u)
+        emit_basic(e, MELLO_EVENT_STEP_ENTER, e->now_tick, pe.step_index, pe.pulse_index, pe.total_pulses,
+                   main_note, velocity_for_accent(e->last_mod.effective_accent), 0u, s->slide, pass);
+    generate_gate_events(e, s, pass, pe.pulse_index, pe.total_pulses, eff_gate, eff_ratchet,
+                         e->last_mod.effective_accent, e->last_mod.tm_octave_mod);
 
     /* Browser sample layer lives inside triggerNote(): it only fires when the effective main gate
      * is not REST, only at pulseIdx 0, and its hold is the full logical step duration. */
-    if (pe.pulse_index==0u && e->sample.on && eff_gate!=MELLO_GATE_REST) {
+    if (pe.pulse_index == 0u && e->sample.on && eff_gate != MELLO_GATE_REST) {
         uint8_t ss = e->sample.per_step ? s->sample_slot : (uint8_t)(e->sample.edit_slot + 1u);
-        if (ss>=1u && ss<=MELLO_SAMPLE_SLOT_COUNT) {
+        if (ss >= 1u && ss <= MELLO_SAMPLE_SLOT_COUNT) {
             uint32_t sample_off = e->now_tick + mello_pulse_ticks(&e->project) * (uint32_t)pe.total_pulses;
-            emit_sample_pair(e,e->now_tick,sample_off,pe.step_index,pe.total_pulses,main_note,velocity_for_accent(e->last_mod.effective_accent),(uint8_t)(ss-1u),s->slide,pass);
+            emit_sample_pair(e, e->now_tick, sample_off, pe.step_index, pe.total_pulses, main_note,
+                             velocity_for_accent(e->last_mod.effective_accent), (uint8_t)(ss - 1u), s->slide,
+                             pass);
         }
     }
 
     /* Dedicated sub is independent of main probability/gate and evaluates only at step start. */
-    if(pe.pulse_index==0u&&e->sub.on){
-        bool sub_should=false;uint8_t x_tone=MELLO_SUB_TONE_ROOT;int8_t x_oct=0;
-        if(e->sub.mode==MELLO_SUB_MODE_STEP)sub_should=s->sub;
-        else if(e->sub.mode==MELLO_SUB_MODE_EUCLID){
-            uint32_t total=old_loop_ticks?old_loop_ticks:1u;
-            uint32_t loop_tick=old_loop_ticks?(e->absolute_pulse%old_loop_ticks):0u;
-            sub_should=euclid_hit_u32(loop_tick,total,e->sub.euclid_pulses,e->sub.euclid_rotate);
-        }else if(e->sub.mode==MELLO_SUB_MODE_TM)sub_should=tm_gate_sub;
-        else sub_should=matrix_sub;
+    if (pe.pulse_index == 0u && e->sub.on) {
+        bool sub_should = false;
+        uint8_t x_tone = MELLO_SUB_TONE_ROOT;
+        int8_t x_oct = 0;
+        if (e->sub.mode == MELLO_SUB_MODE_STEP)
+            sub_should = s->sub;
+        else if (e->sub.mode == MELLO_SUB_MODE_EUCLID) {
+            uint32_t total = old_loop_ticks ? old_loop_ticks : 1u;
+            uint32_t loop_tick = old_loop_ticks ? (e->absolute_pulse % old_loop_ticks) : 0u;
+            sub_should = euclid_hit_u32(loop_tick, total, e->sub.euclid_pulses, e->sub.euclid_rotate);
+        } else if (e->sub.mode == MELLO_SUB_MODE_TM)
+            sub_should = tm_gate_sub;
+        else
+            sub_should = matrix_sub;
 
-        if(e->sub.x_on){
-            uint8_t len=sanitize_sub_x_length(e->sub.x_length);uint8_t xi=(uint8_t)(e->sub_x_pos%len);MelloSubXStep *xs=&e->sub.x_steps[xi];
-            e->sub_x_active_index=(int8_t)xi;sub_should=xs->on;x_tone=xs->tone;x_oct=xs->octave;e->sub_x_pos=(uint8_t)((e->sub_x_pos+1u)%len);
-        }else e->sub_x_active_index=-1;
+        if (e->sub.x_on) {
+            uint8_t len = sanitize_sub_x_length(e->sub.x_length);
+            uint8_t xi = (uint8_t)(e->sub_x_pos % len);
+            MelloSubXStep *xs = &e->sub.x_steps[xi];
+            e->sub_x_active_index = (int8_t)xi;
+            sub_should = xs->on;
+            x_tone = xs->tone;
+            x_oct = xs->octave;
+            e->sub_x_pos = (uint8_t)((e->sub_x_pos + 1u) % len);
+        } else
+            e->sub_x_active_index = -1;
 
-        if(sub_should){
-            uint32_t raw, dur;uint8_t sub_note=resolve_sub_midi(e,x_tone,x_oct);
-            pulse_ticks=mello_pulse_ticks(&e->project);
-            raw=(pulse_ticks*(uint32_t)pe.total_pulses*(uint32_t)e->sub.gate_amount)/1000u;
-            dur=clamp_duration_ms_as_ticks(&e->project,raw,30u,2500u);
-            emit_sub_pair(e,e->now_tick,e->now_tick+dur,pe.step_index,pe.pulse_index,pe.total_pulses,sub_note,pass);
+        if (sub_should) {
+            uint32_t raw, dur;
+            uint8_t sub_note = resolve_sub_midi(e, x_tone, x_oct);
+            pulse_ticks = mello_pulse_ticks(&e->project);
+            raw = (pulse_ticks * (uint32_t)pe.total_pulses * (uint32_t)e->sub.gate_amount) / 1000u;
+            dur = clamp_duration_ms_as_ticks(&e->project, raw, 30u, 2500u);
+            emit_sub_pair(e, e->now_tick, e->now_tick + dur, pe.step_index, pe.pulse_index, pe.total_pulses,
+                          sub_note, pass);
         }
     }
 
-    pulse_ticks=mello_pulse_ticks(&e->project); next_tick=e->now_tick+pulse_ticks;
-    e->absolute_pulse++; did_wrap=old_loop_ticks>0u && (e->absolute_pulse%old_loop_ticks)==0u;
-    if(did_wrap){e->loop_count++;emit_basic(e,MELLO_EVENT_PATTERN_WRAP,next_tick,pe.step_index,pe.pulse_index,pe.total_pulses,main_note,0u,0u,s->slide,pass);}
+    pulse_ticks = mello_pulse_ticks(&e->project);
+    next_tick = e->now_tick + pulse_ticks;
+    e->absolute_pulse++;
+    did_wrap = old_loop_ticks > 0u && (e->absolute_pulse % old_loop_ticks) == 0u;
+    if (did_wrap) {
+        e->loop_count++;
+        emit_basic(e, MELLO_EVENT_PATTERN_WRAP, next_tick, pe.step_index, pe.pulse_index, pe.total_pulses,
+                   main_note, 0u, 0u, s->slide, pass);
+    }
 
     /* Exact source collision order: queued manual slot at wrap wins and returns before
      * Loop Cycle, Slot Sequencer, X reset, and normal traversal advancement for this boundary. */
-    if(did_wrap && e->queued_slot>=0){
-        uint8_t slot=(uint8_t)e->queued_slot;e->queued_slot=-1;e->now_tick=next_tick;(void)apply_slot(e,slot,false,next_tick);return true;
+    if (did_wrap && e->queued_slot >= 0) {
+        uint8_t slot = (uint8_t)e->queued_slot;
+        e->queued_slot = -1;
+        e->now_tick = next_tick;
+        (void)apply_slot(e, slot, false, next_tick);
+        return true;
     }
 
-    if(e->loop_cycle.active){
-        uint8_t len=e->loop_cycle.length; MelloLoopCycleStep *cur; uint16_t hold;
-        if(len<2u)len=2u;
-        if(len>MELLO_MAX_LOOP_CYCLE_STEPS)len=MELLO_MAX_LOOP_CYCLE_STEPS;
-        e->loop_cycle_pos=(uint8_t)(e->loop_cycle_pos%len);
-        cur=&e->loop_cycle.steps[e->loop_cycle_pos];hold=clamp_hold(cur->hold?cur->hold:16u);e->loop_cycle_tick++;
-        if(e->loop_cycle_tick>=hold){e->loop_cycle_tick=0u;e->loop_cycle_count++;e->loop_cycle_pos=(uint8_t)((e->loop_cycle_pos+1u)%len);emit_state_event(e,MELLO_EVENT_LOOP_CYCLE_CHANGE,next_tick);}
-        else if(did_wrap && e->loop_cycle.sync && hold<=old_loop_ticks)e->loop_cycle_tick=0u;
+    if (e->loop_cycle.active) {
+        uint8_t len = e->loop_cycle.length;
+        MelloLoopCycleStep *cur;
+        uint16_t hold;
+        if (len < 2u) len = 2u;
+        if (len > MELLO_MAX_LOOP_CYCLE_STEPS) len = MELLO_MAX_LOOP_CYCLE_STEPS;
+        e->loop_cycle_pos = (uint8_t)(e->loop_cycle_pos % len);
+        cur = &e->loop_cycle.steps[e->loop_cycle_pos];
+        hold = clamp_hold(cur->hold ? cur->hold : 16u);
+        e->loop_cycle_tick++;
+        if (e->loop_cycle_tick >= hold) {
+            e->loop_cycle_tick = 0u;
+            e->loop_cycle_count++;
+            e->loop_cycle_pos = (uint8_t)((e->loop_cycle_pos + 1u) % len);
+            emit_state_event(e, MELLO_EVENT_LOOP_CYCLE_CHANGE, next_tick);
+        } else if (did_wrap && e->loop_cycle.sync && hold <= old_loop_ticks)
+            e->loop_cycle_tick = 0u;
     }
 
-    if(e->slot_seq.active){
-        uint8_t len=sanitize_slot_seq_length(e->slot_seq.length);uint8_t pos=(uint8_t)(e->slot_seq_pos%len);uint16_t hold=e->slot_seq_hold;MelloSlotSeqStep *cfg=&e->slot_seq.steps[pos];uint16_t need=clamp_hold(cfg->hold?cfg->hold:16u);
-        if(hold>=need){pos=(uint8_t)((pos+1u)%len);hold=0u;cfg=&e->slot_seq.steps[pos];e->slot_seq_pos=pos;emit_state_event(e,MELLO_EVENT_SLOT_SEQ_CHANGE,next_tick);}
-        if(hold==0u && cfg->slot>=0 && cfg->slot<(int8_t)e->visible_slot_count && e->slots[(uint8_t)cfg->slot].valid)auto_slot=cfg->slot;
-        hold++;e->slot_seq_pos=pos;e->slot_seq_hold=hold;
+    if (e->slot_seq.active) {
+        uint8_t len = sanitize_slot_seq_length(e->slot_seq.length);
+        uint8_t pos = (uint8_t)(e->slot_seq_pos % len);
+        uint16_t hold = e->slot_seq_hold;
+        MelloSlotSeqStep *cfg = &e->slot_seq.steps[pos];
+        uint16_t need = clamp_hold(cfg->hold ? cfg->hold : 16u);
+        if (hold >= need) {
+            pos = (uint8_t)((pos + 1u) % len);
+            hold = 0u;
+            cfg = &e->slot_seq.steps[pos];
+            e->slot_seq_pos = pos;
+            emit_state_event(e, MELLO_EVENT_SLOT_SEQ_CHANGE, next_tick);
+        }
+        if (hold == 0u && cfg->slot >= 0 && cfg->slot < (int8_t)e->visible_slot_count &&
+            e->slots[(uint8_t)cfg->slot].valid)
+            auto_slot = cfg->slot;
+        hold++;
+        e->slot_seq_pos = pos;
+        e->slot_seq_hold = hold;
     }
 
-    if(did_wrap&&e->sub.x_on&&e->sub.x_reset){e->sub_x_pos=0u;e->sub_x_active_index=0;}
+    if (did_wrap && e->sub.x_on && e->sub.x_reset) {
+        e->sub_x_pos = 0u;
+        e->sub_x_active_index = 0;
+    }
 
-    e->now_tick=next_tick;
-    if(e->project.master_len>0u && did_wrap){e->active_runtime_segment=0u;e->segment_pulse_pos=0u;e->segment_repeat_done=0u;}
-    else advance_segment_traversal(e);
+    e->now_tick = next_tick;
+    if (e->project.master_len > 0u && did_wrap) {
+        e->active_runtime_segment = 0u;
+        e->segment_pulse_pos = 0u;
+        e->segment_repeat_done = 0u;
+    } else
+        advance_segment_traversal(e);
     set_current_entry(e);
 
     /* React source applies Slot Seq state changes after the current callback. Rebuild here,
      * after old-pattern traversal has advanced, so the next pulse sees the new slot while
      * retaining arranger/main-sequence phase. Loop Cycle config/runtime remains untouched. */
-    if(auto_slot>=0)(void)apply_slot(e,(uint8_t)auto_slot,true,next_tick);
+    if (auto_slot >= 0) (void)apply_slot(e, (uint8_t)auto_slot, true, next_tick);
     return true;
 }
 
-const char *mello_event_type_name(MelloEventType type){
-    switch(type){
-        case MELLO_EVENT_PULSE:return "PULSE";
-        case MELLO_EVENT_STEP_ENTER:return "STEP_ENTER";
-        case MELLO_EVENT_SEGMENT_ENTER:return "SEG_ENTER";
-        case MELLO_EVENT_PATTERN_WRAP:return "PAT_WRAP";
-        case MELLO_EVENT_NOTE_ON:return "NOTE_ON";
-        case MELLO_EVENT_NOTE_OFF:return "NOTE_OFF";
-        case MELLO_EVENT_SUB_NOTE_ON:return "SUB_NOTE_ON";
-        case MELLO_EVENT_SUB_NOTE_OFF:return "SUB_NOTE_OFF";
+const char *mello_event_type_name(MelloEventType type)
+{
+    switch (type) {
+    case MELLO_EVENT_PULSE: return "PULSE";
+    case MELLO_EVENT_STEP_ENTER: return "STEP_ENTER";
+    case MELLO_EVENT_SEGMENT_ENTER: return "SEG_ENTER";
+    case MELLO_EVENT_PATTERN_WRAP: return "PAT_WRAP";
+    case MELLO_EVENT_NOTE_ON: return "NOTE_ON";
+    case MELLO_EVENT_NOTE_OFF: return "NOTE_OFF";
+    case MELLO_EVENT_SUB_NOTE_ON: return "SUB_NOTE_ON";
+    case MELLO_EVENT_SUB_NOTE_OFF: return "SUB_NOTE_OFF";
 #if MELLO_FEATURE_CHORD_MACHINE
-        case MELLO_EVENT_CHORD_NOTE_ON:return "CHORD_ON";
-        case MELLO_EVENT_CHORD_NOTE_OFF:return "CHORD_OFF";
+    case MELLO_EVENT_CHORD_NOTE_ON: return "CHORD_ON";
+    case MELLO_EVENT_CHORD_NOTE_OFF: return "CHORD_OFF";
 #endif
-        case MELLO_EVENT_SAMPLE_NOTE_ON:return "SAMPLE_ON";
-        case MELLO_EVENT_SAMPLE_NOTE_OFF:return "SAMPLE_OFF";
-        case MELLO_EVENT_LOOP_CYCLE_CHANGE:return "LOOP_CYCLE";
-        case MELLO_EVENT_SLOT_CHANGE:return "SLOT_CHANGE";
-        case MELLO_EVENT_SLOT_SEQ_CHANGE:return "SLOT_SEQ";
-        default:return "?";
+    case MELLO_EVENT_SAMPLE_NOTE_ON: return "SAMPLE_ON";
+    case MELLO_EVENT_SAMPLE_NOTE_OFF: return "SAMPLE_OFF";
+    case MELLO_EVENT_LOOP_CYCLE_CHANGE: return "LOOP_CYCLE";
+    case MELLO_EVENT_SLOT_CHANGE: return "SLOT_CHANGE";
+    case MELLO_EVENT_SLOT_SEQ_CHANGE: return "SLOT_SEQ";
+    default: return "?";
     }
 }
 
-const char *mello_scale_name(MelloScale scale){if(scale>=MELLO_SCALE_COUNT)scale=MELLO_SCALE_MINOR;return SCALES[scale].name;}
+const char *mello_scale_name(MelloScale scale)
+{
+    if (scale >= MELLO_SCALE_COUNT) scale = MELLO_SCALE_MINOR;
+    return SCALES[scale].name;
+}

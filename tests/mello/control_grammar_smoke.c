@@ -22,20 +22,30 @@ static void enc(MelloUi *ui, uint8_t id, int delta)
 
 static int capture_cycle_notes(int8_t bass_transpose, uint8_t *lead_out, uint8_t *sub_out)
 {
-    MelloProject p; MelloEngine e; MelloEvent ev; int got_lead=0, got_sub=0;
+    MelloProject p;
+    MelloEngine e;
+    MelloEvent ev;
+    int got_lead = 0, got_sub = 0;
     mello_project_defaults(&p);
     p.steps[0].sub = true;
     p.steps[0].gate = MELLO_GATE_SINGLE;
     mello_engine_init(&e, &p, 77u);
-    e.sub.on = true; e.sub.mode = MELLO_SUB_MODE_STEP;
+    e.sub.on = true;
+    e.sub.mode = MELLO_SUB_MODE_STEP;
     e.loop_cycle.active = false;
     mello_loop_cycle_set_sub(&e.loop_cycle.steps[0], MELLO_SUB_TONE_ROOT, bass_transpose);
     mello_engine_loop_cycle_select(&e, 0u);
     mello_engine_start(&e);
     if (!mello_engine_advance_pulse(&e)) return 0;
     while (mello_event_pop(&e, &ev)) {
-        if (!got_lead && ev.type == MELLO_EVENT_NOTE_ON) { *lead_out = ev.note; got_lead = 1; }
-        if (!got_sub && ev.type == MELLO_EVENT_SUB_NOTE_ON) { *sub_out = ev.note; got_sub = 1; }
+        if (!got_lead && ev.type == MELLO_EVENT_NOTE_ON) {
+            *lead_out = ev.note;
+            got_lead = 1;
+        }
+        if (!got_sub && ev.type == MELLO_EVENT_SUB_NOTE_ON) {
+            *sub_out = ev.note;
+            got_sub = 1;
+        }
     }
     return got_lead && got_sub;
 }
@@ -98,14 +108,17 @@ int main(void)
     /* Off-cycle key selection is audition: it changes harmonic context immediately. */
     mello_loop_cycle_set_sub(&t.engine.loop_cycle.steps[6], MELLO_SUB_TONE_FIFTH, +7);
     if (mello_loop_cycle_sub_tone(&t.engine.loop_cycle.steps[6]) != MELLO_SUB_TONE_FIFTH ||
-        mello_loop_cycle_sub_transpose(&t.engine.loop_cycle.steps[6]) != 7) return 24;
+        mello_loop_cycle_sub_transpose(&t.engine.loop_cycle.steps[6]) != 7)
+        return 24;
     if (!capture_cycle_notes(0, &lead0, &sub0) || !capture_cycle_notes(7, &lead7, &sub7)) return 27;
     if (lead0 != lead7 || sub7 != (uint8_t)(sub0 + 7u)) return 28;
     enc(&ui, MELLO_UI_ENC_SELECT, +1);
     if (ui.selected_loop_step != 6u || ui.loop_subpage != 1u) return 10;
     bass_tr = mello_loop_cycle_sub_transpose(&t.engine.loop_cycle.steps[6]);
     enc(&ui, MELLO_UI_ENC_KNOB4, +1);
-    if (mello_loop_cycle_sub_transpose(&t.engine.loop_cycle.steps[6]) != bass_tr + 1 || !(!t.engine.loop_cycle.active)) return 25;
+    if (mello_loop_cycle_sub_transpose(&t.engine.loop_cycle.steps[6]) != bass_tr + 1 ||
+        !(!t.engine.loop_cycle.active))
+        return 25;
     enc(&ui, MELLO_UI_ENC_SELECT, +1);
     if (ui.loop_subpage != 2u) return 11;
     t.engine.loop_cycle.active = true;
@@ -116,7 +129,8 @@ int main(void)
     t.engine.loop_cycle_pos = 5u;
     t.engine.loop_cycle_tick = 9u;
     enc(&ui, MELLO_UI_ENC_KNOB4, +1);
-    if (ui.selected_loop_step != 6u || t.engine.loop_cycle_pos != 5u || t.engine.loop_cycle_tick != 9u) return 12;
+    if (ui.selected_loop_step != 6u || t.engine.loop_cycle_pos != 5u || t.engine.loop_cycle_tick != 9u)
+        return 12;
 
     /* SLOT SEQ, TURING and SUB positions cannot be scrolled with SELECT anymore. */
     mello_ui_set_page(&ui, MELLO_UI_SEQ_SLOTSEQ);
@@ -126,14 +140,17 @@ int main(void)
     if (ui.selected_slot_seq_step != 4u) return 14;
 
     mello_ui_set_page(&ui, MELLO_UI_TURING);
-    ui.tm_subpage = 0u; ui.tm_bank = 0u; ui.selected_tm_bit = 0u;
+    ui.tm_subpage = 0u;
+    ui.tm_bank = 0u;
+    ui.selected_tm_bit = 0u;
     key(&ui, 7u);
     if (ui.selected_tm_bit != 7u) return 15;
     enc(&ui, MELLO_UI_ENC_SELECT, +1);
     if (ui.selected_tm_bit != 7u || ui.tm_subpage != 1u) return 16;
 
     mello_ui_set_page(&ui, MELLO_UI_SUB);
-    ui.sub_subpage = 2u; ui.selected_sub_x_step = 0u;
+    ui.sub_subpage = 2u;
+    ui.selected_sub_x_step = 0u;
     key(&ui, 3u);
     if (ui.selected_sub_x_step != 3u) return 17;
     gate = t.engine.sub.gate_amount;
@@ -148,7 +165,8 @@ int main(void)
         c.length = 4u;
         mello_engine_chord_set_config(&t.engine, &c);
     }
-    ui.chord_subpage = 1u; ui.selected_chord_step = 0u;
+    ui.chord_subpage = 1u;
+    ui.selected_chord_step = 0u;
     key(&ui, 2u);
     if (ui.selected_chord_step != 2u) return 19;
     enc(&ui, MELLO_UI_ENC_SELECT, +1);
@@ -170,6 +188,7 @@ int main(void)
     enc(&ui, MELLO_UI_ENC_KNOB4, +1);
     if (ui.step_bank != bank) return 23;
 
-    puts("PASS: keys own step/cell selection; LOOP OFF keys audition cycle slots; bass transpose is independent; SELECT owns layers; K1-K4 stay musical");
+    puts("PASS: keys own step/cell selection; LOOP OFF keys audition cycle slots; bass transpose is "
+         "independent; SELECT owns layers; K1-K4 stay musical");
     return 0;
 }
