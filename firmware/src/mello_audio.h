@@ -196,6 +196,11 @@ typedef struct {
     uint16_t reverb_line_delay[8];
     uint16_t reverb_line_pos[8];
     uint16_t reverb_line_feedback_q15[8];
+    uint32_t reverb_mod_phase[8]; /* slow delay modulation per FDN line (reverb_network_step) */
+    int32_t reverb_mod_y[8];      /* its allpass interpolators' last outputs */
+    uint16_t reverb_mod_di[8];    /* their whole delays and allpass coefficients, updated every 16 samples */
+    int16_t reverb_mod_eta[8];
+    uint8_t reverb_mod_tick;
     uint16_t reverb_send_permille;
     int16_t sub_dist_curve[257];
     int16_t pending_sub_dist_curve[257];

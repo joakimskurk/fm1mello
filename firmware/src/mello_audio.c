@@ -914,6 +914,31 @@ static uint16_t reverb_feedback_q15(uint32_t loop_samples, uint16_t decay_ms)
 #define RV3_L6_FULL     2791u
 #define RV3_L7_FULL     3187u
 
+/* The lines' delay modulation: depth in Q8 samples, rates 0.31..1.27 Hz (2^32 / 44100 per Hz), none a multiple
+ * of another. */
+#define RV3_MOD_DEPTH_Q8 (20 * 256)
+/* Thiran's first-order allpass coefficient for a fractional delay of 0.5 + k / 256 samples: (1 - d) / (1 + d), Q15. */
+static const int16_t RV3_ETA_Q15[256] = {
+    10923, 10809, 10696, 10584, 10472, 10361, 10251, 10140, 10031, 9922, 9814, 9706, 9599, 9492, 9386, 9280,
+    9175, 9070, 8966, 8863, 8760, 8657, 8555, 8454, 8353, 8252, 8152, 8052, 7953, 7855, 7757, 7659,
+    7562, 7465, 7369, 7273, 7178, 7083, 6988, 6894, 6801, 6708, 6615, 6523, 6431, 6340, 6249, 6158,
+    6068, 5978, 5889, 5800, 5712, 5624, 5536, 5449, 5362, 5276, 5190, 5104, 5019, 4934, 4849, 4765,
+    4681, 4598, 4515, 4432, 4350, 4268, 4186, 4105, 4024, 3944, 3863, 3784, 3704, 3625, 3546, 3468,
+    3390, 3312, 3235, 3158, 3081, 3004, 2928, 2852, 2777, 2702, 2627, 2552, 2478, 2404, 2331, 2258,
+    2185, 2112, 2040, 1967, 1896, 1824, 1753, 1682, 1612, 1541, 1471, 1401, 1332, 1263, 1194, 1125,
+    1057, 989, 921, 854, 786, 719, 653, 586, 520, 454, 389, 323, 258, 193, 129, 64,
+    0, -64, -128, -191, -254, -317, -380, -442, -504, -566, -628, -689, -750, -811, -872, -933,
+    -993, -1053, -1113, -1172, -1232, -1291, -1350, -1409, -1467, -1526, -1584, -1641, -1699, -1757, -1814, -1871,
+    -1928, -1984, -2040, -2097, -2153, -2208, -2264, -2319, -2374, -2429, -2484, -2539, -2593, -2647, -2701, -2755,
+    -2809, -2862, -2915, -2968, -3021, -3074, -3126, -3179, -3231, -3283, -3334, -3386, -3437, -3488, -3539, -3590,
+    -3641, -3691, -3742, -3792, -3842, -3892, -3941, -3991, -4040, -4089, -4138, -4187, -4235, -4284, -4332, -4380,
+    -4428, -4476, -4524, -4571, -4618, -4665, -4712, -4759, -4806, -4852, -4899, -4945, -4991, -5037, -5083, -5128,
+    -5174, -5219, -5264, -5309, -5354, -5399, -5444, -5488, -5532, -5576, -5620, -5664, -5708, -5752, -5795, -5838,
+    -5881, -5924, -5967, -6010, -6053, -6095, -6137, -6180, -6222, -6264, -6306, -6347, -6389, -6430, -6471, -6513,
+};
+#define RV3_MOD_EVERY 16u
+static const uint32_t RV3_MOD_INC[8] = {30190u, 40904u, 50643u, 60383u, 71096u, 83758u, 98367u, 123690u};
+
 static uint16_t rv3_scaled_cap(uint32_t total, uint16_t full)
 {
     uint32_t scale, c;
@@ -1012,7 +1037,7 @@ static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int3
 {
     static const int8_t inject_sign[8] = {1, 1, -1, -1, 1, -1, 1, -1};
     int32_t x, y[8], d[8], h[8], w, sum = 0, inj, rv_l, rv_r;
-    uint16_t i, pos, rp, cap, delay, off;
+    uint16_t i, pos, rp, cap, off;
     uint32_t p;
     if (left) *left = 0;
     if (right) *right = 0;
@@ -1036,13 +1061,43 @@ static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int3
 
     /* No damping in the loop: Tone.Reverb's IR is white noise, its colour comes only from revTone and revHPF
      * after it. */
+    /* Each line's delay swings slowly by up to RV3_MOD_DEPTH_Q8 / 256 samples, each at its own rate: that moves the
+     * FDN's resonances, which are narrower than their spacing, so no note keeps landing on (or between) them and
+     * gets much more (or less) reverb than its neighbours. Tone.Reverb's noise IR has no such modes. The swing
+     * detunes the tail by up to ~6 cents. The delays are updated every RV3_MOD_EVERY samples (it moves < 1/256 of a
+     * sample in between); the reads run every sample. */
+    if (a->reverb_mod_tick == 0u) {
+        a->reverb_mod_tick = RV3_MOD_EVERY;
+        for (i = 0u; i < 8u; ++i) {
+            uint32_t ph = a->reverb_mod_phase[i], dq8;
+            int32_t s0 = SINE_Q15[(uint8_t)(ph >> 24)], s1 = SINE_Q15[(uint8_t)((ph >> 24) + 1u)], sn;
+            a->reverb_mod_phase[i] = ph + RV3_MOD_INC[i] * RV3_MOD_EVERY;
+            sn = s0 + (((s1 - s0) * (int32_t)((ph >> 16) & 0xFFu)) >> 8);
+            cap = a->reverb_line_cap[i];
+            dq8 = (uint32_t)((int32_t)((uint32_t)a->reverb_line_delay[i] << 8) + ((sn * RV3_MOD_DEPTH_Q8) >> 15)) -
+                  128u;
+            if (dq8 < 256u) dq8 = 256u;
+            if (cap > 3u && dq8 > ((uint32_t)cap - 2u) << 8) dq8 = ((uint32_t)cap - 2u) << 8;
+            /* the delay is di + 0.5 + fr / 256: Thiran's sweet spot, 0.5..1.5 samples past di */
+            a->reverb_mod_di[i] = (uint16_t)(dq8 >> 8);
+            a->reverb_mod_eta[i] = RV3_ETA_Q15[dq8 & 0xFFu];
+        }
+    }
+    a->reverb_mod_tick--;
     for (i = 0u; i < 8u; ++i) {
+        int32_t y0, y1, eta = a->reverb_mod_eta[i];
+        uint16_t di = a->reverb_mod_di[i], rp1;
         cap = a->reverb_line_cap[i];
-        delay = a->reverb_line_delay[i];
         pos = a->reverb_line_pos[i];
         off = a->reverb_line_offset[i];
-        rp = pos >= delay ? (uint16_t)(pos - delay) : (uint16_t)(pos + cap - delay);
-        y[i] = a->reverb_buffer[(uint32_t)off + rp];
+        rp = pos >= di ? (uint16_t)(pos - di) : (uint16_t)(pos + cap - di);
+        rp1 = rp ? (uint16_t)(rp - 1u) : (uint16_t)(cap - 1u);
+        y0 = a->reverb_buffer[(uint32_t)off + rp];
+        y1 = a->reverb_buffer[(uint32_t)off + rp1];
+        /* First-order allpass interpolation, (eta + z^-1) / (1 + eta z^-1): flat in level, where linear
+         * interpolation would dull the tail. */
+        y[i] = clamp32(q15mul(eta, y0) + y1 - q15mul(eta, a->reverb_mod_y[i]), -32767, 32767);
+        a->reverb_mod_y[i] = y[i];
         d[i] = y[i];
         sum += d[i];
     }
