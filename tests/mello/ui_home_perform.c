@@ -38,6 +38,13 @@ static void input(MelloUi *u, uint32_t held, uint32_t pressed, uint8_t knob, int
     mello_ui_set_held_notes(u, held);
     mello_ui_input(u, 0u, 0u, 0u, 0u, 0u, pressed, e);
 }
+static MelloEvent sunk[8];
+static unsigned sunk_n;
+static void sink(void *ctx, const MelloEvent *ev, uint32_t due)
+{
+    (void)ctx, (void)due;
+    if (sunk_n < 8u) sunk[sunk_n++] = *ev;
+}
 static int fail(const char *w)
 {
     fprintf(stderr, "FAIL: %s\n", w);
@@ -209,7 +216,42 @@ int main(void)
         if (t.engine.sound.follower_sub_on) return fail("left did not switch it off");
     }
 
+    /* KEYS (EDIT): stopped, a key plays the lead while held; REC writes steps; playing, a key is the new root. */
+    {
+        int16_t e[MELLO_UI_ENCODER_COUNT] = {0};
+        uint32_t edit = 1u << MELLO_UI_BTN_EDIT, rec = 1u << MELLO_UI_BTN_REC, key = 1u << 7; /* C4 = 53 + 7 */
+        mello_ui_set_page(&u, MELLO_UI_HOME);
+        t.running = false;
+        mello_transport_set_event_sink(&t, sink, 0);
+        mello_ui_input(&u, 0u, 30000u, edit, 0u, edit, 0u, e);
+        if (!u.keys_mode) return fail("EDIT on HOME did not enter KEYS");
+        sunk_n = 0u;
+        mello_ui_set_held_notes(&u, key);
+        mello_ui_input(&u, 0u, 30100u, 0u, 0u, 0u, key, e);
+        mello_ui_set_held_notes(&u, 0u);
+        mello_ui_input(&u, 0u, 30150u, 0u, 0u, 0u, 0u, e);
+        if (sunk_n != 2u || sunk[0].type != MELLO_EVENT_NOTE_ON || sunk[0].note != 60u ||
+            sunk[1].type != MELLO_EVENT_NOTE_OFF || sunk[1].note != 60u)
+            return fail("a key in KEYS did not play C4 while held");
+        mello_ui_input(&u, 0u, 30200u, rec, 0u, rec, 0u, e);
+        if (!u.keys_rec) return fail("REC in KEYS did not start step-record");
+        mello_ui_set_held_notes(&u, 1u << 10); /* D#4 = 63: a note of C minor */
+        mello_ui_input(&u, 0u, 30300u, 0u, 0u, 0u, 1u << 10, e);
+        mello_ui_set_held_notes(&u, 0u);
+        if (mello_resolve_step_midi(&t.engine.project, &t.engine.project.steps[0]) != 63u || u.keys_rec_pos != 1u)
+            return fail("step-record did not write D#4 to step 1");
+        mello_ui_input(&u, 0u, 30400u, rec, 0u, rec, 0u, e);
+        t.running = true;
+        mello_ui_set_held_notes(&u, 1u << 2); /* G3 = 55 */
+        mello_ui_input(&u, 0u, 30500u, 0u, 0u, 0u, 1u << 2, e);
+        mello_ui_set_held_notes(&u, 0u);
+        if (t.engine.project.root_note != 55u) return fail("a key while playing did not set the root");
+        mello_ui_set_page(&u, MELLO_UI_SOUND_RESERVED);
+        if (u.keys_mode) return fail("KEYS outlived HOME");
+        t.running = false;
+    }
+
     puts("PASS: HOME macros, hold-a-step edit, tap toggles on release, keys past the length inert, step LEDs, "
-         "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN, SAVE short/held, acceleration, direction switches");
+         "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN, SAVE short/held, acceleration, direction switches, KEYS play/step-record/root");
     return 0;
 }

@@ -126,6 +126,14 @@ typedef struct {
     bool save_down;
     uint8_t seen_save_state; /* draw_status's save word, to redraw it when it changes */
     uint32_t enc_last_ms[MELLO_UI_ENCODER_COUNT]; /* each encoder's last detent, for acceleration */
+    /* KEYS (EDIT on HOME): the 27 keys are a keyboard. Playing: a key is the new root. Stopped: it plays the lead
+     * while held; with REC on, it writes the next step (keys_rec_pos) and moves on. */
+    bool keys_mode;
+    bool keys_rec;
+    uint8_t keys_rec_pos;
+    uint8_t audition_key; /* the key playing the lead, 0xFF none */
+    uint8_t audition_note;
+    bool audition_release;
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
 
     uint8_t selected_step;
