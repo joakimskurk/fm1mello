@@ -49,14 +49,19 @@ def envelope(x, win=220):
 
 
 def bands(x):
+    """1/3-octave band levels. Each band is floored at what 1 LSB of white noise at Q15 (the C mix's resolution) puts
+    in it: below that the C render sits on its rounding floor while the HTML renders in float down to silence, and the
+    difference between the two means nothing (a reverb tail's top bands read +50 dB otherwise)."""
     mono = x.mean(axis=1)
-    spec = np.abs(np.fft.rfft(mono * np.hanning(len(mono)))) ** 2
+    win = np.hanning(len(mono))
+    spec = np.abs(np.fft.rfft(mono * win)) ** 2
     f = np.fft.rfftfreq(len(mono), 1 / SR)
+    lsb_bin = (1 / 32768) ** 2 / 12 * (win ** 2).sum()  # uniform rounding noise of 1 LSB, per FFT bin
     centres = 1000 * 2 ** (np.arange(-12, 12) / 3)  # 63 Hz .. 12.5 kHz
     out = []
     for c in centres:
         m = (f >= c / 2 ** (1 / 6)) & (f < c * 2 ** (1 / 6))
-        out.append(db(spec[m].sum()))
+        out.append(db(max(spec[m].sum(), lsb_bin * m.sum())))
     return centres, np.array(out)
 
 
