@@ -182,20 +182,20 @@ int main(void)
         uint8_t note, black_pos = 0u, b6 = 0xFFu, b7 = 0xFFu;
         for (note = 0u; note < 27u; ++note) {
             if (mello_ui_white_key_position(note) >= 0) continue;
-            if (black_pos == 6u) b6 = note;
-            if (black_pos == 7u) b7 = note;
+            if (black_pos == 1u) b6 = note; /* NONE (was B6) */
+            if (black_pos == 2u) b7 = note; /* ALL (was B7) */
             ++black_pos;
         }
         if (b6 == 0xFFu || b7 == 0xFFu) return 31;
         transport.engine.randomize.mask = MELLO_RAND_PITCH | MELLO_RAND_GATE;
         mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, (1u << b6), encoder_delta);
         if (transport.engine.randomize.mask != 0u) {
-            fprintf(stderr, "RANDOM B6 NONE failed: mask=%u\n", (unsigned)transport.engine.randomize.mask);
+            fprintf(stderr, "RANDOM B1 NONE failed: mask=%u\n", (unsigned)transport.engine.randomize.mask);
             return 19;
         }
         mello_ui_input(&ui, 0u, 0u, 0u, 0u, 0u, (1u << b7), encoder_delta);
         if (transport.engine.randomize.mask != MELLO_RAND_ALL) {
-            fprintf(stderr, "RANDOM B7 ALL failed: mask=%u\n", (unsigned)transport.engine.randomize.mask);
+            fprintf(stderr, "RANDOM B2 ALL failed: mask=%u\n", (unsigned)transport.engine.randomize.mask);
             return 20;
         }
     }

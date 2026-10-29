@@ -142,9 +142,9 @@ int main(void)
         uint8_t b0 = 0u, b1 = 0u, b2 = 0u, i, n = 0u;
         for (i = 0u; i < 27u; ++i)
             if (mello_ui_white_key_position(i) < 0) {
-                if (n == 0u) b0 = i;
-                if (n == 1u) b1 = i;
-                if (n == 2u) b2 = i;
+                if (n == 5u) b0 = i; /* RNDMZR */
+                if (n == 6u) b1 = i; /* UNDO */
+                if (n == 2u) b2 = i; /* MUT */
                 ++n;
             }
         before = t.engine.project;

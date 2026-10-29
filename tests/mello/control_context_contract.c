@@ -15,24 +15,24 @@ typedef struct {
 } HintCase;
 
 static const HintCase hints[] = {
-    {"HOME", MELLO_UI_HOME, "B0:RND B1:UNDO B2:MUT B3:-1 B4:+1 B5:MASK B7:CLR2"},
-    {"STEP", MELLO_UI_SEQ_STEP, "B4:SKIP B5:RANDOM"},
-    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B5:RANDOM"},
-    {"LOOP", MELLO_UI_SEQ_LOOP, "B2:RST B5:RANDOM"},
-    {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B5:RANDOM"},
-    {"RANDOM", MELLO_UI_RANDOM, "B1:RND B2:UNDO B3:CLR2 B6:NONE B7:ALL"},
-    {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:RANDOM"},
-    {"SLOTS", MELLO_UI_SLOTS, "B5:RANDOM"},
-    {"DOT", MELLO_UI_DOT, "B1:RND B2:RST B5:RANDOM"},
-    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B5:RANDOM"},
-    {"SUB", MELLO_UI_SUB, "B0:ON B4:STEP B5:RANDOM"},
+    {"HOME", MELLO_UI_HOME, "B0:-1 B1:+1 B2:MUT B3:CLR2 B5:RNDMZR B6:UNDO"},
+    {"STEP", MELLO_UI_SEQ_STEP, "B4:SKIP B5:RNDMZR B6:UNDO"},
+    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B5:RNDMZR B6:UNDO"},
+    {"LOOP", MELLO_UI_SEQ_LOOP, "B2:RST B5:RNDMZR B6:UNDO"},
+    {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B5:RNDMZR B6:UNDO"},
+    {"RANDOM", MELLO_UI_RANDOM, "B1:NONE B2:ALL B3:CLR2 B5:RNDMZR B6:UNDO"},
+    {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:RNDMZR B6:UNDO"},
+    {"SLOTS", MELLO_UI_SLOTS, "B5:RNDMZR B6:UNDO"},
+    {"DOT", MELLO_UI_DOT, "B1:RND B2:RST B5:RNDMZR B6:UNDO"},
+    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B5:RNDMZR B6:UNDO"},
+    {"SUB", MELLO_UI_SUB, "B0:ON B4:STEP B5:RNDMZR B6:UNDO"},
 #if MELLO_FEATURE_CHORD_MACHINE
-    {"CHORD", MELLO_UI_CHORD, "B0:ON B5:RANDOM"},
+    {"CHORD", MELLO_UI_CHORD, "B0:ON B5:RNDMZR B6:UNDO"},
 #endif
-    {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B3:RST2 B5:RANDOM"},
-    {"SOUND", MELLO_UI_SOUND_RESERVED, "B5:RANDOM"},
-    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B5:RANDOM"},
-    {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B5:RANDOM"},
+    {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B3:RST2 B5:RNDMZR B6:UNDO"},
+    {"SOUND", MELLO_UI_SOUND_RESERVED, "B5:RNDMZR B6:UNDO"},
+    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B5:RNDMZR B6:UNDO"},
+    {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B5:RNDMZR B6:UNDO"},
 };
 
 /* The strip shows labels only, in key order: "B0:RND B1:UNDO" is drawn as "RND UNDO". */
@@ -186,10 +186,10 @@ static void verify_random_mask_and_oct(void)
     if (t.engine.randomize.mask != mask || u.dirty) die("RANDOM OCT-", "still changes RANDOM state");
     press(&u, 200u, bit_u32(MELLO_UI_BTN_OCT_UP), 0u);
     if (t.engine.randomize.mask != mask || u.dirty) die("RANDOM OCT+", "still changes RANDOM state");
-    black(&u, 300u, 6u);
-    if (t.engine.randomize.mask != 0u) die("RANDOM B6", "mask NONE missing");
-    black(&u, 400u, 7u);
-    if (t.engine.randomize.mask != MELLO_RAND_ALL) die("RANDOM B7", "mask ALL missing");
+    black(&u, 300u, 1u); /* NONE and ALL lead the RANDOM page's strip; B5/B6 are RNDMZR/UNDO everywhere */
+    if (t.engine.randomize.mask != 0u) die("RANDOM B1", "mask NONE missing");
+    black(&u, 400u, 2u);
+    if (t.engine.randomize.mask != MELLO_RAND_ALL) die("RANDOM B2", "mask ALL missing");
 }
 
 static void verify_global_reset(void)
@@ -309,11 +309,12 @@ static void verify_inactive_and_chord(void)
     setup(&p, &t, &st, &u, MELLO_UI_HOME);
     before = t.engine;
     u.dirty = 0u;
-    black(&u, 100u, 6u); /* B0-B5 and B7 are the HOME rail now; B6 is free */
+    black(&u, 100u, 4u); /* HOME's B4 is free */
     if (u.page != MELLO_UI_HOME || memcmp(&before, &t.engine, sizeof before) || u.dirty)
-        die("HOME B6", "inactive rail slot is not inert");
-    black(&u, 200u, 5u);
-    if (u.page != MELLO_UI_RANDOM) die("HOME B5", "RANDOM access missing");
+        die("HOME B4", "inactive rail slot is not inert");
+    black(&u, 200u, 5u); /* RNDMZR, tapped: rolls, stays on HOME (held, it opens RANDOM) */
+    if (u.page != MELLO_UI_HOME || !memcmp(&before.project.steps, &t.engine.project.steps, sizeof before.project.steps))
+        die("HOME B5", "RNDMZR tap did not roll");
 #if MELLO_FEATURE_CHORD_MACHINE
     setup(&p, &t, &st, &u, MELLO_UI_CHORD);
     on = t.engine.chord.on;

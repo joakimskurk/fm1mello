@@ -128,8 +128,8 @@ static void verify_context_actions(void)
     setup(&p, &t, &st, &u, MELLO_UI_RANDOM);
     before = t.engine;
     st.dirty = false;
-    black(&u, 100u, 1u);
-    if (!memcmp(&before, &t.engine, sizeof before) || !st.dirty) fail("RANDOM B1", "reroll not migrated");
+    black(&u, 100u, 5u); /* RNDMZR: the same key on every page */
+    if (!memcmp(&before, &t.engine, sizeof before) || !st.dirty) fail("RANDOM B5", "RNDMZR did not reroll");
     t.engine.project.steps[0].pitch = 9;
     st.dirty = false;
     black(&u, 200u, 3u);
@@ -252,7 +252,13 @@ static void verify_random_navigation(void)
     MelloStorage st;
     MelloUi u;
     setup(&p, &t, &st, &u, MELLO_UI_HOME);
-    black(&u, 100u, 5u);
+    { /* RNDMZR held half a second opens RANDOM (a tap rolls) */
+        int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
+        uint32_t note = 1u << 13; /* F#4, B5 */
+        mello_ui_set_held_notes(&u, note);
+        mello_ui_input(&u, 100000u, 100u, 0u, 0u, 0u, note, enc);
+        mello_ui_input(&u, 700000u, 700u, 0u, 0u, 0u, 0u, enc);
+    }
     if (u.page != MELLO_UI_RANDOM) fail("B5 RANDOM", "RANDOM became inaccessible after EDIT cleanup");
     buttons(&u, 200u, bit_u32(MELLO_UI_BTN_EDIT), 0u);
     if (u.page != MELLO_UI_RANDOM) fail("RANDOM EDIT", "EDIT navigated away from RANDOM");

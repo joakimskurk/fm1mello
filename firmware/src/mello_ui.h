@@ -140,6 +140,9 @@ typedef struct {
     uint8_t audition_note;
     bool audition_release;
     int8_t keys_octave; /* KEYS: OCT-/OCT+ move the keyboard, -2..+2 */
+    bool rndmzr_down;   /* RNDMZR pressed: a tap rolls, a hold opens RANDOM */
+    uint8_t rndmzr_key;
+    uint32_t rndmzr_down_ms;
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
 
     uint8_t selected_step;

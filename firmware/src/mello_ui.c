@@ -442,6 +442,7 @@ typedef enum {
     MELLO_CTX_GLOBAL_RESET,
     MELLO_CTX_SAMPLE_TOGGLE,
     MELLO_CTX_HOME_RANDOM, /* reroll now, at the intensity ALGORITHM sets */
+    MELLO_CTX_RNDMZR,      /* every page's B5: tap = reroll (undoable), hold = the RANDOM page (what it rolls) */
     MELLO_CTX_UNDO,        /* the pattern before the last RANDOM/CLEAR; again = redo */
     MELLO_CTX_MUTATE,      /* a LOW reroll of the pitches only */
     MELLO_CTX_TRANSPOSE_DOWN,
@@ -456,43 +457,42 @@ typedef struct {
 /* WP-C5 authoritative contextual-action mapping. The physical B0-B7 slot,
  * rendered label and handler verb are defined together here. */
 static const MelloContextAction context_actions[MELLO_UI_SAMPLE_RESERVED + 1u][8] = {
-    [MELLO_UI_HOME] = {[0] = {MELLO_CTX_HOME_RANDOM, "RND"},
-                       [1] = {MELLO_CTX_UNDO, "UNDO"},
+    [MELLO_UI_HOME] = {[0] = {MELLO_CTX_TRANSPOSE_DOWN, "-1"},
+                       [1] = {MELLO_CTX_TRANSPOSE_UP, "+1"},
                        [2] = {MELLO_CTX_MUTATE, "MUT"},
-                       [3] = {MELLO_CTX_TRANSPOSE_DOWN, "-1"},
-                       [4] = {MELLO_CTX_TRANSPOSE_UP, "+1"},
-                       [5] = {MELLO_CTX_OPEN_RANDOM, "MASK"},
-                       [7] = {MELLO_CTX_RANDOM_CLEAR, "CLR2"}},
-    [MELLO_UI_SEQ_STEP] = {[4] = {MELLO_CTX_STEP_SKIP, "SKIP"}, [5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
-    [MELLO_UI_SEQ_SEGMENT] = {[5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
-    [MELLO_UI_SEQ_LOOP] = {[2] = {MELLO_CTX_LOOP_RESET, "RST"}, [5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
-    [MELLO_UI_SEQ_SLOTSEQ] = {[5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
-    [MELLO_UI_RANDOM] = {[1] = {MELLO_CTX_RANDOM_REROLL, "RND"},
-                         [2] = {MELLO_CTX_UNDO, "UNDO"},
+                       [3] = {MELLO_CTX_RANDOM_CLEAR, "CLR2"},
+                       [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                       [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_SEQ_STEP] = {[4] = {MELLO_CTX_STEP_SKIP, "SKIP"}, [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_SEQ_SEGMENT] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_SEQ_LOOP] = {[2] = {MELLO_CTX_LOOP_RESET, "RST"}, [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_SEQ_SLOTSEQ] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_RANDOM] = {[1] = {MELLO_CTX_RANDOM_NONE, "NONE"},
+                         [2] = {MELLO_CTX_RANDOM_ALL, "ALL"},
                          [3] = {MELLO_CTX_RANDOM_CLEAR, "CLR2"},
-                         [6] = {MELLO_CTX_RANDOM_NONE, "NONE"},
-                         [7] = {MELLO_CTX_RANDOM_ALL, "ALL"}},
-    [MELLO_UI_KEY_SCALE] = {[5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
-    [MELLO_UI_SLOTS] = {[5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
+                         [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                         [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_KEY_SCALE] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_SLOTS] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_DOT] = {[1] = {MELLO_CTX_DOT_REROLL, "RND"},
                       [2] = {MELLO_CTX_DOT_RESET, "RST"},
-                      [5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
+                      [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_TURING] = {[0] = {MELLO_CTX_TURING_TOGGLE, "ON"},
                          [1] = {MELLO_CTX_TURING_REROLL, "RND"},
-                         [5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
+                         [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_SUB] = {[0] = {MELLO_CTX_SUB_TOGGLE, "ON"},
                       [4] = {MELLO_CTX_SUB_STEP, "STEP"},
-                      [5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
+                      [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
 #if MELLO_FEATURE_CHORD_MACHINE
-    [MELLO_UI_CHORD] = {[0] = {MELLO_CTX_CHORD_TOGGLE, "ON"}, [5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
+    [MELLO_UI_CHORD] = {[0] = {MELLO_CTX_CHORD_TOGGLE, "ON"}, [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
 #endif
     [MELLO_UI_GLOBAL] = {[1] = {MELLO_CTX_GLOBAL_TAP, "TAP"},
                          [3] = {MELLO_CTX_GLOBAL_RESET, "RST2"},
-                         [5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
-    [MELLO_UI_SOUND_RESERVED] = {[5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
-    [MELLO_UI_AUDIO_FX] = {[5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}},
+                         [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_SOUND_RESERVED] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_AUDIO_FX] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_SAMPLE_RESERVED] = {[0] = {MELLO_CTX_SAMPLE_TOGGLE, "ON"},
-                                  [5] = {MELLO_CTX_OPEN_RANDOM, "RANDOM"}}};
+                                  [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}}};
 
 static const MelloContextAction *context_action(MelloUiPage page, uint8_t slot)
 {
@@ -609,6 +609,8 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
     {
         int8_t b = black_key_position(note_index);
         if (b >= 0) {
+            const MelloContextAction *ca = context_action(ui->page, (uint8_t)b);
+            if (ca && ca->verb == MELLO_CTX_RNDMZR) ui->rndmzr_key = note_index; /* to see it let go */
             handle_context_action(ui, now_ms, (uint8_t)b);
             return;
         }
@@ -1701,6 +1703,10 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         persistent_dirty(ui, now_ms);
         mark_edit(ui);
         break;
+    case MELLO_CTX_RNDMZR:
+        ui->rndmzr_down = true; /* tap or hold: rndmzr_poll decides */
+        ui->rndmzr_down_ms = now_ms;
+        break;
     case MELLO_CTX_HOME_RANDOM:
         mello_engine_randomize_steps_intensity(e, ui->random_intensity);
         rebuild(ui);
@@ -2000,6 +2006,21 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
     for (i = 0u; i < 27u; ++i)
         if (note_pressed & bit_u32(i)) handle_note_press(ui, now_us, now_ms, held_buttons, i);
     if (encoder_delta) adjust_knobs(ui, encoder_delta, now_us, now_ms);
+    if (ui->rndmzr_down) { /* RNDMZR: let go = roll now; held half a second = the RANDOM page */
+        MelloEngine *e = eng(ui);
+        if (!(ui->held_notes & bit_u32(ui->rndmzr_key))) {
+            ui->rndmzr_down = false;
+            if (e) {
+                mello_engine_randomize_steps_intensity(e, ui->random_intensity);
+                rebuild(ui);
+                persistent_dirty(ui, now_ms);
+                mark_edit(ui);
+            }
+        } else if ((int32_t)(now_ms - ui->rndmzr_down_ms) >= 500) {
+            ui->rndmzr_down = false;
+            if (ui->page != MELLO_UI_RANDOM) mello_ui_set_page(ui, MELLO_UI_RANDOM);
+        }
+    }
 }
 
 void mello_ui_tick(MelloUi *ui)
@@ -3478,7 +3499,12 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
             x = (int16_t)(x + 3);
             ++g;
         }
-        if (a && a->verb != MELLO_CTX_NONE && a->label) {
+        if (a && a->verb == MELLO_CTX_RNDMZR) { /* the same key on every page, so it looks the same: filled */
+            int16_t w = (int16_t)(ui_text_len(a->label) * 8u + 2u);
+            ui_round_fill(o, x, 172, w, 16, ui_mix(UI_PURPLE, UI_BLACK, 110));
+            o->text(o->ctx, (int16_t)(x + 1), 172, (int16_t)(w - 2), 0, a->label, UI_WHITE, 1);
+            x = (int16_t)(x + w + 1);
+        } else if (a && a->verb != MELLO_CTX_NONE && a->label) {
             int16_t w = (int16_t)(ui_text_len(a->label) * 8u + 2u);
             uint16_t c = a->verb == MELLO_CTX_RANDOM_CLEAR || a->verb == MELLO_CTX_GLOBAL_RESET
                              ? (ui->reset_armed ? UI_RED : UI_DIM)

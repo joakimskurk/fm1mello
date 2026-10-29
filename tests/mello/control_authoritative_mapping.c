@@ -13,24 +13,24 @@ typedef struct {
 } MapCase;
 
 static const MapCase cases[] = {
-    {"HOME", MELLO_UI_HOME, "B0:RND B1:UNDO B2:MUT B3:-1 B4:+1 B5:MASK B7:CLR2"},
-    {"STEP", MELLO_UI_SEQ_STEP, "B4:SKIP B5:RANDOM"},
-    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B5:RANDOM"},
-    {"LOOP", MELLO_UI_SEQ_LOOP, "B2:RST B5:RANDOM"},
-    {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B5:RANDOM"},
-    {"RANDOM", MELLO_UI_RANDOM, "B1:RND B2:UNDO B3:CLR2 B6:NONE B7:ALL"},
-    {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:RANDOM"},
-    {"SLOTS", MELLO_UI_SLOTS, "B5:RANDOM"},
-    {"DOT", MELLO_UI_DOT, "B1:RND B2:RST B5:RANDOM"},
-    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B5:RANDOM"},
-    {"SUB", MELLO_UI_SUB, "B0:ON B4:STEP B5:RANDOM"},
+    {"HOME", MELLO_UI_HOME, "B0:-1 B1:+1 B2:MUT B3:CLR2 B5:RNDMZR B6:UNDO"},
+    {"STEP", MELLO_UI_SEQ_STEP, "B4:SKIP B5:RNDMZR B6:UNDO"},
+    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B5:RNDMZR B6:UNDO"},
+    {"LOOP", MELLO_UI_SEQ_LOOP, "B2:RST B5:RNDMZR B6:UNDO"},
+    {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B5:RNDMZR B6:UNDO"},
+    {"RANDOM", MELLO_UI_RANDOM, "B1:NONE B2:ALL B3:CLR2 B5:RNDMZR B6:UNDO"},
+    {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:RNDMZR B6:UNDO"},
+    {"SLOTS", MELLO_UI_SLOTS, "B5:RNDMZR B6:UNDO"},
+    {"DOT", MELLO_UI_DOT, "B1:RND B2:RST B5:RNDMZR B6:UNDO"},
+    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B5:RNDMZR B6:UNDO"},
+    {"SUB", MELLO_UI_SUB, "B0:ON B4:STEP B5:RNDMZR B6:UNDO"},
 #if MELLO_FEATURE_CHORD_MACHINE
-    {"CHORD", MELLO_UI_CHORD, "B0:ON B5:RANDOM"},
+    {"CHORD", MELLO_UI_CHORD, "B0:ON B5:RNDMZR B6:UNDO"},
 #endif
-    {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B3:RST2 B5:RANDOM"},
-    {"SOUND", MELLO_UI_SOUND_RESERVED, "B5:RANDOM"},
-    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B5:RANDOM"},
-    {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B5:RANDOM"},
+    {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B3:RST2 B5:RNDMZR B6:UNDO"},
+    {"SOUND", MELLO_UI_SOUND_RESERVED, "B5:RNDMZR B6:UNDO"},
+    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B5:RNDMZR B6:UNDO"},
+    {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B5:RNDMZR B6:UNDO"},
 };
 
 /* The strip shows labels only, in key order: "B0:RND B1:UNDO" is drawn as "RND UNDO". */
@@ -175,9 +175,9 @@ static void verify_every_page_and_inactive_slot(void)
         }
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if (active != 38u) die("MAP", "active slot count != 38 with Chord");
+    if (active != 51u) die("MAP", "active slot count != 51 with Chord");
 #else
-    if (active != 36u) die("MAP", "active slot count != 36 without Chord");
+    if (active != 48u) die("MAP", "active slot count != 48 without Chord");
 #endif
     printf("C5 MAP COVERAGE: pages=%u active=%u inactive=%u\n", (unsigned)(sizeof(cases) / sizeof(cases[0])),
            active, inactive);
@@ -193,14 +193,26 @@ static void verify_b5_from_every_advertised_page(void)
         MelloUi u;
         if (!has_slot(cases[i].hint, 5u)) continue;
         setup(&p, &t, &st, &u, cases[i].page);
-        black(&u, 100u, 5u);
-        if (u.page != MELLO_UI_RANDOM) die(cases[i].name, "advertised B5 did not open RANDOM");
+        { /* RNDMZR: a tap rolls the pattern, a hold of 0.5 s opens RANDOM */
+            int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
+            uint32_t note = bit_u32(black_note(5u));
+            MelloProject before = t.engine.project;
+            mello_ui_set_held_notes(&u, note);
+            mello_ui_input(&u, 100000u, 100u, 0u, 0u, 0u, note, enc);
+            mello_ui_input(&u, 700000u, 700u, 0u, 0u, 0u, 0u, enc);
+            if (u.page != MELLO_UI_RANDOM) die(cases[i].name, "held RNDMZR did not open RANDOM");
+            setup(&p, &t, &st, &u, cases[i].page);
+            before = t.engine.project;
+            black(&u, 100u, 5u);
+            if (!memcmp(&before.steps, &t.engine.project.steps, sizeof before.steps) && cases[i].page != MELLO_UI_RANDOM)
+                die(cases[i].name, "a tap on RNDMZR did not roll");
+        }
         ++count;
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if (count != 15u) die("B5", "advertised page count != 15 with Chord");
+    if (count != 16u) die("B5", "advertised page count != 16 with Chord");
 #else
-    if (count != 14u) die("B5", "advertised page count != 14 without Chord");
+    if (count != 15u) die("B5", "advertised page count != 15 without Chord");
 #endif
 }
 
