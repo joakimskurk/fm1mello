@@ -130,6 +130,9 @@ static void fm1_enter_uboot(void)
         ;
 }
 
+/* Sleep until the next interrupt, as the SDK's idle loops (apps/common/system/init.c) */
+FM1_INLINE void fm1_idle(void) { __asm__ volatile("idle" ::: "memory"); }
+
 FM1_INLINE void fm1_core_reset(void)
 {
     FM1_PWR_CON |= 0x10u;

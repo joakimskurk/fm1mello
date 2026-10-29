@@ -266,5 +266,11 @@ static void app_main(void)
             last_render_ms = fm1_ms;
             mello_ui_render(&ui, &draw);
         }
+
+#ifndef DINGHY_HOST
+        /* Sleep until the next interrupt (the 10 kHz timer at the latest), as JieLi's SDK idles: everything the
+         * loop serves arrives by interrupt, and an emulator skips the sleep instead of spinning through it. */
+        fm1_idle();
+#endif
     }
 }
