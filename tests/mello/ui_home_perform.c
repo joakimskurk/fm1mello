@@ -80,14 +80,28 @@ int main(void)
     input(&u, 0u, 0u, 3u, 5);
     if (t.engine.fx.dist_amount != 50u) return fail("K4 is not DRIVE");
 
-    /* A tap on W3: the step goes off on release, on again on the next tap. */
-    input(&u, 1u << k3, 1u << k3, 0u, 0);
-    if (t.engine.project.steps[2].skip) return fail("the press itself toggled");
-    input(&u, 0u, 0u, 0u, 0);
-    if (!t.engine.project.steps[2].skip) return fail("a tap did not switch the step off");
-    input(&u, 1u << k3, 1u << k3, 0u, 0);
-    input(&u, 0u, 0u, 0u, 0);
-    if (t.engine.project.steps[2].skip) return fail("a second tap did not switch it on");
+    /* A tap on W3 selects it and mutes nothing; held, the first black key is its SKIP, the second its ACC. */
+    {
+        uint8_t b0 = 0u, b1 = 0u, i, n = 0u;
+        for (i = 0u; i < 27u; ++i)
+            if (mello_ui_white_key_position(i) < 0) {
+                if (n == 0u) b0 = i;
+                if (n == 1u) b1 = i;
+                ++n;
+            }
+        input(&u, 1u << k3, 1u << k3, 0u, 0);
+        input(&u, 0u, 0u, 0u, 0);
+        if (t.engine.project.steps[2].skip || u.selected_step != 2u) return fail("a tap muted the step");
+        input(&u, 1u << k3, 1u << k3, 0u, 0);
+        input(&u, (1u << k3) | (1u << b0), 1u << b0, 0u, 0);
+        if (!t.engine.project.steps[2].skip) return fail("hold + first black key did not SKIP");
+        input(&u, (1u << k3) | (1u << b1), 1u << b1, 0u, 0);
+        if (!t.engine.project.steps[2].accent) return fail("hold + second black key did not ACC");
+        input(&u, 1u << k3, 1u << b0, 0u, 0);
+        input(&u, 0u, 0u, 0u, 0);
+        if (t.engine.project.steps[2].skip) return fail("SKIP again did not unmute");
+        t.engine.project.steps[2].accent = false;
+    }
 
     /* Hold W3 and turn K1: the step's pitch, not the cutoff; no toggle on release. */
     cut = t.engine.sound.filter_cut;
@@ -251,7 +265,7 @@ int main(void)
         t.running = false;
     }
 
-    puts("PASS: HOME macros, hold-a-step edit, tap toggles on release, keys past the length inert, step LEDs, "
+    puts("PASS: HOME macros, hold-a-step edit, tap selects, hold + black keys = step flags, keys past the length inert, step LEDs, "
          "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN, SAVE short/held, acceleration, direction switches, KEYS play/step-record/root");
     return 0;
 }

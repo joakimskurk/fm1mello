@@ -582,6 +582,20 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         keys_note(ui, note_index, now_us);
         return;
     }
+    if (ui->page == MELLO_UI_HOME && ui->held_step != MELLO_UI_NO_STEP) {
+        int8_t b = black_key_position(note_index); /* a held step: the first black keys are its flags */
+        if (b >= 0 && b < 4) {
+            MelloStep *st = &e->project.steps[ui->held_step];
+            if (b == 0) st->skip = !st->skip;
+            if (b == 1) st->accent = !st->accent;
+            if (b == 2) st->slide = !st->slide;
+            if (b == 3) st->sub = !st->sub;
+            ui->held_step_edited = true;
+            rebuild(ui);
+            mark_edit(ui);
+            return;
+        }
+    }
     {
         int8_t b = black_key_position(note_index);
         if (b >= 0) {
@@ -603,7 +617,14 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         ui->held_step = idx;
         ui->held_key = note_index;
         ui->held_step_edited = false;
-        ui->dirty |= MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_LEDS;
+        if (!ui->transport->running) { /* stopped: hear the step while it is held */
+            uint8_t midi = mello_resolve_step_midi(&e->project, &e->project.steps[idx]);
+            if (ui->audition_key != 0xFFu) audition(ui, ui->audition_note, false, now_us);
+            ui->audition_key = note_index;
+            ui->audition_note = midi;
+            audition(ui, midi, true, now_us);
+        }
+        ui->dirty |= MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_LEDS | MELLO_UI_DIRTY_BODY;
         break;
     }
     case MELLO_UI_SEQ_STEP: set_selected_step_from_note(ui, note_index); break;
@@ -1929,13 +1950,8 @@ void mello_ui_set_held_notes(MelloUi *ui, uint32_t notes)
         ui->audition_release = true; /* let go: mello_ui_input ends the note, with its time */
     if (ui->held_step == MELLO_UI_NO_STEP || (notes & bit_u32(ui->held_key))) return;
     e = eng(ui);
-    if (e && !ui->held_step_edited && ui->page == MELLO_UI_HOME && ui->held_step < e->project.seq_len) {
-        MelloStep *s = &e->project.steps[ui->held_step]; /* a tap: the step on/off */
-        s->skip = !s->skip;
-        rebuild(ui);
-        mark_edit(ui);
-    }
-    ui->held_step = MELLO_UI_NO_STEP;
+    (void)e;
+    ui->held_step = MELLO_UI_NO_STEP; /* let go: K1-K4 are the macros again, the strip the rail */
     ui->dirty |= MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
 }
 
@@ -3410,6 +3426,26 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
     int16_t x = 4;
     uint8_t i, g = 0u;
     o->fill(o->ctx, 0, 172, 240, 16, UI_PANEL2);
+    if (ui->page == MELLO_UI_HOME && ui->held_step != MELLO_UI_NO_STEP && eng(ui)) {
+        /* a held step: the first group's keys and the next are its flags, lit when on (the HTML's per-step pills) */
+        static const char *fl[4] = {"SKIP", "ACC", "SLD", "SUB"};
+        static const uint16_t fc[4] = {UI_RED, UI_CORAL, UI_BLUE, UI_GOLD};
+        const MelloStep *st = &eng(ui)->project.steps[ui->held_step];
+        bool on[4];
+        uint8_t f;
+        int16_t px = 2;
+        on[0] = st->skip, on[1] = st->accent, on[2] = st->slide, on[3] = st->sub;
+        for (f = 0u; f < 4u; ++f) {
+            int16_t w = (int16_t)(ui_text_len(fl[f]) * 8u + 6u);
+            if (f == 3u) px = (int16_t)(px + 6); /* SUB is the next group's first key */
+            if (on[f]) ui_round_fill(o, px, 172, w, 16, ui_mix(fc[f], UI_BLACK, 150));
+            ui_round_frame(o, px, 172, w, 16, on[f] ? fc[f] : UI_LINE);
+            o->text(o->ctx, (int16_t)(px + 3), 172, (int16_t)(w - 6), 0, fl[f], on[f] ? UI_BRIGHT : UI_DIM, 1);
+            px = (int16_t)(px + w + 2);
+        }
+        ui_spaced(o, (int16_t)(px + 6), 172, (int16_t)(236 - px - 6), "STEP", UI_DIM, 2);
+        return;
+    }
     if (ui->page == MELLO_UI_HOME && ui->keys_mode) { /* every key is a note now: say what a key does */
         o->text(o->ctx, 4, 172, 232, 0,
                 ui->keys_rec                 ? "REC: KEYS WRITE STEPS"
