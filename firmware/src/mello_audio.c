@@ -172,6 +172,31 @@ static uint32_t ms_samples(uint16_t ms)
 {
     return ((uint32_t)ms * 441u + 5u) / 10u;
 }
+/* Starts a ramp to v over ms (or jumps there): Tone's linearRampTo from the value it is at. */
+static void ramp_to(MelloRamp *r, int32_t v, uint16_t ms, bool jump)
+{
+    uint32_t n = ((uint32_t)ms * 441u + 5u) / 10u;
+    v <<= 8;
+    if (!jump && v == r->target) return;
+    r->target = v;
+    if (jump || n == 0u) {
+        r->cur = v;
+        r->left = 0u;
+    } else {
+        r->left = n;
+        r->step = (v - r->cur) / (int32_t)n;
+    }
+}
+static inline int32_t ramp_q8(MelloRamp *r)
+{
+    if (r->left) {
+        if (--r->left == 0u)
+            r->cur = r->target;
+        else
+            r->cur += r->step;
+    }
+    return r->cur;
+}
 static uint32_t note_inc(uint8_t note)
 {
     return MIDI_INC[note & 127u];
@@ -1238,7 +1263,7 @@ static void apply_pending(MelloAudio *a)
         uint32_t ms = a->fx.delay_time_ms;
         a->delay_samples = ((uint32_t)ms * 441u + 5u) / 10u;
         if (a->delay_samples < 1u) a->delay_samples = 1u;
-        if (a->delay_samples >= a->delay_capacity) a->delay_samples = a->delay_capacity - 1u;
+        if (a->delay_samples >= a->delay_capacity - 1u) a->delay_samples = a->delay_capacity - 2u;
     }
     if (reverb_changed || a->applied_generation == 0u) {
         reverb_configure(a);
@@ -1251,6 +1276,22 @@ static void apply_pending(MelloAudio *a)
     if (reverb_wet_changed || a->applied_generation == 0u)
         a->reverb_send_permille =
             REVERB_SEND_PERMILLE[(a->fx.reverb_wet > 1000u ? 1000u : a->fx.reverb_wet) / 10u];
+    {
+        /* Before the first sample the config is where the sound starts: no ramp. */
+        bool j = a->applied_generation == 0u || a->rendered_frames == 0u;
+        ramp_to(&a->rp_cut, a->config.filter_cut, 50u, j);
+        ramp_to(&a->rp_res, a->config.filter_res, 50u, j);
+        ramp_to(&a->rp_master, a->config.master_level, 50u, j);
+        ramp_to(&a->rp_rev_send, a->reverb_send_permille, 80u, j);
+        ramp_to(&a->rp_rev_level, a->fx.reverb_level, 80u, j);
+        ramp_to(&a->rp_dly_send, a->fx.delay_wet, 100u, j);
+        ramp_to(&a->rp_dly_level, a->fx.delay_level, 80u, j);
+        ramp_to(&a->rp_dly_fb, a->fx.delay_feedback, 50u, j);
+        ramp_to(&a->rp_dist_level, a->fx.dist_level, 80u, j);
+        ramp_to(&a->rp_sub_level, a->sub_config.level, 50u, j);
+        ramp_to(&a->rp_fsub_level, a->config.follower_sub_on ? a->config.follower_sub_level : 0u, 50u, j);
+        ramp_to(&a->rp_delay, (int32_t)a->delay_samples, 50u, j);
+    }
     a->applied_generation = g;
 #if defined(MELLO_LIVE_EDIT_TEST_HOOK) && MELLO_LIVE_EDIT_TEST_HOOK
     a->test_config_applies++;
@@ -1454,14 +1495,20 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         }
         a->delay_samples = (ms * 441u + 5u) / 10u;
         if (a->delay_samples < 1u) a->delay_samples = 1u;
-        if (a->delay_samples >= a->delay_capacity) a->delay_samples = a->delay_capacity - 1u;
+        if (a->delay_samples >= a->delay_capacity - 1u) a->delay_samples = a->delay_capacity - 2u;
+        ramp_to(&a->rp_delay, (int32_t)a->delay_samples, 50u, a->rendered_frames == 0u);
     }
     for (i = 0u; i < frames; ++i) {
         int32_t lead = 0, sub = 0, sample_mix = 0, mix, mix_l = 0, mix_r = 0, lfo = 0, ampmod = 32767;
 #if MELLO_FEATURE_CHORD_MACHINE
         int32_t chord_mix = 0;
 #endif
-        uint16_t cut = a->config.filter_cut;
+        uint16_t cut = (uint16_t)(ramp_q8(&a->rp_cut) >> 8), res = (uint16_t)(ramp_q8(&a->rp_res) >> 8);
+        int32_t master = ramp_q8(&a->rp_master) >> 8, rev_send = ramp_q8(&a->rp_rev_send) >> 8,
+                rev_level = ramp_q8(&a->rp_rev_level) >> 8, dly_send = ramp_q8(&a->rp_dly_send) >> 8,
+                dly_level = ramp_q8(&a->rp_dly_level) >> 8, dly_fb = ramp_q8(&a->rp_dly_fb) >> 8,
+                dist_level = ramp_q8(&a->rp_dist_level) >> 8, sub_level = ramp_q8(&a->rp_sub_level) >> 8,
+                fsub_level = ramp_q8(&a->rp_fsub_level) >> 8, delay_q8 = ramp_q8(&a->rp_delay);
         while (1) {
             MelloAudioQueuedEvent q;
             if (!audio_pop_due(a, t, &q)) break;
@@ -1560,10 +1607,10 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             }
             a->lead.phase += inc;
             lead = osc_sample(a->config.osc_wave, a->lead.phase, inc, pwm);
-            if (a->config.follower_sub_on && a->config.follower_sub_level) {
+            if (fsub_level) {
                 a->lead.sub_phase += a->lead.sub_inc;
                 /* HTML: subOsc is triggered at vel * level and then passes Gain(level): level squared. */
-                int32_t lv = (int32_t)a->config.follower_sub_level;
+                int32_t lv = fsub_level;
                 lead +=
                     q15mul(osc_sample(a->config.follower_sub_wave, a->lead.sub_phase, a->lead.sub_inc, 500u),
                            lv * lv / 1000 * 32767 / 1000);
@@ -1589,7 +1636,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 filtered = (sub_tone_distort(a, mid) + sub_tone_distort(a, filtered)) / 2;
             }
             a->sub.drive_prev = filtered;
-            sub = filtered * (int32_t)a->sub_config.level / 1000;
+            sub = filtered * sub_level / 1000;
         }
 #if MELLO_FEATURE_CHORD_MACHINE
         if (a->chord_config.on && a->chord.active_count && a->chord.env_q24 > 0 &&
@@ -1637,7 +1684,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         {
             /* HTML: Tone.Filter lowpass -24 = two identical biquads, Q = res*15 dB, f = 80*200^cut. */
             int32_t y;
-            main_filter_coeffs(a, cut, a->config.filter_res);
+            main_filter_coeffs(a, cut, res);
             y = main_biquad_step(a->mf_coeff, a->mf_state[0], clamp32(mix, -65535, 65535));
             y = main_biquad_step(a->mf_coeff, a->mf_state[1], y);
             mix = clamp32(y, -65535, 65535);
@@ -1656,7 +1703,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             } else
                 mix = wet;
             mix = tone_lp24(&DIST_TONE_BIQUAD_Q28[a->fx.dist_tone / 10u], a->dist_tone_s, mix);
-            mix = mix * (int32_t)a->fx.dist_level / 1000;
+            mix = mix * dist_level / 1000;
         }
 #if MELLO_FEATURE_CHORD_MACHINE
         /* Chord keeps its own spectral identity and bypasses lead distortion, but shares delay/reverb space. */
@@ -1665,20 +1712,28 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         {
             int32_t fx_in = mix;
             mix = fx_in * 840 / 1000;
-            if (a->delay_buffer && a->delay_capacity > 1u && a->delay_samples) {
-                uint32_t rp = (a->delay_pos + a->delay_capacity - a->delay_samples) % a->delay_capacity;
-                int32_t d = a->delay_buffer[rp];
-                int32_t send = fx_in * (int32_t)a->fx.delay_wet / 1000;
-                int32_t dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
-                a->delay_buffer[a->delay_pos] = sat16(send + d * (int32_t)a->fx.delay_feedback / 1000);
-                a->delay_pos = (a->delay_pos + 1u) % a->delay_capacity;
-                mix += (dl * (int32_t)a->fx.delay_level) / 1000;
+            if (a->delay_buffer && a->delay_capacity > 2u && a->delay_samples) {
+                /* The delay time ramps (Tone's delayTime.rampTo): read between samples while it moves. */
+                uint32_t di = (uint32_t)delay_q8 >> 8, fr = (uint32_t)delay_q8 & 0xFFu, rp, rp1;
+                int32_t d, send = fx_in * dly_send / 1000, dl;
+                if (di < 1u) di = 1u;
+                if (di > a->delay_capacity - 2u) di = a->delay_capacity - 2u;
+                rp = a->delay_pos >= di ? a->delay_pos - di : a->delay_pos + a->delay_capacity - di;
+                d = a->delay_buffer[rp];
+                if (fr) {
+                    rp1 = rp ? rp - 1u : a->delay_capacity - 1u;
+                    d += ((a->delay_buffer[rp1] - d) * (int32_t)fr) >> 8;
+                }
+                dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
+                a->delay_buffer[a->delay_pos] = sat16(send + d * dly_fb / 1000);
+                if (++a->delay_pos >= a->delay_capacity) a->delay_pos = 0u;
+                mix += (dl * dly_level) / 1000;
             }
             mix_l = mix;
             mix_r = mix;
             if (a->reverb_buffer && a->reverb_capacity > 1024u &&
                 (a->fx.reverb_wet || a->tail_guard_frames)) {
-                int32_t send = fx_in * (int32_t)a->reverb_send_permille / 1000, rv_l = 0, rv_r = 0;
+                int32_t send = fx_in * rev_send / 1000, rv_l = 0, rv_r = 0;
                 const ToneSubBiquadCoeff *rt = &REVERB_TONE_BIQUAD_Q28[a->fx.reverb_tone / 10u];
                 int32_t tl, tr;
                 reverb_network_step(a, send, &rv_l, &rv_r);
@@ -1692,15 +1747,14 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                     int32_t hp_r = tr - (a->reverb_hp_y1_r >> 8);
                     a->reverb_hp_y1 += hp_l;
                     a->reverb_hp_y1_r += hp_r;
-                    mix_l +=
-                        ((hp_l * (int32_t)a->fx.reverb_level) / 1000) * 1050 / 1000; /* reverbReturnGain */
-                    mix_r += ((hp_r * (int32_t)a->fx.reverb_level) / 1000) * 1050 / 1000;
+                    mix_l += ((hp_l * rev_level) / 1000) * 1050 / 1000; /* reverbReturnGain */
+                    mix_r += ((hp_r * rev_level) / 1000) * 1050 / 1000;
                 }
             }
             mix_l = limiter_minus_1db(mix_l);
             mix_r = limiter_minus_1db(mix_r);
-            mix_l = clamp32(mix_l * (int32_t)a->config.master_level / 1000, -32767, 32767);
-            mix_r = clamp32(mix_r * (int32_t)a->config.master_level / 1000, -32767, 32767);
+            mix_l = clamp32(mix_l * master / 1000, -32767, 32767);
+            mix_r = clamp32(mix_r * master / 1000, -32767, 32767);
         }
         if ((mix_l > 8 || mix_l < -8 || mix_r > 8 || mix_r < -8) && (a->fx.delay_wet || a->fx.reverb_wet)) {
             uint32_t guard = 0u;

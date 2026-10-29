@@ -30,6 +30,14 @@ typedef enum {
     MELLO_ENV_RELEASE
 } MelloEnvStage;
 
+/* A parameter moving linearly to its target over a fixed time, as Tone's rampTo: value << 8. */
+typedef struct {
+    int32_t cur;
+    int32_t target;
+    int32_t step;
+    uint32_t left;
+} MelloRamp;
+
 typedef struct {
     uint32_t phase;
     uint32_t inc;
@@ -177,6 +185,9 @@ typedef struct {
     uint32_t delay_capacity;
     uint32_t delay_pos;
     uint32_t delay_samples;
+    /* Knob changes ramp as the HTML's rampTo calls do (lines 989-1077); the delay time too (read between samples). */
+    MelloRamp rp_cut, rp_res, rp_master, rp_rev_send, rp_rev_level, rp_dly_send, rp_dly_level, rp_dly_fb, rp_dist_level,
+        rp_sub_level, rp_fsub_level, rp_delay;
     int32_t delay_tone_s[2][4]; /* dlyTone */
     int16_t *reverb_buffer;
     uint32_t reverb_capacity;

@@ -256,7 +256,11 @@ int main(void)
     fx.reverb_wet = 0u;
     fx.dist_amount = 0u;
     mello_audio_set_config(&a, &sound, &fx, &sub, &sample);
-    mello_audio_render(&a, out, 1u, 100u, 80u); /* apply config and establish delay_samples */
+    {
+        /* apply the config; the feedback and delay time ramp over 50 ms (rampTo), so let them arrive */
+        uint32_t k;
+        for (k = 0u; k < 2700u; ++k) mello_audio_render(&a, out, 1u, 100u + k * 23u, 80u);
+    }
     memset(delay_buf, 0, sizeof(delay_buf));
     a.delay_pos = 0u;
     memset(a.delay_tone_s, 0, sizeof a.delay_tone_s);
@@ -265,7 +269,7 @@ int main(void)
         delay_buf[rp] = 10000;
     }
     out[0] = out[1] = 0;
-    mello_audio_render(&a, out, 1u, 200u, 80u);
+    mello_audio_render(&a, out, 1u, 100u + 2700u * 23u, 80u);
     assert(delay_buf[0] >= 4950 && delay_buf[0] <= 5050);
 
     /* Limiter ceiling is -1 dBFS before master; default master can never exceed ~21903. */
