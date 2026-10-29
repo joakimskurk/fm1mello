@@ -48,6 +48,9 @@ typedef struct {
     uint8_t note;
     uint8_t velocity;
     bool gate;
+    uint32_t env_curve_left; /* Tone.Envelope decay/release: exponential part, then a linear tail */
+    uint32_t env_linear_left;
+    uint32_t env_curve_coeff_q31;
 } MelloAudioLeadVoice;
 
 typedef struct {
