@@ -237,7 +237,7 @@ int main(void)
     mello_audio_render(&a, out, 1u, 100u, 80u); /* apply config and establish delay_samples */
     memset(delay_buf, 0, sizeof(delay_buf));
     a.delay_pos = 0u;
-    a.delay_lp = 0;
+    memset(a.delay_tone_s, 0, sizeof a.delay_tone_s);
     {
         uint32_t rp = (a.delay_capacity - a.delay_samples) % a.delay_capacity;
         delay_buf[rp] = 10000;

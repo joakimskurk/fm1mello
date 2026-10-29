@@ -157,7 +157,7 @@ typedef struct {
     uint16_t mf_cut;
     uint16_t mf_res;
     bool mf_coeff_valid;
-    int32_t dist_lp;
+    int32_t dist_tone_s[2][4]; /* distTone: lowpass -24 = two biquads */
     int32_t matrix_env_q15;
     int32_t matrix_env_step_q15;
     int32_t matrix_env_target_q15;
@@ -173,7 +173,7 @@ typedef struct {
     uint32_t delay_capacity;
     uint32_t delay_pos;
     uint32_t delay_samples;
-    int32_t delay_lp;
+    int32_t delay_tone_s[2][4]; /* dlyTone */
     int16_t *reverb_buffer;
     uint32_t reverb_capacity;
     uint32_t reverb_pos;
@@ -181,9 +181,8 @@ typedef struct {
     uint32_t reverb_delay_b;
     int32_t reverb_lp; /* retained compatibility state */
     int32_t reverb_damp;
-    int32_t reverb_tone_lp;
+    int32_t reverb_tone_s[2][2][4]; /* revTone, [L/R][stage] */
     int32_t reverb_hp_y1;
-    int32_t reverb_tone_lp_r;
     int32_t reverb_hp_y1_r;
     uint16_t reverb_feedback_q15; /* representative/debug value; per-line gains below */
     uint16_t reverb_pre_samples;

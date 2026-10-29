@@ -140,36 +140,6 @@ static const ToneSubBiquadCoeff SUB_FILTER_BIQUAD_Q28[101] = {
 
 #include "mello_env_table.h"
 
-static const uint16_t DIST_TONE_ALPHA_Q15[101] = {
-    1460,  1513,  1568,  1625,  1683,  1744,  1807,  1872,  1939,  2008,  2080,  2155,  2232,  2312,  2394,
-    2479,  2567,  2659,  2753,  2850,  2951,  3055,  3162,  3274,  3388,  3507,  3629,  3756,  3886,  4021,
-    4160,  4304,  4452,  4605,  4762,  4925,  5092,  5265,  5443,  5626,  5815,  6009,  6209,  6415,  6627,
-    6845,  7069,  7299,  7536,  7779,  8028,  8284,  8547,  8817,  9094,  9377,  9667,  9964,  10269, 10580,
-    10898, 11223, 11555, 11894, 12240, 12593, 12952, 13318, 13690, 14068, 14453, 14843, 15240, 15641, 16048,
-    16459, 16876, 17296, 17720, 18148, 18578, 19012, 19447, 19884, 20322, 20760, 21198, 21636, 22073, 22507,
-    22939, 23368, 23793, 24213, 24628, 25038, 25440, 25836, 26223, 26603, 26972,
-};
-
-static const uint16_t DELAY_TONE_ALPHA_Q15[101] = {
-    2035,  2100,  2167,  2237,  2308,  2382,  2457,  2536,  2616,  2699,  2784,  2873,  2963,  3057,  3153,
-    3252,  3354,  3459,  3567,  3678,  3793,  3910,  4032,  4156,  4285,  4416,  4552,  4691,  4835,  4982,
-    5133,  5289,  5449,  5613,  5781,  5954,  6132,  6314,  6501,  6692,  6889,  7090,  7297,  7508,  7725,
-    7947,  8174,  8407,  8645,  8888,  9137,  9392,  9652,  9917,  10189, 10465, 10748, 11036, 11329, 11628,
-    11933, 12243, 12559, 12879, 13206, 13537, 13873, 14215, 14561, 14912, 15267, 15627, 15991, 16359, 16730,
-    17106, 17484, 17865, 18249, 18635, 19023, 19413, 19804, 20196, 20589, 20981, 21374, 21766, 22156, 22545,
-    22932, 23316, 23697, 24075, 24449, 24818, 25182, 25541, 25894, 26240, 26580,
-};
-
-static const uint16_t REVERB_TONE_ALPHA_Q15[101] = {
-    3110,  3197,  3286,  3377,  3471,  3567,  3665,  3766,  3870,  3976,  4085,  4197,  4312,  4429,  4549,
-    4673,  4799,  4929,  5062,  5198,  5337,  5480,  5626,  5775,  5928,  6085,  6245,  6409,  6577,  6748,
-    6924,  7103,  7286,  7473,  7665,  7860,  8060,  8263,  8471,  8683,  8900,  9121,  9346,  9575,  9809,
-    10047, 10290, 10537, 10789, 11045, 11305, 11570, 11839, 12112, 12390, 12671, 12957, 13248, 13542, 13840,
-    14142, 14448, 14758, 15072, 15388, 15709, 16032, 16359, 16688, 17020, 17355, 17692, 18032, 18373, 18716,
-    19061, 19406, 19753, 20101, 20449, 20798, 21146, 21494, 21841, 22187, 22532, 22876, 23217, 23556, 23893,
-    24226, 24556, 24883, 25206, 25524, 25837, 26146, 26449, 26747, 27039, 27325,
-};
-
 static const uint16_t REVERB_SEND_PERMILLE[101] = {
     0,   34,  39,  44,  50,  56,  62,  69,  76,  83,  90,  97,  105, 112, 120, 128, 135, 143, 151, 159, 168,
     176, 184, 193, 201, 210, 219, 227, 236, 245, 254, 263, 272, 281, 290, 300, 309, 318, 327, 337, 346, 356,
@@ -744,12 +714,19 @@ static int32_t main_biquad_step(const int32_t *c, int32_t *s, int32_t x)
 {
     int64_t acc = (int64_t)c[0] * x + (int64_t)c[1] * s[0] + (int64_t)c[2] * s[1] - (int64_t)c[3] * s[2] -
                   (int64_t)c[4] * s[3];
-    int32_t y = clamp32((int32_t)(acc >> 28), -(1 << 21), 1 << 21);
+    /* Rounded, not floored: a floored >> 28 leaves a DC limit cycle of a few LSB in the tails. */
+    int32_t y = clamp32((int32_t)((acc + (1 << 27)) >> 28), -(1 << 21), 1 << 21);
     s[1] = s[0];
     s[0] = x;
     s[3] = s[2];
     s[2] = y;
     return y;
+}
+/* Tone.Filter lowpass -24: two identical biquads (the FX tone filters, Q 0.2 dB). */
+static int32_t tone_lp24(const ToneSubBiquadCoeff *c, int32_t s[2][4], int32_t x)
+{
+    const int32_t k[5] = {c->b0, c->b1, c->b2, c->a1, c->a2};
+    return main_biquad_step(k, s[1], main_biquad_step(k, s[0], x));
 }
 static int16_t tone_distortion_point(uint16_t amount, uint16_t index)
 {
@@ -1519,7 +1496,6 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             /* HTML: Tone.Distortion is always in the path (wet = distMix, 1 by default). At AMT 0 its curve is
              * y = x/3 with a hard clip at +-1: the HTML's gain staging. 2x oversampling as for the sub. */
             int32_t x = clamp32(mix, -32767, 32767), wet, mid;
-            uint16_t ta;
             mid = a->main_dist_prev + ((x - a->main_dist_prev) >> 1);
             wet = (tone_shape(a->main_dist_curve, mid) + tone_shape(a->main_dist_curve, x)) / 2;
             a->main_dist_prev = x;
@@ -1529,9 +1505,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 mix = q15mul(mix, SINE_Q15[64u - q]) + q15mul(wet, SINE_Q15[q]);
             } else
                 mix = wet;
-            ta = DIST_TONE_ALPHA_Q15[a->fx.dist_tone / 10u];
-            a->dist_lp += q15mul(mix - a->dist_lp, ta);
-            mix = a->dist_lp * (int32_t)a->fx.dist_level / 1000;
+            mix = tone_lp24(&DIST_TONE_BIQUAD_Q28[a->fx.dist_tone / 10u], a->dist_tone_s, mix);
+            mix = mix * (int32_t)a->fx.dist_level / 1000;
         }
 #if MELLO_FEATURE_CHORD_MACHINE
         /* Chord keeps its own spectral identity and bypasses lead distortion, but shares delay/reverb space. */
@@ -1543,28 +1518,28 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (a->delay_buffer && a->delay_capacity > 1u && a->delay_samples) {
                 uint32_t rp = (a->delay_pos + a->delay_capacity - a->delay_samples) % a->delay_capacity;
                 int32_t d = a->delay_buffer[rp];
-                uint16_t da = DELAY_TONE_ALPHA_Q15[a->fx.delay_tone / 10u];
                 int32_t send = fx_in * (int32_t)a->fx.delay_wet / 1000;
-                a->delay_lp += q15mul(d - a->delay_lp, da);
+                int32_t dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
                 a->delay_buffer[a->delay_pos] = sat16(send + d * (int32_t)a->fx.delay_feedback / 1000);
                 a->delay_pos = (a->delay_pos + 1u) % a->delay_capacity;
-                mix += (a->delay_lp * (int32_t)a->fx.delay_level) / 1000;
+                mix += (dl * (int32_t)a->fx.delay_level) / 1000;
             }
             mix_l = mix;
             mix_r = mix;
             if (a->reverb_buffer && a->reverb_capacity > 1024u &&
                 (a->fx.reverb_wet || a->tail_guard_frames)) {
                 int32_t send = fx_in * (int32_t)a->reverb_send_permille / 1000, rv_l = 0, rv_r = 0;
-                uint16_t tone_alpha = REVERB_TONE_ALPHA_Q15[a->fx.reverb_tone / 10u];
+                const ToneSubBiquadCoeff *rt = &REVERB_TONE_BIQUAD_Q28[a->fx.reverb_tone / 10u];
+                int32_t tl, tr;
                 reverb_network_step(a, send, &rv_l, &rv_r);
-                a->reverb_tone_lp += q15mul(rv_l - a->reverb_tone_lp, tone_alpha);
-                a->reverb_tone_lp_r += q15mul(rv_r - a->reverb_tone_lp_r, tone_alpha);
+                tl = tone_lp24(rt, a->reverb_tone_s[0], rv_l);
+                tr = tone_lp24(rt, a->reverb_tone_s[1], rv_r);
                 {
                     /* DC blocker, ~27 Hz: reverb_hp_y1 integrates the DC in Q8 and is subtracted. The old
                      * q15mul one-pole high-pass floored to a dead band and passed about -150 of DC forever,
                      * which kept the tail guard armed, so the unit never counted as silent (P1-1). */
-                    int32_t hp_l = a->reverb_tone_lp - (a->reverb_hp_y1 >> 8);
-                    int32_t hp_r = a->reverb_tone_lp_r - (a->reverb_hp_y1_r >> 8);
+                    int32_t hp_l = tl - (a->reverb_hp_y1 >> 8);
+                    int32_t hp_r = tr - (a->reverb_hp_y1_r >> 8);
                     a->reverb_hp_y1 += hp_l;
                     a->reverb_hp_y1_r += hp_r;
                     mix_l +=
