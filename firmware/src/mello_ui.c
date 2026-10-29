@@ -2195,12 +2195,14 @@ static void ui_slider(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, 
                       uint16_t colour)
 {
     int16_t tx;
+    (void)colour; /* the HTML's thumbs are all its green ring; the colour is the value's text */
     ui_round_fill(o, x, (int16_t)(y + 1), w, 4, UI_TRACK);
+    o->fill(o->ctx, (int16_t)(x + 1), (int16_t)(y + 1), (int16_t)(w - 2), 1, UI_LINE); /* the track's edge */
     if (!max_value) return;
     if (value > max_value) value = max_value;
     tx = (int16_t)(x + ((int32_t)(w - 6) * value) / max_value);
-    o->fill(o->ctx, (int16_t)(tx + 1), y, 4, 6, colour);
-    o->fill(o->ctx, tx, (int16_t)(y + 1), 6, 4, colour);
+    o->fill(o->ctx, (int16_t)(tx + 1), y, 4, 6, UI_ACC);
+    o->fill(o->ctx, tx, (int16_t)(y + 1), 6, 4, UI_ACC);
     o->fill(o->ctx, (int16_t)(tx + 2), (int16_t)(y + 2), 2, 2, UI_PANEL);
 }
 /* A label as the HTML sets them: uppercase, a pixel between letters (9 px a character; plain when it does not fit). */
