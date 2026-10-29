@@ -151,14 +151,14 @@ static int reverb_v2_regression(void)
     double corr2, jump2, short_e, medium_e, long_e;
 
     ir_setup(&a, 6000u, 500u, 0u);
-    if (a.reverb_pre_cap < 5290u) return 0;
+    if (a.reverb_pre_cap < 2645u) return 0; /* half the samples: the network runs at fs / 2 */
     if (!(a.reverb_line_delay[0] < a.reverb_line_delay[1] &&
           a.reverb_line_delay[1] < a.reverb_line_delay[2] && a.reverb_line_delay[2] < a.reverb_line_delay[3]))
         return 0;
     first0 = render_ir(&a, 12000u);
 
     ir_setup(&a, 6000u, 500u, 120u);
-    if (a.reverb_pre_samples < 5290u || a.reverb_pre_samples > 5293u) return 0;
+    if (a.reverb_pre_samples < 2645u || a.reverb_pre_samples > 2647u) return 0; /* 120 ms at fs / 2 */
     first120 = render_ir(&a, 14000u);
     if (first0 >= 12000u || first120 >= 14000u || first120 <= first0 + 5000u || first120 >= first0 + 5600u)
         return 0;

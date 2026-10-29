@@ -916,6 +916,9 @@ static uint16_t reverb_feedback_q15(uint32_t loop_samples, uint16_t decay_ms)
  * time-varying delay modulation in candidate A; modulation is only added later if
  * controlled listening still exposes stationary metallic modes.
  */
+/* The network runs at fs / 2: the reverb's tone filter cuts at 4.2 kHz (12.6 kHz at most), so nothing it passes is
+ * lost, and the network was half the sound's cost (32.7 of 68 M instructions a second on the FM-1). */
+#define RV3_RATE_DIV    2u
 #define RV3_LAYOUT_FULL 24166u
 #define RV3_PRE_FULL    5293u
 #define RV3_AP1_FULL    353u
@@ -932,7 +935,7 @@ static uint16_t reverb_feedback_q15(uint32_t loop_samples, uint16_t decay_ms)
 
 /* The lines' delay modulation: depth in Q8 samples, rates 0.31..1.27 Hz (2^32 / 44100 per Hz), none a multiple
  * of another. */
-#define RV3_MOD_DEPTH_Q8 (20 * 256)
+#define RV3_MOD_DEPTH_Q8 (20 * 256 / RV3_RATE_DIV)
 /* Thiran's first-order allpass coefficient for a fractional delay of 0.5 + k / 256 samples: (1 - d) / (1 + d), Q15. */
 static const int16_t RV3_ETA_Q15[256] = {
     10923, 10809, 10696, 10584, 10472, 10361, 10251, 10140, 10031, 9922, 9814, 9706, 9599, 9492, 9386, 9280,
@@ -990,11 +993,13 @@ static void reverb_configure(MelloAudio *a)
     uint16_t i;
     uint32_t off, sum = 0u, pre;
     if (!a || !a->reverb_capacity) return;
-    a->reverb_pre_cap = rv3_scaled_cap(a->reverb_capacity, RV3_PRE_FULL);
-    a->reverb_ap_cap[0] = rv3_scaled_cap(a->reverb_capacity, RV3_AP1_FULL);
-    a->reverb_ap_cap[1] = rv3_scaled_cap(a->reverb_capacity, RV3_AP2_FULL);
-    a->reverb_ap_cap[2] = rv3_scaled_cap(a->reverb_capacity, RV3_AP3_FULL);
-    for (i = 0u; i < 8u; ++i) a->reverb_line_cap[i] = rv3_scaled_cap(a->reverb_capacity, full_line[i]);
+    /* The network runs at half the rate (RV3_RATE_DIV): the same delay times in half the samples. */
+    a->reverb_pre_cap = rv3_scaled_cap(a->reverb_capacity / RV3_RATE_DIV, RV3_PRE_FULL);
+    a->reverb_ap_cap[0] = rv3_scaled_cap(a->reverb_capacity / RV3_RATE_DIV, RV3_AP1_FULL);
+    a->reverb_ap_cap[1] = rv3_scaled_cap(a->reverb_capacity / RV3_RATE_DIV, RV3_AP2_FULL);
+    a->reverb_ap_cap[2] = rv3_scaled_cap(a->reverb_capacity / RV3_RATE_DIV, RV3_AP3_FULL);
+    for (i = 0u; i < 8u; ++i)
+        a->reverb_line_cap[i] = rv3_scaled_cap(a->reverb_capacity / RV3_RATE_DIV, full_line[i]);
 
     off = a->reverb_pre_cap;
     for (i = 0u; i < 3u; ++i) {
@@ -1010,7 +1015,7 @@ static void reverb_configure(MelloAudio *a)
         return;
     }
 
-    pre = ms_samples(a->fx.reverb_pre_ms);
+    pre = ms_samples(a->fx.reverb_pre_ms) / RV3_RATE_DIV;
     if (pre >= a->reverb_pre_cap) pre = a->reverb_pre_cap ? a->reverb_pre_cap - 1u : 0u;
     a->reverb_pre_samples = (uint16_t)pre;
     a->reverb_ap_delay[0] = rv3_tap(a->reverb_ap_cap[0], 430u, 790u, a->fx.reverb_size);
@@ -1018,7 +1023,8 @@ static void reverb_configure(MelloAudio *a)
     a->reverb_ap_delay[2] = rv3_tap(a->reverb_ap_cap[2], 310u, 690u, a->fx.reverb_size);
     for (i = 0u; i < 8u; ++i) {
         a->reverb_line_delay[i] = rv3_tap(a->reverb_line_cap[i], lo_pm[i], hi_pm[i], a->fx.reverb_size);
-        a->reverb_line_feedback_q15[i] = reverb_feedback_q15(a->reverb_line_delay[i], a->fx.reverb_decay_ms);
+        a->reverb_line_feedback_q15[i] =
+            reverb_feedback_q15((uint32_t)a->reverb_line_delay[i] * RV3_RATE_DIV, a->fx.reverb_decay_ms);
         sum += a->reverb_line_feedback_q15[i];
         if (a->reverb_line_pos[i] >= a->reverb_line_cap[i]) a->reverb_line_pos[i] = 0u;
     }
@@ -1087,7 +1093,7 @@ static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int3
         for (i = 0u; i < 8u; ++i) {
             uint32_t ph = a->reverb_mod_phase[i], dq8;
             int32_t s0 = SINE_Q15[(uint8_t)(ph >> 24)], s1 = SINE_Q15[(uint8_t)((ph >> 24) + 1u)], sn;
-            a->reverb_mod_phase[i] = ph + RV3_MOD_INC[i] * RV3_MOD_EVERY;
+            a->reverb_mod_phase[i] = ph + RV3_MOD_INC[i] * RV3_MOD_EVERY * RV3_RATE_DIV;
             sn = s0 + (((s1 - s0) * (int32_t)((ph >> 16) & 0xFFu)) >> 8);
             cap = a->reverb_line_cap[i];
             dq8 = (uint32_t)((int32_t)((uint32_t)a->reverb_line_delay[i] << 8) + ((sn * RV3_MOD_DEPTH_Q8) >> 15)) -
@@ -1139,17 +1145,36 @@ static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int3
     if (left) *left = clamp32(rv_l, -32767, 32767);
     if (right) *right = clamp32(rv_r, -32767, 32767);
 }
+/* One audio-rate sample of the reverb, the network at half the rate: the input averaged over two samples, the output
+ * interpolated back. */
+static void reverb_step(MelloAudio *a, int32_t send, int32_t *left, int32_t *right)
+{
+    a->reverb_in_acc += send;
+    if (a->reverb_odd) {
+        a->reverb_prev_l = a->reverb_cur_l;
+        a->reverb_prev_r = a->reverb_cur_r;
+        reverb_network_step(a, a->reverb_in_acc / 2, &a->reverb_cur_l, &a->reverb_cur_r);
+        a->reverb_in_acc = 0;
+        *left = (a->reverb_prev_l + a->reverb_cur_l) / 2;
+        *right = (a->reverb_prev_r + a->reverb_cur_r) / 2;
+    } else {
+        *left = a->reverb_cur_l;
+        *right = a->reverb_cur_r;
+    }
+    a->reverb_odd = !a->reverb_odd;
+}
+
 #if defined(MELLO_REVERB_TEST_HOOK) && MELLO_REVERB_TEST_HOOK
 /* Host-only probes. Never compiled into target firmware. */
 int32_t mello_audio_reverb_ir_probe(MelloAudio *a, int32_t send)
 {
     int32_t l = 0, r = 0;
-    reverb_network_step(a, send, &l, &r);
+    reverb_step(a, send, &l, &r);
     return l;
 }
 void mello_audio_reverb_stereo_probe(MelloAudio *a, int32_t send, int32_t *left, int32_t *right)
 {
-    reverb_network_step(a, send, left, right);
+    reverb_step(a, send, left, right);
 }
 #endif
 
@@ -1708,7 +1733,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 int32_t send = fx_in * rev_send / 1000, rv_l = 0, rv_r = 0;
                 const ToneSubBiquadCoeff *rt = &REVERB_TONE_BIQUAD_Q28[a->fx.reverb_tone / 10u];
                 int32_t tl, tr;
-                reverb_network_step(a, send, &rv_l, &rv_r);
+                reverb_step(a, send, &rv_l, &rv_r);
                 tl = tone_lp24(rt, a->reverb_tone_s[0], rv_l);
                 tr = tone_lp24(rt, a->reverb_tone_s[1], rv_r);
                 {

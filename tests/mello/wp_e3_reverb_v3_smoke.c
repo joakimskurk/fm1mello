@@ -68,8 +68,8 @@ static void structural_and_stereo_contract(void)
     int32_t l = 0, r = 0;
     setup(&a, 6000u, 500u, 620u, 0u);
 
-    assert(a.reverb_pre_cap >= 5290u);
-    assert(a.reverb_ap_cap[0] > 300u && a.reverb_ap_cap[1] > 500u && a.reverb_ap_cap[2] > 900u);
+    assert(a.reverb_pre_cap >= 2645u); /* the network runs at fs / 2: half the samples */
+    assert(a.reverb_ap_cap[0] > 150u && a.reverb_ap_cap[1] > 250u && a.reverb_ap_cap[2] > 450u);
     total = a.reverb_pre_cap + a.reverb_ap_cap[0] + a.reverb_ap_cap[1] + a.reverb_ap_cap[2];
     for (i = 0u; i < 8u; ++i) {
         total += a.reverb_line_cap[i];

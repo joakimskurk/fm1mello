@@ -220,6 +220,8 @@ typedef struct {
     uint16_t reverb_mod_di[8];    /* their whole delays and allpass coefficients, updated every 16 samples */
     int16_t reverb_mod_eta[8];
     uint8_t reverb_mod_tick;
+    int32_t reverb_in_acc, reverb_prev_l, reverb_prev_r, reverb_cur_l, reverb_cur_r; /* the half-rate network's */
+    bool reverb_odd;
     uint16_t reverb_send_permille;
     int16_t sub_dist_curve[257];
     int16_t pending_sub_dist_curve[257];
