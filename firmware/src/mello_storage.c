@@ -766,11 +766,19 @@ void mello_storage_init(MelloStorage *s, const MelloStorageIo *io, const MelloSt
     s->last_save_result = MELLO_STORAGE_SAVE_IDLE;
 }
 
+static void set_baseline(MelloStorage *s, uint32_t size, uint32_t crc)
+{
+    s->baseline_valid = true;
+    s->baseline_size = size;
+    s->baseline_crc = crc;
+}
+
 MelloStorageLoadResult mello_storage_load(MelloStorage *s, MelloEngine *e)
 {
     RecordInfo a, b, *first, *second;
     bool ua, ub, fallback_hint = false;
     if (!s || !e || !s->io.read) return MELLO_STORAGE_LOAD_IO_ERROR;
+    s->baseline_valid = false; /* nothing usable: poll takes the state after load as the baseline */
     a = scan_bank(s, 0u);
     b = scan_bank(s, 1u);
     ua = a.unsupported;
@@ -821,6 +829,7 @@ MelloStorageLoadResult mello_storage_load(MelloStorage *s, MelloEngine *e)
         s->revision = first->revision;
         s->active_payload_size = first->payload_size;
         s->active_payload_crc = first->payload_crc;
+        set_baseline(s, first->payload_size, first->payload_crc);
         s->dirty = false;
         s->manual_pending = false;
         s->last_load_result = fallback_hint ? MELLO_STORAGE_LOAD_FALLBACK : MELLO_STORAGE_LOAD_OK;
@@ -831,6 +840,7 @@ MelloStorageLoadResult mello_storage_load(MelloStorage *s, MelloEngine *e)
         s->revision = second->revision;
         s->active_payload_size = second->payload_size;
         s->active_payload_crc = second->payload_crc;
+        set_baseline(s, second->payload_size, second->payload_crc);
         s->dirty = false;
         s->manual_pending = false;
         s->last_load_result = MELLO_STORAGE_LOAD_FALLBACK;
@@ -871,6 +881,7 @@ MelloStorageSaveResult mello_storage_save_now(MelloStorage *s, const MelloEngine
         return s->last_save_result;
     }
     if (s->active_bank >= 0 && size == s->active_payload_size && crc == s->active_payload_crc) {
+        set_baseline(s, size, crc);
         s->dirty = false;
         s->manual_pending = false;
         s->last_save_ms = now_ms;
@@ -917,6 +928,7 @@ MelloStorageSaveResult mello_storage_save_now(MelloStorage *s, const MelloEngine
     s->revision = rev;
     s->active_payload_size = size;
     s->active_payload_crc = crc;
+    set_baseline(s, size, crc);
     s->dirty = false;
     s->manual_pending = false;
     s->last_save_ms = now_ms;
@@ -942,6 +954,18 @@ MelloStorageSaveResult mello_storage_poll(MelloStorage *s, const MelloEngine *e,
                                           bool safe_to_write)
 {
     if (!s || !e) return MELLO_STORAGE_SAVE_IO_ERROR;
+    if (!s->dirty &&
+        (!s->baseline_valid || (uint32_t)(now_ms - s->last_check_ms) >= MELLO_STORAGE_CHANGE_CHECK_MS)) {
+        /* Catch every change to what a save would write, whatever made it (UI, MIDI, RANDOM, ...). */
+        uint32_t size, crc;
+        s->last_check_ms = now_ms;
+        if (mello_storage_measure_payload(e, &size, &crc)) {
+            if (!s->baseline_valid)
+                set_baseline(s, size, crc);
+            else if (size != s->baseline_size || crc != s->baseline_crc)
+                mello_storage_mark_dirty(s, now_ms);
+        }
+    }
     if (!s->dirty) {
         s->last_save_result = MELLO_STORAGE_SAVE_IDLE;
         return s->last_save_result;

@@ -20,6 +20,7 @@ extern "C" {
 #define MELLO_STORAGE_BANK1_ADDR               (MELLO_STORAGE_BANK0_ADDR + MELLO_STORAGE_BANK_SIZE)
 #define MELLO_STORAGE_AUTOSAVE_DEBOUNCE_MS     2000u
 #define MELLO_STORAGE_AUTOSAVE_MIN_INTERVAL_MS 20000u
+#define MELLO_STORAGE_CHANGE_CHECK_MS          250u /* how often poll compares the project with flash */
 
 /* Target note: these two 40 KiB banks occupy 0x98000..0xABFFF. Dinghy 0.3
  * allows reads anywhere but its current FL_RANGE_OK must be deliberately widened
@@ -76,6 +77,12 @@ typedef struct {
     uint32_t last_save_ms;
     MelloStorageLoadResult last_load_result;
     MelloStorageSaveResult last_save_result;
+    /* What flash holds (or, with nothing usable there, the state right after load): poll marks the
+     * storage dirty by itself when the project's payload stops matching it, so no edit can be missed. */
+    bool baseline_valid;
+    uint32_t baseline_size;
+    uint32_t baseline_crc;
+    uint32_t last_check_ms;
 } MelloStorage;
 
 void mello_storage_config_defaults(MelloStorageConfig *config);
@@ -93,7 +100,9 @@ MelloStorageSaveResult mello_storage_save_now(MelloStorage *storage, const Mello
 
 /* Deferred save policy: mark_dirty is for edits/autosave, request_save is an explicit
  * user SAVE. poll writes only when safe_to_write is true. Explicit SAVE bypasses the
- * debounce/min-interval but never the safe/silent requirement. */
+ * debounce/min-interval but never the safe/silent requirement. poll also compares the
+ * project with the baseline every MELLO_STORAGE_CHANGE_CHECK_MS and marks it dirty on
+ * any difference, so mark_dirty only makes an autosave start sooner. */
 void mello_storage_mark_dirty(MelloStorage *storage, uint32_t now_ms);
 void mello_storage_request_save(MelloStorage *storage, uint32_t now_ms);
 MelloStorageSaveResult mello_storage_poll(MelloStorage *storage, const MelloEngine *engine, uint32_t now_ms,
