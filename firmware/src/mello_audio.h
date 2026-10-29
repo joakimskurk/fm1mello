@@ -200,9 +200,11 @@ typedef struct {
     int32_t reverb_line_damp[8];
     int32_t reverb_line_lf[8];
     uint16_t reverb_send_permille;
-    uint16_t dist_drive_permille;
     int16_t sub_dist_curve[257];
     int16_t pending_sub_dist_curve[257];
+    int16_t main_dist_curve[257]; /* Tone.Distortion after the main filter: always in the path */
+    int16_t pending_main_dist_curve[257];
+    int32_t main_dist_prev;
 
     /* Four monotonic SPSC lanes. app_main only appends; the audio ISR only pops.
      * This avoids head-of-line blocking without rewriting entries visible to the ISR. */
@@ -239,10 +241,6 @@ void mello_audio_render(MelloAudio *a, int32_t *out_stereo, uint32_t frames, uin
 void mello_audio_all_notes_off(MelloAudio *a);
 bool mello_audio_queue_overflowed(const MelloAudio *a);
 bool mello_audio_is_silent(const MelloAudio *a);
-#if defined(MELLO_DISTORTION_TEST_HOOK) && MELLO_DISTORTION_TEST_HOOK
-uint16_t mello_audio_test_global_dist_drive(uint16_t amount);
-int32_t mello_audio_test_global_distort(int32_t x, uint16_t amount, uint16_t character);
-#endif
 #if defined(MELLO_REVERB_TEST_HOOK) && MELLO_REVERB_TEST_HOOK
 int32_t mello_audio_reverb_ir_probe(MelloAudio *a, int32_t send);
 void mello_audio_reverb_stereo_probe(MelloAudio *a, int32_t send, int32_t *left, int32_t *right);

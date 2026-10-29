@@ -15,7 +15,6 @@ defines() {
     case "$1" in
     audio_html_parity | wp_e3_reverb_v3_smoke) echo -DMELLO_REVERB_TEST_HOOK=1 ;;
     live_edit_audio_stress) echo -DMELLO_LIVE_EDIT_TEST_HOOK=1 ;;
-    wp_e2_distortion_smoke) echo -DMELLO_DISTORTION_TEST_HOOK=1 ;;
     audio_overflow_regression) echo -fsanitize=undefined -fno-sanitize-recover=undefined ;;
     esac
 }

@@ -775,28 +775,49 @@ static void build_sub_dist_curve_for_drive(int16_t curve[257], uint16_t drive)
     if (!curve) return;
     for (i = 0u; i <= 256u; ++i) curve[i] = tone_distortion_point(drive, i);
 }
-static int32_t sub_tone_distort(const MelloAudio *a, int32_t x)
+/* A Tone.Distortion curve (odd, 257 points over 0..1) applied to x; the input is clamped to +-1 as a
+ * WaveShaperNode clamps it. */
+static int32_t tone_shape(const int16_t curve[257], int32_t x)
 {
     uint32_t ax, idx, frac;
     int32_t y0, y1, y;
-    if (!a || !a->sub_config.drive) return x;
     x = clamp32(x, -32767, 32767);
     ax = (uint32_t)(x < 0 ? -x : x);
     idx = ax >> 7;
     if (idx > 255u) idx = 255u;
     frac = ax & 127u;
-    y0 = a->sub_dist_curve[idx];
-    y1 = a->sub_dist_curve[idx + 1u];
+    y0 = curve[idx];
+    y1 = curve[idx + 1u];
     y = y0 + ((y1 - y0) * (int32_t)frac) / 128;
     return x < 0 ? -y : y;
 }
-
-static uint16_t global_dist_drive(uint16_t amount)
+static int32_t sub_tone_distort(const MelloAudio *a, int32_t x)
 {
-    uint32_t a = amount > 1000u ? 1000u : amount;
-    /* Cubic AMT curve: preserves fine low/mid control but opens into the full E2 range. */
-    return (uint16_t)(((a * a) * a + 500000u) / 1000000u);
+    if (!a || !a->sub_config.drive) return x;
+    return tone_shape(a->sub_dist_curve, x);
 }
+static const uint16_t AMT_POW19_PERMILLE[101] = {
+    /* 1000 * (i/100)^1.9: distDriveFromAmount's amt^1.9 */
+    0,   0,   1,   1,   2,   3,   5,   6,   8,   10,  13,  15,  18,  21,  24,  27,  31,   35,  38,  43,  47,
+    52,  56,  61,  66,  72,  77,  83,  89,  95,  102, 108, 115, 122, 129, 136, 144, 151,  159, 167, 175, 184,
+    192, 201, 210, 219, 229, 238, 248, 258, 268, 278, 289, 299, 310, 321, 332, 344, 355,  367, 379, 391, 403,
+    416, 428, 441, 454, 467, 481, 494, 508, 522, 536, 550, 564, 579, 594, 609, 624, 639,  654, 670, 686, 702,
+    718, 734, 751, 768, 784, 801, 819, 836, 853, 871, 889, 907, 925, 944, 962, 981, 1000,
+};
+/* The HTML's main distortion: Tone.Distortion(distDriveFromAmount(amt, char)), where
+ * distDriveFromAmount = clamp(amt^1.9 * (0.28 + 0.52 char), 0, 0.8). Built on the main loop, not in audio. */
+static void build_main_dist_curve(int16_t curve[257], uint16_t amount, uint16_t character)
+{
+    uint32_t a = amount > 1000u ? 1000u : amount, c = character > 1000u ? 1000u : character, i = a / 10u,
+             f = a % 10u;
+    uint32_t p = AMT_POW19_PERMILLE[i];
+    uint32_t drive;
+    if (f && i < 100u) p += ((uint32_t)(AMT_POW19_PERMILLE[i + 1u] - p) * f) / 10u;
+    drive = (p * (280u + (520u * c) / 1000u)) / 1000u;
+    if (drive > 800u) drive = 800u;
+    build_sub_dist_curve_for_drive(curve, (uint16_t)drive);
+}
+
 static uint16_t reverb_feedback_q15(uint32_t loop_samples, uint16_t decay_ms)
 {
     uint32_t raw = decay_ms < 400u ? 400u : decay_ms;
@@ -1083,7 +1104,7 @@ static void apply_pending(MelloAudio *a)
 #endif
     }
     if (dist_changed || a->applied_generation == 0u)
-        a->dist_drive_permille = global_dist_drive(a->fx.dist_amount);
+        memcpy(a->main_dist_curve, a->pending_main_dist_curve, sizeof a->main_dist_curve);
     if (reverb_wet_changed || a->applied_generation == 0u)
         a->reverb_send_permille =
             REVERB_SEND_PERMILLE[(a->fx.reverb_wet > 1000u ? 1000u : a->fx.reverb_wet) / 10u];
@@ -1104,6 +1125,8 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
     mello_chord_defaults(&a->pending_chord_config);
 #endif
     build_sub_dist_curve_for_drive(a->pending_sub_dist_curve, a->pending_sub_config.drive);
+    build_main_dist_curve(a->pending_main_dist_curve, a->pending_fx.dist_amount,
+                          a->pending_fx.dist_character);
     a->delay_buffer = db;
     a->delay_capacity = dc;
     a->reverb_buffer = rb;
@@ -1128,6 +1151,8 @@ void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *s, const Mell
         a->test_sub_curve_builds++;
 #endif
     }
+    if (a->pending_fx.dist_amount != f->dist_amount || a->pending_fx.dist_character != f->dist_character)
+        build_main_dist_curve(a->pending_main_dist_curve, f->dist_amount, f->dist_character);
     a->pending_config = *s;
     a->pending_fx = *f;
     a->pending_sub_config = *sub;
@@ -1247,36 +1272,6 @@ static int32_t soft_drive(int32_t x, uint16_t amount, uint16_t character)
     if (y < -lim) y = -lim + ((y + lim) >> 3);
     return clamp32(y, -32767, 32767);
 }
-static int32_t global_distort(int32_t x, uint16_t drive, uint16_t character)
-{
-    uint32_t d = drive > 1000u ? 1000u : drive, c = character > 1000u ? 1000u : character;
-    int32_t gain_q12, lim, slope_q12, mag, y;
-    bool neg;
-    x = clamp32(x, -32767, 32767);
-    if (d == 0u) return x;
-    neg = x < 0;
-    mag = neg ? -x : x;
-    /* 1.0x..7.84x pre-gain in Q12. Magnitude-domain shaping guarantees f(-x)=-f(x). */
-    gain_q12 = 4096 + (int32_t)d * 28;
-    y = (mag * gain_q12) >> 12;
-    /* CHAR is an independent transfer-shape control: higher values move the knee
-     * inward and flatten the post-knee slope without increasing AMT drive. */
-    lim = 28672 - ((int32_t)c << 3);            /* 0.875FS .. ~0.631FS */
-    slope_q12 = 1536 - (((int32_t)c * 5) >> 2); /* 0.375 .. ~0.070 */
-    if (y > lim) y = lim + (((y - lim) * slope_q12) >> 12);
-    y = clamp32(y, 0, 32767);
-    return neg ? -y : y;
-}
-#if defined(MELLO_DISTORTION_TEST_HOOK) && MELLO_DISTORTION_TEST_HOOK
-uint16_t mello_audio_test_global_dist_drive(uint16_t amount)
-{
-    return global_dist_drive(amount);
-}
-int32_t mello_audio_test_global_distort(int32_t x, uint16_t amount, uint16_t character)
-{
-    return global_distort(x, global_dist_drive(amount), character);
-}
-#endif
 void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t start_us, uint16_t bpm)
 {
     uint32_t i, t = start_us, terr = 0u;
@@ -1486,11 +1481,19 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             mix = clamp32(y, -65535, 65535);
         }
         {
-            int32_t wet = mix;
+            /* HTML: Tone.Distortion is always in the path (wet = distMix, 1 by default). At AMT 0 its curve is
+             * y = x/3 with a hard clip at +-1: the HTML's gain staging. 2x oversampling as for the sub. */
+            int32_t x = clamp32(mix, -32767, 32767), wet, mid;
             uint16_t ta;
-            if (a->dist_drive_permille)
-                wet = global_distort(mix, a->dist_drive_permille, a->fx.dist_character);
-            mix = (mix * (int32_t)(1000u - a->fx.dist_mix) + wet * (int32_t)a->fx.dist_mix) / 1000;
+            mid = a->main_dist_prev + ((x - a->main_dist_prev) >> 1);
+            wet = (tone_shape(a->main_dist_curve, mid) + tone_shape(a->main_dist_curve, x)) / 2;
+            a->main_dist_prev = x;
+            if (a->fx.dist_mix < 1000u) {
+                /* Tone's dry/wet CrossFade is equal power: dry cos, wet sin of mix * 90 degrees. */
+                uint32_t q = ((uint32_t)a->fx.dist_mix * 64u + 500u) / 1000u;
+                mix = q15mul(mix, SINE_Q15[64u - q]) + q15mul(wet, SINE_Q15[q]);
+            } else
+                mix = wet;
             ta = DIST_TONE_ALPHA_Q15[a->fx.dist_tone / 10u];
             a->dist_lp += q15mul(mix - a->dist_lp, ta);
             mix = a->dist_lp * (int32_t)a->fx.dist_level / 1000;

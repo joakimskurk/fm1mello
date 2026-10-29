@@ -207,7 +207,9 @@ int main(void)
     assert(fx.reverb_wet == 240u && fx.reverb_decay_ms == 6000u && fx.reverb_tone == 620u &&
            fx.reverb_level == 1150u);
     assert(sub.cut == 450u && sub.level == 420u && sub.decay_ms == 160u);
-    assert(a.dist_drive_permille == 0u);
+    /* Tone.Distortion at AMT 0 is the HTML's gain staging: y = x/3, flat to the clip at +-1. */
+    assert(a.main_dist_curve[256] >= 10920 && a.main_dist_curve[256] <= 10924);
+    assert(a.main_dist_curve[128] >= 5460 && a.main_dist_curve[128] <= 5462);
     assert(a.reverb_send_permille >= 195u && a.reverb_send_permille <= 210u);
     assert(a.reverb_feedback_q15 >
            29000u); /* six-second RT60 must not collapse like the old 0.56 feedback. */
@@ -217,7 +219,9 @@ int main(void)
     fx.dist_character = 350u;
     mello_audio_set_config(&a, &sound, &fx, &sub, &sample);
     mello_audio_render(&a, out, 1u, 0u, 80u);
-    assert(a.dist_drive_permille >= 120u && a.dist_drive_permille <= 135u);
+    /* drive = 0.5^1.9 * (0.28 + 0.52 * 0.35) = 0.124, k = 12: small-signal gain (3+k)/9 = 1.67, ceiling ~0.35. */
+    assert(a.main_dist_curve[2] >= 410 && a.main_dist_curve[2] <= 445);
+    assert(a.main_dist_curve[256] >= 11100 && a.main_dist_curve[256] <= 11600);
 
     /* Delay tone belongs on the return, not inside the feedback loop.  With zero send,
        a raw 10000-sample and 50% feedback must write ~5000 independent of tone. */
