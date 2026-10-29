@@ -6,6 +6,7 @@
 set -e
 cd "$(dirname "$0")/.."
 CC="${CC:-cc}"
+EXTRA="${MELLO_TEST_CFLAGS:-}"    # e.g. make sanitize
 OUT=build/mello-tests
 mkdir -p "$OUT"
 SRC="firmware/src/mello_engine.c firmware/src/mello_transport.c firmware/src/mello_storage.c firmware/src/mello_ui.c firmware/src/mello_audio.c firmware/src/mello_sample.c"
@@ -24,7 +25,7 @@ FEATURE_OFF="ui_visual_smoke control_grammar_smoke chord_final_acceptance audio_
 run() {    # name, binary suffix, extra flags
     bin="$OUT/$1$2"
     # shellcheck disable=SC2086
-    "$CC" -std=c11 -O1 -Wall -Wextra -Werror $3 $(defines "$1") -Ifirmware/src "tests/mello/$1.c" $SRC -o "$bin"
+    "$CC" -std=c11 -O1 -Wall -Wextra -Werror $EXTRA $3 $(defines "$1") -Ifirmware/src "tests/mello/$1.c" $SRC -o "$bin"
     if (cd "$OUT" && "./$1$2" >"$1$2.txt" 2>&1); then
         echo "PASS $1$2"
     else

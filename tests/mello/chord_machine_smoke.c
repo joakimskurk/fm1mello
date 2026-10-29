@@ -43,7 +43,7 @@ int main(void)
     MelloFxConfig fx;
     MelloSubConfig sub;
     MelloSampleConfig samp;
-    int32_t out[2 * 1024];
+    int32_t out[2 * 4096];
     uint32_t i;
     int nonzero = 0;
 
