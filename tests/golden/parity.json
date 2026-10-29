@@ -158,5 +158,19 @@
   "peak_html_dbfs": -14.6,
   "peak_c_dbfs": -13.9,
   "rt60_html_c": null
+ },
+ {
+  "name": "hot_fx",
+  "level_db": 0.9,
+  "env_db": 1.7,
+  "tone_db": 1.7,
+  "worst_band_hz": 62,
+  "worst_db": -6.8,
+  "peak_html_dbfs": 1.8,
+  "peak_c_dbfs": -0.0,
+  "rt60_html_c": [
+   3.12,
+   3.36
+  ]
  }
 ]

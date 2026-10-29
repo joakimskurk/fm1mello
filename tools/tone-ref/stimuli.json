@@ -158,6 +158,22 @@
         {"t": 0.95, "dur": 0.9, "midi": 28},
         {"t": 1.85, "dur": 0.5, "midi": 36}
       ]
+    },
+    {
+      "name": "hot_fx",
+      "what": "the run with every return up (delay 0.8 feedback x1.5, reverb x3, DIST LEVEL 1.4): the limiter at work",
+      "seconds": 4.0,
+      "fx": "full",
+      "params": {"delayWet": 0.8, "delayFb": 0.8, "delayLevel": 1.5, "reverbWet": 1.0, "reverbLevel": 3.0, "distLevel": 1.4, "sustain": 0.8},
+      "lead": [
+        {"t": 0.05, "dur": 0.3, "midi": 48, "vel": 0.95},
+        {"t": 0.4, "dur": 0.3, "midi": 55, "vel": 0.95},
+        {"t": 0.75, "dur": 0.3, "midi": 60, "vel": 0.95},
+        {"t": 1.1, "dur": 0.3, "midi": 63, "vel": 0.95},
+        {"t": 1.45, "dur": 0.3, "midi": 67, "vel": 0.95},
+        {"t": 1.8, "dur": 0.3, "midi": 72, "vel": 0.95}
+      ],
+      "sub": [{"t": 0.05, "dur": 1.8, "midi": 36}]
     }
   ]
 }

@@ -186,6 +186,7 @@ typedef struct {
     uint32_t delay_pos;
     uint32_t delay_samples;
     /* Knob changes ramp as the HTML's rampTo calls do (lines 989-1077); the delay time too (read between samples). */
+    int32_t limiter_env_q4; /* limiter_step's peak follower */
     MelloRamp rp_cut, rp_res, rp_master, rp_rev_send, rp_rev_level, rp_dly_send, rp_dly_level, rp_dly_fb, rp_dist_level,
         rp_sub_level, rp_fsub_level, rp_delay;
     int32_t delay_tone_s[2][4]; /* dlyTone */

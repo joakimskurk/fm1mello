@@ -62,6 +62,9 @@ static const StimNote stim12_sub[] = {{0, 0, 0, 0, 0}};
 static const StimParam stim13_params[] = {{"slideTime", 0, 0.12}, {"subGlide", 0, 0.08}, {"sustain", 0, 0.8}, {"decay", 0, 0.3}, {"subOscOn", 0, 0}};
 static const StimNote stim13_lead[] = {{0.05, 0.5, 57, 0.72, 0}, {0.5, 0.5, 69, 0.72, 1}, {0.95, 0.5, 60, 0.72, 1}, {1.4, 0.5, 64, 0.72, 0}, {1.85, 0.5, 52, 0.72, 1}};
 static const StimNote stim13_sub[] = {{0.05, 0.5, 33, 0.9, 0}, {0.5, 0.5, 40, 0.9, 0}, {0.95, 0.9, 28, 0.9, 0}, {1.85, 0.5, 36, 0.9, 0}};
+static const StimParam stim14_params[] = {{"delayWet", 0, 0.8}, {"delayFb", 0, 0.8}, {"delayLevel", 0, 1.5}, {"reverbWet", 0, 1.0}, {"reverbLevel", 0, 3.0}, {"distLevel", 0, 1.4}, {"sustain", 0, 0.8}};
+static const StimNote stim14_lead[] = {{0.05, 0.3, 48, 0.95, 0}, {0.4, 0.3, 55, 0.95, 0}, {0.75, 0.3, 60, 0.95, 0}, {1.1, 0.3, 63, 0.95, 0}, {1.45, 0.3, 67, 0.95, 0}, {1.8, 0.3, 72, 0.95, 0}};
+static const StimNote stim14_sub[] = {{0.05, 1.8, 36, 0.9, 0}};
 
 static const Stimulus STIMULI[] = {
     {"lead_pluck_dry", 1.0, STIM_FX_DRY, stim0_params, 0, stim0_lead, 1, stim0_sub, 0},
@@ -78,6 +81,7 @@ static const Stimulus STIMULI[] = {
     {"lfo_amp", 2.5, STIM_FX_DRY, stim11_params, 8, stim11_lead, 1, stim11_sub, 0},
     {"lfo_pwm", 2.5, STIM_FX_DRY, stim12_params, 10, stim12_lead, 1, stim12_sub, 0},
     {"slides", 2.6, STIM_FX_DRY, stim13_params, 5, stim13_lead, 5, stim13_sub, 4},
+    {"hot_fx", 4.0, STIM_FX_FULL, stim14_params, 7, stim14_lead, 6, stim14_sub, 1},
 };
 #define STIM_COUNT ((int)(sizeof STIMULI / sizeof STIMULI[0]))
 

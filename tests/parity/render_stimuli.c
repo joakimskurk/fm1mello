@@ -51,6 +51,12 @@ static void apply_param(const StimParam *p, MelloSoundConfig *s, MelloFxConfig *
     else if (!strcmp(k, "subLevel")) sub->level = permille(p->num);
     else if (!strcmp(k, "pwmWidth")) s->pwm_permille = permille(p->num);
     else if (!strcmp(k, "slideTime")) s->slide_ms = ms(p->num);
+    else if (!strcmp(k, "delayWet")) fx->delay_wet = permille(p->num);
+    else if (!strcmp(k, "delayFb")) fx->delay_feedback = permille(p->num);
+    else if (!strcmp(k, "delayLevel")) fx->delay_level = permille(p->num);
+    else if (!strcmp(k, "reverbWet")) fx->reverb_wet = permille(p->num);
+    else if (!strcmp(k, "reverbLevel")) fx->reverb_level = permille(p->num);
+    else if (!strcmp(k, "distLevel")) fx->dist_level = permille(p->num);
     else if (!strcmp(k, "subGlide")) sub->glide_ms = ms(p->num);
     else if (!strcmp(k, "lfoOn")) s->lfo_on = p->num != 0.0;
     else if (!strcmp(k, "lfoRate")) s->lfo_rate_millihz = (uint16_t)(p->num * 1000.0 + 0.5);

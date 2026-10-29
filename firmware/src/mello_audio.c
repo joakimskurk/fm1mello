@@ -1194,10 +1194,22 @@ void mello_audio_reverb_stereo_probe(MelloAudio *a, int32_t send, int32_t *left,
 }
 #endif
 
-static int32_t limiter_minus_1db(int32_t x)
+/* Tone.Limiter(-1): a compressor at -1 dBFS (29204), ratio 20, attack 3 ms, release 10 ms, on the stereo peak. Above
+ * the threshold the gain is threshold / envelope (ratio 20 is within 0.3 dB of that at 6 dB over). Unity below it,
+ * so it only acts when the returns pile up; it replaces a hard clip at -1 dBFS. */
+#define LIMITER_THRESHOLD 29204
+#define LIMITER_ATTACK_Q15  247 /* 1 - exp(-1 / (0.003 * 44100)) */
+#define LIMITER_RELEASE_Q15 74  /* 1 - exp(-1 / (0.010 * 44100)) */
+static void limiter_step(MelloAudio *a, int32_t *l, int32_t *r)
 {
-    const int32_t ceiling = 29204;
-    return clamp32(x, -ceiling, ceiling);
+    int32_t al = *l < 0 ? -*l : *l, ar = *r < 0 ? -*r : *r, pk = (al > ar ? al : ar), d, g;
+    if (pk > 262143) pk = 262143;
+    d = (pk << 4) - a->limiter_env_q4; /* Q4: a 1/16 LSB floor, and (d * coeff) fits 32 bits */
+    a->limiter_env_q4 += (d * (d > 0 ? LIMITER_ATTACK_Q15 : LIMITER_RELEASE_Q15)) >> 15;
+    if (a->limiter_env_q4 <= (LIMITER_THRESHOLD << 4)) return;
+    g = (int32_t)(((uint32_t)LIMITER_THRESHOLD << 15) / (uint32_t)(a->limiter_env_q4 >> 4));
+    *l = (int32_t)(((int64_t)*l * g) >> 15);
+    *r = (int32_t)(((int64_t)*r * g) >> 15);
 }
 static uint32_t config_update_begin(MelloAudio *a)
 {
@@ -1751,8 +1763,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                     mix_r += ((hp_r * rev_level) / 1000) * 1050 / 1000;
                 }
             }
-            mix_l = limiter_minus_1db(mix_l);
-            mix_r = limiter_minus_1db(mix_r);
+            limiter_step(a, &mix_l, &mix_r);
             mix_l = clamp32(mix_l * master / 1000, -32767, 32767);
             mix_r = clamp32(mix_r * master / 1000, -32767, 32767);
         }
