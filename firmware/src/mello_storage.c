@@ -38,6 +38,7 @@ typedef struct {
     bool unsupported;
     bool io_error;
     uint8_t bank;
+    uint16_t version;
     uint32_t revision;
     uint32_t payload_size;
     uint32_t payload_crc;
@@ -701,6 +702,7 @@ static RecordInfo scan_bank(MelloStorage *s, uint8_t bank)
     if (storage_get_u32(h) != MELLO_STORAGE_MAGIC) return rec;
     rec.present = true;
     ver = storage_get_u16(h + 4);
+    rec.version = ver;
     hs = storage_get_u16(h + 6);
     rec.revision = storage_get_u32(h + 12);
     if (ver != MELLO_STORAGE_FORMAT_VERSION) {
@@ -891,6 +893,25 @@ MelloStorageSaveResult mello_storage_save_now(MelloStorage *s, const MelloEngine
     bank = s->active_bank == 0 ? 1u : 0u;
     rev = s->active_bank < 0 ? 1u : s->revision + 1u;
     base = s->config.bank_addr[bank];
+    /* After a rollback, a newer firmware's project is the user's newest work and this firmware cannot read
+     * it. While either bank holds one, write nothing: neither that bank nor the other, which may hold the
+     * user's previous project (load then runs on defaults). Installing the newer firmware again brings it
+     * back. An older format is still replaced, so an upgrade can save. */
+    {
+        RecordInfo b0 = scan_bank(s, 0u), b1 = scan_bank(s, 1u);
+        if (b0.io_error || b1.io_error) {
+            s->last_save_result = MELLO_STORAGE_SAVE_IO_ERROR;
+            return s->last_save_result;
+        }
+        if ((b0.present && b0.version > MELLO_STORAGE_FORMAT_VERSION) ||
+            (b1.present && b1.version > MELLO_STORAGE_FORMAT_VERSION)) {
+            set_baseline(s, size, crc); /* do not retry until the project changes again */
+            s->dirty = false;
+            s->manual_pending = false;
+            s->last_save_result = MELLO_STORAGE_SAVE_PROTECTED;
+            return s->last_save_result;
+        }
+    }
     if (!erase_bank(s, bank)) {
         s->last_save_result = MELLO_STORAGE_SAVE_IO_ERROR;
         return s->last_save_result;

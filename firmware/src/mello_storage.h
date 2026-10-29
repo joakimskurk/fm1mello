@@ -61,7 +61,8 @@ typedef enum {
     MELLO_STORAGE_SAVE_WRITTEN,
     MELLO_STORAGE_SAVE_UNCHANGED,
     MELLO_STORAGE_SAVE_IO_ERROR,
-    MELLO_STORAGE_SAVE_TOO_LARGE
+    MELLO_STORAGE_SAVE_TOO_LARGE,
+    MELLO_STORAGE_SAVE_PROTECTED /* the bank holds a newer firmware's project: not overwritten */
 } MelloStorageSaveResult;
 
 typedef struct {
