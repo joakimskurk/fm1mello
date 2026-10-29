@@ -35,7 +35,7 @@ static void fill_cb(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint1
     }
     if (y == 163 && h == 1) ratchet_marks++;
     if ((y == 165 || y == 168) && h == 1) event_marks++;
-    if (y == 51 && h == 93 && x >= 8 && x < 232) {
+    if (y == 50 && h == 98 && x >= 8 && x < 232) { /* a HOME lane panel (draw_home_step) */
         home_columns++;
         if (w > 7) bounds = 1;
     }
@@ -265,7 +265,7 @@ static void render_random_length(unsigned n)
     MelloTransport t;
     MelloStorage st;
     MelloUi ui;
-    MelloUiDrawOps ops = {fill_cb, text_cb, 0, 0, 0};
+    MelloUiDrawOps ops = {fill_cb, text_cb, 0, 0, 0, 0};
     unsigned i;
     mello_project_defaults(&p);
     p.seq_len = (uint8_t)n;
@@ -301,7 +301,7 @@ static void check_ui_contract(void)
     MelloTransport t;
     MelloStorage st;
     MelloUi ui;
-    MelloUiDrawOps ops = {fill_cb, text_cb, 0, 0, 0};
+    MelloUiDrawOps ops = {fill_cb, text_cb, 0, 0, 0, 0};
     int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
     MelloEngine expected;
     unsigned n;

@@ -107,6 +107,12 @@ static void ui_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, c
     (void)ctx;
     draw_text_box(x, y, w, large ? &FONT_L : &FONT_S, text, colour, align);
 }
+static void ui_text_on(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t style, const char *text, uint16_t colour,
+                       uint16_t bg, uint8_t align)
+{
+    (void)ctx;
+    draw_text_box_on(x, y, w, style == 1u ? &FONT_L : &FONT_S, text, colour, bg, align, style == 2u ? 1 : 0);
+}
 static void ui_key_led(void *ctx, uint8_t key_index, bool on)
 {
     (void)ctx;
@@ -126,6 +132,7 @@ static MelloUiDrawOps ui_draw_ops(void)
     o.key_led = ui_key_led;
     o.button_led = ui_button_led;
     o.ctx = 0;
+    o.text_on = ui_text_on;
     return o;
 }
 

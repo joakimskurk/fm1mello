@@ -170,7 +170,7 @@ static void run_fixture(Audit *audit, MelloUiPage page, int sub, int direction, 
     MelloTransport tr;
     MelloStorage st;
     MelloUi ui;
-    MelloUiDrawOps draw = {audit_fill, audit_text, 0, 0, audit};
+    MelloUiDrawOps draw = {audit_fill, audit_text, 0, 0, audit, 0};
     int16_t d[MELLO_UI_ENCODER_COUNT] = {0};
     char name[64];
     int k;
@@ -264,8 +264,8 @@ static int home_incremental_equivalence(void)
     MelloStorage st;
     MelloUi ui;
     Framebuffer inc, full;
-    MelloUiDrawOps inc_ops = {fb_fill, fb_text, 0, 0, &inc};
-    MelloUiDrawOps full_ops = {fb_fill, fb_text, 0, 0, &full};
+    MelloUiDrawOps inc_ops = {fb_fill, fb_text, 0, 0, &inc, 0};
+    MelloUiDrawOps full_ops = {fb_fill, fb_text, 0, 0, &full, 0};
 
     memset(&inc, 0, sizeof(inc));
     memset(&full, 0, sizeof(full));

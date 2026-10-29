@@ -170,6 +170,51 @@ static int32_t text_w(const felucca_font_t *f, const char *s)
     return w;
 }
 
+/* text on a background: the anti-aliasing ramps from bg to c (not from black), and `space` pixels go between
+ * characters (letter-spaced labels). For SkurkyMello's screen, which is not black. */
+static int32_t cv_text_on(int32_t x, int32_t y, const felucca_font_t *f, const char *s, uint16_t c, uint16_t bg,
+                          int32_t space)
+{
+    uint16_t ramp[16];
+    int32_t r0 = bg >> 11, g0 = (bg >> 5) & 63, b0 = bg & 31, r1 = c >> 11, g1 = (c >> 5) & 63, b1 = c & 31, a;
+    for (a = 0; a < 16; a++)
+        ramp[a] = (uint16_t)(((r0 + (r1 - r0) * a / 15) << 11) | ((g0 + (g1 - g0) * a / 15) << 5) |
+                             (b0 + (b1 - b0) * a / 15));
+    for (; *s; s++) {
+        uint32_t gi = glyph(f, (uint8_t)*s), gx, gy, w, bpr;
+        const uint8_t *gd;
+        w = f->bw[gi];
+        bpr = (w + 1u) / 2u;
+        gd = f->data + f->off[gi];
+        for (gy = 0; gy < f->h; gy++)
+            for (gx = 0; gx < w; gx++) {
+                uint32_t v = gd[gy * bpr + gx / 2u];
+                v = (gx & 1u) ? (v & 15u) : (v >> 4);
+                if (v)
+                    cv_pset(x - f->pad + (int32_t)gx, y + (int32_t)gy, ramp[v]);
+            }
+        x += f->adv[gi] + space;
+    }
+    return x;
+}
+
+/* one-shot: text in a box cleared to bg, `space` pixels between characters, blitted */
+static void draw_text_box_on(uint32_t x, uint32_t y, uint32_t w, const felucca_font_t *f, const char *s, uint16_t c,
+                             uint16_t bg, int align, int32_t space)
+{
+    int32_t tw = text_w(f, s), tx = 0, n = 0;
+    while (s[n]) ++n;
+    if (n > 1) tw += space * (n - 1);
+    cv_begin(w, f->h, bg);
+    if (align == 1)
+        tx = ((int32_t)w - tw) / 2;
+    else if (align == 2)
+        tx = (int32_t)w - tw;
+    cv_text_on(tx, 0, f, s, c, bg, space);
+    cv_blit(x, y);
+    lcd_sync();
+}
+
 /* one-shot: text in a box, cleared to black, blitted */
 static void draw_text_box(uint32_t x, uint32_t y, uint32_t w, const felucca_font_t *f, const char *s,
                           uint16_t c, int align)

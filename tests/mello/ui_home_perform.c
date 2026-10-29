@@ -57,7 +57,7 @@ int main(void)
     static MelloTransport t;
     static MelloStorage st;
     static MelloUi u;
-    MelloUiDrawOps o = {fill, text, key_led, btn_led, 0};
+    MelloUiDrawOps o = {fill, text, key_led, btn_led, 0, 0};
     uint8_t k3 = white(2u), k16 = white(15u);
     uint16_t cut, decay, rel;
 

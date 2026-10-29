@@ -55,7 +55,7 @@ int main(void)
     MelloTransport t;
     MelloStorage st;
     MelloUi ui;
-    MelloUiDrawOps ops = {count_fill, count_text, 0, 0, 0};
+    MelloUiDrawOps ops = {count_fill, count_text, 0, 0, 0, 0};
 
     mello_project_defaults(&p);
     p.seq_len = 32u;

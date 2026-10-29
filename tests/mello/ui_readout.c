@@ -36,7 +36,7 @@ static void turn(MelloUi *u, uint32_t ms, uint8_t enc, int16_t d)
 }
 static void render(MelloUi *u)
 {
-    MelloUiDrawOps o = {fill, text, 0, 0, 0};
+    MelloUiDrawOps o = {fill, text, 0, 0, 0, 0};
     seen_n = 0u;
     mello_ui_render(u, &o);
 }

@@ -113,7 +113,7 @@ static void setup(MelloProject *p, MelloTransport *t, MelloStorage *st, MelloUi 
 
 static void render(MelloUi *u, Footer *f)
 {
-    MelloUiDrawOps ops = {fill, text, led_key, led_btn, f};
+    MelloUiDrawOps ops = {fill, text, led_key, led_btn, f, 0};
     memset(f, 0, sizeof *f);
     mello_ui_render(u, &ops);
 }

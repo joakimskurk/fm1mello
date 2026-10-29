@@ -73,7 +73,7 @@ int main(void)
     MelloTransport transport;
     MelloStorage storage;
     MelloUi ui;
-    MelloUiDrawOps ops = {smoke_fill, smoke_text, 0, 0, 0};
+    MelloUiDrawOps ops = {smoke_fill, smoke_text, 0, 0, 0, 0};
     MelloSampleBank sample_bank;
     uint8_t sample_dummy[4][1] = {{0}, {0}, {0}, {0}};
     int16_t encoder_delta[MELLO_UI_ENCODER_COUNT] = {0};

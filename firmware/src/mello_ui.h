@@ -68,6 +68,7 @@ typedef enum {
 } MelloUiPage;
 
 #define MELLO_UI_NO_STEP       0xFFu
+#define MELLO_UI_TEXT_SPACED   2u /* text style: small, letter-spaced (text_on) */
 #define MELLO_UI_READOUT_LAYER 5u    /* MelloUi.readout: SELECT changed the layer */
 #define MELLO_UI_READOUT_TEMPO 6u    /* HOME's SELECT, ALGORITHM, PRESETS */
 #define MELLO_UI_READOUT_INTENSITY 7u
@@ -93,6 +94,10 @@ typedef struct {
     void (*key_led)(void *ctx, uint8_t key_index, bool on);
     void (*button_led)(void *ctx, uint8_t button_id, bool on);
     void *ctx;
+    /* Optional: text on a background colour (the box is cleared to bg, the glyphs' edges blend into it), style 0
+     * small, 1 large, 2 small letter-spaced (a pixel between characters). Without it, text() draws on black. */
+    void (*text_on)(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t style, const char *text, uint16_t colour,
+                    uint16_t bg, uint8_t align);
 } MelloUiDrawOps;
 
 typedef struct {
