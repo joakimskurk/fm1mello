@@ -258,6 +258,7 @@ void mello_ui_set_page(MelloUi *ui, MelloUiPage page)
     if (page > MELLO_UI_SAMPLE_RESERVED) page = MELLO_UI_HOME;
     if (ui->page == page) return;
     ui->page = page;
+    ui->readout = 0u; /* it belonged to the old page */
     mark_full(ui);
 }
 
@@ -1296,16 +1297,31 @@ static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
     mark_edit(ui);
 }
 
+static const char *layer_name(const MelloUi *ui);
+static void show_readout(MelloUi *ui, uint8_t what, uint32_t now_ms)
+{
+    ui->readout = what;
+    ui->readout_until_ms = now_ms + MELLO_UI_READOUT_MS;
+    ui->dirty |= MELLO_UI_DIRTY_BODY;
+}
+
 static void adjust_knobs(MelloUi *ui, const int16_t enc[MELLO_UI_ENCODER_COUNT], uint32_t now_us,
                          uint32_t now_ms)
 {
     uint8_t k;
+    uint16_t before = ui->dirty;
+    /* The readout shows only what a turn changed: an inert knob, or a page without layers, stays quiet. */
+    ui->dirty = 0u;
     adjust_select(ui, enc[MELLO_UI_ENC_SELECT]);
     adjust_algorithm(ui, enc[MELLO_UI_ENC_ALGORITHM]);
+    if (ui->dirty && layer_name(ui)) show_readout(ui, MELLO_UI_READOUT_LAYER, now_ms);
+    ui->dirty |= before;
     adjust_presets(ui, enc[MELLO_UI_ENC_PRESETS]);
     for (k = 0u; k < 4u; ++k) {
         int16_t d = enc[MELLO_UI_ENC_KNOB1 + k];
         if (!d) continue;
+        before = ui->dirty;
+        ui->dirty = 0u;
         switch (ui->page) {
         case MELLO_UI_HOME: adjust_home(ui, k, d); break;
         case MELLO_UI_SEQ_STEP: adjust_step(ui, k, d); break;
@@ -1327,6 +1343,8 @@ static void adjust_knobs(MelloUi *ui, const int16_t enc[MELLO_UI_ENCODER_COUNT],
         case MELLO_UI_SAMPLE_RESERVED: adjust_sample(ui, k, d); break;
         default: break;
         }
+        if (ui->dirty) show_readout(ui, (uint8_t)(k + 1u), now_ms);
+        ui->dirty |= before;
     }
 }
 
@@ -1649,6 +1667,10 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
     uint8_t i;
     (void)released_buttons;
     if (!ui || !ui->transport) return;
+    if (ui->readout && (int32_t)(now_ms - ui->readout_until_ms) >= 0) { /* its time is up: the body again */
+        ui->readout = 0u;
+        ui->dirty |= MELLO_UI_DIRTY_BODY;
+    }
     handle_buttons(ui, now_us, now_ms, pressed_buttons, held_buttons);
     for (i = 0u; i < 27u; ++i)
         if (note_pressed & bit_u32(i)) handle_note_press(ui, now_ms, held_buttons, i);
@@ -3179,13 +3201,16 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
     o->text(o->ctx, 4, 172, 232, 0, b, UI_SOFT, 0);
 }
 
-static void draw_footer(MelloUi *ui, const MelloUiDrawOps *o)
+/* K1-K4's labels and values on the current page and layer: the footer and the readout both show these. */
+static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
 {
     MelloEngine *e = eng(ui);
-    char v[4][24];
-    const char *l[4] = {"K1", "K2", "K3", "K4"};
     uint8_t k;
-    for (k = 0u; k < 4u; ++k) v[k][0] = 0;
+    for (k = 0u; k < 4u; ++k) {
+        static const char *kn[4] = {"K1", "K2", "K3", "K4"};
+        l[k] = kn[k];
+        v[k][0] = 0;
+    }
     if (!e) return;
     switch (ui->page) {
     case MELLO_UI_HOME: {
@@ -3672,6 +3697,14 @@ static void draw_footer(MelloUi *ui, const MelloUiDrawOps *o)
         copy_s(v[3], "-");
         break;
     }
+}
+
+static void draw_footer(MelloUi *ui, const MelloUiDrawOps *o)
+{
+    char v[4][24];
+    const char *l[4];
+    uint8_t k;
+    footer_texts(ui, l, v);
     draw_control_hint(ui, o);
     for (k = 0u; k < 4u; ++k) {
         uint16_t c = ui_page_accent(ui);
@@ -3721,6 +3754,58 @@ static void fit_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, 
     f->raw->text(f->raw->ctx, x, y, w, large, text, colour, align);
 }
 
+/* The name of the layer SELECT shows on the current page, or 0 where a page has none. */
+static const char *layer_name(const MelloUi *ui)
+{
+    static const char *step[4] = {"TRIG", "NOTE", "FLAGS", "SEQ"}, *seg[2] = {"PLAY", "STRUCT"},
+                      *loop[3] = {"STEP", "HARM", "LOOP"}, *slots[2] = {"LOAD", "RENAME"},
+                      *dot[4] = {"ACCENT", "FILTER", "RATCHET", "SUB"}, *tm[3] = {"MAIN", "ROUTES", "DEPTH"},
+                      *sub[5] = {"TRIG", "5-SEQ", "STEP", "VOICE", "TONE"}, *glo[2] = {"CLOCK", "MIDI"},
+                      *snd[5] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO", "FOLLOWER SUB", "PLAY / LEVEL"},
+                      *fx[5] = {"DISTORTION", "DELAY", "DELAY CONFIG", "REVERB", "REVERB RETURN"},
+                      *smp[4] = {"SAMPLE MAIN", "SAMPLE PITCH", "TRIM / LOOP", "ENVELOPE"};
+    switch (ui->page) {
+    case MELLO_UI_SEQ_STEP: return step[ui->step_subpage % 4u];
+    case MELLO_UI_SEQ_SEGMENT: return seg[ui->segment_subpage % 2u];
+    case MELLO_UI_SEQ_LOOP: return loop[ui->loop_subpage % 3u];
+    case MELLO_UI_SLOTS: return slots[ui->slots_subpage % 2u];
+    case MELLO_UI_DOT: return dot[ui->selected_dot_target % 4u];
+    case MELLO_UI_TURING: return tm[ui->tm_subpage % 3u];
+    case MELLO_UI_SUB: return sub[ui->sub_subpage % 5u];
+    case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 2u];
+    case MELLO_UI_SOUND_RESERVED: return snd[ui->sound_subpage % 5u];
+    case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 5u];
+    case MELLO_UI_SAMPLE_RESERVED: return smp[ui->sample_subpage % 4u];
+    default: return 0;
+    }
+}
+
+/* What you are turning, large over the body: where you are (page, layer), the control's name and its value. The
+ * same texts as the footer (footer_texts), so the two never disagree. */
+static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
+{
+    char v[4][24], where[40], *p = where;
+    const char *l[4], *layer = layer_name(ui);
+    uint16_t accent = ui_page_accent(ui);
+    footer_texts(ui, l, v);
+    p = copy_s(p, mello_ui_page_name(ui->page));
+    if (layer) {
+        p = copy_s(p, " / ");
+        (void)copy_s(p, layer);
+    }
+    o->fill(o->ctx, 0, 30, 240, 142, UI_BLACK); /* in place of the body, not over it: no overdraw, no flicker */
+    ui_frame(o, 6, 44, 228, 112, accent);
+    o->text(o->ctx, 12, 52, 216, 0, where, UI_DIM, 1);
+    if (ui->readout == MELLO_UI_READOUT_LAYER) {
+        o->text(o->ctx, 12, 86, 216, 1, layer ? layer : mello_ui_page_name(ui->page), accent, 1);
+        o->text(o->ctx, 12, 124, 216, 0, "SELECT: LAYER", UI_DIM, 1);
+    } else {
+        uint8_t k = (uint8_t)(ui->readout - 1u);
+        o->text(o->ctx, 12, 76, 216, 1, l[k], accent, 1);
+        o->text(o->ctx, 12, 110, 216, 1, v[k][0] ? v[k] : "-", UI_WHITE, 1);
+    }
+}
+
 void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
 {
     uint16_t d;
@@ -3739,7 +3824,11 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
         d |= MELLO_UI_DIRTY_HEADER | MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_STATUS;
     }
     if (d & MELLO_UI_DIRTY_HEADER) draw_header(ui, &fitted);
-    if (d & MELLO_UI_DIRTY_BODY)
+    if (ui->readout) {
+        /* The readout takes the body's place; the partial playhead redraws wait for the full redraw when it
+         * goes. */
+        if (d & MELLO_UI_DIRTY_BODY) draw_readout(ui, &fitted);
+    } else if (d & MELLO_UI_DIRTY_BODY)
         draw_body(ui, &fitted);
     else if ((d & MELLO_UI_DIRTY_HOME_PLAYHEAD) && ui->page == MELLO_UI_HOME)
         draw_home_playhead(ui, &fitted);

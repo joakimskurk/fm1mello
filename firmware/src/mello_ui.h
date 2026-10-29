@@ -67,6 +67,9 @@ typedef enum {
     MELLO_UI_SAMPLE_RESERVED
 } MelloUiPage;
 
+#define MELLO_UI_READOUT_LAYER 5u    /* MelloUi.readout: SELECT changed the layer */
+#define MELLO_UI_READOUT_MS    1200u /* how long the readout stays after the last detent */
+
 enum {
     MELLO_UI_DIRTY_HEADER = 1u << 0,
     MELLO_UI_DIRTY_BODY = 1u << 1,
@@ -106,6 +109,9 @@ typedef struct {
     uint8_t sound_subpage;                    /* OSC, ENV, LFO, FOLLOW, PLAY */
     uint8_t fx_subpage;                       /* DIST, DELAY A/B, REVERB A/B */
     uint8_t sample_subpage;                   /* MAIN, PITCH, TRIM, ENV */
+    /* The readout: what the last turned control moves, large over the body, until readout_until_ms. */
+    uint8_t readout;           /* 0 = none, 1..4 = K1..K4, MELLO_UI_READOUT_LAYER = SELECT changed the layer */
+    uint32_t readout_until_ms;
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
 
     uint8_t selected_step;
