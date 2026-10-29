@@ -1,0 +1,185 @@
+#include "mello_ui.h"
+
+#include <stdio.h>
+
+static unsigned midi_calls;
+static unsigned event_calls;
+
+static void midi_send(void *ctx, uint8_t status, uint8_t d1, uint8_t d2)
+{
+    (void)ctx; (void)status; (void)d1; (void)d2;
+    ++midi_calls;
+}
+
+static void event_sink(void *ctx, const MelloEvent *event, uint32_t due_us)
+{
+    (void)ctx; (void)event; (void)due_us;
+    ++event_calls;
+}
+
+static int canonical_step(const MelloStep *s, uint8_t index)
+{
+    return s->pitch == (int8_t)(index % 7u) && s->pulses == 1u && s->ratchet == 1u &&
+           s->gate == MELLO_GATE_SINGLE && s->octave == 0 && !s->slide && !s->skip &&
+           !s->accent && !s->sub && s->sample_slot == 1u && s->probability == 65535u;
+}
+
+static int canonical_loop_step(const MelloLoopCycleStep *s)
+{
+    return s->hold == 16u && s->root_offset == 0 && s->root_note == -1 && s->scale_set == -1 &&
+           s->octave == 0 && s->pitch == 0 && s->sub_tone == MELLO_SUB_TONE_ROOT;
+}
+
+static uint8_t black_note(uint8_t pos)
+{
+    uint8_t i, n = 0u;
+    for (i = 0u; i < 27u; ++i) {
+        if (mello_ui_white_key_position(i) >= 0) continue;
+        if (n == pos) return i;
+        ++n;
+    }
+    return 0xFFu;
+}
+
+static void black_input(MelloUi *ui, uint32_t ms, uint8_t pos)
+{
+    int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
+    uint8_t note = black_note(pos);
+    if (note == 0xFFu) return;
+    mello_ui_input(ui, ms * 1000u, ms, 0u, 0u, 0u, 1u << note, enc);
+}
+
+int main(void)
+{
+    MelloProject project;
+    MelloTransport transport;
+    MelloStorage storage;
+    MelloUi ui;
+    MelloSampleBank bank;
+    uint8_t dummy[4][1] = {{0},{0},{0},{0}};
+    uint8_t i;
+
+    mello_project_defaults(&project);
+    mello_transport_init(&transport, &project, 123u, midi_send, (void *)0x1234);
+    mello_transport_set_event_sink(&transport, event_sink, (void *)0x5678);
+    mello_storage_init(&storage, 0, 0);
+    mello_ui_init(&ui, &transport, &storage);
+    mello_sample_bank_init(&bank, dummy[0], dummy[1], dummy[2], dummy[3], 1u);
+    mello_ui_attach_sample_bank(&ui, &bank);
+
+    /* Source CLEAR semantics are preserved, but WP-C2 moves the trigger to
+       contextual black-key B3 with a two-press destructive confirmation. */
+    transport.engine.project.seq_len = 20u;
+    transport.engine.project.bpm = 137u;
+    transport.engine.project.root_note = 67u;
+    transport.engine.project.scale = MELLO_SCALE_DORIAN;
+    transport.engine.project.seg_count = 3u;
+    transport.engine.project.master_len = 64u;
+    for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
+        transport.engine.project.steps[i].pitch = 9;
+        transport.engine.project.steps[i].pulses = 4u;
+        transport.engine.project.steps[i].accent = true;
+        transport.engine.project.steps[i].sample_slot = 3u;
+    }
+    transport.engine.loop_cycle.active = true;
+    transport.engine.loop_cycle.sync = false;
+    transport.engine.loop_cycle.length = 6u;
+    for (i = 0u; i < MELLO_MAX_LOOP_CYCLE_STEPS; ++i) {
+        transport.engine.loop_cycle.steps[i].hold = 32u;
+        transport.engine.loop_cycle.steps[i].root_offset = 7;
+        transport.engine.loop_cycle.steps[i].pitch = -5;
+    }
+    transport.engine.loop_cycle_pos = 4u;
+    transport.engine.loop_cycle_tick = 9u;
+    transport.engine.loop_cycle_count = 12u;
+    transport.engine.randomize.mask = MELLO_RAND_PITCH | MELLO_RAND_GATE;
+    transport.engine.tm.on = true;
+    transport.engine.dot[0].cells = 0xA55Au;
+    transport.engine.slot_seq.active = true;
+    transport.engine.slot_seq.length = 8u;
+    transport.engine.slot_seq.steps[0].slot = 3;
+    if (!mello_engine_save_slot(&transport.engine, 2u, "KEEP")) return 1;
+
+    mello_ui_set_page(&ui, MELLO_UI_RANDOM);
+    black_input(&ui, 100u, 3u);
+    if (!ui.reset_armed || transport.engine.project.steps[0].pitch != 9) return 2;
+    black_input(&ui, 200u, 3u);
+    for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
+        if (!canonical_step(&transport.engine.project.steps[i], i)) {
+            fprintf(stderr, "CLEAR step %u failed\n", (unsigned)i);
+            return 3;
+        }
+    }
+    for (i = 0u; i < MELLO_MAX_LOOP_CYCLE_STEPS; ++i) {
+        if (!canonical_loop_step(&transport.engine.loop_cycle.steps[i])) {
+            fprintf(stderr, "CLEAR loop %u failed\n", (unsigned)i);
+            return 4;
+        }
+    }
+    if (transport.engine.loop_cycle_pos || transport.engine.loop_cycle_tick || transport.engine.loop_cycle_count) return 5;
+    if (!transport.engine.loop_cycle.active || transport.engine.loop_cycle.sync || transport.engine.loop_cycle.length != 6u) return 6;
+    if (transport.engine.project.seq_len != 20u || transport.engine.project.bpm != 137u ||
+        transport.engine.project.root_note != 67u || transport.engine.project.scale != MELLO_SCALE_DORIAN ||
+        transport.engine.project.seg_count != 3u || transport.engine.project.master_len != 64u) return 7;
+    if (transport.engine.randomize.mask != (MELLO_RAND_PITCH | MELLO_RAND_GATE) ||
+        !transport.engine.tm.on || transport.engine.dot[0].cells != 0xA55Au) return 8;
+    if (!transport.engine.slot_seq.active || transport.engine.slot_seq.length != 8u ||
+        transport.engine.slot_seq.steps[0].slot != 3 || !mello_engine_slot_valid(&transport.engine, 2u)) return 9;
+    if (!storage.dirty || ui.reset_armed) return 10;
+
+    /* Exact TAP math is preserved; only the trigger moved from REC to B1. */
+    storage.dirty = false;
+    mello_ui_set_page(&ui, MELLO_UI_GLOBAL);
+    black_input(&ui, 1000u, 1u);
+    if (transport.engine.project.bpm != 137u || ui.tap_count != 1u) return 11;
+    black_input(&ui, 1500u, 1u);
+    if (transport.engine.project.bpm != 120u || ui.tap_count != 2u || !storage.dirty) return 12;
+    black_input(&ui, 2000u, 1u);
+    black_input(&ui, 2500u, 1u);
+    if (transport.engine.project.bpm != 120u || ui.tap_count != 4u) return 13;
+    black_input(&ui, 6000u, 1u);
+    if (ui.tap_count != 1u || transport.engine.project.bpm != 120u) return 14;
+    black_input(&ui, 6600u, 1u);
+    if (transport.engine.project.bpm != 100u) return 15;
+
+    /* RESET ALL moved to contextual B3 with the same two-press confirmation. */
+    transport.engine.project.seq_len = 24u;
+    transport.engine.project.bpm = 199u;
+    transport.engine.project.root_note = 72u;
+    transport.engine.sound.master_level = 123u;
+    transport.engine.slot_seq.active = true;
+    (void)mello_engine_save_slot(&transport.engine, 5u, "WIPE");
+    mello_transport_set_sync(&transport, MELLO_SYNC_MASTER, 7000000u);
+    mello_transport_set_midi_channel(&transport, 9u);
+    mello_transport_set_midi_sub_channel(&transport, 10u);
+    mello_transport_set_midi_note_out(&transport, true);
+    mello_transport_start(&transport, 7000000u);
+    storage.dirty = false;
+    storage.manual_pending = false;
+    mello_ui_set_page(&ui, MELLO_UI_GLOBAL);
+
+    black_input(&ui, 7100u, 3u);
+    if (!ui.reset_armed || transport.engine.project.seq_len != 24u || !transport.running) return 16;
+    black_input(&ui, 8000u, 3u);
+    if (transport.running || ui.page != MELLO_UI_HOME || ui.reset_armed) return 17;
+    if (transport.engine.project.seq_len != 16u || transport.engine.project.bpm != 80u ||
+        transport.engine.project.root_note != 60u || transport.engine.project.scale != MELLO_SCALE_MINOR) return 18;
+    if (transport.sync_mode != MELLO_SYNC_OFF || transport.midi_channel != 0u ||
+        transport.midi_sub_channel != 1u || transport.midi_note_out_enabled) return 19;
+    if (transport.engine.slot_seq.active || mello_engine_slot_valid(&transport.engine, 5u) ||
+        transport.engine.randomize.mask != MELLO_RAND_ALL) return 20;
+    if (transport.midi_send != midi_send || transport.midi_ctx != (void *)0x1234 ||
+        transport.event_sink != event_sink || transport.event_sink_ctx != (void *)0x5678) return 21;
+    if (ui.sample_bank != &bank || !storage.dirty || !storage.manual_pending) return 22;
+
+    /* An expired B3 confirmation re-arms instead of resetting. */
+    transport.engine.project.bpm = 111u;
+    mello_ui_set_page(&ui, MELLO_UI_GLOBAL);
+    black_input(&ui, 10000u, 3u);
+    if (!ui.reset_armed) return 23;
+    black_input(&ui, 13101u, 3u);
+    if (!ui.reset_armed || transport.engine.project.bpm != 111u) return 24;
+
+    puts("PASS: CLEAR/TAP/RESET ALL semantics survive contextual migration without hidden OCT reset grammar");
+    return 0;
+}

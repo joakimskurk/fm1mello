@@ -5,6 +5,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* firmware/src/libc.c provides these on the FM-1, the C library on a computer. */
+void *(memset)(void *d, int c, size_t n);
+void *(memcpy)(void *d, const void *s, size_t n);
+
 #ifdef __cplusplus
 extern "C" {
 #endif

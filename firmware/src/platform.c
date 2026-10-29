@@ -23,6 +23,11 @@ enum { BTN_OCT_DOWN = 0, BTN_OCT_UP = 1, BTN_FX = 2, BTN_SEL = 3, BTN_ENV = 4, B
 enum { ENC_SELECT = 0, ENC_ALGORITHM = 1, ENC_KNOB1 = 2, ENC_KNOB2 = 3, ENC_KNOB3 = 4, ENC_KNOB4 = 5, ENC_PRESETS = 6 };
 #define KEY_LED(k) (14u + (k))
 
+#if defined(DINGHY_HOST) && defined(__APPLE__)
+#define FM1_SECTION(s)                         /* host mode on macOS: Mach-O names need a segment; none needed */
+#else
+#define FM1_SECTION(s) __attribute__((section(s)))
+#endif
 #ifdef DINGHY_HOST
 #include "../../tests/host.c"                  /* on a computer: a fake FM-1 (tests/host.c) */
 #else
@@ -48,7 +53,7 @@ enum { ENC_SELECT = 0, ENC_ALGORITHM = 1, ENC_KNOB1 = 2, ENC_KNOB2 = 3, ENC_KNOB
 #define APP_VER "0.0"
 #endif
 
-bootguard_t bootguard __attribute__((section(".noinit")));
+bootguard_t bootguard FM1_SECTION(".noinit");
 static volatile uint32_t fm1_ms;                /* milliseconds since power-on (TIMER5) */
 
 #define RING_PUBLISH() __asm__ volatile("" ::: "memory")
