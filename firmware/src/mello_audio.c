@@ -794,6 +794,8 @@ static int32_t sub_tone_distort(const MelloAudio *a, int32_t x)
     if (!a || !a->sub_config.drive) return x;
     return tone_shape(a->sub_dist_curve, x);
 }
+/* The level the distortion's gain compensation holds: a sine at 0.4 (-8 dBFS), about a full lead note there. */
+#define MAIN_DIST_MAKEUP_REF 13107
 static const uint16_t AMT_POW19_PERMILLE[101] = {
     /* 1000 * (i/100)^1.9: distDriveFromAmount's amt^1.9 */
     0,   0,   1,   1,   2,   3,   5,   6,   8,   10,  13,  15,  18,  21,  24,  27,  31,   35,  38,  43,  47,
@@ -814,6 +816,23 @@ static void build_main_dist_curve(int16_t curve[257], uint16_t amount, uint16_t 
     drive = (p * (280u + (520u * c) / 1000u)) / 1000u;
     if (drive > 800u) drive = 800u;
     build_sub_dist_curve_for_drive(curve, (uint16_t)drive);
+    if (drive) {
+        /* Gain compensation (DECISIONS.md, not in the HTML): the curve is scaled so a sine at the reference
+         * level keeps the mean |y| it has at AMT 0 (y = x/3). Without it AMT 100 is ~11 dB louder there and
+         * up to ~16 dB in quiet tails. Built in the main loop, so the render pays nothing. */
+        uint32_t ref = 0u, got = 0u, g, k;
+        for (k = 0u; k < 64u; ++k) {
+            int32_t x = (SINE_Q15[k * 4u + 2u] * MAIN_DIST_MAKEUP_REF) >> 15;
+            int32_t y = tone_shape(curve, x);
+            ref += (uint32_t)(x < 0 ? -x : x);
+            got += (uint32_t)(y < 0 ? -y : y);
+        }
+        ref /= 3u;
+        if (got > ref) {
+            g = (ref << 10) / (got >> 5); /* Q15; ref < 2^19, got >> 5 keeps ~13 bits */
+            for (k = 0u; k <= 256u; ++k) curve[k] = (int16_t)(((int32_t)curve[k] * (int32_t)g + 16384) >> 15);
+        }
+    }
 }
 
 /* Tone.Reverb's RT60 in ms for DECAY = i * 100 ms: its noise IR fades with exponentialApproachValueAtTime, tau =

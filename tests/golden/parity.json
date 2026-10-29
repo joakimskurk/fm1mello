@@ -67,13 +67,13 @@
  },
  {
   "name": "drive_dry",
-  "level_db": 0.5,
+  "level_db": -8.9,
   "env_db": 1.4,
   "tone_db": 1.5,
   "worst_band_hz": 79,
   "worst_db": -10.7,
   "peak_html_dbfs": -11.0,
-  "peak_c_dbfs": -11.0,
+  "peak_c_dbfs": -20.4,
   "rt60_html_c": null
  },
  {

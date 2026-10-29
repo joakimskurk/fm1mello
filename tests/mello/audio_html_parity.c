@@ -1,5 +1,6 @@
 #include "mello_audio.h"
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -219,9 +220,30 @@ int main(void)
     fx.dist_character = 350u;
     mello_audio_set_config(&a, &sound, &fx, &sub, &sample);
     mello_audio_render(&a, out, 1u, 0u, 80u);
-    /* drive = 0.5^1.9 * (0.28 + 0.52 * 0.35) = 0.124, k = 12: small-signal gain (3+k)/9 = 1.67, ceiling ~0.35. */
-    assert(a.main_dist_curve[2] >= 410 && a.main_dist_curve[2] <= 445);
-    assert(a.main_dist_curve[256] >= 11100 && a.main_dist_curve[256] <= 11600);
+    /* drive = 0.5^1.9 * (0.28 + 0.52 * 0.35) = 0.124, k = 12: small-signal gain (3+k)/9 = 1.67, ceiling ~0.35,
+     * then the gain compensation (DECISIONS.md): x 0.426 (-7.4 dB) keeps a -8 dBFS sine's mean level. */
+    assert(a.main_dist_curve[2] >= 168 && a.main_dist_curve[2] <= 186);
+    assert(a.main_dist_curve[256] >= 4780 && a.main_dist_curve[256] <= 4880);
+    {
+        /* The compensation holds the reference sine's mean |y| at AMT 0's within 0.2 dB, at every drive. */
+        static const uint16_t amts[4] = {100u, 300u, 700u, 1000u};
+        uint8_t n, k;
+        for (n = 0u; n < 4u; ++n) {
+            uint32_t ref = 0u, got = 0u;
+            fx.dist_amount = amts[n];
+            fx.dist_character = 1000u;
+            mello_audio_set_config(&a, &sound, &fx, &sub, &sample);
+            mello_audio_render(&a, out, 1u, 0u, 80u);
+            for (k = 0u; k < 128u; ++k) {
+                double x = 0.4 * sin(2.0 * 3.14159265358979 * (k + 0.5) / 128.0) * 32767.0, ax = fabs(x);
+                uint32_t i = (uint32_t)ax >> 7, f = (uint32_t)ax & 127u;
+                int32_t y = a.main_dist_curve[i] + ((a.main_dist_curve[i + 1u] - a.main_dist_curve[i]) * (int32_t)f) / 128;
+                ref += (uint32_t)(ax / 3.0);
+                got += (uint32_t)y;
+            }
+            assert(got * 1000u >= ref * 977u && got * 1000u <= ref * 1023u);
+        }
+    }
 
     /* Delay tone belongs on the return, not inside the feedback loop.  With zero send,
        a raw 10000-sample and 50% feedback must write ~5000 independent of tone. */

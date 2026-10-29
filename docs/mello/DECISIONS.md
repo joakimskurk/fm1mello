@@ -123,6 +123,14 @@ Then compare as needed:
 
 A splash/boot identity screen is required before final product-polish acceptance.
 
+## Deliberate departures from the HTML's sound
+
+- **Distortion gain compensation (2026-10-29).** The HTML's Tone.Distortion gets louder as AMT goes up: a -8 dBFS
+  sine ~11 dB at AMT 100, quiet tails up to ~16 dB, and its -1 dB limiter barely touches that. The FM-1 scales the
+  distortion curve so the -8 dBFS reference sine keeps its AMT 0 mean level at every AMT
+  (`build_main_dist_curve`, `MAIN_DIST_MAKEUP_REF`): AMT changes the character, LEVEL changes the loudness. So
+  `drive_dry` in `make parity` is ~9 dB below the HTML by design; its tone still matches.
+
 ## Sequence overview
 
 HOME, STEP, SEGMENT and RANDOM keep a compact 4..32-step visual overview. Do not reintroduce visual paging. At 16 steps the overview must be comfortably readable, while 17..32 must still remain visible and retain meaningful pulse/event information.
