@@ -67,13 +67,13 @@ typedef enum {
     MELLO_UI_SAMPLE_RESERVED
 } MelloUiPage;
 
-#define MELLO_UI_NO_STEP       0xFFu
-#define MELLO_UI_TEXT_SPACED   2u /* text style: small, letter-spaced (text_on) */
-#define MELLO_UI_READOUT_LAYER 5u    /* MelloUi.readout: SELECT changed the layer */
-#define MELLO_UI_READOUT_TEMPO 6u    /* HOME's SELECT, ALGORITHM, PRESETS */
+#define MELLO_UI_NO_STEP           0xFFu
+#define MELLO_UI_TEXT_SPACED       2u /* text style: small, letter-spaced (text_on) */
+#define MELLO_UI_READOUT_LAYER     5u /* MelloUi.readout: SELECT changed the layer */
+#define MELLO_UI_READOUT_TEMPO     6u /* HOME's SELECT, ALGORITHM, PRESETS */
 #define MELLO_UI_READOUT_INTENSITY 7u
-#define MELLO_UI_READOUT_PATTERN 8u
-#define MELLO_UI_READOUT_MS    1200u /* how long the readout stays after the last detent */
+#define MELLO_UI_READOUT_PATTERN   8u
+#define MELLO_UI_READOUT_MS        1200u /* how long the readout stays after the last detent */
 
 enum {
     MELLO_UI_DIRTY_HEADER = 1u << 0,
@@ -96,8 +96,8 @@ typedef struct {
     void *ctx;
     /* Optional: text on a background colour (the box is cleared to bg, the glyphs' edges blend into it), style 0
      * small, 1 large, 2 small letter-spaced (a pixel between characters). Without it, text() draws on black. */
-    void (*text_on)(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t style, const char *text, uint16_t colour,
-                    uint16_t bg, uint8_t align);
+    void (*text_on)(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t style, const char *text,
+                    uint16_t colour, uint16_t bg, uint8_t align);
 } MelloUiDrawOps;
 
 typedef struct {
@@ -114,22 +114,22 @@ typedef struct {
 #if MELLO_FEATURE_CHORD_MACHINE
     uint8_t chord_subpage; /* MAIN, CHAIN, VOICE, GRID, PATTERN */
 #endif
-    uint8_t global_subpage;                   /* CLOCK, MIDI */
-    uint8_t sound_subpage;                    /* OSC, ENV, LFO, FOLLOW, PLAY */
-    uint8_t fx_subpage;                       /* DIST, DELAY A/B, REVERB A/B */
-    uint8_t sample_subpage;                   /* MAIN, PITCH, TRIM, ENV */
+    uint8_t global_subpage; /* CLOCK, MIDI */
+    uint8_t sound_subpage;  /* OSC, ENV, LFO, FOLLOW, PLAY */
+    uint8_t fx_subpage;     /* DIST, DELAY A/B, REVERB A/B */
+    uint8_t sample_subpage; /* MAIN, PITCH, TRIM, ENV */
     /* The readout: what the last turned control moves, large over the body, until readout_until_ms. */
-    uint8_t readout;           /* 0 = none, 1..4 = K1..K4, MELLO_UI_READOUT_LAYER = SELECT changed the layer */
+    uint8_t readout; /* 0 = none, 1..4 = K1..K4, MELLO_UI_READOUT_LAYER = SELECT changed the layer */
     uint32_t readout_until_ms;
     /* HOME: a white key held down holds its step (K1-K4 edit it); released without a turn, it toggles the step. */
-    uint32_t held_notes;  /* mello_ui_set_held_notes: the note keys held now */
-    uint8_t held_step;    /* MELLO_UI_NO_STEP when none */
-    uint8_t held_key;     /* its note key */
+    uint32_t held_notes; /* mello_ui_set_held_notes: the note keys held now */
+    uint8_t held_step;   /* MELLO_UI_NO_STEP when none */
+    uint8_t held_key;    /* its note key */
     bool held_step_edited;
     /* SAVE: a short press saves the project, holding it opens SLOTS (on SLOTS a press saves the slot). */
     uint32_t save_down_ms;
     bool save_down;
-    uint8_t seen_save_state; /* draw_status's save word, to redraw it when it changes */
+    uint8_t seen_save_state;                      /* draw_status's save word, to redraw it when it changes */
     uint32_t enc_last_ms[MELLO_UI_ENCODER_COUNT]; /* each encoder's last detent, for acceleration */
     /* KEYS (EDIT on HOME): the 27 keys are a keyboard. Playing: a key is the new root. Stopped: it plays the lead
      * while held; with REC on, it writes the next step (keys_rec_pos) and moves on. */

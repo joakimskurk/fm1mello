@@ -77,7 +77,8 @@ static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, cons
     (void)large;
     (void)c;
     (void)align;
-    if (y == 172 && s && *s && strlen(cap->hint) + strlen(s) + 2u < sizeof cap->hint) { /* the strip's labels */
+    if (y == 172 && s && *s &&
+        strlen(cap->hint) + strlen(s) + 2u < sizeof cap->hint) { /* the strip's labels */
         if (cap->hint[0]) strcat(cap->hint, " ");
         strcat(cap->hint, s);
     }
@@ -204,7 +205,8 @@ static void verify_b5_from_every_advertised_page(void)
             setup(&p, &t, &st, &u, cases[i].page);
             before = t.engine.project;
             black(&u, 100u, 5u);
-            if (!memcmp(&before.steps, &t.engine.project.steps, sizeof before.steps) && cases[i].page != MELLO_UI_RANDOM)
+            if (!memcmp(&before.steps, &t.engine.project.steps, sizeof before.steps) &&
+                cases[i].page != MELLO_UI_RANDOM)
                 die(cases[i].name, "a tap on RNDMZR did not roll");
         }
         ++count;

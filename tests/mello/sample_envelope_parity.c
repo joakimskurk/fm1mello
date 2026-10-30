@@ -77,7 +77,8 @@ int main(void)
     setup(&a, &bank, 0u);
     mid_decay = level_after(&a, 44u + 4410u, 0u, false); /* 1 ms attack, then 100 ms of the 200 ms decay */
     setup(&a, &bank, 1000u);
-    mid_release = level_after(&a, 2205u, 4410u, true); /* held at sustain 1, then 100 ms of a 200 ms release */
+    mid_release =
+        level_after(&a, 2205u, 4410u, true); /* held at sustain 1, then 100 ms of a 200 ms release */
     printf("halfway: decay %d/1000, release %d/1000 (Tone ~55, linear 500)\n", mid_decay, mid_release);
     if (mid_decay < 30 || mid_decay > 100 || mid_release < 30 || mid_release > 100) {
         fprintf(stderr, "sample envelope is not Tone's exponential curve\n");

@@ -107,8 +107,8 @@ static void ui_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, c
     (void)ctx;
     draw_text_box(x, y, w, large ? &FONT_L : &FONT_S, text, colour, align);
 }
-static void ui_text_on(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t style, const char *text, uint16_t colour,
-                       uint16_t bg, uint8_t align)
+static void ui_text_on(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t style, const char *text,
+                       uint16_t colour, uint16_t bg, uint8_t align)
 {
     (void)ctx;
     draw_text_box_on(x, y, w, style == 1u ? &FONT_L : &FONT_S, text, colour, bg, align, style == 2u ? 1 : 0);

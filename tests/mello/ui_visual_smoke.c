@@ -35,7 +35,8 @@ static void smoke_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large
                     (long)n * glyph_w, w, (unsigned)large);
             text_clip_error = 1;
         }
-        if (strcmp(text_value, "C MINOR") == 0) saw_brand = 1; /* the key heads HOME (the wordmark moves to the splash) */
+        if (strcmp(text_value, "C MINOR") == 0)
+            saw_brand = 1; /* the key heads HOME (the wordmark moves to the splash) */
         if (strcmp(text_value, "SUB 5-SEQ") == 0 || strcmp(text_value, "5-SEQ OFF") == 0) saw_sub_5seq = 1;
         if (strstr(text_value, "X-SUB") || strcmp(text_value, "X OFF") == 0 ||
             strstr(text_value, "X CONFIG") || strstr(text_value, "X STEP"))

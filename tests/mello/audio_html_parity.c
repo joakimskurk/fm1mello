@@ -237,7 +237,8 @@ int main(void)
             for (k = 0u; k < 128u; ++k) {
                 double x = 0.4 * sin(2.0 * 3.14159265358979 * (k + 0.5) / 128.0) * 32767.0, ax = fabs(x);
                 uint32_t i = (uint32_t)ax >> 7, f = (uint32_t)ax & 127u;
-                int32_t y = a.main_dist_curve[i] + ((a.main_dist_curve[i + 1u] - a.main_dist_curve[i]) * (int32_t)f) / 128;
+                int32_t y = a.main_dist_curve[i] +
+                            ((a.main_dist_curve[i + 1u] - a.main_dist_curve[i]) * (int32_t)f) / 128;
                 ref += (uint32_t)(ax / 3.0);
                 got += (uint32_t)y;
             }

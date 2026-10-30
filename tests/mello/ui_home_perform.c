@@ -121,7 +121,8 @@ int main(void)
     t.engine.project.seq_len = 8u;
     input(&u, 1u << k16, 1u << k16, 0u, 0);
     input(&u, 0u, 0u, 0u, 0);
-    if (t.engine.project.seq_len != 8u || u.held_step != MELLO_UI_NO_STEP) return fail("a key past the length acted");
+    if (t.engine.project.seq_len != 8u || u.held_step != MELLO_UI_NO_STEP)
+        return fail("a key past the length acted");
 
     /* LEDs: steps 1-8 on except W3 off; running at step 5 flips W5. */
     t.engine.project.steps[2].skip = true;
@@ -152,9 +153,11 @@ int main(void)
         rolled = t.engine.project;
         if (!memcmp(&before.steps, &rolled.steps, sizeof before.steps)) return fail("RND changed nothing");
         input(&u, 0u, 1u << b1, 0u, 0);
-        if (memcmp(&before.steps, &t.engine.project.steps, sizeof before.steps)) return fail("UNDO did not restore");
+        if (memcmp(&before.steps, &t.engine.project.steps, sizeof before.steps))
+            return fail("UNDO did not restore");
         input(&u, 0u, 1u << b1, 0u, 0);
-        if (memcmp(&rolled.steps, &t.engine.project.steps, sizeof rolled.steps)) return fail("UNDO again did not redo");
+        if (memcmp(&rolled.steps, &t.engine.project.steps, sizeof rolled.steps))
+            return fail("UNDO again did not redo");
         before = t.engine.project;
         input(&u, 0u, 1u << b2, 0u, 0);
         for (i = 0u; i < MELLO_MAX_STEPS; ++i)
@@ -171,7 +174,8 @@ int main(void)
         mello_ui_input(&u, 0u, 0u, 0u, 0u, 0u, 0u, e);
         u.dirty = 0u;
         mello_ui_input(&u, 0u, 0u, 0u, 0u, 0u, 0u, e);
-        if (t.engine.project.bpm != bpm + 10u || u.readout != MELLO_UI_READOUT_TEMPO) return fail("SELECT is not TEMPO");
+        if (t.engine.project.bpm != bpm + 10u || u.readout != MELLO_UI_READOUT_TEMPO)
+            return fail("SELECT is not TEMPO");
         if (!(u.dirty & MELLO_UI_DIRTY_BODY) || !(u.dirty & MELLO_UI_DIRTY_HEADER))
             return fail("TEMPO is not redrawn (readout, header)");
         memset(e, 0, sizeof e);
@@ -184,7 +188,8 @@ int main(void)
         memset(e, 0, sizeof e);
         e[MELLO_UI_ENC_PRESETS] = 1;
         mello_ui_input(&u, 0u, 0u, 0u, 0u, 0u, 0u, e);
-        if (u.selected_slot != 4u || u.readout != MELLO_UI_READOUT_PATTERN) return fail("PRESETS did not find slot 5");
+        if (u.selected_slot != 4u || u.readout != MELLO_UI_READOUT_PATTERN)
+            return fail("PRESETS did not find slot 5");
     }
 
     /* SAVE: short = save the project, held 0.7 s = SLOTS. */
@@ -233,7 +238,8 @@ int main(void)
     /* KEYS (EDIT): stopped, a key plays the lead while held; REC writes steps; playing, a key is the new root. */
     {
         int16_t e[MELLO_UI_ENCODER_COUNT] = {0};
-        uint32_t edit = 1u << MELLO_UI_BTN_EDIT, rec = 1u << MELLO_UI_BTN_REC, key = 1u << 7; /* C4 = 53 + 7 */
+        uint32_t edit = 1u << MELLO_UI_BTN_EDIT, rec = 1u << MELLO_UI_BTN_REC,
+                 key = 1u << 7; /* C4 = 53 + 7 */
         mello_ui_set_page(&u, MELLO_UI_HOME);
         t.running = false;
         mello_transport_set_event_sink(&t, sink, 0);
@@ -252,7 +258,8 @@ int main(void)
         mello_ui_set_held_notes(&u, 1u << 10); /* D#4 = 63: a note of C minor */
         mello_ui_input(&u, 0u, 30300u, 0u, 0u, 0u, 1u << 10, e);
         mello_ui_set_held_notes(&u, 0u);
-        if (mello_resolve_step_midi(&t.engine.project, &t.engine.project.steps[0]) != 63u || u.keys_rec_pos != 1u)
+        if (mello_resolve_step_midi(&t.engine.project, &t.engine.project.steps[0]) != 63u ||
+            u.keys_rec_pos != 1u)
             return fail("step-record did not write D#4 to step 1");
         {
             uint32_t up = 1u << MELLO_UI_BTN_OCT_UP, down = 1u << MELLO_UI_BTN_OCT_DOWN;
@@ -283,7 +290,9 @@ int main(void)
         t.running = false;
     }
 
-    puts("PASS: HOME macros, hold-a-step edit, tap selects, hold + black keys = step flags, keys past the length inert, step LEDs, "
-         "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN, SAVE short/held, acceleration, direction switches, KEYS play/step-record/root/octaves");
+    puts("PASS: HOME macros, hold-a-step edit, tap selects, hold + black keys = step flags, keys past the "
+         "length inert, step LEDs, "
+         "RND/UNDO/redo/MUT, TEMPO/intensity/PATTERN, SAVE short/held, acceleration, direction switches, "
+         "KEYS play/step-record/root/octaves");
     return 0;
 }
