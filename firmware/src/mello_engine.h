@@ -147,7 +147,7 @@ typedef enum {
     MELLO_WAVE_OFF
 } MelloWaveform;
 
-/* The first four are the HTML's; NOISE, NOISE FM and DETUNE move the grit (Phase 5, DECISIONS.md "Grit"). */
+/* The first four are the HTML's; the rest move what Phase 5 added (DECISIONS.md "Grit", "Virus layer"). */
 typedef enum {
     MELLO_LFO_FILTER = 0,
     MELLO_LFO_PITCH,
@@ -155,10 +155,26 @@ typedef enum {
     MELLO_LFO_PWM,
     MELLO_LFO_NOISE,
     MELLO_LFO_NOISE_FM,
-    MELLO_LFO_DETUNE
+    MELLO_LFO_DETUNE,
+    MELLO_LFO_RES,
+    MELLO_LFO_OSC2,
+    MELLO_LFO_FM,
+    MELLO_LFO_SAT
 } MelloLfoTarget;
-#define MELLO_LFO_TARGET_COUNT 7u
-#define MELLO_UNISON_MAX       4u
+#define MELLO_LFO_TARGET_COUNT 11u
+/* The MOD envelope's destinations. */
+typedef enum {
+    MELLO_MENV_CUTOFF = 0,
+    MELLO_MENV_PITCH,
+    MELLO_MENV_OSC2,
+    MELLO_MENV_FM,
+    MELLO_MENV_NOISE,
+    MELLO_MENV_RES
+} MelloModEnvTarget;
+#define MELLO_MENV_TARGET_COUNT 6u
+typedef enum { MELLO_FILTER_LP = 0, MELLO_FILTER_HP, MELLO_FILTER_BP, MELLO_FILTER_NOTCH } MelloFilterMode;
+#define MELLO_FILTER_MODE_COUNT 4u
+#define MELLO_UNISON_MAX        4u
 
 typedef struct {
     MelloWaveform osc_wave;
@@ -184,6 +200,19 @@ typedef struct {
     uint16_t noise_fm;    /* 0..1000: noise frequency-modulating the oscillator */
     uint8_t unison;       /* 1..MELLO_UNISON_MAX oscillators */
     uint16_t detune;      /* 0..1000: the unison spread, up to +-60 cents */
+    /* The Virus layer (DECISIONS.md "Virus layer"); off by default (OSC 2 mix 0, FM 0, SAT 0, LP, MOD ENV 0). */
+    MelloWaveform osc2_wave; /* OSC 2: free-running, or hard-synced to OSC 1 */
+    int8_t osc2_semi;        /* -24..+24 semitones from OSC 1 */
+    int8_t osc2_fine;        /* -50..+50 cents */
+    uint16_t osc2_mix;       /* 0..1000: 0 = OSC 1 only, 1000 = OSC 2 only */
+    bool osc2_sync;          /* OSC 2 restarts with every OSC 1 cycle */
+    uint16_t fm_amount;      /* 0..1000: OSC 1 frequency-modulates OSC 2 */
+    uint16_t saturation;     /* 0..1000: soft clipping into the filter */
+    MelloFilterMode filter_mode;
+    int16_t menv_amount;     /* -1000..1000 */
+    uint16_t menv_attack_ms; /* 0..2000 */
+    uint16_t menv_decay_ms;  /* 5..5000 */
+    MelloModEnvTarget menv_target;
 } MelloSoundConfig;
 
 typedef struct {

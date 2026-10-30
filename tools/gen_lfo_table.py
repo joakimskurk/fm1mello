@@ -6,12 +6,15 @@
   FILTER updateLfoFilterModulation: f = base * (1 + sin * (0.08 + 0.92 * depth)), linear in Hz. The engine's cutoff
          is 1000 * log200(f / 80), so the LFO adds LFO_LOG200_PERMILLE[i] = 1000 * log200(r) for r = i / 64, 0..2.
          r = 0 (f = 0) is clamped to the table's -1000.
+  SEMI   OSC 2's interval and the MOD envelope's pitch (Phase 5): SEMI_RATIO_Q16[i] = 2^((i - 48) / 12),
+         -48..+48 semitones, interpolated.
 Run: python3 tools/gen_lfo_table.py"""
 import math
 from pathlib import Path
 
 out = Path(__file__).resolve().parents[1] / "firmware" / "src" / "mello_lfo_table.h"
 cents = [round(2 ** ((-700 + 25 * i) / 1200) * 65536) for i in range(57)]
+semis = [round(2 ** ((i - 48) / 12) * 65536) for i in range(97)]
 logs = [-1000] + [max(-1000, round(1000 * math.log(i / 64) / math.log(200))) for i in range(1, 129)]
 
 
@@ -29,6 +32,10 @@ static const uint32_t LFO_CENTS_RATIO_Q16[57] = {{
 /* 1000 * log200(i / 64) for i = 0..128 (r = 0..2), clamped to -1000. */
 static const int16_t LFO_LOG200_PERMILLE[129] = {{
 {rows(logs)},
+}};
+/* 2^(s / 12) in Q16 for s = -48 .. +48 semitones. */
+static const uint32_t SEMI_RATIO_Q16[97] = {{
+{rows(semis)},
 }};
 #endif
 """)

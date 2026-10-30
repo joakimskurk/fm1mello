@@ -303,6 +303,19 @@ static MelloSoundConfig sanitize_sound_config(MelloSoundConfig c)
     if (c.unison < 1u) c.unison = 1u;
     if (c.unison > MELLO_UNISON_MAX) c.unison = MELLO_UNISON_MAX;
     c.detune = clamp_amount(c.detune);
+    if (c.osc2_wave >= MELLO_WAVE_OFF)
+        c.osc2_wave = MELLO_WAVE_SAW; /* OSC 2 is silenced by its mix, not OFF */
+    c.osc2_semi = clamp_i8(c.osc2_semi, -24, 24);
+    c.osc2_fine = clamp_i8(c.osc2_fine, -50, 50);
+    c.osc2_mix = clamp_amount(c.osc2_mix);
+    c.fm_amount = clamp_amount(c.fm_amount);
+    c.saturation = clamp_amount(c.saturation);
+    if (c.filter_mode >= MELLO_FILTER_MODE_COUNT) c.filter_mode = MELLO_FILTER_LP;
+    if (c.menv_amount > 1000) c.menv_amount = 1000;
+    if (c.menv_amount < -1000) c.menv_amount = -1000;
+    c.menv_attack_ms = clamp_u16_range(c.menv_attack_ms, 0u, 2000u);
+    c.menv_decay_ms = clamp_u16_range(c.menv_decay_ms, 5u, 5000u);
+    if (c.menv_target >= MELLO_MENV_TARGET_COUNT) c.menv_target = MELLO_MENV_CUTOFF;
     return c;
 }
 
@@ -668,6 +681,18 @@ void mello_sound_defaults(MelloSoundConfig *c)
     c->noise_fm = 0u;
     c->unison = 1u;
     c->detune = 0u;
+    c->osc2_wave = MELLO_WAVE_SAW;
+    c->osc2_semi = 0;
+    c->osc2_fine = 7; /* mixed in, a little apart from OSC 1 */
+    c->osc2_mix = 0u;
+    c->osc2_sync = false;
+    c->fm_amount = 0u;
+    c->saturation = 0u;
+    c->filter_mode = MELLO_FILTER_LP;
+    c->menv_amount = 0;
+    c->menv_attack_ms = 0u;
+    c->menv_decay_ms = 300u;
+    c->menv_target = MELLO_MENV_CUTOFF;
 }
 
 void mello_sample_defaults(MelloSampleConfig *c)

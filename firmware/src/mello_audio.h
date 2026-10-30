@@ -62,6 +62,7 @@ typedef struct {
     uint32_t env_linear_left;
     uint32_t env_curve_coeff_q31;
     uint32_t uni_phase[MELLO_UNISON_MAX - 1u]; /* the unison oscillators beside phase; free-running */
+    uint32_t osc2_phase;
 } MelloAudioLeadVoice;
 
 typedef struct {
@@ -170,10 +171,15 @@ typedef struct {
     uint32_t lfo_inc;
     uint32_t noise_seed;    /* grit: the white noise generator (an LCG) */
     int32_t nfm_lp;         /* grit: the noise that frequency-modulates the lead, lowpassed */
+    int32_t menv_q24;       /* the MOD envelope, 0..1 << 24: attack (linear), then decay (exponential) */
+    int32_t menv_step;      /* attack: per sample */
+    int32_t menv_k_q16;     /* decay: the fraction lost per sample, Q16 */
+    uint8_t menv_stage;     /* 0 off, 1 attack, 2 decay */
     int32_t mf_state[2][4]; /* main filter: two biquads, x1 x2 y1 y2 each */
     int32_t mf_coeff[5];    /* b0 b1 b2 a1 a2, Q28, for mf_cut/mf_res */
     uint16_t mf_cut;
     uint16_t mf_res;
+    uint8_t mf_mode;
     bool mf_coeff_valid;
     int32_t dist_tone_s[2][4]; /* distTone: lowpass -24 = two biquads */
     int32_t matrix_env_q15;

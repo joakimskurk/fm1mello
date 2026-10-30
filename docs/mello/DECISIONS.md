@@ -141,17 +141,34 @@ A splash/boot identity screen is required before final product-polish acceptance
 
 - **Grit (2026-10-30).** The lead gets optional grit, after the Access Virus: noise, noise FM and unison. The HTML has
   none of it; all of it is off by default, and then the lead is sample for sample the HTML's plain saw
-  (`audio_grit_smoke`, `make parity` unchanged). SOUND / GRIT, the layer after OSC / FILTER:
-  - **NOISE**: white noise mixed with the oscillator before the filter, so cutoff and resonance shape it. Squared
-    knob; at 100% its RMS is the saw's.
-  - **NOISE FM**: lowpassed noise (~5 kHz) modulates the oscillator's frequency, up to +-100% at full (squared): a
-    little roughens the tone, a lot turns it to pitched noise.
+  (`audio_grit_smoke`, `make parity` unchanged). SOUND / GRIT:
+  - **NOISE**: white noise mixed with the oscillator before the filter, so cutoff and resonance shape it. Linear
+    knob, at 100% ~1.7x the saw's RMS. (2026-10-30, first version squared and at most the saw's RMS: behind the
+    default 3.3 kHz cutoff 35% was 22 dB under the saw, inaudible. Now 7 dB under.)
+  - **NOISE FM**: lowpassed noise (~900 Hz) moves the oscillators' frequency by up to ~3 kHz RMS, through zero (the
+    Virus's FM source "noise"). An absolute deviation: the first version's +-100% of the note's own frequency gave a
+    bass note a few Hz of fast jitter, inaudible. Squared knob.
   - **UNISON** 1-4 oscillators, **DETUNE** spreads them up to +-60 cents (squared). The level is 1/sqrt(n), so more
     voices are wider, not louder. The extra oscillators run free from spread phases (never a flanged attack). Mono:
     the FM-1's lead path is mono up to the reverb.
   - All three are LFO targets (NOISE, NOISE FM, DETUNE), swinging around the knob's value as PWM does.
   - Saved in their own section (SEC_GRIT, only when some sound has grit), for the working sound and each slot; an
     older build skips it and plays a plain saw.
+- **Virus layer (2026-10-30).** More from the Access Virus, for those who turn far enough; all off by default, then the
+  lead is the HTML's (`audio_virus_smoke`, `make parity` unchanged). SOUND's layers are OSC / FILTER, OSC 2,
+  CHARACTER, GRIT, MOD ENV, then the HTML's AMP ENVELOPE, FOLLOWER SUB and LEVEL.
+  - **OSC 2**: WAVE, SEMI (+-24), FINE (+-50 cents, 7 by default so it thickens when mixed in) and MIX (0 = OSC 1
+    only, 100% = OSC 2 only). MIX 0 is "off"; there is no OFF wave. One oscillator, not unison.
+  - **CHARACTER**: SYNC (OSC 2 restarts with OSC 1's cycle, at the matching fraction of its own), FM (OSC 1 modulates
+    OSC 2's frequency, linear through zero, up to 4x; squared knob), SAT (soft clipping into the filter, up to +24 dB
+    of drive, squared knob, level kept within ~2 dB), FILTER LP / HP / BP / NOTCH. Turning SYNC or FM up with OSC 2's
+    MIX at 0 brings OSC 2 in at 50%: otherwise they would do nothing audible.
+  - The filter modes share the lowpass table's poles (cutoff and resonance as the HTML's) and change only the zeros.
+    BP is 0 dB at the cutoff, so it is quiet below a high cutoff, as on the Virus.
+  - **MOD ENV**: a second envelope, restarted with each note: AMT (-100..+100%), ATK (0-2 s, linear), DEC (5 ms-5 s,
+    to -60 dB), TARGET CUTOFF (full range) / PITCH (+-24 st) / OSC 2 (+-48 st: the sync sweep) / FM / NOISE / RES.
+  - The LFO also reaches RES, OSC 2 (+-12 st), FM and SAT.
+  - Saved with the grit in SEC_GRIT, version 2 (26 bytes an entry); version 1 entries are still read.
 
 ## Sequence overview
 

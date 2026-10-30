@@ -1,5 +1,6 @@
-/* Phase 5: the grit is saved, in its own section (SEC_GRIT), for the working sound and for each pattern slot; a
- * project without grit is written exactly as before, so older builds read it unchanged. Flash is a RAM model. */
+/* Phase 5: the grit and the Virus layer are saved, in their own section (SEC_GRIT), for the working sound and for
+ * each pattern slot; a project with neither is written exactly as before, so older builds read it unchanged. Flash
+ * is a RAM model. */
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -84,6 +85,18 @@ int main(void)
     c.noise_fm = 650u;
     c.unison = 2u;
     c.detune = 900u;
+    c.osc2_wave = MELLO_WAVE_SQUARE;
+    c.osc2_semi = -12;
+    c.osc2_fine = -33;
+    c.osc2_mix = 640u;
+    c.osc2_sync = true;
+    c.fm_amount = 270u;
+    c.saturation = 480u;
+    c.filter_mode = MELLO_FILTER_NOTCH;
+    c.menv_amount = -730;
+    c.menv_attack_ms = 45u;
+    c.menv_decay_ms = 1800u;
+    c.menv_target = MELLO_MENV_OSC2;
     mello_engine_sound_set_config(&e, &c);
     CHECK(mello_storage_measure_payload(&e, &grit_size, &crc), "measure");
     CHECK(save(&s, &e, &t) == MELLO_STORAGE_SAVE_WRITTEN, "grit edit never saved");
@@ -94,6 +107,12 @@ int main(void)
               e.sound.detune == 900u,
           "working grit lost: noise %u fm %u unison %u detune %u", e.sound.noise_level, e.sound.noise_fm,
           e.sound.unison, e.sound.detune);
+    CHECK(e.sound.osc2_wave == MELLO_WAVE_SQUARE && e.sound.osc2_semi == -12 && e.sound.osc2_fine == -33 &&
+              e.sound.osc2_mix == 640u && e.sound.osc2_sync && e.sound.fm_amount == 270u &&
+              e.sound.saturation == 480u && e.sound.filter_mode == MELLO_FILTER_NOTCH &&
+              e.sound.menv_amount == -730 && e.sound.menv_attack_ms == 45u &&
+              e.sound.menv_decay_ms == 1800u && e.sound.menv_target == MELLO_MENV_OSC2,
+          "working Virus layer lost");
     CHECK(e.slots[2].valid && e.slots[2].sound.noise_level == 310u && e.slots[2].sound.unison == 3u &&
               e.slots[2].sound.detune == 420u && e.slots[2].sound.noise_fm == 0u,
           "slot grit lost");
@@ -102,15 +121,23 @@ int main(void)
     {
         uint32_t clean, both;
         CHECK(mello_storage_measure_payload(&e, &both, &crc), "measure");
+        MelloSoundConfig d;
+        mello_sound_defaults(&d);
         c = e.sound;
         c.noise_fm = c.detune = 0u;
         c.unison = 1u;
+        c.osc2_wave = d.osc2_wave, c.osc2_semi = d.osc2_semi, c.osc2_fine = d.osc2_fine,
+        c.osc2_mix = d.osc2_mix;
+        c.osc2_sync = d.osc2_sync, c.fm_amount = d.fm_amount, c.saturation = d.saturation;
+        c.filter_mode = d.filter_mode, c.menv_amount = d.menv_amount, c.menv_attack_ms = d.menv_attack_ms;
+        c.menv_decay_ms = d.menv_decay_ms, c.menv_target = d.menv_target;
         mello_engine_sound_set_config(&e, &c);
         e.slots[2].sound = e.sound;
         CHECK(mello_storage_measure_payload(&e, &clean, &crc), "measure");
-        CHECK(both == clean + 8u + 1u + 2u * 8u, "grit section %u bytes, expected 25", both - clean);
+        CHECK(both == clean + 8u + 1u + 2u * 26u, "grit section %u bytes, expected 61", both - clean);
     }
-    printf("PASS: grit survives a power cycle, working and slot (payload %u -> %u bytes)\n", plain_size,
-           grit_size);
+    printf(
+        "PASS: grit and the Virus layer survive a power cycle, working and slot (payload %u -> %u bytes)\n",
+        plain_size, grit_size);
     return 0;
 }

@@ -17,14 +17,15 @@ enum {
     SECVER_SLOT_SEQ = 1,
     SECVER_FX = 1,
     SECVER_CHORD = 1,
-    SECVER_GRIT = 1
+    SECVER_GRIT = 2
 };
 
 #define SAMPLE_WIRE_SIZE   83u
 #define SNAPSHOT_WIRE_SIZE 528u
 #define FX_WIRE_SIZE       34u
 #define CHORD_WIRE_SIZE    (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
-#define GRIT_ENTRY_SIZE    8u
+#define GRIT_ENTRY_SIZE_V1 8u
+#define GRIT_ENTRY_SIZE    26u
 #define SLOT_SEQ_WIRE_SIZE (2u + MELLO_MAX_SLOT_SEQ_STEPS * 3u)
 #define SLOT_WIRE_SIZE     (1u + (MELLO_SLOT_NAME_CHARS + 1u) + SNAPSHOT_WIRE_SIZE)
 
@@ -384,6 +385,8 @@ static void encode_sound(Writer *w, const MelloSoundConfig *c)
 static bool decode_sound(Reader *r, MelloSoundConfig *c)
 {
     uint8_t b;
+    mello_sound_defaults(
+        c); /* Phase 5's fields are not in this wire format: SEC_GRIT, if any, sets them later */
     if (!rd_u8(r, &b)) return false;
     c->osc_wave = (MelloWaveform)b;
     if (!rd_u16(r, &c->pwm_permille) || !rd_u16(r, &c->attack_ms) || !rd_u16(r, &c->decay_ms) ||
@@ -581,12 +584,20 @@ static void section_header(Writer *w, uint16_t id, uint16_t ver, uint32_t len)
     wr_u32(w, len);
 }
 
-/* The grit (Phase 5) is in its own section so that SEC_WORKING and SEC_SLOTS keep their wire format: an older build
- * skips it and plays a plain saw. Only sounds with grit are written; index 0xFF is the working sound. */
+/* Phase 5's sound (grit, DECISIONS.md, and the Virus layer) is in its own section so that SEC_WORKING and SEC_SLOTS
+ * keep their wire format: an older build skips it and plays a plain saw. Only sounds that differ from the defaults
+ * are written; index 0xFF is the working sound. Version 1 (grit only, 8 bytes an entry) is still read. */
 #define GRIT_WORKING 0xFFu
 static bool has_grit(const MelloSoundConfig *c)
 {
-    return c->noise_level || c->noise_fm || c->unison > 1u || c->detune;
+    MelloSoundConfig d;
+    mello_sound_defaults(&d);
+    return c->noise_level != d.noise_level || c->noise_fm != d.noise_fm || c->unison != d.unison ||
+           c->detune != d.detune || c->osc2_wave != d.osc2_wave || c->osc2_semi != d.osc2_semi ||
+           c->osc2_fine != d.osc2_fine || c->osc2_mix != d.osc2_mix || c->osc2_sync != d.osc2_sync ||
+           c->fm_amount != d.fm_amount || c->saturation != d.saturation || c->filter_mode != d.filter_mode ||
+           c->menv_amount != d.menv_amount || c->menv_attack_ms != d.menv_attack_ms ||
+           c->menv_decay_ms != d.menv_decay_ms || c->menv_target != d.menv_target;
 }
 static void encode_grit(Writer *w, uint8_t index, const MelloSoundConfig *c)
 {
@@ -595,6 +606,39 @@ static void encode_grit(Writer *w, uint8_t index, const MelloSoundConfig *c)
     wr_u16(w, c->noise_fm);
     wr_u8(w, c->unison);
     wr_u16(w, c->detune);
+    wr_u8(w, (uint8_t)c->osc2_wave);
+    wr_i8(w, c->osc2_semi);
+    wr_i8(w, c->osc2_fine);
+    wr_u16(w, c->osc2_mix);
+    wr_u8(w, c->osc2_sync ? 1u : 0u);
+    wr_u16(w, c->fm_amount);
+    wr_u16(w, c->saturation);
+    wr_u8(w, (uint8_t)c->filter_mode);
+    wr_u16(w, (uint16_t)c->menv_amount);
+    wr_u16(w, c->menv_attack_ms);
+    wr_u16(w, c->menv_decay_ms);
+    wr_u8(w, (uint8_t)c->menv_target);
+}
+/* Reads one entry's fields over c (not its index); a version 1 entry has the grit only. */
+static bool decode_grit(Reader *r, uint16_t ver, MelloSoundConfig *c)
+{
+    uint8_t b, sync, mode, target;
+    uint16_t amount;
+    if (!rd_u16(r, &c->noise_level) || !rd_u16(r, &c->noise_fm) || !rd_u8(r, &c->unison) ||
+        !rd_u16(r, &c->detune))
+        return false;
+    if (ver < 2u) return true;
+    if (!rd_u8(r, &b) || !rd_i8(r, &c->osc2_semi) || !rd_i8(r, &c->osc2_fine) || !rd_u16(r, &c->osc2_mix) ||
+        !rd_u8(r, &sync) || !rd_u16(r, &c->fm_amount) || !rd_u16(r, &c->saturation) || !rd_u8(r, &mode) ||
+        !rd_u16(r, &amount) || !rd_u16(r, &c->menv_attack_ms) || !rd_u16(r, &c->menv_decay_ms) ||
+        !rd_u8(r, &target))
+        return false;
+    c->osc2_wave = (MelloWaveform)b;
+    c->osc2_sync = sync != 0u;
+    c->filter_mode = (MelloFilterMode)mode;
+    c->menv_amount = (int16_t)amount;
+    c->menv_target = (MelloModEnvTarget)target;
+    return true;
 }
 
 static bool encode_payload(Writer *w, const MelloEngine *e)
@@ -741,22 +785,17 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
                 if (!rd_i8(&r, &slot) || !rd_u16(&r, &hold)) return false;
                 if (apply && e) mello_engine_slot_seq_set_step(e, i, slot, hold);
             }
-        } else if (id == SEC_GRIT && ver == SECVER_GRIT) {
+        } else if (id == SEC_GRIT && (ver == 1u || ver == SECVER_GRIT)) {
             uint8_t count, i;
-            if (len < 1u || !rd_u8(&r, &count) || len != 1u + (uint32_t)count * GRIT_ENTRY_SIZE) return false;
+            uint32_t size = ver == 1u ? GRIT_ENTRY_SIZE_V1 : GRIT_ENTRY_SIZE;
+            if (len < 1u || !rd_u8(&r, &count) || len != 1u + (uint32_t)count * size) return false;
             for (i = 0u; i < count; ++i) {
-                uint8_t idx, uni;
-                uint16_t noise, nfm, det;
-                if (!rd_u8(&r, &idx) || !rd_u16(&r, &noise) || !rd_u16(&r, &nfm) || !rd_u8(&r, &uni) ||
-                    !rd_u16(&r, &det))
-                    return false;
-                if (idx != GRIT_WORKING && idx >= MELLO_MAX_SLOTS) return false;
+                uint8_t idx;
+                MelloSoundConfig c;
+                if (!rd_u8(&r, &idx) || (idx != GRIT_WORKING && idx >= MELLO_MAX_SLOTS)) return false;
+                c = !e ? (MelloSoundConfig){0} : (idx == GRIT_WORKING ? e->sound : e->slots[idx].sound);
+                if (!decode_grit(&r, ver, &c)) return false;
                 if (apply && e) {
-                    MelloSoundConfig c = idx == GRIT_WORKING ? e->sound : e->slots[idx].sound;
-                    c.noise_level = noise;
-                    c.noise_fm = nfm;
-                    c.unison = uni;
-                    c.detune = det;
                     if (idx == GRIT_WORKING)
                         mello_engine_sound_set_config(e, &c); /* sanitizes */
                     else

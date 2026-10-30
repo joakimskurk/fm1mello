@@ -277,6 +277,35 @@ static int32_t lfo_around(uint16_t base, int32_t lfo, uint16_t depth, MelloLfoTa
     if (!a->config.lfo_on || a->config.lfo_target != target) return base;
     return clamp32((int32_t)base + lfo * (int32_t)depth / 32767, 0, 1000);
 }
+/* 2^(q8 / 3072): a pitch offset in 1/256 semitone as a Q16 ratio, -48..+48 semitones. */
+static uint32_t semi_ratio_q16(int32_t q8)
+{
+    int32_t i, f;
+    q8 = clamp32(q8 + 48 * 256, 0, 96 * 256 - 1);
+    i = q8 >> 8, f = q8 & 255;
+    return SEMI_RATIO_Q16[i] + (uint32_t)(((int32_t)(SEMI_RATIO_Q16[i + 1] - SEMI_RATIO_Q16[i]) * f) >> 8);
+}
+static uint32_t inc_times(uint32_t inc, uint32_t ratio_q16)
+{
+    uint64_t v = ((uint64_t)inc * ratio_q16) >> 16;
+    return v > 0x7FFFFFFFu ? 0x7FFFFFFFu : (uint32_t)v; /* below Nyquist's 2^31 */
+}
+/* An increment that FM has pushed through zero runs the phase backwards; the band-limiting wants its size. */
+static uint32_t inc_size(uint32_t inc)
+{
+    return (int32_t)inc < 0 ? 0u - inc : inc;
+}
+/* SAT: soft clipping (3t - t^3) / 2 of the oscillators driven up to 16x (+24 dB, squared knob), the Virus's hot
+ * oscillator volume into the filter. x and the result are +-65535. The curve's slope at 0 is 1.5 and a saw clips
+ * from about 2x on, so the make-up 2 / 3g, at least 0.32, keeps the level near the clean one across the knob. */
+static int32_t saturate(int32_t x, int32_t sat)
+{
+    int32_t g_q8 = 256 + sat * sat / 1000 * 15 * 256 / 1000,
+            t = clamp32((x * (g_q8 >> 4)) >> 5, -32767, 32767), y, makeup = 2 * 32767 * 256 / (3 * g_q8);
+    if (makeup < 10486) makeup = 10486;
+    y = (3 * t - (((t * t) >> 15) * t >> 15)) >> 1;
+    return (y * 2 * makeup) >> 15;
+}
 /* The unison gain, 1/sqrt(n): detuned oscillators add up in power, not in amplitude. */
 static const int16_t UNISON_GAIN_Q15[MELLO_UNISON_MAX] = {32767, 23170, 18919, 16384};
 /* Each unison oscillator's place in the spread, in thirds: n = 2 is +-1, 3 is -1 0 +1, 4 is -1 -1/3 +1/3 +1. */
@@ -392,6 +421,21 @@ static void lead_attack(MelloAudio *a, uint8_t note, uint8_t vel, bool slide)
     a->lead.sub_inc = a->lead.sub_target_inc;
     a->lead.sub_slide_left = 0u;
     tone_attack_begin(TONE_ENV(&a->lead), a->config.attack_ms);
+    if (a->config.menv_amount) { /* the MOD envelope restarts with every note, as the amp envelope */
+        uint32_t att = (uint32_t)a->config.menv_attack_ms * 441u / 10u,
+                 dec = (uint32_t)a->config.menv_decay_ms * 441u / 10u;
+        /* The decay falls to 1/1000 (-60 dB) in its time: ln 1000 = 6.9 time constants. */
+        a->menv_k_q16 = (int32_t)(452710u / (dec ? dec : 1u));
+        if (a->menv_k_q16 < 1) a->menv_k_q16 = 1;
+        if (att) {
+            a->menv_stage = 1u;
+            a->menv_step = (int32_t)((1u << 24) / att);
+            if (a->menv_step < 1) a->menv_step = 1;
+        } else {
+            a->menv_stage = 2u;
+            a->menv_q24 = 1 << 24;
+        }
+    }
 }
 static void lead_release(MelloAudio *a)
 {
@@ -736,7 +780,8 @@ static void main_filter_coeffs(MelloAudio *a, uint16_t cut, uint16_t res)
     const ToneSubBiquadCoeff *t00, *t01, *t10, *t11;
     int64_t v[5][4];
     uint8_t k;
-    if (a->mf_coeff_valid && a->mf_cut == cut && a->mf_res == res) return;
+    if (a->mf_coeff_valid && a->mf_cut == cut && a->mf_res == res && a->mf_mode == a->config.filter_mode)
+        return;
     if (cut > 1000u) cut = 1000u;
     if (res > 1000u) res = 1000u;
     ci = (uint16_t)(cut / 10u);
@@ -760,6 +805,23 @@ static void main_filter_coeffs(MelloAudio *a, uint16_t cut, uint16_t res)
         int64_t hi = v[k][2] + (((v[k][3] - v[k][2]) * cf * 6554) >> 16);
         a->mf_coeff[k] = (int32_t)(lo + (((hi - lo) * rf * 1311) >> 16));
     }
+    if (a->config.filter_mode != MELLO_FILTER_LP) {
+        /* The other modes share the lowpass's poles (a1, a2) and so its cutoff and resonance; only the zeros
+         * differ. With 1/a0 = (1 + a2) / 2, cos/a0 = -a1 / 2 and alpha/a0 = (1 - a2) / 2 (Q28):
+         * HP b = (1 + cos)/2a0 [1 -2 1], BP b = alpha/a0 [1 0 -1], notch b = 1/a0 [1 -2cos 1]. */
+        int32_t one = 1 << 28, a1 = a->mf_coeff[3], a2 = a->mf_coeff[4];
+        if (a->config.filter_mode == MELLO_FILTER_HP) {
+            int32_t b0 = (int32_t)(((int64_t)one + a2 - a1) / 4);
+            a->mf_coeff[0] = b0, a->mf_coeff[1] = -2 * b0, a->mf_coeff[2] = b0;
+        } else if (a->config.filter_mode == MELLO_FILTER_BP) {
+            int32_t b0 = (one - a2) / 2;
+            a->mf_coeff[0] = b0, a->mf_coeff[1] = 0, a->mf_coeff[2] = -b0;
+        } else {
+            int32_t b0 = (int32_t)(((int64_t)one + a2) / 2);
+            a->mf_coeff[0] = b0, a->mf_coeff[1] = a1, a->mf_coeff[2] = b0;
+        }
+    }
+    a->mf_mode = (uint8_t)a->config.filter_mode;
     a->mf_cut = cut;
     a->mf_res = res;
     a->mf_coeff_valid = true;
@@ -1517,7 +1579,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         ramp_to(&a->rp_delay, (int32_t)a->delay_samples, 50u, a->rendered_frames == 0u);
     }
     for (i = 0u; i < frames; ++i) {
-        int32_t lead = 0, sub = 0, sample_mix = 0, mix, mix_l = 0, mix_r = 0, lfo = 0, ampmod = 32767;
+        int32_t lead = 0, sub = 0, sample_mix = 0, mix, mix_l = 0, mix_r = 0, lfo = 0, ampmod = 32767,
+                mod_env;
 #if MELLO_FEATURE_CHORD_MACHINE
         int32_t chord_mix = 0;
 #endif
@@ -1602,6 +1665,19 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             int32_t cv = (int32_t)cut + (a->matrix_env_q15 * 240) / 32767;
             cut = (uint16_t)clamp32(cv, 0, 1000);
         }
+        if (a->menv_stage == 1u) {
+            a->menv_q24 += a->menv_step;
+            if (a->menv_q24 >= 1 << 24) a->menv_q24 = 1 << 24, a->menv_stage = 2u;
+        } else if (a->menv_stage == 2u) {
+            a->menv_q24 -= ((a->menv_q24 >> 8) * a->menv_k_q16) >> 8;
+            if (a->menv_q24 < 1 << 10) a->menv_q24 = 0, a->menv_stage = 0u;
+        }
+        mod_env = a->config.menv_amount ? (a->menv_q24 >> 9) * a->config.menv_amount / 1000 : 0; /* +-32767 */
+        if (mod_env && a->config.menv_target == MELLO_MENV_CUTOFF)
+            cut = (uint16_t)clamp32((int32_t)cut + mod_env * 1000 / 32767, 0, 1000);
+        res = (uint16_t)lfo_around(res, lfo, a->config.lfo_depth, MELLO_LFO_RES, a);
+        if (mod_env && a->config.menv_target == MELLO_MENV_RES)
+            res = (uint16_t)clamp32((int32_t)res + mod_env * 1000 / 32767, 0, 1000);
         if (a->lead.env_q24 > 0 && a->config.osc_wave != MELLO_WAVE_OFF) {
             uint32_t inc = a->lead.inc;
             uint16_t pwm = a->config.pwm_permille;
@@ -1624,47 +1700,87 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 if (sw > 950 - pb) sw = 950 - pb;
                 pwm = (uint16_t)(pb + (lfo * sw) / 32767);
             }
+            if (mod_env && a->config.menv_target == MELLO_MENV_PITCH) /* +-24 semitones */
+                inc = inc_times(inc, semi_ratio_q16(mod_env * 6144 / 32767));
             {
-                /* Grit. Each part costs nothing while it is off, and the defaults are off: the HTML's plain saw. */
-                int32_t noise_amt =
-                    lfo_around(a->config.noise_level, lfo, a->config.lfo_depth, MELLO_LFO_NOISE, a);
-                int32_t nfm_amt =
-                    lfo_around(a->config.noise_fm, lfo, a->config.lfo_depth, MELLO_LFO_NOISE_FM, a);
-                uint8_t uni = a->config.unison, k;
-                int32_t white = 0;
+                /* Grit and the Virus layer. Each part costs nothing while it is off, and the defaults are off:
+                 * then this is the HTML's plain saw. */
+                const MelloSoundConfig *c = &a->config;
+                int32_t noise_amt = lfo_around(c->noise_level, lfo, c->lfo_depth, MELLO_LFO_NOISE, a);
+                int32_t nfm_amt = lfo_around(c->noise_fm, lfo, c->lfo_depth, MELLO_LFO_NOISE_FM, a);
+                int32_t sat = lfo_around(c->saturation, lfo, c->lfo_depth, MELLO_LFO_SAT, a);
+                uint8_t uni = c->unison, k;
+                int32_t white = 0, dev = 0, o1 = 0;
+                uint32_t inc2 = 0u, before = a->lead.phase;
+                if (mod_env && c->menv_target == MELLO_MENV_NOISE)
+                    noise_amt = clamp32(noise_amt + mod_env * 1000 / 32767, 0, 1000);
                 if (noise_amt || nfm_amt) {
                     a->noise_seed = a->noise_seed * 1664525u + 1013904223u;
                     white = (int32_t)a->noise_seed >> 16; /* +-32768, uniform */
                 }
                 if (nfm_amt) {
-                    /* Noise FM: the frequency jitters with lowpassed noise (~5 kHz, so it roughens rather than
-                     * hisses), up to +-100% at full; squared, so the low half of the knob is fine-grained. */
-                    int32_t dev;
-                    a->nfm_lp += (white - a->nfm_lp) >> 2;
-                    dev = q15mul(a->nfm_lp, nfm_amt * nfm_amt / 1000 * 32767 / 1000);
-                    inc = inc + (uint32_t)((int32_t)(inc >> 16) * dev * 2);
+                    /* Noise FM, as the Virus's FM source "noise": lowpassed noise (~900 Hz) moves the frequency
+                     * by up to ~3 kHz RMS at full, through zero. An absolute deviation, so that a bass note gets
+                     * as rough as a high one; squared, so the low half of the knob is fine-grained. */
+                    a->nfm_lp += (white - a->nfm_lp) >> 3;
+                    dev = ((a->nfm_lp * (nfm_amt * nfm_amt / 1000 * 32767 / 1000)) >> 15) * 58000;
                 }
                 if (uni > 1u) {
                     /* Unison: detune spreads the oscillators up to +-60 cents (squared). Near 1 the ratio is
                      * 1 + c * ln2 / 1200 to within a cent, so no table: 2^-18 per unit, c * 151.4. */
-                    int32_t det = lfo_around(a->config.detune, lfo, a->config.lfo_depth, MELLO_LFO_DETUNE, a);
+                    int32_t det = lfo_around(c->detune, lfo, c->lfo_depth, MELLO_LFO_DETUNE, a);
                     int32_t d_q18 = det * det / 1000 * 60 * 1514 / 10000; /* cents * 151.4 */
                     int32_t step =
-                        (int32_t)(((inc >> 14) * (uint32_t)d_q18) >> 4) / 3; /* one third of the spread */
+                        (int32_t)(((inc >> 14) * (uint32_t)d_q18) >> 4) / 3; /* a third of the spread */
                     int32_t sum = 0;
                     for (k = 0u; k < uni; ++k) {
-                        uint32_t vi = (uint32_t)((int32_t)inc + step * UNISON_SPREAD_THIRDS[uni - 1u][k]);
+                        uint32_t vi =
+                            (uint32_t)((int32_t)inc + step * UNISON_SPREAD_THIRDS[uni - 1u][k] + dev);
                         uint32_t *ph = k ? &a->lead.uni_phase[k - 1u] : &a->lead.phase;
+                        int32_t y;
                         *ph += vi;
-                        sum += tone_osc_sample(a->config.osc_wave, *ph, vi, pwm);
+                        y = tone_osc_sample(c->osc_wave, *ph, inc_size(vi), pwm);
+                        if (!k) o1 = y;
+                        sum += y;
                     }
                     lead = q15mul(clamp32(sum, -65535, 65535), UNISON_GAIN_Q15[uni - 1u]);
                 } else {
-                    a->lead.phase += inc;
-                    lead = tone_osc_sample(a->config.osc_wave, a->lead.phase, inc, pwm);
+                    uint32_t vi = inc + (uint32_t)dev;
+                    a->lead.phase += vi;
+                    lead = o1 = tone_osc_sample(c->osc_wave, a->lead.phase, inc_size(vi), pwm);
                 }
-                if (noise_amt) /* white noise into the filter, squared level; at full its RMS is the saw's */
-                    lead += q15mul(white, noise_amt * noise_amt / 1000 * 27805 / 1000);
+                if (c->osc2_mix) {
+                    /* OSC 2: SEMI and FINE from OSC 1, hard sync (it restarts where OSC 1 wraps, at the same
+                     * fraction of its own cycle) and FM from OSC 1 (linear, through zero, up to 4x its frequency;
+                     * squared). The Virus's oscillator pair. */
+                    int32_t q8 = c->osc2_semi * 256 + c->osc2_fine * 256 / 100, fm, o2;
+                    uint32_t r2, v2;
+                    if (c->lfo_on && c->lfo_target == MELLO_LFO_OSC2)
+                        q8 += lfo * (int32_t)c->lfo_depth / 10667; /* +-12 */
+                    if (mod_env && c->menv_target == MELLO_MENV_OSC2)
+                        q8 += mod_env * 12288 / 32767; /* +-48 */
+                    r2 = semi_ratio_q16(q8);
+                    inc2 = inc_times(inc, r2);
+                    fm = lfo_around(c->fm_amount, lfo, c->lfo_depth, MELLO_LFO_FM, a);
+                    if (mod_env && c->menv_target == MELLO_MENV_FM)
+                        fm = clamp32(fm + mod_env * 1000 / 32767, 0, 1000);
+                    v2 = inc2 + (uint32_t)dev;
+                    if (fm) {
+                        int64_t d = ((int64_t)inc2 * q15mul(o1, fm * fm / 1000 * 32767 / 1000)) >> 13;
+                        v2 = (uint32_t)(int32_t)(d > 0x7FFFFFFF ? 0x7FFFFFFF
+                                                                : (d < -0x7FFFFFFF ? -0x7FFFFFFF : d)) +
+                             v2;
+                    }
+                    if (c->osc2_sync && (int32_t)(inc + (uint32_t)dev) > 0 && a->lead.phase < before)
+                        a->lead.osc2_phase = (uint32_t)(((uint64_t)a->lead.phase * r2) >> 16);
+                    else
+                        a->lead.osc2_phase += v2;
+                    o2 = tone_osc_sample(c->osc2_wave, a->lead.osc2_phase, inc_size(v2), pwm);
+                    lead = (lead * (1000 - (int32_t)c->osc2_mix) + o2 * (int32_t)c->osc2_mix) / 1000;
+                }
+                if (noise_amt) /* white noise into the filter; linear, at full ~1.7x the saw's RMS */
+                    lead += q15mul(white, noise_amt * 55610 / 1000);
+                if (sat) lead = saturate(clamp32(lead, -65535, 65535), sat);
             }
             if (fsub_level) {
                 a->lead.sub_phase += a->lead.sub_inc;
