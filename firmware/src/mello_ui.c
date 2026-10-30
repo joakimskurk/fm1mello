@@ -100,6 +100,16 @@ static uint8_t random_target_count(void)
     return (uint8_t)(MELLO_FEATURE_CHORD_MACHINE ? 13u : 12u);
 }
 
+static uint16_t random_target_bit(uint8_t index);
+/* A RANDOM pill's MELLO_RAND_* bit number (its rnd_amount index). */
+static uint8_t random_target_bitno(uint8_t index)
+{
+    uint16_t bit = random_target_bit(index);
+    uint8_t n = 0u;
+    while (bit > 1u) bit >>= 1, ++n;
+    return n;
+}
+
 static uint16_t random_target_bit(uint8_t index)
 {
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -744,7 +754,10 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         break;
     }
     case MELLO_UI_RANDOM:
-        if ((uint8_t)w < random_target_count()) {
+        if ((uint8_t)w < random_target_count() && ui->random_edit) { /* EDIT: pick the target K1 sets */
+            ui->random_sel = (uint8_t)w;
+            mark_edit(ui);
+        } else if ((uint8_t)w < random_target_count()) {
             uint16_t bit = random_target_bit((uint8_t)w);
             if (!ui->random_links)
                 e->randomize.mask ^= bit;
@@ -1683,6 +1696,15 @@ static const char *random_intensity_name(MelloRandomizeIntensity intensity)
 static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
 {
     if (!ui || knob != 0u || !delta) return;
+    if (ui->random_edit && eng(ui)) { /* EDIT: K1 is the picked target's amount, in 5% steps */
+        MelloEngine *e = eng(ui);
+        MelloModRouting m = e->modr;
+        uint8_t b = random_target_bitno(ui->random_sel);
+        m.rnd_amount[b] = (uint8_t)clamp_i32((int32_t)m.rnd_amount[b] + delta * 5, 0, 100);
+        mello_engine_mod_routing_set(e, &m);
+        mark_edit(ui);
+        return;
+    }
     ui->random_intensity = (MelloRandomizeIntensity)clamp_i32(
         (int32_t)ui->random_intensity + (delta > 0 ? 1 : -1), MELLO_RANDOMIZE_LOW, MELLO_RANDOMIZE_HIGH);
     mark_edit(ui);
@@ -2104,6 +2126,9 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
             c.per_step = !c.per_step;
             mello_engine_sample_set_config(e, &c);
             mark_edit(ui);
+        } else if (ui->page == MELLO_UI_RANDOM) {
+            ui->random_edit = !ui->random_edit; /* EDIT: how much each target is rolled */
+            mark_full(ui);
         } else if (ui->page == MELLO_UI_HOME) {
             ui->keys_mode = !ui->keys_mode; /* KEYS: the keys are a keyboard */
             ui->keys_rec = false;
@@ -3214,7 +3239,9 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
          * below is the pitches), and a target that follows it is filled with "+", one that mirrors it with "-". */
         uint8_t i, enabled = 0u, rn_count = random_target_count();
         int16_t x, y, w;
-        ui_section(ui, o, 32, ui->random_links ? "LINKS TO PITCH" : "RANDOMIZER", UI_PURPLE);
+        ui_section(ui, o, 32,
+                   ui->random_edit ? "AMOUNTS" : (ui->random_links ? "LINKS TO PITCH" : "RANDOMIZER"),
+                   UI_PURPLE);
         for (i = 0u; i < rn_count; ++i) {
             uint16_t bit = random_target_bit(i);
             bool on = (e->randomize.mask & bit) != 0u, fol = (e->modr.rnd_follow & bit) != 0u,
@@ -3226,7 +3253,12 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             y = (int16_t)(53 + row * 21);
             if (on) ++enabled;
             copy_s(lab, rn[i]);
-            if (!ui->random_links) {
+            if (ui->random_edit) { /* the picked target lit; each one's amount as a bar under it */
+                uint8_t amt = e->modr.rnd_amount[random_target_bitno(i)];
+                ui_pill(o, x, y, w, lab, i == ui->random_sel, on ? rc[i] : UI_LINE);
+                o->fill(o->ctx, x, (int16_t)(y + 18), w, 2, UI_TRACK);
+                o->fill(o->ctx, x, (int16_t)(y + 18), (int16_t)(w * amt / 100), 2, on ? rc[i] : UI_LINE);
+            } else if (!ui->random_links) {
                 ui_pill(o, x, y, w, lab, on, rc[i]);
             } else if (i == 0u) { /* PIT: the source */
                 ui_pill(o, x, y, w, lab, true, UI_PURPLE);
@@ -3236,7 +3268,9 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             } else
                 o->text(o->ctx, (int16_t)(x + 2), y, (int16_t)(w - 4), 0, lab, UI_TRACK, 1); /* cannot link */
         }
-        if (ui->random_links)
+        if (ui->random_edit)
+            o->text(o->ctx, 10, 95, 220, 0, "KEY PICKS  K1 HOW MUCH", UI_DIM, 0);
+        else if (ui->random_links)
             o->text(o->ctx, 10, 95, 220, 0, "+ FOLLOWS  - MIRRORS PITCH", UI_DIM, 0);
         else {
             value_u(a, "ROLLS", enabled);
@@ -3934,6 +3968,8 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 15: v = sl->release_ms, m = 3000u; break;
         default: return false;
         }
+    } else if (ui->page == MELLO_UI_RANDOM && ui->random_edit && k == 0u) {
+        v = e->modr.rnd_amount[random_target_bitno(ui->random_sel)], m = 100u;
     } else if (ui->page == MELLO_UI_GLOBAL && ui->global_subpage == 0u && k == 0u) {
         v = e->project.bpm > 20u ? e->project.bpm - 20u : 0u, m = 230u; /* 20..250 BPM */
     } else
@@ -4104,6 +4140,18 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         break;
     }
     case MELLO_UI_RANDOM:
+        if (ui->random_edit) {
+            static const char *rl[13] = {"PIT", "PUL", "RAT", "GAT", "OCT", "ACC", "SUB",
+                                         "SLD", "SKP", "PRB", "SMP", "CHD", "WAV"};
+            char *q = copy_s(v[0], rl[ui->random_sel % 13u]); /* "PIT 60%" */
+            l[0] = "AMOUNT";
+            *q++ = ' ';
+            copy_s(put_u32(q, e->modr.rnd_amount[random_target_bitno(ui->random_sel)]), "%");
+            copy_s(v[1], "-");
+            copy_s(v[2], "-");
+            copy_s(v[3], "-");
+            break;
+        }
         l[0] = "INT";
         copy_s(v[0], random_intensity_name(ui->random_intensity));
         copy_s(v[1], "-");
@@ -4774,7 +4822,7 @@ static const char *layer_name(const MelloUi *ui)
     case MELLO_UI_SEQ_SEGMENT: return seg[ui->segment_subpage % 2u];
     case MELLO_UI_SEQ_LOOP: return loop[ui->loop_subpage % 3u];
     case MELLO_UI_SLOTS: return slots[ui->slots_subpage % 2u];
-    case MELLO_UI_RANDOM: return ui->random_links ? "LINKS" : "MASK";
+    case MELLO_UI_RANDOM: return ui->random_edit ? "EDIT" : (ui->random_links ? "LINKS" : "MASK");
     case MELLO_UI_DOT:
         return ui->dot_shape && dot_lane(ui->selected_dot_target) >= 0
                    ? dsh[dot_lane(ui->selected_dot_target)]
@@ -4980,6 +5028,7 @@ static uint32_t calc_button_leds(MelloUi *ui)
     MelloEngine *e = eng(ui);
     if (ui->transport && ui->transport->running) m |= bit_u32(MELLO_UI_BTN_PLAY);
     if (ui->page == MELLO_UI_HOME && ui->keys_mode) m |= bit_u32(MELLO_UI_BTN_EDIT);
+    if (ui->page == MELLO_UI_RANDOM && ui->random_edit) m |= bit_u32(MELLO_UI_BTN_EDIT);
     if (ui->page == MELLO_UI_HOME && ui->keys_rec) m |= bit_u32(MELLO_UI_BTN_REC);
     if (ui->page == MELLO_UI_SUB && e && e->sub.on) m |= bit_u32(MELLO_UI_BTN_ARP);
 #if MELLO_FEATURE_CHORD_MACHINE

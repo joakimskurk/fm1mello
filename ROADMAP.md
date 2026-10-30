@@ -20,7 +20,9 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
       (PIT .. SKP), not WAVE / CHORD / SMP / PRB (a roll left the saw in only 20% of cases, square / pulse 4-6 dB
       louder); SOUND's INIT (press twice) restores the default sound, and UNDO undoes it (ui_sound_init). A project
       saved earlier keeps its mask: turn WAVE off on the RANDOM page.
-- [ ] **Randomizer EDIT**: on the RANDOM page, EDIT sets how much each target is rolled (an amount, not on / off).
+- [x] **Randomizer EDIT**: on the RANDOM page, EDIT sets how much each target is rolled: a key picks the target, K1
+      its amount, the chance a roll changes a step (0-100%, 100 by default = as before); drawn as a bar under each
+      pill (random_amounts).
 - [ ] **Noise too strong**: noise is too much from 20-30%, noise FM usable only up to ~15%; rescale both so the whole
       knob is usable, and a low cut on the noise so it does not fill the low register.
 - [ ] **SUB: a DRONE mode**: the sub always on while playing.

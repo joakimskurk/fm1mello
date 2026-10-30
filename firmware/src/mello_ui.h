@@ -147,6 +147,8 @@ typedef struct {
     uint32_t rndmzr_down_ms;
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
     bool random_links;                        /* RANDOM's LINKS layer (SELECT): keys set + / - per target */
+    bool random_edit;                         /* RANDOM's EDIT: a key picks a target, K1 its amount */
+    uint8_t random_sel;                       /* the target EDIT sets (index into the RANDOM page's pills) */
 
     uint8_t selected_step;
     uint8_t step_bank;
