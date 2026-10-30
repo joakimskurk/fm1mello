@@ -94,7 +94,7 @@ of the HTML (`tools/tone-ref/shoot.mjs`).
 - [x] The performance keys on HOME: FILL, SUB MUTE, REVERSE, REPEAT (+ white key = length), RESTART; REVERSE and
       REPEAT keep time; RNDMZR moved to the last black key on every page (DECISIONS.md "Performance keys").
 - [ ] Note names in HOME's step bars as the HTML's lanes; the remaining pages' bodies in music units.
-- [ ] Randomizer "skyline": its length and bar width follow the sequence length.
+- [x] Randomizer "skyline": its length and bar width follow the sequence length.
 - [ ] A splash screen with the SKURKYMELLO wordmark (it left the header).
 
 ## Phase 5: deeper sound and modulation (2026-10-29 wishlist)
@@ -110,8 +110,9 @@ simple (Phase 3's iceberg).
       an AR / ASR SHAPE, DOT's own EVOLVE, EVOLVE's SOUND routes; evolution waits for the loop's one.
 - [x] Modulation: generally more parameters as modulation targets. Done: the LFO's 11, the MOD envelope's 6, DOT's
       and EVOLVE's 11; velocity and key tracking (SOUND / TRACKING, DECISIONS.md "Velocity and key tracking").
-- [ ] Randomizer: route to several destinations at once, and an invert option per route, so one parameter mirrors
+- [x] Randomizer: route to several destinations at once, and an invert option per route, so one parameter mirrors
       another inverted.
+      Done as links to the pitch, + or - per target (RANDOM / LINKS; DECISIONS.md "Randomizer links").
 - [x] DOT orders: P-PONG, SPIRAL, DIAG, BOUNCE, WALK, and REV for any of them (DECISIONS.md "DOT orders").
 - [ ] Chord mode: unusable as it is. Redesign it, both the sound and how it is played, so it is usable and makes
       musical sense (see DECISIONS.md "Harmonic layer" for the earlier candidates).

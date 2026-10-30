@@ -742,7 +742,22 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
     }
     case MELLO_UI_RANDOM:
         if ((uint8_t)w < random_target_count()) {
-            e->randomize.mask ^= random_target_bit((uint8_t)w);
+            uint16_t bit = random_target_bit((uint8_t)w);
+            if (!ui->random_links)
+                e->randomize.mask ^= bit;
+            else if (bit &
+                     MELLO_RAND_LINKABLE) { /* LINKS: free -> + (follows pitch) -> - (mirrors it) -> free */
+                MelloModRouting m = e->modr;
+                if (m.rnd_mirror & bit)
+                    m.rnd_mirror &= (uint16_t)~bit;
+                else if (m.rnd_follow & bit)
+                    m.rnd_follow &= (uint16_t)~bit, m.rnd_mirror |= bit;
+                else
+                    m.rnd_follow |= bit;
+                if ((m.rnd_follow | m.rnd_mirror) & bit)
+                    e->randomize.mask |= bit; /* a link rolls its target */
+                mello_engine_mod_routing_set(e, &m);
+            }
             mark_edit(ui);
         }
         break;
@@ -1582,6 +1597,7 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
     case MELLO_UI_SEQ_STEP:
         ui->step_subpage = wrap_u8((int32_t)ui->step_subpage + (delta > 0 ? 1 : -1), 4u);
         break;
+    case MELLO_UI_RANDOM: ui->random_links = !ui->random_links; break;
     case MELLO_UI_SEQ_SEGMENT:
         ui->segment_subpage = wrap_u8((int32_t)ui->segment_subpage + (delta > 0 ? 1 : -1), 2u);
         break;
@@ -2766,7 +2782,7 @@ static void draw_random_skyline(MelloUi *ui, const MelloUiDrawOps *o)
     if (!e) return;
     n = random_skyline_count(&e->project);
     home_pitch_range(&e->project, &lo, &hi);
-    o->fill(o->ctx, 8, 129, 224, 41, UI_BLACK);
+    o->fill(o->ctx, 8, 129, 224, 39, UI_PANEL2);
     for (i = 0u; i < n; ++i) {
         MelloStep *st = &e->project.steps[i];
         int16_t x = random_skyline_x(&e->project, i), w = random_skyline_w(&e->project, i),
@@ -3175,29 +3191,39 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         static const uint16_t rc[12] = {UI_ACC,  UI_ACC,  UI_MAGENTA, UI_ACC,    UI_BLUE, UI_CORAL,
                                         UI_GOLD, UI_BLUE, UI_RED,     UI_PURPLE, UI_SOFT, UI_BLUE};
 #endif
+        /* The RANDOMIZER as a panel: its targets as pills. MASK: lit = rolled. LINKS: PIT is the source (the skyline
+         * below is the pitches), and a target that follows it is filled with "+", one that mirrors it with "-". */
         uint8_t i, enabled = 0u, rn_count = random_target_count();
         int16_t x, y, w;
-        o->text(o->ctx, 8, 33, 138, 0, "INSPIRATION MASK", UI_PURPLE, 0);
-        o->text(o->ctx, 150, 33, 82, 0, random_intensity_name(ui->random_intensity), UI_PURPLE, 2);
+        ui_section(ui, o, 32, ui->random_links ? "LINKS TO PITCH" : "RANDOMIZER", UI_PURPLE);
         for (i = 0u; i < rn_count; ++i) {
-            uint8_t on = (e->randomize.mask & random_target_bit(i)) ? 1u : 0u;
-            uint8_t row = i < 7u ? 0u : 1u;
-            uint8_t col = row == 0u ? i : (uint8_t)(i - 7u);
-            w = (i == (uint8_t)(rn_count - 1u)) ? 34 : 30;
-            x = (int16_t)(8 + col * 32);
-            y = (int16_t)(50 + row * 22);
+            uint16_t bit = random_target_bit(i);
+            bool on = (e->randomize.mask & bit) != 0u, fol = (e->modr.rnd_follow & bit) != 0u,
+                 mir = (e->modr.rnd_mirror & bit) != 0u, linkable = (bit & MELLO_RAND_LINKABLE) != 0u;
+            uint8_t row = i < 7u ? 0u : 1u, col = row == 0u ? i : (uint8_t)(i - 7u);
+            char lab[5];
+            w = (i == (uint8_t)(rn_count - 1u)) ? 38 : 30; /* WAVE: four letters */
+            x = (int16_t)(10 + col * 31);
+            y = (int16_t)(53 + row * 21);
             if (on) ++enabled;
-            o->fill(o->ctx, x, y, w, 17, on ? UI_PANEL2 : UI_BLACK);
-            ui_frame(o, x, y, w, 17, on ? rc[i] : UI_PANEL2);
-            if (on) o->fill(o->ctx, x + 3, y + 13, w - 6, 1, rc[i]);
-            o->text(o->ctx, x + 1, y + 2, w - 2, 0, rn[i], on ? rc[i] : UI_DIM, 1);
+            copy_s(lab, rn[i]);
+            if (!ui->random_links) {
+                ui_pill(o, x, y, w, lab, on, rc[i]);
+            } else if (i == 0u) { /* PIT: the source */
+                ui_pill(o, x, y, w, lab, true, UI_PURPLE);
+            } else if (linkable) {
+                if (fol || mir) lab[2] = fol ? '+' : '-', lab[3] = 0;
+                ui_pill(o, x, y, w, lab, fol || mir, mir ? UI_CORAL : rc[i]);
+            } else
+                o->text(o->ctx, (int16_t)(x + 2), y, (int16_t)(w - 4), 0, lab, UI_TRACK, 1); /* cannot link */
         }
-        value_u(a, "ACTIVE", enabled);
-        o->text(o->ctx, 8, 95, 72, 0, a, UI_MID, 0);
-        o->text(o->ctx, 84, 95, 148, 0, "KEYS TOGGLE TARGET", UI_DIM, 2);
-        ui_frame(o, 8, 112, 224, 18, UI_CORAL);
-        o->fill(o->ctx, 11, 113, 218, 16, UI_PANEL);
-        o->text(o->ctx, 12, 113, 216, 0, "RND: REROLL   UNDO: BACK", UI_CORAL, 0);
+        if (ui->random_links)
+            o->text(o->ctx, 10, 95, 220, 0, "+ FOLLOWS  - MIRRORS PITCH", UI_DIM, 0);
+        else {
+            value_u(a, "ROLLS", enabled);
+            o->text(o->ctx, 10, 95, 80, 0, a, UI_MID, 0);
+            o->text(o->ctx, 92, 95, 138, 0, random_intensity_name(ui->random_intensity), UI_PURPLE, 2);
+        }
         draw_random_skyline(ui, o);
         break;
     }
@@ -4728,6 +4754,7 @@ static const char *layer_name(const MelloUi *ui)
     case MELLO_UI_SEQ_SEGMENT: return seg[ui->segment_subpage % 2u];
     case MELLO_UI_SEQ_LOOP: return loop[ui->loop_subpage % 3u];
     case MELLO_UI_SLOTS: return slots[ui->slots_subpage % 2u];
+    case MELLO_UI_RANDOM: return ui->random_links ? "LINKS" : "MASK";
     case MELLO_UI_DOT:
         return ui->dot_shape && dot_lane(ui->selected_dot_target) >= 0
                    ? dsh[dot_lane(ui->selected_dot_target)]
