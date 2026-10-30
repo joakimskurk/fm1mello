@@ -2721,13 +2721,38 @@ void mello_engine_undo_snapshot(MelloEngine *e)
 #endif
     e->undo_drums = e->drums;
     e->undo_valid = true;
+    e->undo_is_redo = false;
+}
+
+/* FNV-1a over what UNDO swaps. */
+static uint32_t undo_hash_bytes(uint32_t h, const void *p, uint32_t n)
+{
+    const uint8_t *b = p;
+    while (n--) h = (h ^ *b++) * 16777619u;
+    return h;
+}
+static uint32_t undo_hash(const MelloEngine *e)
+{
+    uint32_t h = undo_hash_bytes(2166136261u, &e->project, sizeof e->project);
+    h = undo_hash_bytes(h, &e->sound, sizeof e->sound);
+#if MELLO_FEATURE_CHORD_MACHINE
+    h = undo_hash_bytes(h, &e->chord, sizeof e->chord);
+#endif
+    return undo_hash_bytes(h, &e->drums, sizeof e->drums);
+}
+
+uint8_t mello_engine_undo_state(MelloEngine *e)
+{
+    if (!e || !e->undo_valid) return MELLO_UNDO_NONE;
+    if (e->undo_is_redo && undo_hash(e) != e->undo_hash) e->undo_valid = false; /* edited since: no redo */
+    return !e->undo_valid ? MELLO_UNDO_NONE : e->undo_is_redo ? MELLO_UNDO_REDO : MELLO_UNDO_UNDO;
 }
 
 bool mello_engine_undo_swap(MelloEngine *e)
 {
     MelloProject p;
     MelloSoundConfig s;
-    if (!e || !e->undo_valid) return false;
+    if (!e || mello_engine_undo_state(e) == MELLO_UNDO_NONE) return false;
     p = e->project;
     e->project = e->undo_project;
     e->undo_project = p;
@@ -2747,6 +2772,8 @@ bool mello_engine_undo_swap(MelloEngine *e)
         e->undo_drums = d;
     }
     (void)mello_engine_rebuild_sequence(e);
+    e->undo_is_redo = !e->undo_is_redo;
+    e->undo_hash = undo_hash(e);
     return true;
 }
 

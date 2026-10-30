@@ -35,13 +35,17 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
 
 ### More feedback (2026-10-30, evening)
 
-- [ ] **UNDO / REDO**: the key toggles: UNDO, then REDO, back to UNDO when an edit leaves nothing to redo; its label says
-      which it will do.
+- [x] **UNDO / REDO**: the key toggles: UNDO, then REDO, back to UNDO when an edit leaves nothing to redo; its label says
+      which it will do. Done: REDO on the key after an UNDO; an edit then leaves nothing to redo (the key dims until
+      the next roll); an edit after a roll keeps UNDO (undo_redo).
 - [ ] **Reverb crackles in the highs.**
 - [ ] **EVOLVE longer than 8 steps**: the page shows 8 lanes, windowed on the selected step, so the playing one goes
       out of sight. Show the whole register (up to 32), the one playing always in view.
 - [ ] **Delay: LO CUT and HI CUT** on its return, to shape it (ask: "pre dist").
-- [ ] **The black keys' strip**: use the whole width, each label over its key, so it is plain which key does what.
+- [x] **The black keys' strip**: use the whole width, each label over its key, so it is plain which key does what.
+      Done: eleven cells across the width in the keys' order, the keyboard's groups apart, a free key a short dim cell,
+      the room left shared out; where there is no room for frames (HOME, SEGMENT, DRUMS), plain tinted cells a pixel
+      apart; on = filled.
 - [ ] **RANDOMIZE WAVE per step**: with WAVE in the mask a roll gives each step its own wave (never OFF).
 - [ ] **The bass sequencer: 16 steps** instead of 5-SEQ: length 1-16, per step tone, octave, glide and more; its own
       clock, not stopped by the main sequence's skipped or held steps unless asked to follow them.

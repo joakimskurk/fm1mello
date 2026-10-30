@@ -801,6 +801,8 @@ typedef struct {
 #endif
     MelloDrumConfig undo_drums;
     bool undo_valid;
+    bool undo_is_redo;  /* the last press was UNDO: the next puts the roll back */
+    uint32_t undo_hash; /* the state as UNDO left it: an edit since means there is nothing to redo */
 
     /* HOME's performance keys (mello_engine_set_perf): runtime only, never saved or undone. The sequence keeps
      * its own place all along; REVERSE and REPEAT play from perf_buf instead, so letting go lands in time. */
@@ -953,6 +955,10 @@ void mello_engine_randomize_steps_intensity(MelloEngine *engine, MelloRandomizeI
  * back in. A second swap redoes. Returns false when there is nothing to undo. */
 void mello_engine_undo_snapshot(MelloEngine *engine);
 bool mello_engine_undo_swap(MelloEngine *engine);
+/* What UNDO's key does now: MELLO_UNDO_NONE, MELLO_UNDO_UNDO, or MELLO_UNDO_REDO. After an UNDO, an edit leaves nothing
+ * to redo, and nothing to undo either (the state before the roll is now the one edited). */
+enum { MELLO_UNDO_NONE = 0, MELLO_UNDO_UNDO = 1, MELLO_UNDO_REDO = 2 };
+uint8_t mello_engine_undo_state(MelloEngine *engine);
 
 bool mello_event_pop(MelloEngine *engine, MelloEvent *out);
 void mello_event_clear(MelloEngine *engine);

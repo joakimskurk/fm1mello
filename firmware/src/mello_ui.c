@@ -3870,6 +3870,7 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_PERF_SUB_MUTE: return e->perf.sub_mute ? 1 : 0;
     case MELLO_CTX_PERF_REVERSE: return e->perf.reverse ? 1 : 0;
     case MELLO_CTX_PERF_REPEAT: return e->perf.repeat ? 1 : 0;
+    case MELLO_CTX_UNDO: return mello_engine_undo_state(e) == MELLO_UNDO_NONE ? 0 : -1; /* dim: nothing to undo */
     case MELLO_CTX_DRUM_KICK:
     case MELLO_CTX_DRUM_SNARE:
     case MELLO_CTX_DRUM_HAT:
@@ -3917,7 +3918,7 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
 {
     static const uint8_t group_end[5] = {3u, 5u, 8u, 10u, 11u};
     uint16_t accent = ui_page_accent(ui);
-    int16_t x = 4, pad;
+    int16_t x = 4;
     uint8_t i, g = 0u;
     o->fill(o->ctx, 0, 172, 240, 16, UI_PANEL2);
     if (ui->page == MELLO_UI_HOME && ui->held_step != MELLO_UI_NO_STEP && eng(ui)) {
@@ -3972,53 +3973,75 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
         return;
     }
     {
-        /* the labels' room: with the pills' 2 px of air they may not all fit (HOME has eleven); then without it */
-        int16_t need = 4 + 4 * 3;
+        /* Eleven cells across the whole width, one a key in the keys' order, the keyboard's groups apart: a labelled
+         * key as wide as its label, a free one a short dim cell, and what room is left shared out, so a label sits
+         * where its key is. Where the labels need all the room (HOME, DRUMS) the cells close up. */
+        int16_t w[11], need = 0, gap_in, gap_group, extra, rem;
+        const char *lab[11];
+        uint8_t labelled = 0u;
+        bool compact = false;
         for (i = 0u; i < 11u; ++i) {
             const MelloContextAction *a = context_action(ui->page, i);
-            need =
-                (int16_t)(need + (a && a->verb != MELLO_CTX_NONE && a->label ? ui_text_len(a->label) * 8u + 3u
-                                                                             : 3u));
+            lab[i] = a && a->verb != MELLO_CTX_NONE ? a->label : 0;
+            if (lab[i] && a->verb == MELLO_CTX_UNDO && eng(ui) &&
+                mello_engine_undo_state(eng(ui)) == MELLO_UNDO_REDO)
+                lab[i] = "REDO";
+            w[i] = lab[i] ? (int16_t)(ui_text_len(lab[i]) * 8u + 4u) : 6;
+            need = (int16_t)(need + w[i]);
+            if (lab[i]) ++labelled;
         }
-        pad = need > 240 ? 0 : 2;
-        if (!pad) x = 2;
-    }
-    for (i = 0u; i < 11u; ++i) {
-        const MelloContextAction *a = context_action(ui->page, i);
-        if (i == group_end[g]) {
-            x = (int16_t)(x + (pad ? 3 : 2)); /* between the keyboard's groups */
-            ++g;
+        gap_in = 2, gap_group = 6;
+        if (need + 6 * gap_in + 4 * gap_group > 236) {
+            /* No room for framed cells: plain ones, each just holding its label, a pixel apart */
+            compact = true;
+            gap_in = 0, gap_group = 2;
+            need = 0;
+            for (i = 0u; i < 11u; ++i) {
+                w[i] = lab[i] ? (int16_t)(ui_text_len(lab[i]) * 8u + 1u) : 2;
+                need = (int16_t)(need + w[i]);
+            }
         }
-        if (a && a->verb == MELLO_CTX_RNDMZR) { /* the same key on every page, so it looks the same: filled */
-            int16_t w = (int16_t)(ui_text_len(a->label) * 8u + 2u);
-            ui_round_fill(o, x, 172, w, 16, ui_mix(UI_PURPLE, UI_BLACK, 110));
-            o->text(o->ctx, (int16_t)(x + 1), 172, (int16_t)(w - 2), 0, a->label, UI_WHITE, 1);
-            x = (int16_t)(x + w + 1);
-        } else if (a && a->verb != MELLO_CTX_NONE && a->label && !pad) {
-            /* No room for pills (HOME): the labels bare, each in its own colour so neighbours stay apart; lit when
-             * held */
-            int16_t w = (int16_t)(ui_text_len(a->label) * 8u);
-            int8_t lit = ctx_lit(ui, a->verb);
-            uint16_t c = strip_colour(ui, a->verb);
-            if (lit > 0) ui_round_fill(o, x, 172, w, 16, ui_mix(c, UI_BLACK, 150));
-            o->text(o->ctx, x, 172, w, 0, a->label, lit > 0 ? UI_BRIGHT : c, 1);
-            x = (int16_t)(x + w + 1);
-        } else if (a && a->verb != MELLO_CTX_NONE && a->label) {
-            int16_t w = (int16_t)(ui_text_len(a->label) * 8u + (uint16_t)pad);
-            int8_t lit = ctx_lit(ui, a->verb);
-            uint16_t c = a->verb == MELLO_CTX_RANDOM_CLEAR || a->verb == MELLO_CTX_GLOBAL_RESET ||
-                                 a->verb == MELLO_CTX_SOUND_INIT
-                             ? (ui->reset_armed ? UI_RED : UI_DIM)
-                             : (lit == 0 ? UI_DIM : accent);
-            if (lit > 0)
-                ui_round_fill(o, x, 172, w, 16, ui_mix(accent, UI_BLACK, 150)); /* a switch that is on */
-            ui_round_frame(o, x, 172, w, 16, lit > 0 ? accent : UI_LINE); /* a pill, as the HTML's buttons */
-            o->text(o->ctx, (int16_t)(x + pad / 2), 172, (int16_t)(w - pad), 0, a->label,
-                    lit > 0 ? UI_BRIGHT : c, 1);
-            x = (int16_t)(x + w + 1); /* air between pills, as the HTML's buttons */
-        } else {
-            o->fill(o->ctx, x, 179, 2, 2, UI_LINE);
-            x = (int16_t)(x + 3);
+        extra = (int16_t)(236 - need - 6 * gap_in - 4 * gap_group);
+        if (extra < 0) extra = 0;
+        rem = labelled ? (int16_t)(extra % labelled) : 0;
+        x = 2;
+        for (i = 0u; i < 11u; ++i) {
+            const MelloContextAction *a = context_action(ui->page, i);
+            int16_t cw = w[i];
+            if (i && i == group_end[g]) {
+                x = (int16_t)(x + gap_group); /* between the keyboard's groups */
+                ++g;
+            } else if (i)
+                x = (int16_t)(x + gap_in);
+            if (lab[i] && labelled) cw = (int16_t)(cw + extra / labelled + (rem-- > 0 ? 1 : 0));
+            if (!lab[i]) {
+                ui_round_fill(o, x, 178, cw, 4, UI_LINE); /* a key with nothing on it */
+            } else if (compact) { /* RNDMZR filled purple, as on every page */
+                int8_t lit = a->verb == MELLO_CTX_RNDMZR ? -1 : ctx_lit(ui, a->verb);
+                uint16_t c = a->verb == MELLO_CTX_RNDMZR   ? UI_WHITE
+                             : ui->page == MELLO_UI_HOME ? strip_colour(ui, a->verb)
+                                                         : (lit == 0 ? UI_DIM : accent);
+                o->fill(o->ctx, x, 172, (int16_t)(cw - 1), 16,
+                        a->verb == MELLO_CTX_RNDMZR ? ui_mix(UI_PURPLE, UI_BLACK, 110)
+                        : lit > 0                   ? ui_mix(c, UI_BLACK, 130)
+                                                    : ui_mix(c, UI_PANEL2, 205));
+                o->text(o->ctx, x, 172, (int16_t)(cw - 1), 0, lab[i], lit > 0 ? UI_BRIGHT : c, 1);
+            } else if (a->verb == MELLO_CTX_RNDMZR) { /* the same key on every page, so it looks the same: filled */
+                ui_round_fill(o, x, 172, cw, 16, ui_mix(UI_PURPLE, UI_BLACK, 110));
+                o->text(o->ctx, (int16_t)(x + 1), 172, (int16_t)(cw - 2), 0, lab[i], UI_WHITE, 1);
+            } else {
+                int8_t lit = ctx_lit(ui, a->verb);
+                uint16_t c = ui->page == MELLO_UI_HOME ? strip_colour(ui, a->verb)
+                             : a->verb == MELLO_CTX_RANDOM_CLEAR || a->verb == MELLO_CTX_GLOBAL_RESET ||
+                                     a->verb == MELLO_CTX_SOUND_INIT
+                                 ? (ui->reset_armed ? UI_RED : UI_DIM)
+                                 : (lit == 0 ? UI_DIM : accent);
+                /* a cell a key: tinted with its colour, filled when on */
+                ui_round_fill(o, x, 172, cw, 16, lit > 0 ? ui_mix(c, UI_BLACK, 130) : ui_mix(c, UI_PANEL2, 215));
+                ui_round_frame(o, x, 172, cw, 16, lit > 0 ? c : ui_mix(c, UI_PANEL2, 150));
+                o->text(o->ctx, (int16_t)(x + 1), 172, (int16_t)(cw - 2), 0, lab[i], lit > 0 ? UI_BRIGHT : c, 1);
+            }
+            x = (int16_t)(x + cw);
         }
     }
 }
