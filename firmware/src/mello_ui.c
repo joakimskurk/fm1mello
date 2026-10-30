@@ -1389,6 +1389,15 @@ static void adjust_sound(MelloUi *ui, uint8_t knob, int16_t delta)
         else
             c.menv_target = (MelloModEnvTarget)wrap_u8((int32_t)c.menv_target + (delta > 0 ? 1 : -1),
                                                        MELLO_MENV_TARGET_COUNT);
+    } else if (ui->sound_subpage == 9u) { /* TRACKING */
+        if (knob == 0u)
+            c.vel_cutoff = (int16_t)clamp_i32((int32_t)c.vel_cutoff + delta * 10, -1000, 1000);
+        else if (knob == 1u)
+            c.vel_level = (uint16_t)clamp_i32((int32_t)c.vel_level + delta * 10, 0, 2000);
+        else if (knob == 2u)
+            c.key_track = (uint16_t)clamp_i32((int32_t)c.key_track + delta * 10, 0, 1000);
+        else
+            c.vel_menv = (int16_t)clamp_i32((int32_t)c.vel_menv + delta * 10, -1000, 1000);
     } else if (ui->sound_subpage == 5u) { /* GRIT */
         if (knob == 0u)
             c.noise_level = (uint16_t)clamp_i32((int32_t)c.noise_level + delta * 10, 0, 1000);
@@ -1606,12 +1615,12 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
         /* OSC, OSC 2, CHARACTER, GRIT, MOD ENV, AMP ENV, FOLLOWER, LEVEL: the LFO (subpage 2) is MOD's, reached
          * with the LFO button. Phase 5's layers (subpages 5-8) came later and sit after OSC, before the HTML's. */
         {
-            static const uint8_t order[8] = {0u, 6u, 7u, 5u, 8u, 1u, 3u, 4u};
+            static const uint8_t order[9] = {0u, 6u, 7u, 5u, 8u, 9u, 1u, 3u, 4u};
             uint8_t i;
             if (ui->sound_subpage == 2u) return;
-            for (i = 0u; i < 8u && order[i] != ui->sound_subpage; ++i) {
+            for (i = 0u; i < 9u && order[i] != ui->sound_subpage; ++i) {
             }
-            ui->sound_subpage = order[wrap_u8((int32_t)(i % 8u) + (delta > 0 ? 1 : -1), 8u)];
+            ui->sound_subpage = order[wrap_u8((int32_t)(i % 9u) + (delta > 0 ? 1 : -1), 9u)];
         }
         break;
     case MELLO_UI_AUDIO_FX:
@@ -3783,6 +3792,10 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 32: v = (uint32_t)(c->menv_amount + 1000), m = 2000u; break;
         case 33: v = c->menv_attack_ms, m = 2000u; break;
         case 34: v = c->menv_decay_ms, m = 5000u; break;
+        case 36: v = (uint32_t)(c->vel_cutoff + 1000), m = 2000u; break;
+        case 37: v = c->vel_level, m = 2000u; break;
+        case 38: v = c->key_track; break;
+        case 39: v = (uint32_t)(c->vel_menv + 1000), m = 2000u; break;
         default: return false;
         }
     } else if (ui->page == MELLO_UI_AUDIO_FX) {
@@ -4340,6 +4353,16 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             value_ms(v[2], c->menv_decay_ms);
             l[3] = "TARGET";
             copy_s(v[3], menv_target_name(c->menv_target));
+        } else if (ui->sound_subpage == 9u) {
+            const MelloSoundConfig *c = &e->sound;
+            l[0] = "V.CUT";
+            copy_s(put_i32(v[0], (c->vel_cutoff + (c->vel_cutoff < 0 ? -5 : 5)) / 10), "%");
+            l[1] = "V.LVL";
+            value_pct(v[1], c->vel_level);
+            l[2] = "KEYTRK";
+            value_pct(v[2], c->key_track);
+            l[3] = "V.ENV";
+            copy_s(put_i32(v[3], (c->vel_menv + (c->vel_menv < 0 ? -5 : 5)) / 10), "%");
         } else if (ui->sound_subpage == 5u) {
             uint32_t d = e->sound.detune;
             l[0] = "NOISE";
@@ -4696,8 +4719,8 @@ static const char *layer_name(const MelloUi *ui)
                       *dot[5] = {"ACCENT", "MOD 1", "RATCHET", "SUB", "MOD 2"},
                       *dsh[2] = {"MOD 1 SHAPE", "MOD 2 SHAPE"}, *tm[4] = {"MAIN", "ROUTES", "DEPTH", "SOUND"},
                       *sub[5] = {"TRIG", "5-SEQ", "STEP", "VOICE", "TONE"}, *glo[2] = {"CLOCK", "MIDI"},
-                      *snd[9] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO", "FOLLOWER SUB", "PLAY / LEVEL",
-                                 "GRIT",         "OSC 2",        "CHARACTER", "MOD ENV"},
+                      *snd[10] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO", "FOLLOWER SUB", "PLAY / LEVEL",
+                                  "GRIT",         "OSC 2",        "CHARACTER", "MOD ENV",      "TRACKING"},
                       *fx[5] = {"DISTORTION", "DELAY", "DELAY CONFIG", "REVERB", "REVERB RETURN"},
                       *smp[4] = {"SAMPLE MAIN", "SAMPLE PITCH", "TRIM / LOOP", "ENVELOPE"};
     switch (ui->page) {
@@ -4712,7 +4735,7 @@ static const char *layer_name(const MelloUi *ui)
     case MELLO_UI_TURING: return tm[ui->tm_subpage % 4u];
     case MELLO_UI_SUB: return sub[ui->sub_subpage % 5u];
     case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 2u];
-    case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 9u];
+    case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 10u];
     case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 5u];
     case MELLO_UI_SAMPLE_RESERVED: return smp[ui->sample_subpage % 4u];
     case MELLO_UI_HOME: return ui->held_step == MELLO_UI_NO_STEP ? 0 : "HELD STEP";
@@ -4724,12 +4747,16 @@ static const char *layer_name(const MelloUi *ui)
 static const char *full_label(const char *l)
 {
     static const char *map[][2] = {
-        {"CUT", "CUTOFF"},       {"RES", "RESONANCE"},  {"ATK", "ATTACK"},         {"DEC", "DECAY"},
-        {"SUS", "SUSTAIN"},      {"REL", "RELEASE"},    {"PWM", "PULSE WIDTH"},    {"FDBK", "FEEDBACK"},
-        {"AMT", "AMOUNT"},       {"CHAR", "CHARACTER"}, {"RATCH", "RATCHET"},      {"OCT", "OCTAVE"},
-        {"PRE", "PRE-DELAY"},    {"DIV", "DIVISION"},   {"D.LEVEL", "DIST LEVEL"}, {"SUBOSC", "SUB OSC"},
-        {"PROB", "PROBABILITY"}, {"LEN", "LENGTH"},     {"DEP", "DEPTH"},          {"ACC", "ACCENT"},
-        {"N.FM", "NOISE FM"},    {"SAT", "SATURATION"}, {"FINE", "FINE TUNE"},     {"SEMI", "SEMITONES"}};
+        {"CUT", "CUTOFF"},        {"RES", "RESONANCE"},    {"ATK", "ATTACK"},
+        {"DEC", "DECAY"},         {"SUS", "SUSTAIN"},      {"REL", "RELEASE"},
+        {"PWM", "PULSE WIDTH"},   {"FDBK", "FEEDBACK"},    {"AMT", "AMOUNT"},
+        {"CHAR", "CHARACTER"},    {"RATCH", "RATCHET"},    {"OCT", "OCTAVE"},
+        {"PRE", "PRE-DELAY"},     {"DIV", "DIVISION"},     {"D.LEVEL", "DIST LEVEL"},
+        {"SUBOSC", "SUB OSC"},    {"PROB", "PROBABILITY"}, {"LEN", "LENGTH"},
+        {"DEP", "DEPTH"},         {"ACC", "ACCENT"},       {"V.CUT", "VEL > CUTOFF"},
+        {"V.LVL", "VEL > LEVEL"}, {"KEYTRK", "KEY TRACK"}, {"V.ENV", "VEL > MOD ENV"},
+        {"N.FM", "NOISE FM"},     {"SAT", "SATURATION"},   {"FINE", "FINE TUNE"},
+        {"SEMI", "SEMITONES"}};
     uint8_t i;
     for (i = 0u; i < sizeof map / sizeof map[0]; ++i) {
         const char *a = l, *b = map[i][0]; /* no strcmp on the target's libc */

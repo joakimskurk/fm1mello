@@ -109,9 +109,9 @@ static void verify_sample_navigation(void)
     buttons(&u, 200u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 6u) fail("ENV", "SOUND did not go to OSC 2");
     {
-        static const uint8_t next[3] = {7u, 5u, 8u};
+        static const uint8_t next[4] = {7u, 5u, 8u, 9u}; /* CHARACTER, GRIT, MOD ENV, TRACKING */
         uint8_t i;
-        for (i = 0u; i < 3u; ++i) {
+        for (i = 0u; i < 4u; ++i) {
             buttons(&u, 210u + i * 10u, bit_u32(MELLO_UI_BTN_ENV), 0u);
             if (u.sound_subpage != next[i]) fail("ENV", "SOUND's Phase 5 layers out of order");
         }

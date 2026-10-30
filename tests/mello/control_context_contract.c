@@ -265,6 +265,7 @@ static void verify_mod_navigation(void)
     press(&u, 422u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* CHARACTER */
     press(&u, 423u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* GRIT */
     press(&u, 424u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* MOD ENV */
+    press(&u, 424u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* TRACKING */
     press(&u, 425u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* AMP ENV */
     press(&u, 430u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 3u)

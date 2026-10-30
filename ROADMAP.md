@@ -108,8 +108,8 @@ simple (Phase 3's iceberg).
       LP / HP / BP / NOTCH, a MOD envelope (cutoff, pitch, OSC 2, FM, noise, res); the LFO reaches RES, OSC 2, FM, SAT.
 - [x] DOT and EVOLVE to the sound (DECISIONS.md "DOT and EVOLVE routes"): DOT's MOD 1 / MOD 2 lanes with TARGET and
       an AR / ASR SHAPE, DOT's own EVOLVE, EVOLVE's SOUND routes; evolution waits for the loop's one.
-- [ ] Modulation: generally more parameters as modulation targets. Done: the LFO's 11, the MOD envelope's 6, DOT's
-      and EVOLVE's 11. Left: velocity and key tracking.
+- [x] Modulation: generally more parameters as modulation targets. Done: the LFO's 11, the MOD envelope's 6, DOT's
+      and EVOLVE's 11; velocity and key tracking (SOUND / TRACKING, DECISIONS.md "Velocity and key tracking").
 - [ ] Randomizer: route to several destinations at once, and an invert option per route, so one parameter mirrors
       another inverted.
 - [x] DOT orders: P-PONG, SPIRAL, DIAG, BOUNCE, WALK, and REV for any of them (DECISIONS.md "DOT orders").
