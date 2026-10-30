@@ -140,7 +140,7 @@ static void verify_context_actions(void)
     setup(&p, &t, &st, &u, MELLO_UI_RANDOM);
     before = t.engine;
     st.dirty = false;
-    black(&u, 100u, 5u); /* RNDMZR: the same key on every page */
+    black(&u, 100u, 10u); /* RNDMZR: the same key on every page, the last */
     if (!memcmp(&before, &t.engine, sizeof before) || !st.dirty) fail("RANDOM B5", "RNDMZR did not reroll");
     t.engine.project.steps[0].pitch = 9;
     st.dirty = false;
@@ -266,7 +266,7 @@ static void verify_random_navigation(void)
     setup(&p, &t, &st, &u, MELLO_UI_HOME);
     { /* RNDMZR held half a second opens RANDOM (a tap rolls) */
         int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
-        uint32_t note = 1u << 13; /* F#4, B5 */
+        uint32_t note = 1u << 25; /* F#5, B10 */
         mello_ui_set_held_notes(&u, note);
         mello_ui_input(&u, 100000u, 100u, 0u, 0u, 0u, note, enc);
         mello_ui_input(&u, 700000u, 700u, 0u, 0u, 0u, 0u, enc);

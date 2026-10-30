@@ -122,9 +122,11 @@ typedef struct {
     uint8_t readout; /* 0 = none, 1..4 = K1..K4, MELLO_UI_READOUT_LAYER = SELECT changed the layer */
     uint32_t readout_until_ms;
     /* HOME: a white key held down holds its step (K1-K4 edit it); released without a turn, it toggles the step. */
-    uint32_t held_notes; /* mello_ui_set_held_notes: the note keys held now */
-    uint8_t held_step;   /* MELLO_UI_NO_STEP when none */
-    uint8_t held_key;    /* its note key */
+    uint32_t held_notes;     /* mello_ui_set_held_notes: the note keys held now */
+    uint16_t held_black;     /* HOME: the black keys held now (bit = B0..B10), for the strip's names */
+    uint8_t perf_repeat_len; /* REPEAT's length in pulses (a white key while REPEAT is held); 0 = 4 */
+    uint8_t held_step;       /* MELLO_UI_NO_STEP when none */
+    uint8_t held_key;        /* its note key */
     bool held_step_edited;
     /* SAVE: a short press saves the project, holding it opens SLOTS (on SLOTS a press saves the slot). */
     uint32_t save_down_ms;

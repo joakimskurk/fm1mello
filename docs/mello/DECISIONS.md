@@ -190,6 +190,23 @@ A splash/boot identity screen is required before final product-polish acceptance
   - Saved in SEC_MOD (40 bytes a working pattern or slot, only when it differs from the defaults). MOD 1's amount
     stays in SEC_WORKING / SEC_SLOTS with the HTML's meaning (1000 = depth 240); SEC_MOD carries the exact depth.
 
+## Performance keys (2026-10-30)
+
+HOME's black keys, in the keyboard's groups: `- + MUT | FL SB | << RP |< | CL UNDO | RNDMZR`. RNDMZR is the last key
+(F#5) and UNDO the one before it on every page, so the key that is always there sits where it is easy to find. Eleven
+labels fit 240 px only in two letters each (the font is 8 px); a held key's full name and what it does replaces the
+strip while it is held (`REPEAT 4  WHITE KEY = LEN`).
+- FILL, SUB MUTE, REVERSE and REPEAT act while held, RESTART on the press. They are performance, not editing: nothing is
+  saved, undone or marked as changed, and they act on HOME only (not in KEYS, not with a step held).
+- **FILL**: every step plays (chance and rests aside; skipped steps stay out of the sequence), ratchets doubled.
+- **SUB MUTE**: no new bass notes (also on MIDI), and the sounding bass, dedicated and follower sub, fades in ~10 ms.
+- **REVERSE**: what was heard, backwards, from the press (the last 64 pulses, round and round). **REPEAT**: the last
+  pulses round and round, 4 (a beat) unless a white key held with it says 1-16.
+- Both keep time: the sequence's own place moves on underneath, and letting go lands where it would have been, so
+  the 2-bar loop, DOT and EVOLVE (which evolve at the loop's one) stay in step. They play the history of pulses, so
+  they work whatever the segments do (ping-pong, random).
+- **RESTART**: the first step and the loop's one at the next pulse (16th); Loop Cycle and the slot sequence stay.
+
 ## Sequence overview
 
 HOME, STEP, SEGMENT and RANDOM keep a compact 4..32-step visual overview. Do not reintroduce visual paging. At 16 steps the overview must be comfortably readable, while 17..32 must still remain visible and retain meaningful pulse/event information.

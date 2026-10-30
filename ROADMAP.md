@@ -91,7 +91,8 @@ of the HTML (`tools/tone-ref/shoot.mjs`).
 - [x] The same treatment for STEP, SEGMENT, LOOP, SLOT SEQ, SLOTS, SUB, CHORD and SAMPLE: a panel with a spaced
       title and the layer, the page's picture (strip, segments, slot cards, 5-SEQ, chord, sample) with pills, and
       K1-K4 two by two under it (sliders where a value has a range); sub, chord and sample times in ms.
-- [ ] The momentary performance keys: FILL, SUB MUTE, REPEAT, REVERSE, RESTART (they need engine support).
+- [x] The performance keys on HOME: FILL, SUB MUTE, REVERSE, REPEAT (+ white key = length), RESTART; REVERSE and
+      REPEAT keep time; RNDMZR moved to the last black key on every page (DECISIONS.md "Performance keys").
 - [ ] Note names in HOME's step bars as the HTML's lanes; the remaining pages' bodies in music units.
 - [ ] Randomizer "skyline": its length and bar width follow the sequence length.
 - [ ] A splash screen with the SKURKYMELLO wordmark (it left the header).
