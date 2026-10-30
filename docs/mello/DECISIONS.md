@@ -216,6 +216,8 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
   Layers: VOICE, STEP (the picked step's locks), VARY (CHANCE, CRUSH, SWING, ROLL), KIT (LENGTH, FOLLOW, SPACE, LEVEL).
 - The sound: past the lead's filter and distortion, a little over the lead at LEVEL 70%. Cost: up to about 20% more
   audio render with all four voices on every step (about 5% of the chip).
+- The default beat (feedback: "that one sounded very good"): a full ROLL of the first kit with SWING 30% and CRUSH 40%,
+  kept as it came out; GLITCH has no hits in it. The drums are off until ON.
 - Saved in SEC_DRUMS (9). Not yet: MIDI out, LFO / DOT / EVOLVE routes to the drums.
 
 ## The chord voice (2026-10-30)

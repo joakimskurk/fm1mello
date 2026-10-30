@@ -50,7 +50,8 @@ static void start(bool follow)
     d.on = true;
     d.follow = follow;
     memset(d.hits, 0, sizeof d.hits);
-    d.hits[MELLO_DRUM_HAT] = 0xFFFFu; /* a hat on every step */
+    d.hits[MELLO_DRUM_HAT] = 0xFFFFu; /* a hat on every step, one hit each */
+    for (i = 0u; i < MELLO_DRUM_STEPS; ++i) d.lock[MELLO_DRUM_HAT][i].ratchet = 1u;
     mello_engine_drums_set_config(&e, &d);
     mello_engine_start(&e);
 }

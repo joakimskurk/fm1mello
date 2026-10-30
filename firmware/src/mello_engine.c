@@ -670,29 +670,43 @@ void mello_sub_defaults(MelloSubConfig *c)
 
 void mello_drum_defaults(MelloDrumConfig *c)
 {
+    /* The default beat (feedback 2026-10-30: "that one, it sounded very good"): a full ROLL of the first kit with
+     * SWING 30% and CRUSH 40%, kept as it came out (listen-drums/4_rolled_crushed.wav). GLITCH has no hits in it. */
     static const MelloDrumVoice v[MELLO_DRUM_VOICES] = {
-        {400u, 450u, 300u, 900u, 1000u, 0u}, /* KICK ~55 Hz, a little drive */
-        {450u, 400u, 550u, 700u, 1000u, 0u}, /* SNARE */
-        {600u, 150u, 400u, 500u, 1000u, 0u}, /* HAT, closed */
-        {500u, 200u, 600u, 450u, 1000u, 0u}  /* GLITCH */
+        {400u, 450u, 300u, 900u, 1000u, 400u}, /* KICK ~55 Hz, a little drive */
+        {450u, 400u, 550u, 700u, 1000u, 400u}, /* SNARE */
+        {600u, 150u, 400u, 500u, 1000u, 400u}, /* HAT, closed */
+        {500u, 200u, 600u, 450u, 1000u, 400u}  /* GLITCH */
     };
-    uint8_t i, k;
+    static const uint16_t hits[MELLO_DRUM_VOICES] = {0xF953u, 0x8090u, 0x8CF0u, 0x0000u},
+                          accents[MELLO_DRUM_VOICES] = {0x1080u, 0x5031u, 0x0100u, 0x0AE7u};
+    static const MelloDrumLock lock[MELLO_DRUM_VOICES][MELLO_DRUM_STEPS] = {
+        {{3, 16, 0, 1}, {0, 0, 0, 1}, {-1, 21, 23, 1}, {0, 0, 96, 1}, {2, 0, 31, 3}, {1, 17, 0, 1}, {2, 76, 0, 1},
+         {-2, 0, 0, 1}, {0, -9, 0, 1}, {0, 0, 0, 1}, {0, -9, 52, 1}, {0, 0, 0, 1}, {0, -71, 0, 1}, {-4, 0, 21, 1},
+         {-2, 0, 0, 3}, {4, -45, 43, 1}},
+        {{0, -7, 0, 1}, {0, -54, 35, 1}, {-1, 0, 0, 1}, {0, 0, 0, 1}, {0, -76, 0, 1}, {1, 31, 0, 4}, {1, 0, 0, 1},
+         {-3, 72, 0, 1}, {0, 0, 0, 1}, {0, 0, 0, 2}, {-6, -48, 0, 1}, {0, 0, 69, 1}, {0, 60, 0, 1}, {0, 0, 48, 1},
+         {0, 0, 0, 4}, {0, -23, 0, 1}},
+        {{-4, -60, 63, 1}, {4, 0, 0, 1}, {-1, -28, 0, 3}, {0, 44, 0, 1}, {0, 0, 0, 1}, {-1, 0, 0, 1}, {-2, 0, 0, 1},
+         {1, 0, 0, 1}, {0, 0, 0, 1}, {0, 2, 68, 2}, {0, -18, 0, 1}, {0, -59, 0, 1}, {10, 0, 0, 1}, {0, 0, 0, 4},
+         {0, 0, 0, 1}, {0, 0, 13, 1}},
+        {{0, 0, 0, 1}, {-2, 0, 0, 3}, {-10, 0, 86, 2}, {9, -15, 0, 1}, {9, 68, 0, 1}, {-3, 0, 0, 1}, {0, -14, 0, 1},
+         {-9, 0, 70, 1}, {10, -63, 73, 1}, {0, 0, 0, 3}, {12, 14, 0, 1}, {4, 54, 0, 1}, {-1, 0, 0, 1}, {0, -10, 0, 1},
+         {-10, 0, 0, 1}, {0, 0, 0, 1}}};
+    uint8_t i;
     if (!c) return;
     memset(c, 0, sizeof(*c));
     c->length = 16u;
+    c->swing = 300u;
     c->level = 700u;
     c->space = 250u;
     c->roll = 500u;
     for (i = 0u; i < MELLO_DRUM_VOICES; ++i) {
         c->voice[i] = v[i];
-        for (k = 0u; k < MELLO_DRUM_STEPS; ++k) c->lock[i][k].ratchet = 1u;
+        c->hits[i] = hits[i];
+        c->accents[i] = accents[i];
     }
-    /* a plain beat to start from: kick 1 and the and of 3, snare 2 and 4, hats on the offbeats, a glitch or two */
-    c->hits[MELLO_DRUM_KICK] = (1u << 0) | (1u << 10);
-    c->hits[MELLO_DRUM_SNARE] = (1u << 4) | (1u << 12);
-    c->hits[MELLO_DRUM_HAT] = (1u << 2) | (1u << 6) | (1u << 10) | (1u << 14);
-    c->hits[MELLO_DRUM_GLITCH] = (1u << 7) | (1u << 15);
-    c->accents[MELLO_DRUM_KICK] = 1u;
+    memcpy(c->lock, lock, sizeof c->lock);
 }
 
 static MelloDrumConfig sanitize_drum_config(MelloDrumConfig c)
