@@ -12,10 +12,14 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
       now carries the ON's pulse; a HOLD that REVERSE / REPEAT or an edit would leave open is ended
       (hold_release_regression).
 - [ ] **A modulation nobody set**: it sounds like ratchets or amplitude / filter modulation, sometimes following the
-      pitch, with odd under- and overtones. Find its source (candidates: OSC 2's 7-cent beating when mixed in,
-      unison detune, the randomizer rolling WAVE / PWM, the noise FM's aliasing). OSC 2 off by default.
-- [ ] **The randomizer ruins the sound and there is no way back**: synth parameters (WAVE, CHORD) out of its default
-      mask; the default is the first nine targets (PIT .. SKP). A way back to a clean sound.
+      pitch, with odd under- and overtones. Not the limiter (never reached), the delay (its buffer holds 1.5 s) or
+      very low notes (3% under G2 after rolls). Suspect: the reverb's delay modulation (Phase 2, against "the
+      reverb comes and goes"), a slow vibrato with sidebands in the tail, clearest on square / pulse. A/B files
+      (build/listen-ab) to listen to; then keep, soften or drop it. OSC 2 is OFF by default (done).
+- [x] **The randomizer ruins the sound and there is no way back**: by default RNDMZR rolls the first nine targets
+      (PIT .. SKP), not WAVE / CHORD / SMP / PRB (a roll left the saw in only 20% of cases, square / pulse 4-6 dB
+      louder); SOUND's INIT (press twice) restores the default sound, and UNDO undoes it (ui_sound_init). A project
+      saved earlier keeps its mask: turn WAVE off on the RANDOM page.
 - [ ] **Randomizer EDIT**: on the RANDOM page, EDIT sets how much each target is rolled (an amount, not on / off).
 - [ ] **Noise too strong**: noise is too much from 20-30%, noise FM usable only up to ~15%; rescale both so the whole
       knob is usable, and a low cut on the noise so it does not fill the low register.

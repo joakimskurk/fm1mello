@@ -482,6 +482,7 @@ typedef enum {
     MELLO_CTX_CHORD_TOGGLE,
     MELLO_CTX_GLOBAL_TAP,
     MELLO_CTX_GLOBAL_RESET,
+    MELLO_CTX_SOUND_INIT, /* the sound back to the defaults (press twice; UNDO undoes it) */
     MELLO_CTX_SAMPLE_TOGGLE,
     MELLO_CTX_HOME_RANDOM, /* reroll now, at the intensity ALGORITHM sets */
     MELLO_CTX_RNDMZR,      /* every page's B10, the last: tap = reroll (undoable), hold = the RANDOM page */
@@ -556,7 +557,9 @@ static const MelloContextAction context_actions[MELLO_UI_SAMPLE_RESERVED + 1u][1
                          [3] = {MELLO_CTX_GLOBAL_RESET, "RST2"},
                          [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                          [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_SOUND_RESERVED] = {[10] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [9] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_SOUND_RESERVED] = {[0] = {MELLO_CTX_SOUND_INIT, "INIT"},
+                                 [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                                 [9] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_AUDIO_FX] = {[10] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [9] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_SAMPLE_RESERVED] = {[0] = {MELLO_CTX_SAMPLE_TOGGLE, "ON"},
                                   [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
@@ -1373,14 +1376,19 @@ static void adjust_sound(MelloUi *ui, uint8_t knob, int16_t delta)
         else
             c.follower_sub_wave = step_sub_waveform(c.follower_sub_wave, delta);
     } else if (ui->sound_subpage == 6u) { /* OSC 2 */
-        if (knob == 0u)                   /* no OFF: MIX 0 is OSC 2 off */
-            c.osc2_wave = (MelloWaveform)wrap_u8((int32_t)c.osc2_wave + (delta > 0 ? 1 : -1), MELLO_WAVE_OFF);
-        else if (knob == 1u)
+        if (knob == 0u) {                 /* OFF, SAW .. PULSE; turned on, it is heard at once */
+            uint8_t w = c.osc2_wave == MELLO_WAVE_OFF ? 0u : (uint8_t)(c.osc2_wave + 1u);
+            w = wrap_u8((int32_t)w + (delta > 0 ? 1 : -1), MELLO_WAVE_OFF + 1u);
+            c.osc2_wave = w ? (MelloWaveform)(w - 1u) : MELLO_WAVE_OFF;
+            if (c.osc2_wave != MELLO_WAVE_OFF && !c.osc2_mix) c.osc2_mix = 500u;
+        } else if (knob == 1u)
             c.osc2_semi = (int8_t)clamp_i32((int32_t)c.osc2_semi + (delta > 0 ? 1 : -1), -24, 24);
         else if (knob == 2u)
             c.osc2_fine = (int8_t)clamp_i32((int32_t)c.osc2_fine + delta, -50, 50);
-        else
+        else {
             c.osc2_mix = (uint16_t)clamp_i32((int32_t)c.osc2_mix + delta * 10, 0, 1000);
+            if (c.osc2_mix && c.osc2_wave == MELLO_WAVE_OFF) c.osc2_wave = MELLO_WAVE_SAW; /* mixed in: on */
+        }
     } else if (ui->sound_subpage == 7u) { /* CHARACTER */
         if (knob == 0u || knob == 1u) {
             if (knob == 0u)
@@ -1389,6 +1397,7 @@ static void adjust_sound(MelloUi *ui, uint8_t knob, int16_t delta)
                 c.fm_amount = (uint16_t)clamp_i32((int32_t)c.fm_amount + delta * 10, 0, 1000);
             /* Sync and FM act on OSC 2: with OSC 2 not mixed in, bringing either in brings OSC 2 in, halfway. */
             if ((c.osc2_sync || c.fm_amount) && !c.osc2_mix) c.osc2_mix = 500u;
+            if ((c.osc2_sync || c.fm_amount) && c.osc2_wave == MELLO_WAVE_OFF) c.osc2_wave = MELLO_WAVE_SAW;
         } else if (knob == 2u)
             c.saturation = (uint16_t)clamp_i32((int32_t)c.saturation + delta * 10, 0, 1000);
         else
@@ -2018,6 +2027,22 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
     }
 #endif
     case MELLO_CTX_GLOBAL_TAP: tap_tempo(ui, now_ms); break;
+    case MELLO_CTX_SOUND_INIT:
+        /* The way back to the plain sound (feedback 2026-10-30): pressed twice within 3 s, as CLR2; undoable. */
+        if (ui->reset_armed && (int32_t)(now_ms - ui->reset_confirm_until_ms) <= 0) {
+            MelloSoundConfig d;
+            ui->reset_armed = false;
+            mello_engine_undo_snapshot(e);
+            mello_sound_defaults(&d);
+            mello_engine_sound_set_config(e, &d);
+            persistent_dirty(ui, now_ms);
+            mark_edit(ui);
+        } else {
+            ui->reset_armed = true;
+            ui->reset_confirm_until_ms = now_ms + 3000u;
+            mark_edit(ui);
+        }
+        break;
     case MELLO_CTX_GLOBAL_RESET:
         if (ui->reset_armed && (int32_t)(now_ms - ui->reset_confirm_until_ms) <= 0) {
             factory_reset_ui(ui, now_ms);
@@ -3706,7 +3731,8 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
         } else if (a && a->verb != MELLO_CTX_NONE && a->label) {
             int16_t w = (int16_t)(ui_text_len(a->label) * 8u + (uint16_t)pad);
             int8_t lit = ctx_lit(ui, a->verb);
-            uint16_t c = a->verb == MELLO_CTX_RANDOM_CLEAR || a->verb == MELLO_CTX_GLOBAL_RESET
+            uint16_t c = a->verb == MELLO_CTX_RANDOM_CLEAR || a->verb == MELLO_CTX_GLOBAL_RESET ||
+                                 a->verb == MELLO_CTX_SOUND_INIT
                              ? (ui->reset_armed ? UI_RED : UI_DIM)
                              : (lit == 0 ? UI_DIM : accent);
             if (lit > 0)
