@@ -2,7 +2,7 @@
 
 #define UI_RGB(r, g, b)                                                                                      \
     ((uint16_t)((((uint16_t)(r) & 0xF8u) << 8) | (((uint16_t)(g) & 0xFCu) << 3) | ((uint16_t)(b) >> 3)))
-#define UI_BLACK   UI_RGB(4, 14, 8)   /* the ground: the HTML's #040E08, not black */
+#define UI_BLACK   UI_RGB(4, 14, 8) /* the ground: the HTML's #040E08, not black */
 #define UI_PANEL   UI_RGB(6, 24, 16)
 #define UI_PANEL2  UI_RGB(13, 36, 24)
 #define UI_DIM     UI_RGB(68, 112, 78)
@@ -336,6 +336,9 @@ static const char *lfo_target_name(MelloLfoTarget t)
     case MELLO_LFO_PITCH: return "PITCH";
     case MELLO_LFO_AMP: return "AMP";
     case MELLO_LFO_PWM: return "PWM";
+    case MELLO_LFO_NOISE: return "NOISE";
+    case MELLO_LFO_NOISE_FM: return "NOISE FM";
+    case MELLO_LFO_DETUNE: return "DETUNE";
     default: return "?";
     }
 }
@@ -443,9 +446,9 @@ typedef enum {
     MELLO_CTX_GLOBAL_RESET,
     MELLO_CTX_SAMPLE_TOGGLE,
     MELLO_CTX_HOME_RANDOM, /* reroll now, at the intensity ALGORITHM sets */
-    MELLO_CTX_RNDMZR,      /* every page's B5: tap = reroll (undoable), hold = the RANDOM page (what it rolls) */
-    MELLO_CTX_UNDO,        /* the pattern before the last RANDOM/CLEAR; again = redo */
-    MELLO_CTX_MUTATE,      /* a LOW reroll of the pitches only */
+    MELLO_CTX_RNDMZR, /* every page's B5: tap = reroll (undoable), hold = the RANDOM page (what it rolls) */
+    MELLO_CTX_UNDO,   /* the pattern before the last RANDOM/CLEAR; again = redo */
+    MELLO_CTX_MUTATE, /* a LOW reroll of the pitches only */
     MELLO_CTX_TRANSPOSE_DOWN,
     MELLO_CTX_TRANSPOSE_UP
 } MelloContextVerb;
@@ -464,9 +467,13 @@ static const MelloContextAction context_actions[MELLO_UI_SAMPLE_RESERVED + 1u][8
                        [3] = {MELLO_CTX_RANDOM_CLEAR, "CLR2"},
                        [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                        [6] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_SEQ_STEP] = {[4] = {MELLO_CTX_STEP_SKIP, "SKIP"}, [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_SEQ_STEP] = {[4] = {MELLO_CTX_STEP_SKIP, "SKIP"},
+                           [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                           [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_SEQ_SEGMENT] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_SEQ_LOOP] = {[2] = {MELLO_CTX_LOOP_RESET, "RST"}, [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_SEQ_LOOP] = {[2] = {MELLO_CTX_LOOP_RESET, "RST"},
+                           [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                           [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_SEQ_SLOTSEQ] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_RANDOM] = {[1] = {MELLO_CTX_RANDOM_NONE, "NONE"},
                          [2] = {MELLO_CTX_RANDOM_ALL, "ALL"},
@@ -477,23 +484,30 @@ static const MelloContextAction context_actions[MELLO_UI_SAMPLE_RESERVED + 1u][8
     [MELLO_UI_SLOTS] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_DOT] = {[1] = {MELLO_CTX_DOT_REROLL, "RND"},
                       [2] = {MELLO_CTX_DOT_RESET, "RST"},
-                      [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+                      [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                      [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_TURING] = {[0] = {MELLO_CTX_TURING_TOGGLE, "ON"},
                          [1] = {MELLO_CTX_TURING_REROLL, "RND"},
-                         [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+                         [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                         [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_SUB] = {[0] = {MELLO_CTX_SUB_TOGGLE, "ON"},
                       [4] = {MELLO_CTX_SUB_STEP, "STEP"},
-                      [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+                      [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                      [6] = {MELLO_CTX_UNDO, "UNDO"}},
 #if MELLO_FEATURE_CHORD_MACHINE
-    [MELLO_UI_CHORD] = {[0] = {MELLO_CTX_CHORD_TOGGLE, "ON"}, [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_CHORD] = {[0] = {MELLO_CTX_CHORD_TOGGLE, "ON"},
+                        [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                        [6] = {MELLO_CTX_UNDO, "UNDO"}},
 #endif
     [MELLO_UI_GLOBAL] = {[1] = {MELLO_CTX_GLOBAL_TAP, "TAP"},
                          [3] = {MELLO_CTX_GLOBAL_RESET, "RST2"},
-                         [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
+                         [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                         [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_SOUND_RESERVED] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_AUDIO_FX] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_SAMPLE_RESERVED] = {[0] = {MELLO_CTX_SAMPLE_TOGGLE, "ON"},
-                                  [5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}}};
+                                  [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                                  [6] = {MELLO_CTX_UNDO, "UNDO"}}};
 
 static const MelloContextAction *context_action(MelloUiPage page, uint8_t slot)
 {
@@ -536,7 +550,8 @@ static void step_for_midi(MelloEngine *e, uint8_t midi, MelloStep *out)
             probe.octave = oct;
             diff = (int32_t)mello_resolve_step_midi(&e->project, &probe) - (int32_t)midi;
             if (diff < 0) diff = -diff;
-            if (diff < best_d || (diff == best_d && (oct < 0 ? -oct : oct) < (out->octave < 0 ? -out->octave : out->octave))) {
+            if (diff < best_d ||
+                (diff == best_d && (oct < 0 ? -oct : oct) < (out->octave < 0 ? -out->octave : out->octave))) {
                 best_d = diff;
                 out->pitch = (int8_t)d;
                 out->octave = oct;
@@ -552,7 +567,9 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
     uint8_t midi = (uint8_t)(m < 12 ? 12 : m > 108 ? 108 : m);
     if (!e) return;
     if (ui->transport->running && !ui->keys_rec) {
-        e->project.root_note = (uint8_t)(midi < 24u ? 24u : midi > 83u ? 83u : midi); /* the key is the new root */
+        e->project.root_note = (uint8_t)(midi < 24u   ? 24u
+                                         : midi > 83u ? 83u
+                                                      : midi); /* the key is the new root */
         rebuild(ui);
         mark_edit(ui);
         ui->dirty |= MELLO_UI_DIRTY_HEADER;
@@ -1233,15 +1250,15 @@ static void adjust_sound(MelloUi *ui, uint8_t knob, int16_t delta)
     } else if (ui->sound_subpage == 2u) {
         if (knob == 0u)
             c.lfo_on = delta > 0;
-        else if (knob == 1u)
-        { /* ~6% a detent: 0.008-20 Hz is a log range, as the HTML's slider (lfoRateToSlider) */
+        else if (knob ==
+                 1u) { /* ~6% a detent: 0.008-20 Hz is a log range, as the HTML's slider (lfoRateToSlider) */
             int32_t r = c.lfo_rate_millihz, st = r / 16 > 1 ? r / 16 : 1;
             c.lfo_rate_millihz = (uint16_t)clamp_i32(r + delta * st, 8, 20000);
-        }
-        else if (knob == 2u)
+        } else if (knob == 2u)
             c.lfo_depth = (uint16_t)clamp_i32((int32_t)c.lfo_depth + delta * 10, 0, 1000);
         else
-            c.lfo_target = (MelloLfoTarget)wrap_u8((int32_t)c.lfo_target + (delta > 0 ? 1 : -1), 4u);
+            c.lfo_target =
+                (MelloLfoTarget)wrap_u8((int32_t)c.lfo_target + (delta > 0 ? 1 : -1), MELLO_LFO_TARGET_COUNT);
     } else if (ui->sound_subpage == 3u) {
         if (knob == 0u)
             c.follower_sub_on = delta > 0;
@@ -1251,6 +1268,15 @@ static void adjust_sound(MelloUi *ui, uint8_t knob, int16_t delta)
             c.follower_sub_octave = (int8_t)clamp_i32((int32_t)c.follower_sub_octave + delta, -2, 0);
         else
             c.follower_sub_wave = step_sub_waveform(c.follower_sub_wave, delta);
+    } else if (ui->sound_subpage == 5u) { /* GRIT */
+        if (knob == 0u)
+            c.noise_level = (uint16_t)clamp_i32((int32_t)c.noise_level + delta * 10, 0, 1000);
+        else if (knob == 1u)
+            c.noise_fm = (uint16_t)clamp_i32((int32_t)c.noise_fm + delta * 10, 0, 1000);
+        else if (knob == 2u)
+            c.unison = (uint8_t)clamp_i32((int32_t)c.unison + (delta > 0 ? 1 : -1), 1, MELLO_UNISON_MAX);
+        else
+            c.detune = (uint16_t)clamp_i32((int32_t)c.detune + delta * 10, 0, 1000);
     } else {
         if (knob == 0u)
             c.slide_ms = (uint16_t)clamp_i32((int32_t)c.slide_ms + delta * 5, 0, 300);
@@ -1449,11 +1475,16 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
         ui->global_subpage = wrap_u8((int32_t)ui->global_subpage + (delta > 0 ? 1 : -1), 2u);
         break;
     case MELLO_UI_SOUND_RESERVED:
-        /* OSC, ENV, FOLLOWER, LEVEL: the LFO (subpage 2) is MOD's, reached with the LFO button. */
-        if (ui->sound_subpage == 2u) return;
-        do
-            ui->sound_subpage = wrap_u8((int32_t)ui->sound_subpage + (delta > 0 ? 1 : -1), 5u);
-        while (ui->sound_subpage == 2u);
+        /* OSC, GRIT, ENV, FOLLOWER, LEVEL: the LFO (subpage 2) is MOD's, reached with the LFO button. GRIT came
+         * later (subpage 5) and sits after OSC. */
+        {
+            static const uint8_t order[5] = {0u, 5u, 1u, 3u, 4u};
+            uint8_t i;
+            if (ui->sound_subpage == 2u) return;
+            for (i = 0u; i < 5u && order[i] != ui->sound_subpage; ++i) {
+            }
+            ui->sound_subpage = order[wrap_u8((int32_t)(i % 5u) + (delta > 0 ? 1 : -1), 5u)];
+        }
         break;
     case MELLO_UI_AUDIO_FX:
         ui->fx_subpage = wrap_u8((int32_t)ui->fx_subpage + (delta > 0 ? 1 : -1), 5u);
@@ -1537,9 +1568,11 @@ static void adjust_knobs(MelloUi *ui, const int16_t enc_in[MELLO_UI_ENCODER_COUN
         /* HOME's three encoders are fixed globals: TEMPO, RANDOM intensity, PATTERN (to the next saved slot,
          * switched on the next bar while playing). */
         MelloEngine *e = eng(ui);
-        int16_t ds = (int16_t)(enc[MELLO_UI_ENC_SELECT]), da = enc[MELLO_UI_ENC_ALGORITHM], dp = enc[MELLO_UI_ENC_PRESETS];
+        int16_t ds = (int16_t)(enc[MELLO_UI_ENC_SELECT]), da = enc[MELLO_UI_ENC_ALGORITHM],
+                dp = enc[MELLO_UI_ENC_PRESETS];
         if (ds && e) {
-            mello_transport_set_bpm(ui->transport, (uint16_t)clamp_i32((int32_t)e->project.bpm + ds, 20, 250));
+            mello_transport_set_bpm(ui->transport,
+                                    (uint16_t)clamp_i32((int32_t)e->project.bpm + ds, 20, 250));
             mark_edit(ui);
             ui->dirty |= MELLO_UI_DIRTY_HEADER; /* the header shows the tempo */
             show_readout(ui, MELLO_UI_READOUT_TEMPO, now_ms);
@@ -1549,8 +1582,8 @@ static void adjust_knobs(MelloUi *ui, const int16_t enc_in[MELLO_UI_ENCODER_COUN
             show_readout(ui, MELLO_UI_READOUT_INTENSITY, now_ms);
         }
         if (dp && e) {
-            int32_t i = ui->selected_slot, n = e->visible_slot_count < MELLO_MAX_SLOTS ? e->visible_slot_count
-                                                                                       : MELLO_MAX_SLOTS;
+            int32_t i = ui->selected_slot,
+                    n = e->visible_slot_count < MELLO_MAX_SLOTS ? e->visible_slot_count : MELLO_MAX_SLOTS;
             int32_t step = dp > 0 ? 1 : -1, tries;
             for (tries = 0; tries < n; ++tries) {
                 i += step;
@@ -1911,7 +1944,8 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
     }
     if (pressed & bit_u32(MELLO_UI_BTN_GLO)) /* GLOBAL -> SAMPLE -> GLOBAL */
         open_page(ui, ui->page == MELLO_UI_GLOBAL ? MELLO_UI_SAMPLE_RESERVED : MELLO_UI_GLOBAL);
-    if (pressed & bit_u32(MELLO_UI_BTN_ENV)) { /* SOUND: OSC -> ENV -> FOLLOWER -> LEVEL (the LFO is MOD's) */
+    if (pressed &
+        bit_u32(MELLO_UI_BTN_ENV)) { /* SOUND: OSC -> GRIT -> ENV -> FOLLOWER -> LEVEL (LFO is MOD's) */
         if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage != 2u)
             adjust_algorithm(ui, 1);
         else
@@ -1926,10 +1960,10 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
         }
     }
     /* REC is reserved for actual record/capture. No capture path exists yet. */
-    if ((pressed & (bit_u32(MELLO_UI_BTN_OCT_DOWN) | bit_u32(MELLO_UI_BTN_OCT_UP))) && ui->page == MELLO_UI_HOME &&
-        ui->keys_mode) { /* KEYS: OCT-/OCT+ move the keyboard an octave */
-        ui->keys_octave = (int8_t)clamp_i32(
-            ui->keys_octave + ((pressed & bit_u32(MELLO_UI_BTN_OCT_UP)) ? 1 : -1), -2, 2);
+    if ((pressed & (bit_u32(MELLO_UI_BTN_OCT_DOWN) | bit_u32(MELLO_UI_BTN_OCT_UP))) &&
+        ui->page == MELLO_UI_HOME && ui->keys_mode) { /* KEYS: OCT-/OCT+ move the keyboard an octave */
+        ui->keys_octave =
+            (int8_t)clamp_i32(ui->keys_octave + ((pressed & bit_u32(MELLO_UI_BTN_OCT_UP)) ? 1 : -1), -2, 2);
         ui->dirty |= MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_LEDS;
         pressed &= ~(bit_u32(MELLO_UI_BTN_OCT_DOWN) | bit_u32(MELLO_UI_BTN_OCT_UP));
     }
@@ -2248,8 +2282,8 @@ static void ui_vgrad(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, i
     }
 }
 /* The HTML's slider: a dark rounded track, a ring thumb (6 x 6 here, outline in the colour). */
-static void ui_slider(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, uint16_t value, uint16_t max_value,
-                      uint16_t colour)
+static void ui_slider(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, uint16_t value,
+                      uint16_t max_value, uint16_t colour)
 {
     int16_t tx;
     (void)colour; /* the HTML's thumbs are all its green ring; the colour is the value's text */
@@ -2279,7 +2313,6 @@ static void ui_hbar(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, ui
     fillw = (int16_t)(((int32_t)w * value) / max_value);
     if (fillw > 0) o->fill(o->ctx, x, y, fillw, 3, colour);
 }
-
 
 static void ui_env_graph(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t attack,
                          uint16_t decay, uint16_t sustain, uint16_t release, uint16_t colour)
@@ -2382,9 +2415,13 @@ static uint16_t ui_page_accent(MelloUi *ui)
         /* As the HTML colours them: distortion coral, delay turquoise, reverb green. */
         return ui->fx_subpage == 0u ? UI_CORAL : (ui->fx_subpage <= 2u ? UI_CYAN : UI_ACC);
     case MELLO_UI_SOUND_RESERVED:
-        return ui->sound_subpage == 0u
-                   ? UI_CYAN
-                   : (ui->sound_subpage == 2u ? UI_PURPLE : (ui->sound_subpage == 3u ? UI_GOLD : UI_ACC));
+        switch (ui->sound_subpage) {
+        case 0u: return UI_CYAN;
+        case 2u: return UI_PURPLE;
+        case 3u: return UI_GOLD;
+        case 5u: return UI_CORAL; /* grit, as DRIVE */
+        default: return UI_ACC;
+        }
     case MELLO_UI_SAMPLE_RESERVED: return UI_BLUE;
     case MELLO_UI_HOME:
     case MELLO_UI_SEQ_STEP:
@@ -2593,7 +2630,8 @@ static void draw_home_step(MelloUi *ui, const MelloUiDrawOps *o, uint8_t i)
     } else {
         top = active ? seg : ui_mix(seg, UI_BLACK, 125);
         bottom = active ? ui_mix(seg, UI_BLACK, 150) : ui_mix(seg, UI_BLACK, 195);
-        if (h >= 30 && w >= 10) { /* the letter's band solid, so it sits on its own colour; the gradient below */
+        if (h >= 30 &&
+            w >= 10) { /* the letter's band solid, so it sits on its own colour; the gradient below */
             o->fill(o->ctx, (int16_t)(x + 1), top_y, (int16_t)(w - 2), 19, top);
             ui_vgrad(o, (int16_t)(x + 1), (int16_t)(top_y + 19), (int16_t)(w - 2), (int16_t)(h - 19),
                      ui_mix(top, bottom, 60), bottom);
@@ -2697,14 +2735,14 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
         char key[24], *q;
         static const char *n[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
         static const char *sc[MELLO_SCALE_COUNT] = {"CHROM", "MINOR", "DORIAN", "PHRYG", "LYDIAN", "MIXO",
-                                                    "PENTA", "mPENT", "DIM",   "WHOLE", "AUG",    "MAJOR"};
+                                                    "PENTA", "mPENT", "DIM",    "WHOLE", "AUG",    "MAJOR"};
         q = copy_s(key, n[e->project.root_note % 12u]);
         q = copy_s(q, " ");
         (void)copy_s(q, sc[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR]);
         o->text(o->ctx, 4, 7, 84, 0, key, UI_GOLD, 0);
     }
     p = copy_s(b, ui->page == MELLO_UI_HOME && ui->keys_mode ? (ui->keys_rec ? "HOME REC" : "HOME KEYS")
-                                                              : domain_name(ui));
+                                                             : domain_name(ui));
     if (e && !ui->keys_mode &&
         (ui->page == MELLO_UI_HOME || ui->page == MELLO_UI_SEQ_STEP || ui->page == MELLO_UI_SEQ_SEGMENT)) {
         uint8_t seg = ui->page == MELLO_UI_SEQ_SEGMENT ? ui->selected_segment
@@ -3184,7 +3222,8 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             bool sel = i == ui->selected_dot_target;
             if (sel) ui_round_fill(o, tx, 32, 56, 17, ui_mix(tc[i], UI_BLACK, 170));
             ui_round_frame(o, tx, 32, 56, 17, sel ? tc[i] : UI_LINE);
-            o->text(o->ctx, (int16_t)(tx + 2), 33, 52, 0, tn[i], sel ? UI_BRIGHT : ui_mix(tc[i], UI_BLACK, 110), 1);
+            o->text(o->ctx, (int16_t)(tx + 2), 33, 52, 0, tn[i],
+                    sel ? UI_BRIGHT : ui_mix(tc[i], UI_BLACK, 110), 1);
         }
         for (r = 0u; r < 4u; ++r)
             for (col = 0u; col < 4u; ++col) {
@@ -3193,7 +3232,9 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                 bool on = (c->cells & (uint16_t)(1u << idx)) != 0u, inside = idx < len;
                 bool here = at == (int8_t)idx, trail1 = ui->dot_trail[0] == (int8_t)idx,
                      trail2 = ui->dot_trail[1] == (int8_t)idx;
-                uint16_t fillc = !inside ? UI_BLACK : on ? ui_mix(colour, UI_PANEL, here ? 40 : 150) : UI_PANEL;
+                uint16_t fillc = !inside ? UI_BLACK
+                                 : on    ? ui_mix(colour, UI_PANEL, here ? 40 : 150)
+                                         : UI_PANEL;
                 uint16_t edge = here     ? colour
                                 : trail1 ? ui_mix(colour, UI_PANEL, 110)
                                 : trail2 ? ui_mix(colour, UI_PANEL, 170)
@@ -3201,8 +3242,10 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                                          : (inside ? UI_LINE : UI_TRACK);
                 ui_round_fill(o, x, y, 52, 20, fillc);
                 ui_round_frame(o, x, y, 52, 20, edge);
-                if (here) ui_round_frame(o, (int16_t)(x + 1), (int16_t)(y + 1), 50, 18, colour); /* a thicker frame */
-                if (inside) /* the HTML's dot in each cell: bright where on or read */
+                if (here)
+                    ui_round_frame(o, (int16_t)(x + 1), (int16_t)(y + 1), 50, 18,
+                                   colour); /* a thicker frame */
+                if (inside)                 /* the HTML's dot in each cell: bright where on or read */
                     o->fill(o->ctx, (int16_t)(x + 24), (int16_t)(y + 8), here ? 4 : 2, here ? 4 : 2,
                             here ? UI_BRIGHT : (on ? UI_BRIGHT : UI_LINE));
             }
@@ -3499,7 +3542,8 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
             if (f == 3u) px = (int16_t)(px + 6); /* SUB is the next group's first key */
             if (on[f]) ui_round_fill(o, px, 172, w, 16, ui_mix(fc[f], UI_BLACK, 150));
             ui_round_frame(o, px, 172, w, 16, on[f] ? fc[f] : UI_LINE);
-            o->text(o->ctx, (int16_t)(px + 3), 172, (int16_t)(w - 6), 0, fl[f], on[f] ? UI_BRIGHT : UI_DIM, 1);
+            o->text(o->ctx, (int16_t)(px + 3), 172, (int16_t)(w - 6), 0, fl[f], on[f] ? UI_BRIGHT : UI_DIM,
+                    1);
             px = (int16_t)(px + w + 2);
         }
         ui_spaced(o, (int16_t)(px + 6), 172, (int16_t)(236 - px - 6), "STEP", UI_DIM, 2);
@@ -3540,16 +3584,15 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
     }
 }
 
-static const uint16_t CUTOFF_HZ[101] = { /* 80 * 200^(i / 100): logFilterHz, the HTML's cutoff in Hz */
-    80, 84, 89, 94, 99, 104, 110, 116, 122, 129, 136, 143,
-    151, 159, 168, 177, 187, 197, 208, 219, 231, 243, 257, 271,
-    285, 301, 317, 334, 353, 372, 392, 413, 436, 460, 485, 511,
-    539, 568, 599, 632, 666, 702, 740, 781, 823, 868, 915, 965,
-    1018, 1073, 1131, 1193, 1258, 1326, 1398, 1475, 1555, 1639, 1729, 1823,
-    1922, 2026, 2137, 2253, 2375, 2505, 2641, 2785, 2936, 3096, 3264, 3442,
-    3629, 3827, 4035, 4255, 4486, 4730, 4988, 5259, 5545, 5847, 6165, 6500,
-    6854, 7227, 7620, 8035, 8472, 8933, 9419, 9932, 10472, 11042, 11643, 12276,
-    12944, 13649, 14391, 15174, 16000,
+static const uint16_t CUTOFF_HZ[101] = {
+    /* 80 * 200^(i / 100): logFilterHz, the HTML's cutoff in Hz */
+    80,   84,   89,    94,    99,    104,   110,   116,   122,   129,   136,   143,  151,  159,  168,
+    177,  187,  197,   208,   219,   231,   243,   257,   271,   285,   301,   317,  334,  353,  372,
+    392,  413,  436,   460,   485,   511,   539,   568,   599,   632,   666,   702,  740,  781,  823,
+    868,  915,  965,   1018,  1073,  1131,  1193,  1258,  1326,  1398,  1475,  1555, 1639, 1729, 1823,
+    1922, 2026, 2137,  2253,  2375,  2505,  2641,  2785,  2936,  3096,  3264,  3442, 3629, 3827, 4035,
+    4255, 4486, 4730,  4988,  5259,  5545,  5847,  6165,  6500,  6854,  7227,  7620, 8035, 8472, 8933,
+    9419, 9932, 10472, 11042, 11643, 12276, 12944, 13649, 14391, 15174, 16000,
 };
 
 /* Values in music units, as the HTML shows them: 62%, 180MS / 1.2S, 3264HZ / 2.00HZ, D#4. */
@@ -3595,7 +3638,10 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
     if (!e) return false;
     if (ui->page == MELLO_UI_HOME) {
         if (ui->held_step == MELLO_UI_NO_STEP) {
-            v = k == 0u ? e->sound.filter_cut : k == 1u ? e->sound.decay_ms : k == 2u ? e->fx.reverb_wet : e->fx.dist_amount;
+            v = k == 0u   ? e->sound.filter_cut
+                : k == 1u ? e->sound.decay_ms
+                : k == 2u ? e->fx.reverb_wet
+                          : e->fx.dist_amount;
         } else {
             MelloStep *s = &e->project.steps[ui->selected_step % MELLO_MAX_STEPS];
             if (k == 0u) {
@@ -3622,6 +3668,10 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 13: v = c->follower_sub_level; break;
         case 16: v = c->slide_ms, m = 300u; break;
         case 17: v = c->master_level; break;
+        case 20: v = c->noise_level; break;
+        case 21: v = c->noise_fm; break;
+        case 22: v = (uint32_t)c->unison - 1u, m = MELLO_UNISON_MAX - 1u; break;
+        case 23: v = c->detune; break;
         default: return false;
         }
     } else if (ui->page == MELLO_UI_AUDIO_FX) {
@@ -4057,6 +4107,17 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             value_i(v[2], "", e->sound.follower_sub_octave);
             l[3] = "WAVE";
             copy_s(v[3], wave_name(e->sound.follower_sub_wave));
+        } else if (ui->sound_subpage == 5u) {
+            uint32_t d = e->sound.detune;
+            l[0] = "NOISE";
+            value_pct(v[0], e->sound.noise_level);
+            l[1] = "N.FM";
+            value_pct(v[1], e->sound.noise_fm);
+            l[2] = "UNISON";
+            value_u(v[2], "", e->sound.unison);
+            l[3] = "DETUNE"; /* the outer oscillators' offset, as mello_audio: 60 cents * (d / 1000)^2 */
+            value_u(v[3], "", d * d / 1000u * 60u / 1000u);
+            copy_s(v[3] + ui_text_len(v[3]), " CT");
         } else {
             l[0] = "SLIDE";
             value_ms(v[0], e->sound.slide_ms);
@@ -4177,12 +4238,13 @@ static uint16_t knob_colour(MelloUi *ui, uint8_t k)
     return ui_page_accent(ui);
 }
 
-static const uint16_t EXP_NEG_Q15[65] = { /* 32767 * e^(-i / 8): the envelope curve's exponential parts */
+static const uint16_t EXP_NEG_Q15[65] = {
+    /* 32767 * e^(-i / 8): the envelope curve's exponential parts */
     32767, 28917, 25519, 22520, 19874, 17539, 15478, 13659, 12054, 10638, 9388, 8285, 7311,
-    6452, 5694, 5025, 4435, 3913, 3454, 3048, 2690, 2374, 2095, 1849, 1631, 1440,
-    1271, 1121, 989, 873, 771, 680, 600, 530, 467, 412, 364, 321, 283,
-    250, 221, 195, 172, 152, 134, 118, 104, 92, 81, 72, 63, 56,
-    49, 43, 38, 34, 30, 26, 23, 21, 18, 16, 14, 12, 11,
+    6452,  5694,  5025,  4435,  3913,  3454,  3048,  2690,  2374,  2095,  1849, 1631, 1440,
+    1271,  1121,  989,   873,   771,   680,   600,   530,   467,   412,   364,  321,  283,
+    250,   221,   195,   172,   152,   134,   118,   104,   92,    81,    72,   63,   56,
+    49,    43,    38,    34,    30,    26,    23,    21,    18,    16,    14,   12,   11,
 };
 
 /* e^(-t / tau) in Q15 for t / tau in 1/8 steps (0 past 8). */
@@ -4194,8 +4256,8 @@ static int32_t exp_neg_q15(int32_t eighths)
 /* The amp envelope's curve over the panel's top: attack (linear), decay and release (Tone's exponential approach,
  * tau = D / ln 200 roughly, as mello_audio's TONE_ENV) and a held sustain, each in its letter's colour. The times
  * share 3/4 of the width by their length, the sustain hold the rest. */
-static void draw_env_curve(const MelloUiDrawOps *o, const MelloSoundConfig *c, int16_t x0, int16_t y0, int16_t w,
-                           int16_t h)
+static void draw_env_curve(const MelloUiDrawOps *o, const MelloSoundConfig *c, int16_t x0, int16_t y0,
+                           int16_t w, int16_t h)
 {
     static const uint16_t col[4] = {UI_GOLD, UI_CORAL, UI_CYAN, UI_PURPLE};
     uint32_t a = c->attack_ms, d = c->decay_ms, r = c->release_ms, sum = a + d + r, s = c->sustain_permille;
@@ -4216,7 +4278,8 @@ static void draw_env_curve(const MelloUiDrawOps *o, const MelloSoundConfig *c, i
         if (x < wa) {
             seg = 0u, lv = (int32_t)(1000 * (x + 1) / wa);
         } else if (x < wa + wd) {
-            int32_t t8 = (int32_t)((x - wa) * 8 * 5 / wd); /* five time constants over the decay (ln 200 ~ 5.3) */
+            int32_t t8 =
+                (int32_t)((x - wa) * 8 * 5 / wd); /* five time constants over the decay (ln 200 ~ 5.3) */
             seg = 1u, lv = (int32_t)s + ((1000 - (int32_t)s) * exp_neg_q15(t8)) / 32767;
         } else if (x < wa + wd + ws) {
             seg = 2u, lv = (int32_t)s;
@@ -4227,8 +4290,8 @@ static void draw_env_curve(const MelloUiDrawOps *o, const MelloSoundConfig *c, i
         y = (int16_t)(y0 + h - 2 - (lv * (h - 3)) / 1000);
         if (y0 + h - 1 - y - 2 > 0)
             o->fill(o->ctx, (int16_t)(x0 + x), (int16_t)(y + 2), 1, (int16_t)(y0 + h - 1 - y - 2),
-                    ui_mix(col[seg], UI_PANEL, 200)); /* the area, faint */
-        o->fill(o->ctx, (int16_t)(x0 + x), y, 1, 2, col[seg]);    /* the line */
+                    ui_mix(col[seg], UI_PANEL, 200));          /* the area, faint */
+        o->fill(o->ctx, (int16_t)(x0 + x), y, 1, 2, col[seg]); /* the line */
     }
 }
 
@@ -4399,7 +4462,8 @@ static const char *layer_name(const MelloUi *ui)
                       *loop[3] = {"STEP", "HARM", "LOOP"}, *slots[2] = {"LOAD", "RENAME"},
                       *dot[4] = {"ACCENT", "FILTER", "RATCHET", "SUB"}, *tm[3] = {"MAIN", "ROUTES", "DEPTH"},
                       *sub[5] = {"TRIG", "5-SEQ", "STEP", "VOICE", "TONE"}, *glo[2] = {"CLOCK", "MIDI"},
-                      *snd[5] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO", "FOLLOWER SUB", "PLAY / LEVEL"},
+                      *snd[6] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO",
+                                 "FOLLOWER SUB", "PLAY / LEVEL", "GRIT"},
                       *fx[5] = {"DISTORTION", "DELAY", "DELAY CONFIG", "REVERB", "REVERB RETURN"},
                       *smp[4] = {"SAMPLE MAIN", "SAMPLE PITCH", "TRIM / LOOP", "ENVELOPE"};
     switch (ui->page) {
@@ -4411,7 +4475,7 @@ static const char *layer_name(const MelloUi *ui)
     case MELLO_UI_TURING: return tm[ui->tm_subpage % 3u];
     case MELLO_UI_SUB: return sub[ui->sub_subpage % 5u];
     case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 2u];
-    case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 5u];
+    case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 6u];
     case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 5u];
     case MELLO_UI_SAMPLE_RESERVED: return smp[ui->sample_subpage % 4u];
     case MELLO_UI_HOME: return ui->held_step == MELLO_UI_NO_STEP ? 0 : "HELD STEP";
@@ -4422,13 +4486,13 @@ static const char *layer_name(const MelloUi *ui)
 /* The footer's short labels in full, for the readout's large line (13 characters fit). */
 static const char *full_label(const char *l)
 {
-    static const char *map[][2] = {{"CUT", "CUTOFF"},      {"RES", "RESONANCE"},  {"ATK", "ATTACK"},
-                                   {"DEC", "DECAY"},       {"SUS", "SUSTAIN"},    {"REL", "RELEASE"},
-                                   {"PWM", "PULSE WIDTH"}, {"FDBK", "FEEDBACK"},  {"AMT", "AMOUNT"},
-                                   {"CHAR", "CHARACTER"},  {"RATCH", "RATCHET"},  {"OCT", "OCTAVE"},
-                                   {"PRE", "PRE-DELAY"},   {"DIV", "DIVISION"},   {"D.LEVEL", "DIST LEVEL"},
+    static const char *map[][2] = {{"CUT", "CUTOFF"},      {"RES", "RESONANCE"},    {"ATK", "ATTACK"},
+                                   {"DEC", "DECAY"},       {"SUS", "SUSTAIN"},      {"REL", "RELEASE"},
+                                   {"PWM", "PULSE WIDTH"}, {"FDBK", "FEEDBACK"},    {"AMT", "AMOUNT"},
+                                   {"CHAR", "CHARACTER"},  {"RATCH", "RATCHET"},    {"OCT", "OCTAVE"},
+                                   {"PRE", "PRE-DELAY"},   {"DIV", "DIVISION"},     {"D.LEVEL", "DIST LEVEL"},
                                    {"SUBOSC", "SUB OSC"},  {"PROB", "PROBABILITY"}, {"LEN", "LENGTH"},
-                                   {"DEP", "DEPTH"},       {"ACC", "ACCENT"}};
+                                   {"DEP", "DEPTH"},       {"ACC", "ACCENT"},       {"N.FM", "NOISE FM"}};
     uint8_t i;
     for (i = 0u; i < sizeof map / sizeof map[0]; ++i) {
         const char *a = l, *b = map[i][0]; /* no strcmp on the target's libc */
@@ -4451,7 +4515,8 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
         p = copy_s(p, " / ");
         (void)copy_s(p, layer);
     }
-    o->fill(o->ctx, 0, 30, 240, 142, UI_BLACK); /* in place of the body, not over it: no overdraw, no flicker */
+    o->fill(o->ctx, 0, 30, 240, 142,
+            UI_BLACK); /* in place of the body, not over it: no overdraw, no flicker */
     ui_round_fill(o, 6, 40, 228, 124, UI_PANEL);
     ui_round_frame(o, 6, 40, 228, 124, ui_mix(accent, UI_BLACK, 90));
     ui_spaced(o, 12, 46, 216, where, UI_DIM, 1);
@@ -4540,7 +4605,8 @@ static uint32_t calc_key_leds(MelloUi *ui)
         for (i = 0u; i < 16u; ++i)
             if (base + i < e->project.seq_len && !e->project.steps[base + i].skip)
                 mask |= bit_u32(white_key_notes[i]);
-        if (ui->transport->running && at >= base && at < base + 16u) mask ^= bit_u32(white_key_notes[at - base]);
+        if (ui->transport->running && at >= base && at < base + 16u)
+            mask ^= bit_u32(white_key_notes[at - base]);
     } else if (ui->page == MELLO_UI_SEQ_STEP) {
         uint8_t p = (uint8_t)(ui->selected_step % 16u);
         if (ui->selected_step / 16u == ui->step_bank) mask |= bit_u32(white_key_notes[p]);
@@ -4563,7 +4629,8 @@ static uint32_t calc_key_leds(MelloUi *ui)
         int8_t at = e->dot_active_cell[ui->selected_dot_target];
         for (i = 0u; i < 16u; ++i)
             if (bits & (uint16_t)(1u << i)) mask |= bit_u32(white_key_notes[i]);
-        if (at >= 0 && at < 16) mask ^= bit_u32(white_key_notes[at]); /* the read position: inverted, so it shows */
+        if (at >= 0 && at < 16)
+            mask ^= bit_u32(white_key_notes[at]); /* the read position: inverted, so it shows */
     } else if (ui->page == MELLO_UI_TURING) {
         uint8_t base = (uint8_t)(ui->tm_bank * 16u);
         for (i = 0u; i < 16u; ++i)

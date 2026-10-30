@@ -79,7 +79,8 @@ static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, cons
     (void)large;
     (void)c;
     (void)align;
-    if (y == 172 && s && *s && strlen(cap->hint) + strlen(s) + 2u < sizeof cap->hint) { /* the strip's labels */
+    if (y == 172 && s && *s &&
+        strlen(cap->hint) + strlen(s) + 2u < sizeof cap->hint) { /* the strip's labels */
         if (cap->hint[0]) strcat(cap->hint, " ");
         strcat(cap->hint, s);
     }
@@ -256,10 +257,15 @@ static void verify_mod_navigation(void)
         die("MOD wrap", "physical MOD toggled Turing or failed wrap");
     /* ENV after LFO: SOUND from OSC, not the LFO again; ENV again steps SOUND's layers, never onto the LFO. */
     press(&u, 410u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u) die("ENV after LFO", "stayed on Audio LFO");
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u)
+        die("ENV after LFO", "stayed on Audio LFO");
     press(&u, 420u, bit_u32(MELLO_UI_BTN_ENV), 0u);
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 5u)
+        die("ENV 2", "OSC is not followed by GRIT");
+    press(&u, 425u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     press(&u, 430u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 3u) die("ENV 3", "did not skip the LFO layer");
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 3u)
+        die("ENV 4", "did not skip the LFO layer");
     mello_ui_set_page(&u, MELLO_UI_HOME); /* from elsewhere: always the first layer */
     press(&u, 440u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u) die("ENV", "did not open SOUND on OSC");
@@ -313,7 +319,8 @@ static void verify_inactive_and_chord(void)
     if (u.page != MELLO_UI_HOME || memcmp(&before, &t.engine, sizeof before) || u.dirty)
         die("HOME B4", "inactive rail slot is not inert");
     black(&u, 200u, 5u); /* RNDMZR, tapped: rolls, stays on HOME (held, it opens RANDOM) */
-    if (u.page != MELLO_UI_HOME || !memcmp(&before.project.steps, &t.engine.project.steps, sizeof before.project.steps))
+    if (u.page != MELLO_UI_HOME ||
+        !memcmp(&before.project.steps, &t.engine.project.steps, sizeof before.project.steps))
         die("HOME B5", "RNDMZR tap did not roll");
 #if MELLO_FEATURE_CHORD_MACHINE
     setup(&p, &t, &st, &u, MELLO_UI_CHORD);
@@ -338,7 +345,8 @@ static void verify_dot_playhead(void)
     u.dirty = 0u;
     t.engine.dot_active_cell[u.selected_dot_target] = 5;
     mello_ui_tick(&u);
-    if (!(u.dirty & MELLO_UI_DIRTY_BODY) || !(u.dirty & MELLO_UI_DIRTY_LEDS)) die("DOT playhead", "not redrawn");
+    if (!(u.dirty & MELLO_UI_DIRTY_BODY) || !(u.dirty & MELLO_UI_DIRTY_LEDS))
+        die("DOT playhead", "not redrawn");
     u.dirty = 0u;
     mello_ui_tick(&u);
     if (u.dirty & MELLO_UI_DIRTY_BODY) die("DOT playhead", "redrawn without a move");

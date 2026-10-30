@@ -99,8 +99,9 @@ of the HTML (`tools/tone-ref/shoot.mjs`).
 
 Beyond the HTML: decide each one in docs/mello/DECISIONS.md, keep the defaults sounding as now, and keep the surface
 simple (Phase 3's iceberg).
-- [ ] Synth: optional "grit", inspired by the Access Virus: noise mixed in, noise FM of the pitch, unison voices with
-      detune. The default stays a plain saw, as now. All of it modulatable.
+- [x] Synth: optional "grit", inspired by the Access Virus: noise mixed in, noise FM of the pitch, unison voices with
+      detune. The default stays a plain saw, as now. SOUND / GRIT; NOISE, NOISE FM and DETUNE are LFO targets
+      (DECISIONS.md "Grit"). Left: grit on the DOT / EVOLVE routes (with "more modulation targets" below).
 - [ ] Modulation: generally more parameters as modulation targets.
 - [ ] Randomizer: route to several destinations at once, and an invert option per route, so one parameter mirrors
       another inverted.

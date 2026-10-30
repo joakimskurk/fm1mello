@@ -13,7 +13,8 @@ static void fill(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t
 {
     (void)ctx, (void)x, (void)y, (void)w, (void)h, (void)c;
 }
-static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, const char *s, uint16_t c, uint8_t a)
+static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, const char *s, uint16_t c,
+                 uint8_t a)
 {
     (void)ctx, (void)x, (void)w, (void)large, (void)c, (void)a;
     if (y >= 30 && y < 172 && seen_n < 32u) { /* the body only */
@@ -80,7 +81,7 @@ int main(void)
 
     turn(&u, 3000u, MELLO_UI_ENC_SELECT, 1); /* SELECT: the layer, by name */
     render(&u);
-    if (u.readout != MELLO_UI_READOUT_LAYER || !body_has("AMP ENVELOPE")) return fail("SELECT shows no layer");
+    if (u.readout != MELLO_UI_READOUT_LAYER || !body_has("GRIT")) return fail("SELECT shows no layer");
 
     mello_ui_set_page(&u, MELLO_UI_RANDOM); /* a page change drops it */
     if (u.readout) return fail("readout survived a page change");
