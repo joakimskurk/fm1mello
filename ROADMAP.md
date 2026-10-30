@@ -46,7 +46,10 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
 - [x] **EVOLVE longer than 8 steps**: the page shows 8 lanes, windowed on the selected step, so the playing one goes
       out of sight. Show the whole register (up to 32), the one playing always in view. Done: a lane a step across the
       width (7 px each at 32), the playing one framed white, step numbers every fourth where the lanes are narrow.
-- [ ] **Delay: LO CUT and HI CUT** on its return, to shape it (ask: "pre dist").
+- [x] **Delay: LO CUT and HI CUT** on its return, to shape it (ask: "pre dist"). Done: DELAY is WET, FDBK, LO CUT
+      (12 dB an octave, 20 Hz .. 2 kHz, on the return and in the feedback, so each repeat is thinner; OFF by default),
+      HI CUT (the HTML's TONE); LEVEL moved to DELAY CONFIG, D.LEVEL to RETURNS. Not done: "pre dist" (the delay
+      before the distortion?) waits for an answer.
 - [x] **The black keys' strip**: use the whole width, each label over its key, so it is plain which key does what.
       Done: eleven cells across the width in the keys' order, the keyboard's groups apart, a free key a short dim cell,
       the room left shared out; where there is no room for frames (HOME, SEGMENT, DRUMS), plain tinted cells a pixel

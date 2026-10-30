@@ -2301,6 +2301,19 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                     rp1 = rp ? rp - 1u : a->delay_capacity - 1u;
                     d += ((a->delay_buffer[rp1] - d) * (int32_t)fr) >> 8;
                 }
+                if (a->fx.delay_lowcut) {
+                    /* LO CUT, 12 dB an octave, 20 Hz .. 2 kHz: on the return and in the feedback, so each repeat is
+                     * thinner than the last */
+                    /* 2 pi f / fs, Q15: f = 20 Hz x 100^(lowcut / 1000), counted from 320 Hz (48 semitones up) */
+                    int32_t k = (int32_t)(((int64_t)semi_ratio_q16((int32_t)a->fx.delay_lowcut * 797 * 256 / 10000 -
+                                                                   48 * 256) *
+                                           1494) >>
+                                          16);
+                    a->delay_lc[0] += (int32_t)(((int64_t)(d - a->delay_lc[0]) * k) >> 15);
+                    d -= a->delay_lc[0];
+                    a->delay_lc[1] += (int32_t)(((int64_t)(d - a->delay_lc[1]) * k) >> 15);
+                    d -= a->delay_lc[1];
+                }
                 dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
                 a->delay_buffer[a->delay_pos] = sat16(send + d * dly_fb / 1000);
                 if (++a->delay_pos >= a->delay_capacity) a->delay_pos = 0u;

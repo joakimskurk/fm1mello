@@ -17,7 +17,7 @@ enum {
     SECVER_WORKING = 1,
     SECVER_SLOTS = 1,
     SECVER_SLOT_SEQ = 1,
-    SECVER_FX = 1,
+    SECVER_FX = 2, /* 2: the delay's LO CUT */
     SECVER_CHORD = 2, /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading) */
     SECVER_GRIT = 3,
     SECVER_MOD = 3,
@@ -26,7 +26,8 @@ enum {
 
 #define SAMPLE_WIRE_SIZE   83u
 #define SNAPSHOT_WIRE_SIZE 528u
-#define FX_WIRE_SIZE       34u
+#define FX_WIRE_SIZE_V1    34u
+#define FX_WIRE_SIZE       36u
 #define CHORD_WIRE_SIZE_V1 (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
 #define CHORD_WIRE_SIZE    (CHORD_WIRE_SIZE_V1 + 21u)
 #define GRIT_ENTRY_SIZE_V1 8u
@@ -481,8 +482,10 @@ static void encode_fx(Writer *w, const MelloFxConfig *c)
     wr_u16(w, c->reverb_pre_ms);
     wr_u16(w, c->reverb_tone);
     wr_u16(w, c->reverb_level);
+    wr_u16(w, c->delay_lowcut);
 }
-static bool decode_fx(Reader *r, MelloFxConfig *c)
+/* Version 1 has no LO CUT: it stays off. */
+static bool decode_fx(Reader *r, MelloFxConfig *c, uint8_t ver)
 {
     uint8_t b;
     if (!rd_u16(r, &c->dist_amount) || !rd_u16(r, &c->dist_mix) || !rd_u16(r, &c->dist_character) ||
@@ -492,7 +495,8 @@ static bool decode_fx(Reader *r, MelloFxConfig *c)
     return rd_u8(r, &c->delay_div) && rd_u16(r, &c->delay_time_ms) && rd_u16(r, &c->delay_feedback) &&
            rd_u16(r, &c->delay_tone) && rd_u16(r, &c->delay_level) && rd_u16(r, &c->reverb_wet) &&
            rd_u16(r, &c->reverb_size) && rd_u16(r, &c->reverb_decay_ms) && rd_u16(r, &c->reverb_pre_ms) &&
-           rd_u16(r, &c->reverb_tone) && rd_u16(r, &c->reverb_level);
+           rd_u16(r, &c->reverb_tone) && rd_u16(r, &c->reverb_level) &&
+           (ver < 2u || rd_u16(r, &c->delay_lowcut));
 }
 
 /* DRUMS: the kit, then each voice's sound, hits, accents and per-step locks. A reader without this section skips it;
@@ -951,10 +955,10 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             memset(&snap, 0, sizeof(snap));
             if (len != SNAPSHOT_WIRE_SIZE || !decode_snapshot(&r, &snap)) return false;
             if (apply && e && !mello_engine_restore_working(e, &snap)) return false;
-        } else if (id == SEC_FX && ver == SECVER_FX) {
+        } else if (id == SEC_FX && ver >= 1u && ver <= SECVER_FX) {
             MelloFxConfig fx;
             memset(&fx, 0, sizeof(fx));
-            if (len != FX_WIRE_SIZE || !decode_fx(&r, &fx)) return false;
+            if (len != (ver == 1u ? FX_WIRE_SIZE_V1 : FX_WIRE_SIZE) || !decode_fx(&r, &fx, ver)) return false;
             if (apply && e) mello_engine_fx_set_config(e, &fx);
 #if MELLO_FEATURE_CHORD_MACHINE
         } else if (id == SEC_CHORD && ver >= 1u && ver <= SECVER_CHORD) {

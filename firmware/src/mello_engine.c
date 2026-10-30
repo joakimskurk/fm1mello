@@ -379,6 +379,7 @@ static MelloFxConfig sanitize_fx_config(MelloFxConfig c)
     c.delay_time_ms = clamp_u16_range(c.delay_time_ms, 30u, 1500u);
     c.delay_feedback = clamp_u16_range(c.delay_feedback, 0u, 950u);
     c.delay_tone = clamp_amount(c.delay_tone);
+    c.delay_lowcut = clamp_amount(c.delay_lowcut);
     c.delay_level = clamp_u16_range(c.delay_level, 0u, 1500u);
     c.reverb_wet = clamp_amount(c.reverb_wet);
     c.reverb_size = clamp_amount(c.reverb_size);

@@ -1567,9 +1567,9 @@ static void adjust_audio_fx(MelloUi *ui, uint8_t knob, int16_t delta)
         else if (knob == 1u)
             c.delay_feedback = (uint16_t)clamp_i32((int32_t)c.delay_feedback + delta * 10, 0, 950);
         else if (knob == 2u)
-            c.delay_tone = (uint16_t)clamp_i32((int32_t)c.delay_tone + delta * 10, 0, 1000);
+            c.delay_lowcut = (uint16_t)clamp_i32((int32_t)c.delay_lowcut + delta * 10, 0, 1000);
         else
-            c.delay_level = (uint16_t)clamp_i32((int32_t)c.delay_level + delta * 10, 0, 1500);
+            c.delay_tone = (uint16_t)clamp_i32((int32_t)c.delay_tone + delta * 10, 0, 1000);
     } else if (ui->fx_subpage == 2u) {
         if (knob == 0u)
             c.delay_sync = delta > 0;
@@ -1578,7 +1578,7 @@ static void adjust_audio_fx(MelloUi *ui, uint8_t knob, int16_t delta)
         else if (knob == 2u)
             c.delay_time_ms = (uint16_t)clamp_i32((int32_t)c.delay_time_ms + delta * 10, 30, 1500);
         else
-            c.dist_level = (uint16_t)clamp_i32((int32_t)c.dist_level + delta * 10, 200, 1400);
+            c.delay_level = (uint16_t)clamp_i32((int32_t)c.delay_level + delta * 10, 0, 1500);
     } else if (ui->fx_subpage == 3u) {
         if (knob == 0u)
             c.reverb_wet = (uint16_t)clamp_i32((int32_t)c.reverb_wet + delta * 10, 0, 1000);
@@ -1593,6 +1593,8 @@ static void adjust_audio_fx(MelloUi *ui, uint8_t knob, int16_t delta)
             c.reverb_pre_ms = (uint16_t)clamp_i32((int32_t)c.reverb_pre_ms + delta, 0, 120);
         else if (knob == 1u)
             c.reverb_level = (uint16_t)clamp_i32((int32_t)c.reverb_level + delta * 20, 0, 3000);
+        else if (knob == 2u)
+            c.dist_level = (uint16_t)clamp_i32((int32_t)c.dist_level + delta * 10, 200, 1400);
     }
     mello_engine_fx_set_config(e, &c);
     mark_edit(ui);
@@ -1812,6 +1814,12 @@ static const char *domain_name(const MelloUi *ui);
 static uint8_t save_state(const MelloUi *ui);
 static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o);
 static const char *full_label(const char *l);
+/* The delay's LO CUT in Hz: 20 x 100^(x / 1000), 2^f taken as 1 + f (0.657 + 0.343 f) (within 0.3%). */
+static uint32_t delay_lowcut_hz(uint16_t x)
+{
+    uint32_t e = (uint32_t)x * 6644u / 1000u, f = e % 1000u;
+    return (20u << (e / 1000u)) * (1000u + f * (657u + 343u * f / 1000u) / 1000u) / 1000u;
+}
 static void value_millihz(char *b, uint32_t mhz);
 static void show_readout(MelloUi *ui, uint8_t what, uint32_t now_ms)
 {
@@ -4152,16 +4160,17 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 3: v = f->dist_tone; break;
         case 4: v = f->delay_wet; break;
         case 5: v = f->delay_feedback; break;
-        case 6: v = f->delay_tone; break;
-        case 7: v = f->delay_level, m = 1500u; break;
+        case 6: v = f->delay_lowcut; break;
+        case 7: v = f->delay_tone; break;
         case 10: v = f->delay_time_ms, m = 2000u; break;
-        case 11: v = f->dist_level, m = 1400u; break;
+        case 11: v = f->delay_level, m = 1500u; break;
         case 12: v = f->reverb_wet; break;
         case 13: v = f->reverb_size; break;
         case 14: v = f->reverb_decay_ms, m = 60000u; break;
         case 15: v = f->reverb_tone; break;
         case 16: v = f->reverb_pre_ms, m = 120u; break;
         case 17: v = f->reverb_level, m = 3000u; break;
+        case 18: v = f->dist_level, m = 1400u; break;
         default: return false;
         }
     } else if (ui->page == MELLO_UI_SEQ_STEP) { /* the ranges as each adjust_* clamps them */
@@ -4796,10 +4805,13 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             value_pct(v[0], e->fx.delay_wet);
             l[1] = "FDBK";
             value_pct(v[1], e->fx.delay_feedback);
-            l[2] = "TONE";
-            value_pct(v[2], e->fx.delay_tone);
-            l[3] = "LEVEL";
-            value_pct(v[3], e->fx.delay_level);
+            l[2] = "LO CUT";
+            if (e->fx.delay_lowcut)
+                (void)copy_s(put_u32(v[2], delay_lowcut_hz(e->fx.delay_lowcut)), "HZ");
+            else
+                copy_s(v[2], "OFF");
+            l[3] = "HI CUT";
+            value_pct(v[3], e->fx.delay_tone);
         } else if (ui->fx_subpage == 2u) {
             l[0] = "SYNC";
             copy_s(v[0], e->fx.delay_sync ? "ON" : "OFF");
@@ -4807,8 +4819,8 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[1], delay_div_name(e->fx.delay_div));
             l[2] = "TIME";
             value_ms(v[2], e->fx.delay_time_ms);
-            l[3] = "D.LEVEL";
-            value_pct(v[3], e->fx.dist_level);
+            l[3] = "LEVEL";
+            value_pct(v[3], e->fx.delay_level);
         } else if (ui->fx_subpage == 3u) {
             l[0] = "WET";
             value_pct(v[0], e->fx.reverb_wet);
@@ -4823,7 +4835,8 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             value_ms(v[0], e->fx.reverb_pre_ms);
             l[1] = "LEVEL";
             value_pct(v[1], e->fx.reverb_level);
-            copy_s(v[2], "-");
+            l[2] = "D.LEVEL";
+            value_pct(v[2], e->fx.dist_level);
             copy_s(v[3], "-");
         }
         break;
@@ -5152,7 +5165,7 @@ static const char *layer_name(const MelloUi *ui)
                       *sub[5] = {"TRIG", "5-SEQ", "STEP", "VOICE", "TONE"}, *glo[2] = {"CLOCK", "MIDI"},
                       *snd[10] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO", "FOLLOWER SUB", "PLAY / LEVEL",
                                   "GRIT",         "OSC 2",        "CHARACTER", "MOD ENV",      "TRACKING"},
-                      *fx[5] = {"DISTORTION", "DELAY", "DELAY CONFIG", "REVERB", "REVERB RETURN"},
+                      *fx[5] = {"DISTORTION", "DELAY", "DELAY CONFIG", "REVERB", "RETURNS"},
                       *smp[4] = {"SAMPLE MAIN", "SAMPLE PITCH", "TRIM / LOOP", "ENVELOPE"};
     switch (ui->page) {
     case MELLO_UI_SEQ_STEP: return step[ui->step_subpage % 4u];
