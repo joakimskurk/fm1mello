@@ -23,8 +23,9 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
 - [x] **Randomizer EDIT**: on the RANDOM page, EDIT sets how much each target is rolled: a key picks the target, K1
       its amount, the chance a roll changes a step (0-100%, 100 by default = as before); drawn as a bar under each
       pill (random_amounts).
-- [ ] **Noise too strong**: noise is too much from 20-30%, noise FM usable only up to ~15%; rescale both so the whole
-      knob is usable, and a low cut on the noise so it does not fill the low register.
+- [x] **Noise too strong**: NOISE's 100% is the first version's 30% (added noise -21 / -15 / -9 dB under the saw at
+      25 / 50 / 100%), NOISE FM's 100% the first version's 15%; the noise has a low cut (two one-pole highpasses at
+      ~450 Hz, 12 dB an octave): nothing of it under 200 Hz.
 - [ ] **SUB: a DRONE mode**: the sub always on while playing.
 - [ ] **Segments are confusing and hard to adjust**: work deep on making them easy (how they are set, seen and played).
       A new project starts with 3 or 4 segments, no repeats (decide which).

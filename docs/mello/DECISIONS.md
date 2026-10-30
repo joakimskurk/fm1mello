@@ -142,12 +142,14 @@ A splash/boot identity screen is required before final product-polish acceptance
 - **Grit (2026-10-30).** The lead gets optional grit, after the Access Virus: noise, noise FM and unison. The HTML has
   none of it; all of it is off by default, and then the lead is sample for sample the HTML's plain saw
   (`audio_grit_smoke`, `make parity` unchanged). SOUND / GRIT:
-  - **NOISE**: white noise mixed with the oscillator before the filter, so cutoff and resonance shape it. Linear
-    knob, at 100% ~1.7x the saw's RMS. (2026-10-30, first version squared and at most the saw's RMS: behind the
-    default 3.3 kHz cutoff 35% was 22 dB under the saw, inaudible. Now 7 dB under.)
-  - **NOISE FM**: lowpassed noise (~900 Hz) moves the oscillators' frequency by up to ~3 kHz RMS, through zero (the
-    Virus's FM source "noise"). An absolute deviation: the first version's +-100% of the note's own frequency gave a
-    bass note a few Hz of fast jitter, inaudible. Squared knob.
+  - **NOISE**: white noise mixed with the oscillator before the filter, so cutoff and resonance shape it, through a
+    low cut (two one-pole highpasses at ~450 Hz, 12 dB an octave) so it stays out of the low register. Linear; at
+    100% about half the saw's RMS (-9 dB). History: first squared and at most the saw (35% inaudible behind the
+    default cutoff), then linear to 1.7x the saw (too much from 20-30%), now the latter's 30% at full.
+  - **NOISE FM**: lowpassed noise (~900 Hz) moves the oscillators' frequency, through zero (the Virus's FM source
+    "noise"), by up to ~70 Hz RMS at full: an absolute deviation, so that a bass note gets as rough as a high one;
+    squared. History: +-100% of the note's frequency (inaudible on bass), then ~3 kHz RMS (usable only up to 15%),
+    now that 15% at full.
   - **UNISON** 1-4 oscillators, **DETUNE** spreads them up to +-60 cents (squared). The level is 1/sqrt(n), so more
     voices are wider, not louder. The extra oscillators run free from spread phases (never a flanged attack). Mono:
     the FM-1's lead path is mono up to the reverb.

@@ -184,6 +184,7 @@ typedef struct {
     uint32_t lfo_inc;
     uint32_t noise_seed;    /* grit: the white noise generator (an LCG) */
     int32_t nfm_lp;         /* grit: the noise that frequency-modulates the lead, lowpassed */
+    int32_t noise_lc[2];    /* grit: the noise's low cut, two one-pole lowpasses taken away */
     int32_t menv_q24;       /* the MOD envelope, 0..1 << 24: attack (linear), then decay (exponential) */
     int32_t menv_step;      /* attack: per sample */
     int32_t menv_k_q16;     /* decay: the fraction lost per sample, Q16 */

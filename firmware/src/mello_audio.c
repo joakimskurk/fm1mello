@@ -1823,10 +1823,11 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 }
                 if (nfm_amt) {
                     /* Noise FM, as the Virus's FM source "noise": lowpassed noise (~900 Hz) moves the frequency
-                     * by up to ~3 kHz RMS at full, through zero. An absolute deviation, so that a bass note gets
+                     * by up to ~70 Hz RMS at full, through zero. An absolute deviation, so that a bass note gets
                      * as rough as a high one; squared, so the low half of the knob is fine-grained. */
                     a->nfm_lp += (white - a->nfm_lp) >> 3;
-                    dev = ((a->nfm_lp * (nfm_amt * nfm_amt / 1000 * 32767 / 1000)) >> 15) * 58000;
+                    /* 100% is the first version's 15% (feedback 2026-10-30: usable only up to there) */
+                    dev = ((a->nfm_lp * (nfm_amt * nfm_amt / 1000 * 737 / 1000)) >> 15) * 58000;
                 }
                 if (uni > 1u) {
                     /* Unison: detune spreads the oscillators up to +-60 cents (squared). Near 1 the ratio is
@@ -1885,8 +1886,17 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                     o2 = tone_osc_sample(c->osc2_wave, a->lead.osc2_phase, inc_size(v2), pwm);
                     lead = (lead * (1000 - (int32_t)c->osc2_mix) + o2 * (int32_t)c->osc2_mix) / 1000;
                 }
-                if (noise_amt) /* white noise into the filter; linear, at full ~1.7x the saw's RMS */
-                    lead += q15mul(white, noise_amt * 55610 / 1000);
+                if (noise_amt) {
+                    /* White noise into the filter, through a low cut (two one-pole highpasses, ~450 Hz, 12 dB an
+                     * octave) so it stays out of the low register; linear, at full about half the saw's RMS (the
+                     * first version's 30%: feedback 2026-10-30, too much from there). */
+                    int32_t hp = white;
+                    a->noise_lc[0] += (hp - a->noise_lc[0]) >> 4;
+                    hp -= a->noise_lc[0];
+                    a->noise_lc[1] += (hp - a->noise_lc[1]) >> 4;
+                    hp -= a->noise_lc[1];
+                    lead += q15mul(clamp32(hp, -65535, 65535), noise_amt * 16683 / 1000);
+                }
                 if (sat) lead = saturate(clamp32(lead, -65535, 65535), sat);
             }
             if (fsub_level) {
