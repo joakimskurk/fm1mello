@@ -26,7 +26,8 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
 - [x] **Noise too strong**: NOISE's 100% is the first version's 30% (added noise -21 / -15 / -9 dB under the saw at
       25 / 50 / 100%), NOISE FM's 100% the first version's 15%; the noise has a low cut (two one-pole highpasses at
       ~450 Hz, 12 dB an octave): nothing of it under 200 Hz.
-- [ ] **SUB: a DRONE mode**: the sub always on while playing.
+- [x] **SUB: a DRONE mode**: SUB's MODE has DRONE after TM: one sub note from START to STOP at its full LEVEL, through
+      rests and skips; KEY, OCT and the 5SEQ's tones move it (GLIDE), SUB MUTE fades it out and back (sub_drone).
 - [ ] **Segments are confusing and hard to adjust**: work deep on making them easy (how they are set, seen and played).
       A new project starts with 3 or 4 segments, no repeats (decide which).
 

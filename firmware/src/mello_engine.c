@@ -436,7 +436,7 @@ static MelloTmConfig sanitize_tm_config(MelloTmConfig c)
 static MelloSubConfig sanitize_sub_config(MelloSubConfig c)
 {
     uint8_t i;
-    if (c.mode > MELLO_SUB_MODE_TM) c.mode = MELLO_SUB_MODE_STEP;
+    if (c.mode > MELLO_SUB_MODE_DRONE) c.mode = MELLO_SUB_MODE_STEP;
     if (c.euclid_pulses < 1u) c.euclid_pulses = 1u;
     if (c.euclid_pulses > 64u) c.euclid_pulses = 64u;
     if (c.euclid_rotate > 64u) c.euclid_rotate = 64u;
@@ -1152,6 +1152,7 @@ void mello_engine_reset_transport(MelloEngine *e)
     e->has_active_step = false;
     e->perf_hist_n = 0u; /* REVERSE / REPEAT start from this run's pulses */
     e->hold_open = false;
+    e->drone_open = false;
     e->perf_buf_n = 0u;
     mello_event_clear(e);
 }
@@ -2860,6 +2861,11 @@ bool mello_engine_advance_pulse(MelloEngine *e)
                    0u, false, true);
         e->hold_open = false;
     }
+    if (e->drone_open && (!e->sub.on || e->sub.mode != MELLO_SUB_MODE_DRONE)) {
+        emit_basic(e, MELLO_EVENT_SUB_NOTE_OFF, e->now_tick, e->drone_step, 0u, 1u, e->drone_note, 0u, 0u, false,
+                   true);
+        e->drone_open = false;
+    }
     if (e->perf_mode && e->perf_buf_n) {
         pe = e->perf_buf[e->perf_buf_pos];
         e->perf_buf_pos = (uint8_t)((e->perf_buf_pos + 1u) % e->perf_buf_n);
@@ -2985,8 +2991,20 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         } else
             e->sub_x_active_index = -1;
 
-        if (sub_should &&
-            !e->perf.sub_mute) { /* SUB MUTE: no new bass notes (mello_audio fades the sounding one) */
+        if (e->sub.mode == MELLO_SUB_MODE_DRONE) {
+            /* DRONE: one note, never ended by the sequence. A new pitch (KEY, OCT, a 5SEQ tone) glides the same
+             * voice there; the 5SEQ's off steps do not stop it. SUB MUTE fades it in mello_audio, as any bass. */
+            uint8_t sub_note = resolve_sub_midi(e, x_tone, x_oct);
+            if (!e->drone_open || sub_note != e->drone_note) {
+                if (e->drone_open) /* MIDI out ends the old note; the voice is attacked again at once */
+                    emit_basic(e, MELLO_EVENT_SUB_NOTE_OFF, e->now_tick, e->drone_step, 0u, 1u, e->drone_note, 0u,
+                               0u, false, true);
+                emit_basic(e, MELLO_EVENT_SUB_NOTE_ON, e->now_tick, pe.step_index, 0u, pe.total_pulses, sub_note,
+                           114u, 0u, false, pass);
+                e->drone_open = true, e->drone_note = sub_note, e->drone_step = pe.step_index;
+            }
+        } else if (sub_should &&
+                   !e->perf.sub_mute) { /* SUB MUTE: no new bass notes (mello_audio fades the sounding one) */
             uint32_t raw, dur;
             uint8_t sub_note = resolve_sub_midi(e, x_tone, x_oct);
             pulse_ticks = mello_pulse_ticks(&e->project);

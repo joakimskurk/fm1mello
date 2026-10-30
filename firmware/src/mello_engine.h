@@ -153,7 +153,8 @@ typedef enum {
     MELLO_SUB_MODE_STEP = 0,
     MELLO_SUB_MODE_EUCLID,
     MELLO_SUB_MODE_MATRIX,
-    MELLO_SUB_MODE_TM
+    MELLO_SUB_MODE_TM,
+    MELLO_SUB_MODE_DRONE /* one note held from START to STOP; the pitch moves with KEY, OCT and the 5SEQ's tones */
 } MelloSubMode;
 
 typedef enum {
@@ -762,6 +763,10 @@ typedef struct {
     uint8_t hold_note;
     uint8_t hold_step;
     uint8_t hold_total;
+    /* The DRONE sub's note sounding (its ON sent, its OFF at STOP, or when the mode or SUB changes). */
+    bool drone_open;
+    uint8_t drone_note;
+    uint8_t drone_step;
 
     MelloEvent queue[MELLO_EVENT_QUEUE_CAP];
     uint8_t q_head;

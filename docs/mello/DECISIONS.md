@@ -192,6 +192,15 @@ A splash/boot identity screen is required before final product-polish acceptance
   - Saved in SEC_MOD (40 bytes a working pattern or slot, only when it differs from the defaults). MOD 1's amount
     stays in SEC_WORKING / SEC_SLOTS with the HTML's meaning (1000 = depth 240); SEC_MOD carries the exact depth.
 
+## SUB DRONE (2026-10-30)
+
+A fifth sub mode, after TM: the sub as a drone, sounding from START to STOP. The engine sends one SUB NOTE ON at the
+first step and no OFF until STOP, SUB off or another mode; the pitch is worked out at every step as in the other modes
+(KEY, OCT, transpose, the 5SEQ's tone and octave), and a new pitch sends the old note's OFF and the new ON in the same
+tick (MIDI out never hangs), which the voice plays as a glide (GLIDE) from where it is. The 5SEQ's off steps do not stop
+it. The voice holds the attack's full level instead of decaying to 24%: LEVEL is the drone's level, DECAY does nothing,
+RELEASE is its tail after STOP. SUB MUTE fades it out and in as any bass. The HTML has no drone.
+
 ## The randomizer and the sound (2026-10-30)
 
 Feedback: the randomizer ruined the synth sound and there was no way back. The HTML's default mask rolls everything;

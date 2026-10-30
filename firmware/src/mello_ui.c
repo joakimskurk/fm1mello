@@ -1206,7 +1206,7 @@ static void adjust_sub(MelloUi *ui, uint8_t knob, int16_t delta)
     xs = &c.x_steps[ui->selected_sub_x_step];
     if (ui->sub_subpage == 0u) {
         if (knob == 0u)
-            c.mode = (MelloSubMode)wrap_u8((int32_t)c.mode + (delta > 0 ? 1 : -1), 4u);
+            c.mode = (MelloSubMode)wrap_u8((int32_t)c.mode + (delta > 0 ? 1 : -1), 5u);
         else if (knob == 1u)
             c.euclid_pulses = (uint8_t)clamp_i32((int32_t)c.euclid_pulses + delta, 1, 64);
         else if (knob == 2u)
@@ -2480,6 +2480,7 @@ static const char *sub_mode_name(MelloSubMode m)
     return m == MELLO_SUB_MODE_EUCLID   ? "EUCLID"
            : m == MELLO_SUB_MODE_MATRIX ? "MATRIX"
            : m == MELLO_SUB_MODE_TM     ? "TM"
+           : m == MELLO_SUB_MODE_DRONE  ? "DRONE"
                                         : "STEP";
 }
 

@@ -460,7 +460,9 @@ static void sub_curve_tick(MelloAudio *a)
 }
 static void sub_begin_decay(MelloAudio *a)
 {
-    sub_curve_begin(a, permille_q24(240u), a->sub_config.decay_ms);
+    /* DRONE holds the attack's full level: its LEVEL is the drone's level. */
+    sub_curve_begin(a, permille_q24(a->sub_config.mode == MELLO_SUB_MODE_DRONE ? 1000u : 240u),
+                    a->sub_config.decay_ms);
 }
 static void sub_attack(MelloAudio *a, uint8_t note, uint8_t vel)
 {
