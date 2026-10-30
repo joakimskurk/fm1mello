@@ -38,7 +38,11 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
 - [x] **UNDO / REDO**: the key toggles: UNDO, then REDO, back to UNDO when an edit leaves nothing to redo; its label says
       which it will do. Done: REDO on the key after an UNDO; an edit then leaves nothing to redo (the key dims until
       the next roll); an edit after a roll keeps UNDO (undo_redo).
-- [ ] **Reverb crackles in the highs.**
+- [x] **Reverb crackles in the highs.** Found: the reverb runs at half rate, and went in by averaging two samples and out
+      by linear interpolation: a 15 kHz partial (hats, CRUSH, noise, distortion) reached it only 6.8 dB down, folded
+      to an inharmonic ~7 kHz the tone filter cannot take out, and its output imaged above 11 kHz. Now a 31-tap
+      half-band filter each way: 64.9 dB down, and the return above 16 kHz -62 dB (was -59, -23 before the tone
+      filter). No clipping in the network even with the drums and distortion full. To confirm by ear.
 - [ ] **EVOLVE longer than 8 steps**: the page shows 8 lanes, windowed on the selected step, so the playing one goes
       out of sight. Show the whole register (up to 32), the one playing always in view.
 - [ ] **Delay: LO CUT and HI CUT** on its return, to shape it (ask: "pre dist").

@@ -192,6 +192,16 @@ A splash/boot identity screen is required before final product-polish acceptance
   - Saved in SEC_MOD (40 bytes a working pattern or slot, only when it differs from the defaults). MOD 1's amount
     stays in SEC_WORKING / SEC_SLOTS with the HTML's meaning (1000 = depth 240); SEC_MOD carries the exact depth.
 
+## The reverb's way in and out (2026-10-30)
+
+Feedback: "the reverb crackles in the highs". The network runs at fs / 2; it was fed the average of two samples and
+its output linearly interpolated. The average lets most of 11-22 kHz through (a 15 kHz partial only 6.8 dB down),
+folded below 11 kHz as inharmonic tones the reverb's tone filter cannot remove; the hats, CRUSH, the noise and the
+distortion are full of it. Now a 31-tap half-band filter (Kaiser 7.5; flat to 8 kHz within 0.03 dB, -48 dB from
+14 kHz) on the way in and on the way out (polyphase: 17 multiplies a sample in all). A 15 kHz partial now reaches the
+network 64.9 dB down. Parity moves a little both ways (HOT FX level 0.0 dB from -0.4; REVERB CLICK's low band +19.3 dB
+from +17.6, its tone 6.5 from 6.1, RT60 2.86 s from 2.88 against the HTML's 2.69); tests/golden/parity.json updated.
+
 ## Drums (2026-10-30)
 
 A small drum machine, the FM-1's own (the HTML has none): "minimal, classic, Aphex Twin meets Richard Divine; the

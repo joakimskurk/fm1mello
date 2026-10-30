@@ -79,7 +79,7 @@
  {
   "name": "run_full",
   "level_db": -0.3,
-  "env_db": 1.9,
+  "env_db": 2.0,
   "tone_db": 0.7,
   "worst_band_hz": 10079,
   "worst_db": 3.4,
@@ -87,21 +87,21 @@
   "peak_c_dbfs": -13.6,
   "rt60_html_c": [
    2.41,
-   2.5
+   2.51
   ]
  },
  {
   "name": "reverb_click",
   "level_db": -1.0,
   "env_db": 2.0,
-  "tone_db": 6.1,
-  "worst_band_hz": 79,
-  "worst_db": 17.6,
+  "tone_db": 6.5,
+  "worst_band_hz": 99,
+  "worst_db": 19.3,
   "peak_html_dbfs": -16.8,
-  "peak_c_dbfs": -17.4,
+  "peak_c_dbfs": -17.5,
   "rt60_html_c": [
    2.69,
-   2.88
+   2.86
   ]
  },
  {
@@ -161,16 +161,16 @@
  },
  {
   "name": "hot_fx",
-  "level_db": -0.4,
+  "level_db": -0.0,
   "env_db": 1.6,
   "tone_db": 1.6,
   "worst_band_hz": 62,
-  "worst_db": -6.2,
+  "worst_db": -6.3,
   "peak_html_dbfs": 1.8,
   "peak_c_dbfs": -0.0,
   "rt60_html_c": [
    3.12,
-   3.37
+   3.47
   ]
  },
  {

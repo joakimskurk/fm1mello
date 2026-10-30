@@ -1556,19 +1556,39 @@ static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int3
 }
 /* One audio-rate sample of the reverb, the network at half the rate: the input averaged over two samples, the output
  * interpolated back. */
+/* The half-band filter (31 taps, Kaiser 7.5): flat to 8 kHz within 0.03 dB, -48 dB from 14 kHz. Its centre tap is
+ * 1/2 and every other tap 0; these are the odd ones, Q15, nearest the centre first. */
+static const int16_t RV_HB[8] = {10269, -3020, 1401, -668, 291, -105, 27, -3};
 static void reverb_step(MelloAudio *a, int32_t send, int32_t *left, int32_t *right)
 {
-    a->reverb_in_acc += send;
+    uint8_t ip = a->reverb_hb_in_pos, op, j;
+    a->reverb_hb_in[ip] = sat16(send);
+    a->reverb_hb_in_pos = (uint8_t)((ip + 1u) & 31u);
     if (a->reverb_odd) {
-        a->reverb_prev_l = a->reverb_cur_l;
-        a->reverb_prev_r = a->reverb_cur_r;
-        reverb_network_step(a, a->reverb_in_acc / 2, &a->reverb_cur_l, &a->reverb_cur_r);
-        a->reverb_in_acc = 0;
-        *left = (a->reverb_prev_l + a->reverb_cur_l) / 2;
-        *right = (a->reverb_prev_r + a->reverb_cur_r) / 2;
+        /* Down: the input filtered, centred 15 samples back, every other sample into the network. */
+        int32_t acc = (int32_t)a->reverb_hb_in[(ip - 15u) & 31u] * 16384, l, r;
+        for (j = 0u; j < 8u; ++j)
+            acc += RV_HB[j] * ((int32_t)a->reverb_hb_in[(ip - 15u - (2u * j + 1u)) & 31u] +
+                               a->reverb_hb_in[(ip - 15u + (2u * j + 1u)) & 31u]);
+        reverb_network_step(a, acc >> 15, &l, &r);
+        op = a->reverb_hb_out_pos;
+        a->reverb_hb_out[0][op] = sat16(l);
+        a->reverb_hb_out[1][op] = sat16(r);
+        a->reverb_hb_out_pos = (uint8_t)((op + 1u) & 15u);
+        /* Up, the even phase: the network's output 8 of its samples back (the filter's centre). */
+        *left = a->reverb_hb_out[0][(op - 8u) & 15u];
+        *right = a->reverb_hb_out[1][(op - 8u) & 15u];
     } else {
-        *left = a->reverb_cur_l;
-        *right = a->reverb_cur_r;
+        /* Up, the odd phase: half-way between that sample and the next, by the filter's odd taps (doubled). */
+        int32_t al = 0, ar = 0;
+        op = (uint8_t)((a->reverb_hb_out_pos - 1u) & 15u); /* the newest */
+        for (j = 0u; j < 8u; ++j) {
+            uint8_t lo = (uint8_t)((op - 8u - j) & 15u), hi = (uint8_t)((op - 7u + j) & 15u);
+            al += RV_HB[j] * ((int32_t)a->reverb_hb_out[0][lo] + a->reverb_hb_out[0][hi]);
+            ar += RV_HB[j] * ((int32_t)a->reverb_hb_out[1][lo] + a->reverb_hb_out[1][hi]);
+        }
+        *left = al >> 14;
+        *right = ar >> 14;
     }
     a->reverb_odd = !a->reverb_odd;
 }

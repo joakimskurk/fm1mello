@@ -273,8 +273,11 @@ typedef struct {
     uint16_t reverb_mod_di[8];    /* their whole delays and allpass coefficients, updated every 16 samples */
     int16_t reverb_mod_eta[8];
     uint8_t reverb_mod_tick;
-    int32_t reverb_in_acc, reverb_prev_l, reverb_prev_r, reverb_cur_l,
-        reverb_cur_r; /* the half-rate network's */
+    /* The half-rate network's way in and out: a 31-tap half-band filter each (the input at full rate, the outputs
+     * at half rate), so nothing above 11 kHz folds into the reverb or images out of it. */
+    int16_t reverb_hb_in[32];
+    int16_t reverb_hb_out[2][16];
+    uint8_t reverb_hb_in_pos, reverb_hb_out_pos;
     bool reverb_odd;
     uint16_t reverb_send_permille;
     int16_t sub_dist_curve[257];
