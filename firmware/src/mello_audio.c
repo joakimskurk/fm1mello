@@ -700,6 +700,48 @@ static void chord_kill(MelloAudio *a)
 }
 #endif
 
+static void dot_lane_release(MelloAudio *a, MelloDotLane *ln, uint8_t l)
+{
+    uint32_t n = ms_samples(a->modr.dot_release_ms[l]);
+    if (n < 1u) n = 1u;
+    ln->stage = 3u;
+    ln->left = n;
+    ln->step = -(ln->v / (int32_t)n);
+    if (ln->step == 0) ln->step = -1;
+}
+static void dot_lane_attack(MelloAudio *a, MelloDotLane *ln, uint8_t l, int32_t peak)
+{
+    uint32_t n = ms_samples(a->modr.dot_attack_ms[l]);
+    ln->peak = peak;
+    if (n < 1u) {
+        ln->v = peak;
+        if (a->modr.dot_gate[l])
+            ln->stage = 2u;
+        else
+            dot_lane_release(a, ln, l);
+        return;
+    }
+    ln->stage = 1u;
+    ln->left = n;
+    ln->step = (peak - ln->v) / (int32_t)n;
+}
+static void dot_lane_tick(MelloAudio *a, MelloDotLane *ln, uint8_t l)
+{
+    if (ln->stage == 1u) {
+        ln->v += ln->step;
+        if (--ln->left == 0u) {
+            ln->v = ln->peak;
+            if (a->modr.dot_gate[l])
+                ln->stage = 2u;
+            else
+                dot_lane_release(a, ln, l);
+        }
+    } else if (ln->stage == 3u) {
+        ln->v += ln->step;
+        if (--ln->left == 0u || ln->v <= 0) ln->v = 0, ln->stage = 0u;
+    }
+}
+
 /* Which note an ON/OFF pair belongs to. Tone's triggerAttack cancels the envelope's scheduled release, so in the HTML a
  * note that starts before the last one's gate ends plays legato: that NOTE_OFF must not release the new note. */
 static uint32_t event_tag(const MelloEvent *e)
@@ -711,25 +753,35 @@ static void apply_event(MelloAudio *a, const MelloEvent *e)
 {
     if (!a || !e) return;
     if (e->type == MELLO_EVENT_PULSE) {
+        uint8_t l;
+        int32_t dm = 0;
         a->tm_filter_mod_q15 = e->tm_filter_mod_q15;
         a->tm_decay_mod_q15 = e->tm_decay_mod_q15;
-        a->matrix_filter_amount = e->matrix_filter_amount;
-        if (e->tm_decay_mod_q15 != 0) {
-            int32_t d = (int32_t)a->config.decay_ms + ((int32_t)e->tm_decay_mod_q15 * 1000) / 32767;
-            a->effective_decay_ms = (uint16_t)clamp32(d, 5, 800);
+        a->tm_value = e->tm_value;
+        for (l = 0u; l < MELLO_DOT_MOD_LANES; ++l) {
+            /* DOT's MOD lanes. HIT: a lit cell starts an attack (from where the lane is, so hits in a row do not
+             * click) and then the release. GATE: lit cells in a row hold, an unlit one releases. (The HTML's filter
+             * dot also snapped to 0 on every unlit pulse.) */
+            MelloDotLane *ln = &a->dot_lane[l];
+            uint16_t lv = e->dot_mod[l];
+            bool gate = a->modr.dot_gate[l];
+            if (lv == MELLO_DOT_NOT_READ) continue;
+            if (lv && (!gate || ln->stage == 0u || ln->stage == 3u || ln->peak != (int32_t)lv << 16))
+                dot_lane_attack(a, ln, l, (int32_t)lv << 16);
+            else if (!lv && gate && ln->stage && ln->stage != 3u)
+                dot_lane_release(a, ln, l);
+            if (a->modr.dot_target[l] == MELLO_DEST_DECAY) dm += lv ? lv : ln->v >> 16;
         }
-        if (e->matrix_filter_amount) {
-            a->matrix_env_q15 = 0;
-            a->matrix_env_target_q15 = (int32_t)e->matrix_filter_amount * 32767 / 1000;
-            a->matrix_env_left = ms_samples(20u);
-            if (a->matrix_env_left < 1u) a->matrix_env_left = 1u;
-            a->matrix_env_step_q15 = a->matrix_env_target_q15 / (int32_t)a->matrix_env_left;
-            if (a->matrix_env_step_q15 < 1) a->matrix_env_step_q15 = 1;
-            a->matrix_env_attack = true;
-        } else {
-            a->matrix_env_q15 = 0;
-            a->matrix_env_left = 0u;
-            a->matrix_env_attack = false;
+        for (l = 0u; l < MELLO_DOT_MOD_LANES; ++l)
+            if (a->modr.tm_dest[l] == MELLO_DEST_DECAY) dm += a->tm_value * a->modr.tm_depth[l] / 32768;
+        {
+            /* The amp decay for this pulse's notes: EVOLVE's DECAY route (as the HTML, +-1 s), then the DECAY
+             * destination, up to 4x longer or shorter at +-100%. */
+            int32_t d = (int32_t)a->config.decay_ms;
+            if (e->tm_decay_mod_q15) d = clamp32(d + ((int32_t)e->tm_decay_mod_q15 * 1000) / 32767, 5, 800);
+            if (dm)
+                d = (int32_t)inc_times((uint32_t)d, semi_ratio_q16(clamp32(dm, -1000, 1000) * 6144 / 1000));
+            a->effective_decay_ms = (e->tm_decay_mod_q15 || dm) ? (uint16_t)clamp32(d, 5, 5000) : 0u;
         }
     } else if (e->type == MELLO_EVENT_NOTE_ON) {
         a->tm_filter_mod_q15 = e->tm_filter_mod_q15;
@@ -1314,6 +1366,7 @@ static void apply_pending(MelloAudio *a)
                    a->fx.dist_character != a->pending_fx.dist_character;
     reverb_wet_changed = a->fx.reverb_wet != a->pending_fx.reverb_wet;
     a->config = a->pending_config;
+    a->modr = a->pending_modr;
     a->fx = a->pending_fx;
     a->sub_config = a->pending_sub_config;
     a->sample_config = a->pending_sample_config;
@@ -1382,6 +1435,8 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
     a->lead.uni_phase[1] = 0xAAAAAAAAu;
     a->lead.uni_phase[2] = 0x2AAAAAAAu;
     mello_sound_defaults(&a->pending_config);
+    mello_mod_routing_defaults(&a->pending_modr);
+    a->modr = a->pending_modr;
     mello_fx_defaults(&a->pending_fx);
     mello_sub_defaults(&a->pending_sub_config);
     mello_sample_defaults(&a->pending_sample_config);
@@ -1421,6 +1476,14 @@ void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *s, const Mell
     a->pending_fx = *f;
     a->pending_sub_config = *sub;
     a->pending_sample_config = *sample;
+    config_update_end(a, update);
+}
+void mello_audio_set_mod_routing(MelloAudio *a, const MelloModRouting *m)
+{
+    uint32_t update;
+    if (!a || !m) return;
+    update = config_update_begin(a);
+    a->pending_modr = *m;
     config_update_end(a, update);
 }
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -1580,7 +1643,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
     }
     for (i = 0u; i < frames; ++i) {
         int32_t lead = 0, sub = 0, sample_mix = 0, mix, mix_l = 0, mix_r = 0, lfo = 0, ampmod = 32767,
-                mod_env;
+                mod_env, dmod[MELLO_DEST_COUNT];
+        bool mods = false;
 #if MELLO_FEATURE_CHORD_MACHINE
         int32_t chord_mix = 0;
 #endif
@@ -1648,22 +1712,19 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             int32_t cv = (int32_t)cut + TM_FILTER_OFFSET_PERMILLE[ti > 100u ? 100u : ti];
             cut = (uint16_t)clamp32(cv, 0, 1000);
         }
-        if (a->matrix_env_left) {
-            a->matrix_env_q15 += a->matrix_env_step_q15;
-            if (--a->matrix_env_left == 0u && a->matrix_env_attack) {
-                a->matrix_env_q15 = a->matrix_env_target_q15;
-                a->matrix_env_left = ms_samples(140u);
-                if (a->matrix_env_left < 1u) a->matrix_env_left = 1u;
-                a->matrix_env_step_q15 = -(a->matrix_env_target_q15 / (int32_t)a->matrix_env_left);
-                if (a->matrix_env_step_q15 == 0) a->matrix_env_step_q15 = -1;
-                a->matrix_env_attack = false;
-            } else if (a->matrix_env_left == 0u) {
-                a->matrix_env_q15 = 0;
+        if (a->dot_lane[0].stage || a->dot_lane[1].stage || a->tm_value) {
+            /* DOT's MOD lanes and EVOLVE's sound routes, summed per destination in permille of its range. */
+            uint8_t l;
+            memset(dmod, 0, sizeof dmod);
+            for (l = 0u; l < MELLO_DOT_MOD_LANES; ++l) {
+                dot_lane_tick(a, &a->dot_lane[l], l);
+                dmod[a->modr.dot_target[l] % MELLO_DEST_COUNT] += a->dot_lane[l].v >> 16;
+                dmod[a->modr.tm_dest[l] % MELLO_DEST_COUNT] += a->tm_value * a->modr.tm_depth[l] / 32768;
             }
-        }
-        if (a->matrix_env_q15) {
-            int32_t cv = (int32_t)cut + (a->matrix_env_q15 * 240) / 32767;
-            cut = (uint16_t)clamp32(cv, 0, 1000);
+            dmod[MELLO_DEST_OFF] = 0;
+            mods = true;
+            if (dmod[MELLO_DEST_CUTOFF])
+                cut = (uint16_t)clamp32((int32_t)cut + dmod[MELLO_DEST_CUTOFF], 0, 1000);
         }
         if (a->menv_stage == 1u) {
             a->menv_q24 += a->menv_step;
@@ -1676,6 +1737,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         if (mod_env && a->config.menv_target == MELLO_MENV_CUTOFF)
             cut = (uint16_t)clamp32((int32_t)cut + mod_env * 1000 / 32767, 0, 1000);
         res = (uint16_t)lfo_around(res, lfo, a->config.lfo_depth, MELLO_LFO_RES, a);
+        if (mods && dmod[MELLO_DEST_RES])
+            res = (uint16_t)clamp32((int32_t)res + dmod[MELLO_DEST_RES], 0, 1000);
         if (mod_env && a->config.menv_target == MELLO_MENV_RES)
             res = (uint16_t)clamp32((int32_t)res + mod_env * 1000 / 32767, 0, 1000);
         if (a->lead.env_q24 > 0 && a->config.osc_wave != MELLO_WAVE_OFF) {
@@ -1702,6 +1765,11 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             }
             if (mod_env && a->config.menv_target == MELLO_MENV_PITCH) /* +-24 semitones */
                 inc = inc_times(inc, semi_ratio_q16(mod_env * 6144 / 32767));
+            if (mods && dmod[MELLO_DEST_PITCH]) /* +-12 semitones */
+                inc = inc_times(inc,
+                                semi_ratio_q16(clamp32(dmod[MELLO_DEST_PITCH], -1000, 1000) * 3072 / 1000));
+            if (mods && dmod[MELLO_DEST_PWM])
+                pwm = (uint16_t)clamp32((int32_t)pwm + dmod[MELLO_DEST_PWM] * 450 / 1000, 50, 950);
             {
                 /* Grit and the Virus layer. Each part costs nothing while it is off, and the defaults are off:
                  * then this is the HTML's plain saw. */
@@ -1714,6 +1782,11 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 uint32_t inc2 = 0u, before = a->lead.phase;
                 if (mod_env && c->menv_target == MELLO_MENV_NOISE)
                     noise_amt = clamp32(noise_amt + mod_env * 1000 / 32767, 0, 1000);
+                if (mods) {
+                    noise_amt = clamp32(noise_amt + dmod[MELLO_DEST_NOISE], 0, 1000);
+                    nfm_amt = clamp32(nfm_amt + dmod[MELLO_DEST_NOISE_FM], 0, 1000);
+                    sat = clamp32(sat + dmod[MELLO_DEST_SAT], 0, 1000);
+                }
                 if (noise_amt || nfm_amt) {
                     a->noise_seed = a->noise_seed * 1664525u + 1013904223u;
                     white = (int32_t)a->noise_seed >> 16; /* +-32768, uniform */
@@ -1728,7 +1801,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 if (uni > 1u) {
                     /* Unison: detune spreads the oscillators up to +-60 cents (squared). Near 1 the ratio is
                      * 1 + c * ln2 / 1200 to within a cent, so no table: 2^-18 per unit, c * 151.4. */
-                    int32_t det = lfo_around(c->detune, lfo, c->lfo_depth, MELLO_LFO_DETUNE, a);
+                    int32_t det = clamp32(lfo_around(c->detune, lfo, c->lfo_depth, MELLO_LFO_DETUNE, a) +
+                                              (mods ? dmod[MELLO_DEST_DETUNE] : 0),
+                                          0, 1000);
                     int32_t d_q18 = det * det / 1000 * 60 * 1514 / 10000; /* cents * 151.4 */
                     int32_t step =
                         (int32_t)(((inc >> 14) * (uint32_t)d_q18) >> 4) / 3; /* a third of the spread */
@@ -1758,12 +1833,14 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                     if (c->lfo_on && c->lfo_target == MELLO_LFO_OSC2)
                         q8 += lfo * (int32_t)c->lfo_depth / 10667; /* +-12 */
                     if (mod_env && c->menv_target == MELLO_MENV_OSC2)
-                        q8 += mod_env * 12288 / 32767; /* +-48 */
+                        q8 += mod_env * 12288 / 32767;                                         /* +-48 */
+                    if (mods) q8 += clamp32(dmod[MELLO_DEST_OSC2], -1000, 1000) * 6144 / 1000; /* +-24 */
                     r2 = semi_ratio_q16(q8);
                     inc2 = inc_times(inc, r2);
                     fm = lfo_around(c->fm_amount, lfo, c->lfo_depth, MELLO_LFO_FM, a);
                     if (mod_env && c->menv_target == MELLO_MENV_FM)
                         fm = clamp32(fm + mod_env * 1000 / 32767, 0, 1000);
+                    if (mods) fm = clamp32(fm + dmod[MELLO_DEST_FM], 0, 1000);
                     v2 = inc2 + (uint32_t)dev;
                     if (fm) {
                         int64_t d = ((int64_t)inc2 * q15mul(o1, fm * fm / 1000 * 32767 / 1000)) >> 13;

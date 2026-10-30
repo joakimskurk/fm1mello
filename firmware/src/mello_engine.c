@@ -393,6 +393,22 @@ static MelloDotMatrixConfig sanitize_dot_config(MelloDotMatrixConfig c)
     return c;
 }
 
+static MelloModRouting sanitize_mod_routing(MelloModRouting c)
+{
+    uint8_t i;
+    for (i = 0u; i < MELLO_DOT_MOD_LANES; ++i) {
+        if (c.dot_target[i] == MELLO_DEST_OFF || c.dot_target[i] >= MELLO_DEST_COUNT)
+            c.dot_target[i] = i ? MELLO_DEST_NOISE : MELLO_DEST_CUTOFF;
+        c.dot_attack_ms[i] = clamp_u16_range(c.dot_attack_ms[i], 0u, 2000u);
+        c.dot_release_ms[i] = clamp_u16_range(c.dot_release_ms[i], 5u, 4000u);
+        if (c.tm_dest[i] >= MELLO_DEST_COUNT) c.tm_dest[i] = MELLO_DEST_OFF;
+        if (c.tm_depth[i] > 1000) c.tm_depth[i] = 1000;
+        if (c.tm_depth[i] < -1000) c.tm_depth[i] = -1000;
+    }
+    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) c.dot_evolve[i] = clamp_amount(c.dot_evolve[i]);
+    return c;
+}
+
 static MelloTmConfig sanitize_tm_config(MelloTmConfig c)
 {
     c.mutation_prob = c.mutation_prob > MELLO_TM_PROB_MAX ? MELLO_TM_PROB_MAX : c.mutation_prob;
@@ -559,6 +575,28 @@ void mello_dot_matrix_defaults(MelloDotMatrixConfig *c)
     c->reset = true;
     c->follow = false;
     c->amount = MELLO_AMOUNT_MAX;
+}
+
+void mello_dot_defaults_for(MelloDotMatrixConfig *c, uint8_t id)
+{
+    mello_dot_matrix_defaults(c);
+    if (c && (id == MELLO_DOT_MOD1 || id == MELLO_DOT_MOD2)) c->amount = 240u;
+}
+
+void mello_mod_routing_defaults(MelloModRouting *c)
+{
+    uint8_t i;
+    if (!c) return;
+    memset(c, 0, sizeof(*c));
+    for (i = 0u; i < MELLO_DOT_MOD_LANES; ++i) {
+        /* The HTML's filter dot: 20 ms up, 140 ms down, one hit per lit cell. */
+        c->dot_attack_ms[i] = 20u;
+        c->dot_release_ms[i] = 140u;
+        c->tm_depth[i] = 500;
+    }
+    c->dot_target[0] = MELLO_DEST_CUTOFF;
+    c->dot_target[1] = MELLO_DEST_NOISE;
+    c->tm_on_loop = true;
 }
 
 void mello_tm_defaults(MelloTmConfig *c)
@@ -899,8 +937,9 @@ void mello_engine_init(MelloEngine *e, const MelloProject *project, uint32_t see
     sanitize_project(&e->project);
     mello_loop_cycle_defaults(&e->loop_cycle);
     mello_slot_seq_defaults(&e->slot_seq);
-    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) mello_dot_matrix_defaults(&e->dot[i]);
+    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) mello_dot_defaults_for(&e->dot[i], i);
     mello_tm_defaults(&e->tm);
+    mello_mod_routing_defaults(&e->modr);
     mello_sub_defaults(&e->sub);
 #if MELLO_FEATURE_CHORD_MACHINE
     mello_chord_defaults(&e->chord);
@@ -1270,7 +1309,10 @@ static void emit_basic(MelloEngine *e, MelloEventType type, uint32_t tick, uint8
     ev.tm_octave_mod = e->last_mod.tm_octave_mod;
     ev.tm_filter_mod_q15 = e->last_mod.tm_filter_mod_q15;
     ev.tm_decay_mod_q15 = e->last_mod.tm_decay_mod_q15;
-    ev.matrix_filter_amount = e->last_mod.matrix_filter_amount;
+    ev.dot_mod[0] = e->last_mod.dot_mod[0];
+    ev.dot_mod[1] = e->last_mod.dot_mod[1];
+    ev.tm_value =
+        e->tm.on ? (int16_t)(e->last_mod.tm_float ? (int32_t)e->last_mod.tm_float - 32768 : -32767) : 0;
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) ev.dot_cell[i] = e->last_mod.dot_cell[i];
     (void)queue_push(e, &ev);
 }
@@ -1324,7 +1366,10 @@ static void emit_sample_pair(MelloEngine *e, uint32_t on_tick, uint32_t off_tick
     ev.tm_octave_mod = e->last_mod.tm_octave_mod;
     ev.tm_filter_mod_q15 = e->last_mod.tm_filter_mod_q15;
     ev.tm_decay_mod_q15 = e->last_mod.tm_decay_mod_q15;
-    ev.matrix_filter_amount = e->last_mod.matrix_filter_amount;
+    ev.dot_mod[0] = e->last_mod.dot_mod[0];
+    ev.dot_mod[1] = e->last_mod.dot_mod[1];
+    ev.tm_value =
+        e->tm.on ? (int16_t)(e->last_mod.tm_float ? (int32_t)e->last_mod.tm_float - 32768 : -32767) : 0;
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) ev.dot_cell[i] = e->last_mod.dot_cell[i];
     (void)queue_push(e, &ev);
     ev.tick = off_tick;
@@ -1575,6 +1620,7 @@ static bool apply_slot(MelloEngine *e, uint8_t index, bool from_slot_seq, uint32
     /* Source snapshots switch all generative config with a slot; Slot Seq preserves only Loop Cycle. */
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) e->dot[i] = sanitize_dot_config(e->slots[index].dot[i]);
     e->tm = sanitize_tm_config(e->slots[index].tm);
+    e->modr = sanitize_mod_routing(e->slots[index].modr);
     {
         uint8_t saved_len = e->slots[index].tm_bool_len;
         if (saved_len > MELLO_TM_MAX_STEPS) saved_len = MELLO_TM_MAX_STEPS;
@@ -1634,6 +1680,7 @@ void mello_engine_capture_working(const MelloEngine *e, MelloPatternSlot *out)
     out->loop_cycle = e->loop_cycle;
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) out->dot[i] = e->dot[i];
     out->tm = e->tm;
+    out->modr = e->modr;
     out->tm_bool_len = e->tm_bool_len > MELLO_TM_MAX_STEPS ? MELLO_TM_MAX_STEPS : e->tm_bool_len;
     for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i)
         out->tm_bool_reg[i] = (i < out->tm_bool_len && e->tm_bool_reg[i]) ? 1u : 0u;
@@ -1655,6 +1702,7 @@ bool mello_engine_restore_working(MelloEngine *e, const MelloPatternSlot *snapsh
     sanitize_loop_config(&e->loop_cycle);
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) e->dot[i] = sanitize_dot_config(snapshot->dot[i]);
     e->tm = sanitize_tm_config(snapshot->tm);
+    e->modr = sanitize_mod_routing(snapshot->modr);
     saved_len = snapshot->tm_bool_len > MELLO_TM_MAX_STEPS ? MELLO_TM_MAX_STEPS : snapshot->tm_bool_len;
     for (i = 0u; i < saved_len; ++i) e->tm_bool_reg[i] = snapshot->tm_bool_reg[i] ? 1u : 0u;
     for (i = saved_len; i < MELLO_TM_MAX_STEPS; ++i)
@@ -1705,6 +1753,7 @@ bool mello_engine_import_slot(MelloEngine *e, uint8_t index, const MelloPatternS
     sanitize_loop_config(&clean.loop_cycle);
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) clean.dot[i] = sanitize_dot_config(slot->dot[i]);
     clean.tm = sanitize_tm_config(slot->tm);
+    clean.modr = sanitize_mod_routing(slot->modr);
     n = slot->tm_bool_len > MELLO_TM_MAX_STEPS ? MELLO_TM_MAX_STEPS : slot->tm_bool_len;
     clean.tm_bool_len = n;
     for (i = 0u; i < n; ++i) clean.tm_bool_reg[i] = slot->tm_bool_reg[i] ? 1u : 0u;
@@ -1735,6 +1784,7 @@ bool mello_engine_save_slot(MelloEngine *e, uint8_t index, const char *name)
     e->slots[index].loop_cycle = e->loop_cycle;
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) e->slots[index].dot[i] = e->dot[i];
     e->slots[index].tm = e->tm;
+    e->slots[index].modr = e->modr;
     e->slots[index].tm_bool_len = e->tm_bool_len;
     for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i)
         e->slots[index].tm_bool_reg[i] = (i < e->tm_bool_len && e->tm_bool_reg[i]) ? 1u : 0u;
@@ -1841,6 +1891,11 @@ static void tm_ensure_lengths(MelloEngine *e, uint8_t len)
         for (i = e->tm_float_len; i < len; ++i) e->tm_float_reg[i] = gen_unit16(&e->gen_rng);
         e->tm_float_len = len;
     }
+}
+
+void mello_engine_mod_routing_set(MelloEngine *e, const MelloModRouting *config)
+{
+    if (e && config) e->modr = sanitize_mod_routing(*config);
 }
 
 void mello_engine_tm_set_config(MelloEngine *e, const MelloTmConfig *config)
@@ -2314,15 +2369,53 @@ static bool euclid_hit_u32(uint32_t step, uint32_t total, uint32_t pulses, uint3
     return (((i + 1u) * p) / total) != ((i * p) / total);
 }
 
+/* DOT's evolve, at the loop's one: each lit cell moves, with a chance of EVOLVE / 3 (at most 33%), to a free
+ * neighbour on the 4x4 grid among the cells the matrix plays. The number of lit cells stays. */
+static void dot_evolve(MelloEngine *e)
+{
+    uint8_t id;
+    for (id = 0u; id < MELLO_DOT_MATRIX_COUNT; ++id) {
+        MelloDotMatrixConfig *c = &e->dot[id];
+        uint16_t play = 0u, cells = c->cells;
+        uint8_t i, len;
+        if (!e->modr.dot_evolve[id] || !cells) continue;
+        len = c->length < 1u ? 1u : (c->length > MELLO_DOT_CELL_COUNT ? MELLO_DOT_CELL_COUNT : c->length);
+        if (e->dot_runtime[id].length == len)
+            for (i = 0u; i < len; ++i) play |= (uint16_t)(1u << e->dot_runtime[id].order[i]);
+        else
+            play = (uint16_t)((1u << len) - 1u);
+        for (i = 0u; i < MELLO_DOT_CELL_COUNT; ++i) {
+            uint8_t cand[4], n = 0u, r = i >> 2, col = i & 3u, k;
+            if (!(c->cells & (1u << i)) ||
+                !chance_permille(&e->gen_rng, (uint16_t)(e->modr.dot_evolve[id] / 3u)))
+                continue;
+            if (r > 0u) cand[n++] = (uint8_t)(i - 4u);
+            if (r < 3u) cand[n++] = (uint8_t)(i + 4u);
+            if (col > 0u) cand[n++] = (uint8_t)(i - 1u);
+            if (col < 3u) cand[n++] = (uint8_t)(i + 1u);
+            for (k = 0u; k < n;) /* free cells the matrix plays */
+                if ((cells & (1u << cand[k])) || !(play & (1u << cand[k])))
+                    cand[k] = cand[--n];
+                else
+                    ++k;
+            if (!n) continue;
+            k = cand[(uint8_t)rng_bounded(&e->gen_rng, n)];
+            cells = (uint16_t)((cells & ~(1u << i)) | (1u << k));
+        }
+        c->cells = cells;
+    }
+}
+
 static void evaluate_dot_matrices(MelloEngine *e, bool is_step_start, bool *matrix_accent,
-                                  uint8_t *ratchet_add, bool *matrix_sub, uint16_t *filter_amount)
+                                  uint8_t *ratchet_add, bool *matrix_sub,
+                                  uint16_t dot_mod[MELLO_DOT_MOD_LANES])
 {
     uint8_t id;
     uint32_t tick = e->dot_tick, follow = e->dot_follow;
     *matrix_accent = false;
     *ratchet_add = 0u;
     *matrix_sub = false;
-    *filter_amount = 0u;
+    dot_mod[0] = dot_mod[1] = MELLO_DOT_NOT_READ;
     for (id = 0u; id < MELLO_DOT_MATRIX_COUNT; ++id) {
         MelloDotMatrixConfig cfg = sanitize_dot_config(e->dot[id]);
         MelloDotRuntime *rt = &e->dot_runtime[id];
@@ -2330,10 +2423,11 @@ static void evaluate_dot_matrices(MelloEngine *e, bool is_step_start, bool *matr
         uint8_t cell;
         bool on;
         e->dot[id] = cfg;
-        if (cfg.follow && !is_step_start) {
+        if (cfg.follow && !is_step_start) { /* not read this pulse: a MOD lane keeps its state */
             e->last_mod.dot_cell[id] = e->dot_active_cell[id];
             continue;
         }
+        if (id == MELLO_DOT_MOD1 || id == MELLO_DOT_MOD2) dot_mod[id == MELLO_DOT_MOD2] = 0u;
         linear = cfg.follow ? follow : tick;
         base = cfg.reset ? (linear % (uint32_t)(e->project.seq_len ? e->project.seq_len : 16u)) : linear;
         cycle = base / cfg.length;
@@ -2356,8 +2450,9 @@ static void evaluate_dot_matrices(MelloEngine *e, bool is_step_start, bool *matr
         if (!on) continue;
         if (id == MELLO_DOT_ACCENT) {
             if (chance_permille(&e->gen_rng, cfg.amount)) *matrix_accent = true;
-        } else if (id == MELLO_DOT_FILTER) {
-            if (cfg.amount > *filter_amount) *filter_amount = cfg.amount;
+        } else if (id == MELLO_DOT_MOD1 || id == MELLO_DOT_MOD2) {
+            /* A MOD lane's amount is its depth; mello_audio shapes it (MelloModRouting). */
+            dot_mod[id == MELLO_DOT_MOD2] = cfg.amount;
         } else if (id == MELLO_DOT_RATCHET) {
             if (chance_permille(&e->gen_rng, cfg.amount)) *ratchet_add = 1u;
         } else if (id == MELLO_DOT_SUB) {
@@ -2557,7 +2652,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
                          has_gate_override = false;
     uint8_t ratchet_add = 0u, eff_ratchet, main_note;
     MelloGateMode gate_override = MELLO_GATE_SINGLE, eff_gate;
-    uint16_t matrix_filter = 0u;
+    uint16_t dot_mod[MELLO_DOT_MOD_LANES];
     uint32_t pulse_ticks, next_tick, old_loop_ticks;
     int8_t auto_slot = -1;
     uint8_t i;
@@ -2585,7 +2680,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         uint16_t fv;
         int32_t centered;
         tm_ensure_lengths(e, e->tm.length);
-        tm_mutate(e);
+        if (!e->modr.tm_on_loop) tm_mutate(e); /* else at the loop's one, below */
         ti = tm_index_for(e);
         e->tm_active_index = (int8_t)ti;
         b = e->tm_bool_reg[ti] != 0u;
@@ -2612,7 +2707,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     pass = probability_pass(e, s->probability);
     eff_gate = has_gate_override ? gate_override : (pass ? s->gate : MELLO_GATE_REST);
 
-    evaluate_dot_matrices(e, pe.pulse_index == 0u, &matrix_accent, &ratchet_add, &matrix_sub, &matrix_filter);
+    evaluate_dot_matrices(e, pe.pulse_index == 0u, &matrix_accent, &ratchet_add, &matrix_sub, dot_mod);
 #if MELLO_FEATURE_CHORD_MACHINE
     {
         bool step_start = pe.pulse_index == 0u;
@@ -2633,7 +2728,8 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     e->last_mod.effective_ratchet = eff_ratchet;
     e->last_mod.effective_accent = (bool)(s->accent || matrix_accent);
     e->last_mod.matrix_sub = matrix_sub;
-    e->last_mod.matrix_filter_amount = matrix_filter;
+    e->last_mod.dot_mod[0] = dot_mod[0];
+    e->last_mod.dot_mod[1] = dot_mod[1];
 
     main_note = resolve_engine_step_midi_mod(e, s, e->last_mod.tm_octave_mod);
     emit_basic(e, MELLO_EVENT_PULSE, e->now_tick, pe.step_index, pe.pulse_index, pe.total_pulses, main_note,
@@ -2703,6 +2799,13 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     e->absolute_pulse++;
     did_wrap = old_loop_ticks > 0u && (e->absolute_pulse % old_loop_ticks) == 0u;
     if (did_wrap) {
+        /* Evolution waits for the loop's one: the registers and the matrices change between the loop's last pulse
+         * and its first, as much as they would have over the loop pulse by pulse. */
+        if (e->tm.on && e->modr.tm_on_loop) {
+            uint32_t n = old_loop_ticks < 256u ? old_loop_ticks : 256u;
+            while (n--) tm_mutate(e);
+        }
+        dot_evolve(e);
         e->loop_count++;
         emit_basic(e, MELLO_EVENT_PATTERN_WRAP, next_tick, pe.step_index, pe.pulse_index, pe.total_pulses,
                    main_note, 0u, 0u, s->slide, pass);

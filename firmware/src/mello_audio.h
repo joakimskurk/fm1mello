@@ -38,6 +38,15 @@ typedef struct {
     uint32_t left;
 } MelloRamp;
 
+/* A DOT MOD lane's envelope (MelloModRouting): v in permille << 16. Stage 0 off, 1 attack, 2 hold (GATE), 3 release. */
+typedef struct {
+    int32_t v;
+    int32_t peak;
+    int32_t step;
+    uint32_t left;
+    uint8_t stage;
+} MelloDotLane;
+
 typedef struct {
     uint32_t phase;
     uint32_t inc;
@@ -139,6 +148,7 @@ typedef struct {
 
 typedef struct {
     MelloSoundConfig config;
+    MelloModRouting modr;
     MelloFxConfig fx;
     MelloSubConfig sub_config;
     MelloSampleConfig sample_config;
@@ -146,6 +156,7 @@ typedef struct {
     MelloChordConfig chord_config;
 #endif
     MelloSoundConfig pending_config;
+    MelloModRouting pending_modr;
     MelloFxConfig pending_fx;
     MelloSubConfig pending_sub_config;
     MelloSampleConfig pending_sample_config;
@@ -182,16 +193,12 @@ typedef struct {
     uint8_t mf_mode;
     bool mf_coeff_valid;
     int32_t dist_tone_s[2][4]; /* distTone: lowpass -24 = two biquads */
-    int32_t matrix_env_q15;
-    int32_t matrix_env_step_q15;
-    int32_t matrix_env_target_q15;
-    uint32_t matrix_env_left;
-    bool matrix_env_attack;
+    MelloDotLane dot_lane[MELLO_DOT_MOD_LANES];
+    int16_t tm_value; /* EVOLVE's register value at the last pulse, centred */
     uint16_t effective_decay_ms;
     int16_t last_lfo;
     int16_t tm_filter_mod_q15;
     int16_t tm_decay_mod_q15;
-    uint16_t matrix_filter_amount;
 
     int16_t *delay_buffer;
     uint32_t delay_capacity;
@@ -261,6 +268,8 @@ typedef struct {
 
 void mello_audio_init(MelloAudio *a, int16_t *delay_buffer, uint32_t delay_capacity, int16_t *reverb_buffer,
                       uint32_t reverb_capacity);
+/* DOT's MOD lanes and EVOLVE's sound routes (the engine's modr). */
+void mello_audio_set_mod_routing(MelloAudio *a, const MelloModRouting *modr);
 void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *sound, const MelloFxConfig *fx,
                             const MelloSubConfig *sub, const MelloSampleConfig *sample);
 #if MELLO_FEATURE_CHORD_MACHINE

@@ -169,6 +169,26 @@ A splash/boot identity screen is required before final product-polish acceptance
     to -60 dB), TARGET CUTOFF (full range) / PITCH (+-24 st) / OSC 2 (+-48 st: the sync sweep) / FM / NOISE / RES.
   - The LFO also reaches RES, OSC 2 (+-12 st), FM and SAT.
   - Saved with the grit in SEC_GRIT, version 2 (26 bytes an entry); version 1 entries are still read.
+- **DOT and EVOLVE routes (2026-10-30).** DOT and EVOLVE reach the sound's new parameters, both can keep a pattern
+  moving by itself, and both change only at the loop's one (asked for: "in sync with the one after the sequence").
+  - **DOT's MOD lanes.** The HTML's FILTER matrix is MOD 1; MOD 2 is new (a fifth matrix: DOT's tabs ACC, MOD 1,
+    MOD 2, RATCH, SUB). A MOD lane's amount is its DEPTH, in permille of its target's range: 24% (240) by default,
+    the HTML's filter dot at 100%. Each lane has a SHAPE layer (SELECT after the lane): TARGET (cutoff, res, decay,
+    pitch +-12 st, OSC 2 +-24 st, FM, noise, noise FM, sat, detune, PWM), ATK, REL and HOLD: HIT (each lit cell rises
+    in ATK, then falls in REL: AR) or GATE (lit cells in a row hold, an unlit one releases: ASR). Defaults: MOD 1 on
+    CUTOFF, MOD 2 on NOISE, 20 ms / 140 ms HIT: the HTML's filter dot. Departures: a hit starts from where the lane
+    is, not from 0, and an unlit pulse no longer snaps the lane to 0 (both clicked); a lit cell shapes the sound
+    whether or not a note plays on that pulse.
+  - **DOT's EVOLVE** (K4, per matrix; FOLLOW moved to a black key, FLW): at the loop's one each lit cell moves to a
+    free neighbouring cell with a chance of EVOLVE / 3, so a pattern drifts without thinning out or filling up.
+  - **EVOLVE's timing.** The HTML mutates its registers on every pulse. Now, by default (black key LOOP, lit), the
+    same amount of mutation, one per pulse of the loop, happens at the loop's one: the loop plays as it is, and the
+    next one is a variation. LOOP off is the HTML's.
+  - **EVOLVE -> sound.** A fourth layer, SOUND: two routes, DEST A / B (any of the MOD targets) and DEPTH A / B
+    (+-100%): the register value at each pulse, held, as the HTML's FILTER route does.
+  - The loop is the master length (`loop_pulse_length`), 2 bars by default.
+  - Saved in SEC_MOD (40 bytes a working pattern or slot, only when it differs from the defaults). MOD 1's amount
+    stays in SEC_WORKING / SEC_SLOTS with the HTML's meaning (1000 = depth 240); SEC_MOD carries the exact depth.
 
 ## Sequence overview
 

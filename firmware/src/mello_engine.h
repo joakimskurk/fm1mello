@@ -24,7 +24,9 @@ extern "C" {
 #define MELLO_MAX_SLOTS            64u
 #define MELLO_SLOT_NAME_CHARS      18u
 #define MELLO_MAX_SLOT_SEQ_STEPS   64u
-#define MELLO_DOT_MATRIX_COUNT     4u
+#define MELLO_DOT_MATRIX_COUNT     5u
+#define MELLO_DOT_WIRE_COUNT       4u /* SEC_WORKING / SEC_SLOTS hold the first four; MOD 2 is in SEC_MOD */
+#define MELLO_DOT_MOD_LANES        2u
 #define MELLO_DOT_CELL_COUNT       16u
 #ifndef MELLO_FEATURE_CHORD_MACHINE
 #define MELLO_FEATURE_CHORD_MACHINE 1
@@ -115,7 +117,14 @@ typedef enum {
     MELLO_SUB_TONE_OCTAVE
 } MelloSubTone;
 
-typedef enum { MELLO_DOT_ACCENT = 0, MELLO_DOT_FILTER, MELLO_DOT_RATCHET, MELLO_DOT_SUB } MelloDotTarget;
+/* MOD 1 is the HTML's FILTER matrix, with its target and shape now chosen (MelloModRouting); MOD 2 is new. */
+typedef enum {
+    MELLO_DOT_ACCENT = 0,
+    MELLO_DOT_MOD1,
+    MELLO_DOT_RATCHET,
+    MELLO_DOT_SUB,
+    MELLO_DOT_MOD2
+} MelloDotTarget;
 
 typedef enum { MELLO_DOT_HORIZONTAL = 0, MELLO_DOT_VERTICAL, MELLO_DOT_SNAKE, MELLO_DOT_RANDOM } MelloDotMode;
 
@@ -172,6 +181,22 @@ typedef enum {
     MELLO_MENV_RES
 } MelloModEnvTarget;
 #define MELLO_MENV_TARGET_COUNT 6u
+/* Where DOT's MOD lanes and EVOLVE's sound routes go (Phase 5, DECISIONS.md "DOT and EVOLVE routes"). */
+typedef enum {
+    MELLO_DEST_OFF = 0,
+    MELLO_DEST_CUTOFF,
+    MELLO_DEST_RES,
+    MELLO_DEST_DECAY,
+    MELLO_DEST_PITCH,
+    MELLO_DEST_OSC2,
+    MELLO_DEST_FM,
+    MELLO_DEST_NOISE,
+    MELLO_DEST_NOISE_FM,
+    MELLO_DEST_SAT,
+    MELLO_DEST_DETUNE,
+    MELLO_DEST_PWM
+} MelloModDest;
+#define MELLO_DEST_COUNT 12u
 typedef enum { MELLO_FILTER_LP = 0, MELLO_FILTER_HP, MELLO_FILTER_BP, MELLO_FILTER_NOTCH } MelloFilterMode;
 #define MELLO_FILTER_MODE_COUNT 4u
 #define MELLO_UNISON_MAX        4u
@@ -330,6 +355,20 @@ typedef struct {
     uint16_t amount; /* 0..1000 */
 } MelloDotMatrixConfig;
 
+/* DOT's MOD lanes, DOT's evolve and EVOLVE's sound routes and timing. Saved in SEC_MOD (not in the snapshot's own
+ * wire format), with DOT's fifth matrix. */
+typedef struct {
+    uint8_t dot_target[MELLO_DOT_MOD_LANES];      /* MelloModDest, never OFF */
+    uint16_t dot_attack_ms[MELLO_DOT_MOD_LANES];  /* 0..2000 */
+    uint16_t dot_release_ms[MELLO_DOT_MOD_LANES]; /* 5..4000 */
+    bool
+        dot_gate[MELLO_DOT_MOD_LANES]; /* false HIT: each lit cell is a hit (AR); true GATE: lit cells hold */
+    uint16_t dot_evolve[MELLO_DOT_MATRIX_COUNT]; /* 0..1000: lit cells move at the loop's one */
+    uint8_t tm_dest[MELLO_DOT_MOD_LANES];        /* MelloModDest */
+    int16_t tm_depth[MELLO_DOT_MOD_LANES];       /* -1000..1000 */
+    bool tm_on_loop;                             /* EVOLVE mutates at the loop's one, not on every step */
+} MelloModRouting;
+
 typedef struct {
     bool on;
     bool locked;
@@ -471,6 +510,7 @@ typedef struct {
     MelloLoopCycleConfig loop_cycle;
     MelloDotMatrixConfig dot[MELLO_DOT_MATRIX_COUNT];
     MelloTmConfig tm;
+    MelloModRouting modr;
     uint8_t tm_bool_len;
     uint8_t
         tm_bool_reg[MELLO_TM_MAX_STEPS]; /* snapshot saves current bool-array length; load expands to 32 */
@@ -524,11 +564,14 @@ typedef struct {
     bool effective_accent;
     int8_t tm_index;
     int8_t tm_octave_mod;
-    int16_t tm_filter_mod_q15;     /* normalized roughly -0.25..+0.25 */
-    int16_t tm_decay_mod_q15;      /* normalized roughly -0.10..+0.10 */
-    uint16_t matrix_filter_amount; /* 0..1000 */
+    int16_t tm_filter_mod_q15; /* normalized roughly -0.25..+0.25 */
+    int16_t tm_decay_mod_q15;  /* normalized roughly -0.10..+0.10 */
+    uint16_t
+        dot_mod[MELLO_DOT_MOD_LANES]; /* MOD 1 / MOD 2: 0..1000 lit, 0 unlit, MELLO_DOT_NOT_READ not read */
+    int16_t tm_value;                 /* EVOLVE's register value, centred (+-32767); 0 while off */
     int8_t dot_cell[MELLO_DOT_MATRIX_COUNT];
 } MelloEvent;
+#define MELLO_DOT_NOT_READ 0xFFFFu
 
 typedef struct {
     uint32_t state;
@@ -558,7 +601,7 @@ typedef struct {
     uint8_t effective_ratchet;
     bool effective_accent;
     bool matrix_sub;
-    uint16_t matrix_filter_amount;
+    uint16_t dot_mod[MELLO_DOT_MOD_LANES];
     int8_t tm_index;
     bool tm_bool;
     uint16_t tm_float;
@@ -614,6 +657,7 @@ typedef struct {
     int8_t dot_active_cell[MELLO_DOT_MATRIX_COUNT];
 
     MelloTmConfig tm;
+    MelloModRouting modr;
     uint8_t tm_bool_reg[MELLO_TM_MAX_STEPS];
     uint16_t tm_float_reg[MELLO_TM_MAX_STEPS];
     uint8_t tm_bool_len;
@@ -667,6 +711,9 @@ void mello_loop_cycle_set_sub(MelloLoopCycleStep *step, uint8_t tone, int8_t tra
 void mello_slot_seq_defaults(MelloSlotSeqConfig *config);
 void mello_dot_matrix_defaults(MelloDotMatrixConfig *config);
 void mello_tm_defaults(MelloTmConfig *config);
+void mello_mod_routing_defaults(MelloModRouting *config);
+/* DOT's defaults for matrix id (the MOD lanes' amount is their depth: 24%, the HTML's filter dot). */
+void mello_dot_defaults_for(MelloDotMatrixConfig *config, uint8_t id);
 void mello_sub_defaults(MelloSubConfig *config);
 #if MELLO_FEATURE_CHORD_MACHINE
 void mello_chord_defaults(MelloChordConfig *config);
@@ -721,6 +768,7 @@ void mello_engine_dot_reset_runtime(MelloEngine *engine);
 
 /* Turing / Evolve controls. */
 void mello_engine_tm_set_config(MelloEngine *engine, const MelloTmConfig *config);
+void mello_engine_mod_routing_set(MelloEngine *engine, const MelloModRouting *config);
 void mello_engine_tm_set_length(MelloEngine *engine, uint8_t length);
 void mello_engine_tm_reroll(MelloEngine *engine);
 void mello_engine_tm_set_bool_register(MelloEngine *engine, const uint8_t *values, uint8_t count);

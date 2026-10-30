@@ -37,6 +37,7 @@ static MelloSubConfig synced_sub;
 static MelloChordConfig synced_chord;
 #endif
 static MelloSampleConfig synced_sample;
+static MelloModRouting synced_modr;
 static MelloSampleBank sample_bank;
 #ifndef DINGHY_HOST
 static int16_t audio_delay_pool[MELLO_AUDIO_DELAY_SAMPLES] __attribute__((section(".pool")));
@@ -145,6 +146,7 @@ static void sync_audio_config(void)
 #if MELLO_FEATURE_CHORD_MACHINE
         memcmp(&synced_chord, &mt.engine.chord, sizeof synced_chord) ||
 #endif
+        memcmp(&synced_modr, &mt.engine.modr, sizeof synced_modr) ||
         memcmp(&synced_sample, &mt.engine.sample, sizeof synced_sample)) {
         synced_sound = mt.engine.sound;
         synced_fx = mt.engine.fx;
@@ -154,6 +156,8 @@ static void sync_audio_config(void)
 #endif
         synced_sample = mt.engine.sample;
         mello_audio_set_config(&audio, &synced_sound, &synced_fx, &synced_sub, &synced_sample);
+        synced_modr = mt.engine.modr;
+        mello_audio_set_mod_routing(&audio, &synced_modr);
 #if MELLO_FEATURE_CHORD_MACHINE
         mello_audio_set_chord_config(&audio, &synced_chord);
 #endif
