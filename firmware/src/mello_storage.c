@@ -268,7 +268,8 @@ static bool decode_loop(Reader *r, MelloLoopCycleConfig *c)
 static void encode_dot(Writer *w, const MelloDotMatrixConfig *d)
 {
     wr_u16(w, d->cells);
-    wr_u8(w, (uint8_t)d->mode);
+    wr_u8(w, (uint8_t)((uint8_t)d->mode |
+                       (d->reverse ? 0x80u : 0u))); /* REV in bit 7: older builds read HORIZ */
     wr_u8(w, d->length);
     wr_u8(w, d->reset ? 1u : 0u);
     wr_u8(w, d->follow ? 1u : 0u);
@@ -278,7 +279,8 @@ static bool decode_dot(Reader *r, MelloDotMatrixConfig *d)
 {
     uint8_t b;
     if (!rd_u16(r, &d->cells) || !rd_u8(r, &b)) return false;
-    d->mode = (MelloDotMode)b;
+    d->mode = (MelloDotMode)(b & 0x7Fu);
+    d->reverse = (b & 0x80u) != 0u;
     if (!rd_u8(r, &d->length) || !rd_u8(r, &b)) return false;
     d->reset = b != 0u;
     if (!rd_u8(r, &b)) return false;

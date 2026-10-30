@@ -185,7 +185,7 @@ static MelloChordConfig sanitize_chord_config(MelloChordConfig c)
     if (c.attack_ms > 2000u) c.attack_ms = 2000u;
     if (c.release_ms < 5u) c.release_ms = 5u;
     if (c.release_ms > 4000u) c.release_ms = 4000u;
-    if (c.grid_mode > MELLO_DOT_RANDOM) c.grid_mode = MELLO_DOT_HORIZONTAL;
+    if ((uint32_t)c.grid_mode >= MELLO_DOT_MODE_COUNT) c.grid_mode = MELLO_DOT_HORIZONTAL;
     if (c.grid_length < 1u) c.grid_length = 1u;
     if (c.grid_length > 16u) c.grid_length = 16u;
     if (c.grid_amount > 1000u) c.grid_amount = 1000u;
@@ -386,7 +386,7 @@ static uint8_t sanitize_sub_x_length(uint8_t v)
 
 static MelloDotMatrixConfig sanitize_dot_config(MelloDotMatrixConfig c)
 {
-    if (c.mode > MELLO_DOT_RANDOM) c.mode = MELLO_DOT_HORIZONTAL;
+    if ((uint32_t)c.mode >= MELLO_DOT_MODE_COUNT) c.mode = MELLO_DOT_HORIZONTAL;
     if (c.length < 1u) c.length = 1u;
     if (c.length > MELLO_DOT_CELL_COUNT) c.length = MELLO_DOT_CELL_COUNT;
     c.amount = clamp_amount(c.amount);
@@ -859,9 +859,15 @@ void mello_stored_project_decode(MelloProject *p, const MelloStoredProject *d)
     sanitize_project(p);
 }
 
-static void dot_build_order(MelloDotMode mode, uint8_t len, uint8_t out[MELLO_DOT_CELL_COUNT])
+/* A matrix's route: the cells in the order they are read, of the first len cells; returns its period. RANDOM is
+ * HORIZONTAL here (dot_route shuffles it each round); WALK has no fixed route (dot_route steps it). */
+static uint8_t dot_build_order(MelloDotMode mode, uint8_t len, uint8_t out[MELLO_DOT_ROUTE_MAX])
 {
-    uint8_t n = 0u, r, c;
+    static const uint8_t spiral[16] = {0, 1, 2, 3, 7, 11, 15, 14, 13, 12, 8, 4, 5, 6, 10, 9};
+    static const uint8_t diagonal[16] = {0, 1, 4, 2, 5, 8, 3, 6, 9, 12, 7, 10, 13, 11, 14, 15};
+    /* down a row each read, across 0 1 2 3 2 1: twelve reads, so it comes round against 16 steps */
+    static const uint8_t bounce[12] = {0, 5, 10, 15, 2, 5, 8, 13, 2, 7, 10, 13};
+    uint8_t n = 0u, r, c, i;
     if (len < 1u) len = 1u;
     if (len > MELLO_DOT_CELL_COUNT) len = MELLO_DOT_CELL_COUNT;
     if (mode == MELLO_DOT_VERTICAL) {
@@ -874,16 +880,31 @@ static void dot_build_order(MelloDotMode mode, uint8_t len, uint8_t out[MELLO_DO
             else
                 for (c = 4u; c > 0u && n < len; --c) out[n++] = (uint8_t)(r * 4u + (c - 1u));
         }
+    } else if (mode == MELLO_DOT_SPIRAL || mode == MELLO_DOT_DIAGONAL) {
+        for (n = 0u; n < len; ++n) out[n] = mode == MELLO_DOT_SPIRAL ? spiral[n] : diagonal[n];
+    } else if (mode == MELLO_DOT_BOUNCE) { /* the ball's path, on the first len cells only */
+        for (i = 0u; i < 12u; ++i)
+            if (bounce[i] < len) out[n++] = bounce[i];
+        if (!n) out[n++] = 0u;
     } else {
         for (n = 0u; n < len; ++n) out[n] = n;
+        if (mode == MELLO_DOT_PINGPONG)
+            for (i = (uint8_t)(len - 1u); i > 1u; --i) out[n++] = (uint8_t)(i - 1u);
     }
-    while (n < MELLO_DOT_CELL_COUNT) {
-        out[n] = n;
-        n++;
-    }
+    for (i = n; i < MELLO_DOT_ROUTE_MAX; ++i) out[i] = 0u;
+    return n;
 }
 
-static void dot_shuffle_order(MelloEngine *e, uint8_t order[MELLO_DOT_CELL_COUNT], uint8_t len)
+/* The cell a matrix reads now: base counts its reads (RESET folds it to the sequence's length). */
+static uint8_t dot_route(MelloEngine *e, MelloDotRuntime *rt, MelloDotMode mode, uint8_t len, bool reverse,
+                         uint32_t base);
+
+uint8_t mello_dot_route(MelloDotMode mode, uint8_t length, uint8_t out[MELLO_DOT_ROUTE_MAX])
+{
+    return dot_build_order(mode, length, out);
+}
+
+static void dot_shuffle_order(MelloEngine *e, uint8_t order[MELLO_DOT_ROUTE_MAX], uint8_t len)
 {
     int32_t i;
     if (!e || len <= 1u) return;
@@ -907,8 +928,8 @@ void mello_engine_dot_reset_runtime(MelloEngine *e)
         e->dot_runtime[i].mode = c.mode;
         e->dot_runtime[i].length = c.length;
         e->dot_runtime[i].cycle = -1;
-        dot_build_order(c.mode == MELLO_DOT_RANDOM ? MELLO_DOT_HORIZONTAL : c.mode, c.length,
-                        e->dot_runtime[i].order);
+        e->dot_runtime[i].walk = 0u;
+        e->dot_runtime[i].period = dot_build_order(c.mode, c.length, e->dot_runtime[i].order);
         if (c.mode == MELLO_DOT_RANDOM) dot_shuffle_order(e, e->dot_runtime[i].order, c.length);
         e->dot_active_cell[i] = -1;
     }
@@ -2424,8 +2445,9 @@ static void dot_evolve(MelloEngine *e)
         uint8_t i, len;
         if (!e->modr.dot_evolve[id] || !cells) continue;
         len = c->length < 1u ? 1u : (c->length > MELLO_DOT_CELL_COUNT ? MELLO_DOT_CELL_COUNT : c->length);
-        if (e->dot_runtime[id].length == len)
-            for (i = 0u; i < len; ++i) play |= (uint16_t)(1u << e->dot_runtime[id].order[i]);
+        if (e->dot_runtime[id].length == len && e->dot_runtime[id].mode != MELLO_DOT_WALK)
+            for (i = 0u; i < e->dot_runtime[id].period; ++i)
+                play |= (uint16_t)(1u << e->dot_runtime[id].order[i]);
         else
             play = (uint16_t)((1u << len) - 1u);
         for (i = 0u; i < MELLO_DOT_CELL_COUNT; ++i) {
@@ -2450,6 +2472,36 @@ static void dot_evolve(MelloEngine *e)
     }
 }
 
+static uint8_t dot_route(MelloEngine *e, MelloDotRuntime *rt, MelloDotMode mode, uint8_t len, bool reverse,
+                         uint32_t base)
+{
+    uint32_t cycle, pos;
+    if (len < 1u) len = 1u;
+    if (rt->mode != mode || rt->length != len || !rt->period) {
+        rt->mode = mode;
+        rt->length = len;
+        rt->cycle = -1;
+        rt->walk = 0u;
+        rt->period = dot_build_order(mode, len, rt->order);
+        if (mode == MELLO_DOT_RANDOM) dot_shuffle_order(e, rt->order, len);
+    }
+    if (mode == MELLO_DOT_WALK) { /* here now; next time a random neighbour among the first len cells */
+        uint8_t here = rt->walk < len ? rt->walk : 0u, cand[4], n = 0u, r = here >> 2, c = here & 3u;
+        if (r > 0u && here - 4u < len) cand[n++] = (uint8_t)(here - 4u);
+        if (r < 3u && here + 4u < len) cand[n++] = (uint8_t)(here + 4u);
+        if (c > 0u) cand[n++] = (uint8_t)(here - 1u);
+        if (c < 3u && here + 1u < len) cand[n++] = (uint8_t)(here + 1u);
+        rt->walk = n ? cand[rng_bounded(&e->gen_rng, n)] : here;
+        return here;
+    }
+    cycle = base / rt->period;
+    if (mode == MELLO_DOT_RANDOM && rt->cycle != (int32_t)cycle) dot_shuffle_order(e, rt->order, len);
+    rt->cycle = (int32_t)cycle;
+    pos = base % rt->period;
+    if (reverse) pos = rt->period - 1u - pos;
+    return rt->order[pos];
+}
+
 static void evaluate_dot_matrices(MelloEngine *e, bool is_step_start, bool *matrix_accent,
                                   uint8_t *ratchet_add, bool *matrix_sub,
                                   uint16_t dot_mod[MELLO_DOT_MOD_LANES])
@@ -2463,7 +2515,7 @@ static void evaluate_dot_matrices(MelloEngine *e, bool is_step_start, bool *matr
     for (id = 0u; id < MELLO_DOT_MATRIX_COUNT; ++id) {
         MelloDotMatrixConfig cfg = sanitize_dot_config(e->dot[id]);
         MelloDotRuntime *rt = &e->dot_runtime[id];
-        uint32_t linear, base, cycle, pos;
+        uint32_t linear, base;
         uint8_t cell;
         bool on;
         e->dot[id] = cfg;
@@ -2474,20 +2526,7 @@ static void evaluate_dot_matrices(MelloEngine *e, bool is_step_start, bool *matr
         if (id == MELLO_DOT_MOD1 || id == MELLO_DOT_MOD2) dot_mod[id == MELLO_DOT_MOD2] = 0u;
         linear = cfg.follow ? follow : tick;
         base = cfg.reset ? (linear % (uint32_t)(e->project.seq_len ? e->project.seq_len : 16u)) : linear;
-        cycle = base / cfg.length;
-        if (rt->mode != cfg.mode || rt->length != cfg.length) {
-            rt->mode = cfg.mode;
-            rt->length = cfg.length;
-            rt->cycle = -1;
-            dot_build_order(cfg.mode == MELLO_DOT_RANDOM ? MELLO_DOT_HORIZONTAL : cfg.mode, cfg.length,
-                            rt->order);
-            if (cfg.mode == MELLO_DOT_RANDOM) dot_shuffle_order(e, rt->order, cfg.length);
-        }
-        if (cfg.mode == MELLO_DOT_RANDOM && rt->cycle != (int32_t)cycle)
-            dot_shuffle_order(e, rt->order, cfg.length);
-        rt->cycle = (int32_t)cycle;
-        pos = base % cfg.length;
-        cell = rt->order[pos];
+        cell = dot_route(e, rt, cfg.mode, cfg.length, cfg.reverse, base);
         e->dot_active_cell[id] = (int8_t)cell;
         e->last_mod.dot_cell[id] = (int8_t)cell;
         on = (cfg.cells & (uint16_t)(1u << cell)) != 0u;
@@ -2571,27 +2610,14 @@ static bool chord_grid_hit(MelloEngine *e, bool is_step_start)
 {
     MelloChordConfig *c = &e->chord;
     MelloDotRuntime *rt = &e->chord_grid_runtime;
-    uint32_t linear, base, cycle, pos;
+    uint32_t linear, base;
     uint8_t cell;
     bool on;
     if (c->trigger != MELLO_CHORD_TRIGGER_GRID) return is_step_start;
     if (c->grid_follow && !is_step_start) return false;
     linear = c->grid_follow ? e->chord_grid_follow : e->chord_grid_tick;
     base = c->grid_reset ? (linear % (uint32_t)(e->project.seq_len ? e->project.seq_len : 16u)) : linear;
-    cycle = base / c->grid_length;
-    if (rt->mode != c->grid_mode || rt->length != c->grid_length) {
-        rt->mode = c->grid_mode;
-        rt->length = c->grid_length;
-        rt->cycle = -1;
-        dot_build_order(c->grid_mode == MELLO_DOT_RANDOM ? MELLO_DOT_HORIZONTAL : c->grid_mode,
-                        c->grid_length, rt->order);
-        if (c->grid_mode == MELLO_DOT_RANDOM) dot_shuffle_order(e, rt->order, c->grid_length);
-    }
-    if (c->grid_mode == MELLO_DOT_RANDOM && rt->cycle != (int32_t)cycle)
-        dot_shuffle_order(e, rt->order, c->grid_length);
-    rt->cycle = (int32_t)cycle;
-    pos = base % c->grid_length;
-    cell = rt->order[pos];
+    cell = dot_route(e, rt, c->grid_mode, c->grid_length, false, base);
     e->chord_grid_active_cell = (int8_t)cell;
     on = (c->grid_cells & (uint16_t)(1u << cell)) != 0u;
     e->chord_grid_tick++;

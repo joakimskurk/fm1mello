@@ -126,7 +126,21 @@ typedef enum {
     MELLO_DOT_MOD2
 } MelloDotTarget;
 
-typedef enum { MELLO_DOT_HORIZONTAL = 0, MELLO_DOT_VERTICAL, MELLO_DOT_SNAKE, MELLO_DOT_RANDOM } MelloDotMode;
+/* The order a matrix reads its cells in. The first four are the HTML's; the rest are Phase 5's (DECISIONS.md "DOT
+ * orders"). REV (MelloDotMatrixConfig.reverse) runs any of them backwards. */
+typedef enum {
+    MELLO_DOT_HORIZONTAL = 0,
+    MELLO_DOT_VERTICAL,
+    MELLO_DOT_SNAKE,
+    MELLO_DOT_RANDOM,
+    MELLO_DOT_PINGPONG, /* there and back, the ends once: 2 x LEN - 2 long */
+    MELLO_DOT_SPIRAL,   /* from the outside in, clockwise */
+    MELLO_DOT_DIAGONAL, /* the diagonals, one more cell each, then fewer */
+    MELLO_DOT_BOUNCE,   /* down the rows while bouncing side to side: 12 long, against the steps' 16 */
+    MELLO_DOT_WALK      /* each read to a random neighbour */
+} MelloDotMode;
+#define MELLO_DOT_MODE_COUNT 9u
+#define MELLO_DOT_ROUTE_MAX  32u
 
 typedef enum { MELLO_TM_RATE_HALF = 0, MELLO_TM_RATE_ONE, MELLO_TM_RATE_DOUBLE } MelloTmRate;
 
@@ -353,6 +367,7 @@ typedef struct {
     bool reset;      /* source reset=true wraps linear domain at seqLen */
     bool follow;     /* true: evaluate only on pulseIdx==0 */
     uint16_t amount; /* 0..1000 */
+    bool reverse;    /* REV: the route backwards (saved in bit 7 of the mode byte) */
 } MelloDotMatrixConfig;
 
 /* HOME's performance keys, held (DECISIONS.md "Performance keys"). */
@@ -603,7 +618,9 @@ typedef struct {
     MelloDotMode mode;
     uint8_t length;
     int32_t cycle;
-    uint8_t order[MELLO_DOT_CELL_COUNT];
+    uint8_t order[MELLO_DOT_ROUTE_MAX]; /* the route, period long */
+    uint8_t period;
+    uint8_t walk; /* WALK: the cell it is on */
 } MelloDotRuntime;
 
 typedef struct {
@@ -788,6 +805,8 @@ void mello_engine_dot_set_config(MelloEngine *engine, MelloDotTarget target,
 void mello_engine_dot_set_cells(MelloEngine *engine, MelloDotTarget target, uint16_t cells);
 void mello_engine_dot_randomize_cells(MelloEngine *engine, MelloDotTarget target);
 void mello_engine_dot_reset_runtime(MelloEngine *engine);
+/* A route as the engine reads it (out: cells in order); returns its length. RANDOM and WALK have none fixed. */
+uint8_t mello_dot_route(MelloDotMode mode, uint8_t length, uint8_t out[MELLO_DOT_ROUTE_MAX]);
 
 /* Turing / Evolve controls. */
 void mello_engine_tm_set_config(MelloEngine *engine, const MelloTmConfig *config);

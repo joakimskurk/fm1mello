@@ -190,6 +190,20 @@ A splash/boot identity screen is required before final product-polish acceptance
   - Saved in SEC_MOD (40 bytes a working pattern or slot, only when it differs from the defaults). MOD 1's amount
     stays in SEC_WORKING / SEC_SLOTS with the HTML's meaning (1000 = depth 240); SEC_MOD carries the exact depth.
 
+## DOT orders (2026-10-30)
+
+Beyond the HTML's HORIZ, VERT, SNAKE and RANDOM, five routes; the chord trigger grid gets them too (one routine,
+`dot_route`):
+- **P-PONG** there and back without doubling the ends (2 x LEN - 2 long, so it drifts against the sequence and meets
+  it again); **SPIRAL** from the outside in (LEN 12 is the outer ring); **DIAG** the diagonals, one more cell each
+  then fewer; **BOUNCE** down a row each read while bouncing side to side, 12 reads long against 16 steps;
+  **WALK** each read to a random neighbour, so it wanders but stays near where it was.
+- LEN is the route's first cells; for BOUNCE and WALK it is the cells they may visit (1..LEN).
+- **REV** is a direction, not a route: a black key on the DOT page runs any route backwards (WALK and RANDOM have
+  none to reverse). It is saved in bit 7 of the mode byte, which older builds read as HORIZ.
+- On screen the route is numbered in its cells (the first time it reaches each; REV counts from the end), and MODE is
+  one pill by name: eight pills would not fit, and the numbers show the route before it is heard.
+
 ## Performance keys (2026-10-30)
 
 HOME's black keys, in the keyboard's groups: `- + MUT | FL SB | << RP |< | CL UNDO | RNDMZR`. RNDMZR is the last key
