@@ -71,6 +71,8 @@ typedef struct {
     uint32_t env_linear_left;
     uint32_t env_curve_coeff_q31;
     uint32_t uni_phase[MELLO_UNISON_MAX - 1u]; /* the unison oscillators beside phase; free-running */
+    int16_t vel_q15; /* tracking: the note's velocity from the plain step's, +-32767 (an accent is +32767) */
+    uint8_t vel_level; /* the velocity the level uses (vel_level sets how far it is from the plain step's) */
     uint32_t osc2_phase;
 } MelloAudioLeadVoice;
 

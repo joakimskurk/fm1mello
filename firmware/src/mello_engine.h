@@ -252,6 +252,12 @@ typedef struct {
     uint16_t menv_attack_ms; /* 0..2000 */
     uint16_t menv_decay_ms;  /* 5..5000 */
     MelloModEnvTarget menv_target;
+    /* Tracking (DECISIONS.md "Velocity and key tracking"): how a note's velocity and pitch shape it. Velocity counts
+     * from the HTML's plain step (91; an accent is 121), so plain steps sound as they did. */
+    int16_t vel_cutoff; /* -1000..1000: an accent opens (or closes) the filter by up to 30% of its range */
+    uint16_t vel_level; /* 0..2000: how much velocity changes the level; 1000 = the HTML's */
+    uint16_t key_track; /* 0..1000: the cutoff follows the note from C4; 1000 = one to one */
+    int16_t vel_menv;   /* -1000..1000: an accent's MOD envelope, up to twice (or none) */
 } MelloSoundConfig;
 
 typedef struct {

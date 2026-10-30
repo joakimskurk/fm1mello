@@ -18,7 +18,7 @@ enum {
     SECVER_SLOT_SEQ = 1,
     SECVER_FX = 1,
     SECVER_CHORD = 1,
-    SECVER_GRIT = 2,
+    SECVER_GRIT = 3,
     SECVER_MOD = 1
 };
 
@@ -27,7 +27,8 @@ enum {
 #define FX_WIRE_SIZE       34u
 #define CHORD_WIRE_SIZE    (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
 #define GRIT_ENTRY_SIZE_V1 8u
-#define GRIT_ENTRY_SIZE    26u
+#define GRIT_ENTRY_SIZE_V2 26u
+#define GRIT_ENTRY_SIZE    34u
 #define MOD_ENTRY_SIZE     40u
 #define SLOT_SEQ_WIRE_SIZE (2u + MELLO_MAX_SLOT_SEQ_STEPS * 3u)
 #define SLOT_WIRE_SIZE     (1u + (MELLO_SLOT_NAME_CHARS + 1u) + SNAPSHOT_WIRE_SIZE)
@@ -612,7 +613,8 @@ static void section_header(Writer *w, uint16_t id, uint16_t ver, uint32_t len)
 
 /* Phase 5's sound (grit, DECISIONS.md, and the Virus layer) is in its own section so that SEC_WORKING and SEC_SLOTS
  * keep their wire format: an older build skips it and plays a plain saw. Only sounds that differ from the defaults
- * are written; index 0xFF is the working sound. Version 1 (grit only, 8 bytes an entry) is still read. */
+ * are written; index 0xFF is the working sound. Versions 1 (grit only, 8 bytes an entry) and 2 (without tracking,
+ * 26) are still read. */
 #define GRIT_WORKING 0xFFu
 static bool has_grit(const MelloSoundConfig *c)
 {
@@ -623,7 +625,9 @@ static bool has_grit(const MelloSoundConfig *c)
            c->osc2_fine != d.osc2_fine || c->osc2_mix != d.osc2_mix || c->osc2_sync != d.osc2_sync ||
            c->fm_amount != d.fm_amount || c->saturation != d.saturation || c->filter_mode != d.filter_mode ||
            c->menv_amount != d.menv_amount || c->menv_attack_ms != d.menv_attack_ms ||
-           c->menv_decay_ms != d.menv_decay_ms || c->menv_target != d.menv_target;
+           c->menv_decay_ms != d.menv_decay_ms || c->menv_target != d.menv_target ||
+           c->vel_cutoff != d.vel_cutoff || c->vel_level != d.vel_level || c->key_track != d.key_track ||
+           c->vel_menv != d.vel_menv;
 }
 static void encode_grit(Writer *w, uint8_t index, const MelloSoundConfig *c)
 {
@@ -644,6 +648,10 @@ static void encode_grit(Writer *w, uint8_t index, const MelloSoundConfig *c)
     wr_u16(w, c->menv_attack_ms);
     wr_u16(w, c->menv_decay_ms);
     wr_u8(w, (uint8_t)c->menv_target);
+    wr_u16(w, (uint16_t)c->vel_cutoff);
+    wr_u16(w, c->vel_level);
+    wr_u16(w, c->key_track);
+    wr_u16(w, (uint16_t)c->vel_menv);
 }
 /* Reads one entry's fields over c (not its index); a version 1 entry has the grit only. */
 static bool decode_grit(Reader *r, uint16_t ver, MelloSoundConfig *c)
@@ -664,6 +672,11 @@ static bool decode_grit(Reader *r, uint16_t ver, MelloSoundConfig *c)
     c->filter_mode = (MelloFilterMode)mode;
     c->menv_amount = (int16_t)amount;
     c->menv_target = (MelloModEnvTarget)target;
+    if (ver < 3u) return true;
+    if (!rd_u16(r, &amount)) return false;
+    c->vel_cutoff = (int16_t)amount;
+    if (!rd_u16(r, &c->vel_level) || !rd_u16(r, &c->key_track) || !rd_u16(r, &amount)) return false;
+    c->vel_menv = (int16_t)amount;
     return true;
 }
 
@@ -882,9 +895,10 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
                 if (!rd_i8(&r, &slot) || !rd_u16(&r, &hold)) return false;
                 if (apply && e) mello_engine_slot_seq_set_step(e, i, slot, hold);
             }
-        } else if (id == SEC_GRIT && (ver == 1u || ver == SECVER_GRIT)) {
+        } else if (id == SEC_GRIT && ver >= 1u && ver <= SECVER_GRIT) {
             uint8_t count, i;
-            uint32_t size = ver == 1u ? GRIT_ENTRY_SIZE_V1 : GRIT_ENTRY_SIZE;
+            uint32_t size =
+                ver == 1u ? GRIT_ENTRY_SIZE_V1 : (ver == 2u ? GRIT_ENTRY_SIZE_V2 : GRIT_ENTRY_SIZE);
             if (len < 1u || !rd_u8(&r, &count) || len != 1u + (uint32_t)count * size) return false;
             for (i = 0u; i < count; ++i) {
                 uint8_t idx;

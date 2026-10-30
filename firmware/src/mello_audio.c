@@ -413,6 +413,13 @@ static void lead_attack(MelloAudio *a, uint8_t note, uint8_t vel, bool slide)
     a->lead.note = note;
     a->lead.velocity = vel;
     a->lead.gate = true;
+    {
+        /* Tracking: velocity from the HTML's plain step (91) to its accent (121) is 0..1. */
+        int32_t dv = ((int32_t)vel - 91) * 32767 / 30;
+        a->lead.vel_q15 = (int16_t)clamp32(dv, -32767, 32767);
+        a->lead.vel_level =
+            (uint8_t)clamp32(91 + ((int32_t)vel - 91) * (int32_t)a->config.vel_level / 1000, 1, 127);
+    }
     /* HTML: portamento is set per step, slideTime on SLIDE steps and 0 otherwise. */
     voice_glide_to(&a->lead.inc, &a->lead.target_inc, &a->lead.pitch_q16, &a->lead.slide_step,
                    &a->lead.slide_left, note, slide ? a->config.slide_ms : 0u, a->lead.env_q24);
@@ -1740,7 +1747,23 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             a->menv_q24 -= ((a->menv_q24 >> 8) * a->menv_k_q16) >> 8;
             if (a->menv_q24 < 1 << 10) a->menv_q24 = 0, a->menv_stage = 0u;
         }
-        mod_env = a->config.menv_amount ? (a->menv_q24 >> 9) * a->config.menv_amount / 1000 : 0; /* +-32767 */
+        mod_env = 0;
+        if (a->config
+                .menv_amount) { /* +-32767; VEL > MOD ENV scales it by up to x2 (or to none) for an accent */
+            int32_t amt = a->config.menv_amount;
+            if (a->config.vel_menv)
+                amt = clamp32(amt + amt * (a->lead.vel_q15 * a->config.vel_menv / 1000) / 32767, -1000, 1000);
+            mod_env = (a->menv_q24 >> 9) * amt / 1000;
+        }
+        if (a->config.vel_cutoff) /* VEL > CUTOFF: up to 30% of the range for an accent */
+            cut = (uint16_t)clamp32(
+                (int32_t)cut + a->lead.vel_q15 * a->config.vel_cutoff / 1000 * 300 / 32767, 0, 1000);
+        if (a->config.key_track) {
+            /* KEY TRACK from C4: 1000 * log200(2) / 12 = 10.9 permille of the cutoff a semitone, at 1000 */
+            int32_t semis_q8 = (a->lead.pitch_q16 >> 8) - 60 * 256;
+            cut = (uint16_t)clamp32(
+                (int32_t)cut + semis_q8 * (int32_t)a->config.key_track / 1000 * 109 / 2560, 0, 1000);
+        }
         if (mod_env && a->config.menv_target == MELLO_MENV_CUTOFF)
             cut = (uint16_t)clamp32((int32_t)cut + mod_env * 1000 / 32767, 0, 1000);
         res = (uint16_t)lfo_around(res, lfo, a->config.lfo_depth, MELLO_LFO_RES, a);
@@ -1876,7 +1899,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 lead += a->sub_gain == 32767 ? fs : q15mul(fs, a->sub_gain); /* SUB MUTE */
             }
             lead = q15mul(clamp32(lead, -65535, 65535), (a->lead.env_q24 >> 8));
-            lead = q15mul(lead, (int32_t)a->lead.velocity * 258);
+            lead = q15mul(lead, (int32_t)a->lead.vel_level * 258);
         }
         if (a->sub.env_q24 > 0 && a->sub_config.on && a->sub_config.wave != MELLO_WAVE_OFF) {
             const ToneSubBiquadCoeff *bc = &SUB_FILTER_BIQUAD_Q28[a->sub_config.cut / 10u];

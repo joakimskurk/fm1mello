@@ -316,6 +316,12 @@ static MelloSoundConfig sanitize_sound_config(MelloSoundConfig c)
     c.menv_attack_ms = clamp_u16_range(c.menv_attack_ms, 0u, 2000u);
     c.menv_decay_ms = clamp_u16_range(c.menv_decay_ms, 5u, 5000u);
     if (c.menv_target >= MELLO_MENV_TARGET_COUNT) c.menv_target = MELLO_MENV_CUTOFF;
+    if (c.vel_cutoff > 1000) c.vel_cutoff = 1000;
+    if (c.vel_cutoff < -1000) c.vel_cutoff = -1000;
+    if (c.vel_level > 2000u) c.vel_level = 2000u;
+    c.key_track = clamp_amount(c.key_track);
+    if (c.vel_menv > 1000) c.vel_menv = 1000;
+    if (c.vel_menv < -1000) c.vel_menv = -1000;
     return c;
 }
 
@@ -731,6 +737,10 @@ void mello_sound_defaults(MelloSoundConfig *c)
     c->menv_attack_ms = 0u;
     c->menv_decay_ms = 300u;
     c->menv_target = MELLO_MENV_CUTOFF;
+    c->vel_cutoff = 0;
+    c->vel_level = 1000u;
+    c->key_track = 0u;
+    c->vel_menv = 0;
 }
 
 void mello_sample_defaults(MelloSampleConfig *c)

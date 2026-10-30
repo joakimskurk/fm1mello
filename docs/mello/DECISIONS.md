@@ -190,6 +190,18 @@ A splash/boot identity screen is required before final product-polish acceptance
   - Saved in SEC_MOD (40 bytes a working pattern or slot, only when it differs from the defaults). MOD 1's amount
     stays in SEC_WORKING / SEC_SLOTS with the HTML's meaning (1000 = depth 240); SEC_MOD carries the exact depth.
 
+## Velocity and key tracking (2026-10-30)
+
+SOUND / TRACKING, after MOD ENV. The FM-1's velocities are the HTML's: a plain step 91 (0.72), an accent 121 (0.95);
+MIDI and KEYS notes can be anything. Tracking counts from the plain step, so a plain step sounds as in the HTML
+whatever the knobs, and the defaults change nothing (`make parity` unchanged).
+- **VEL > CUTOFF** (-100..+100%): an accent opens the filter by up to 30% of its range (closes it, negative).
+- **VEL > LEVEL** (0..200%): how far an accent's level is from a plain step's; 100% is the HTML's (+2.5 dB), 0 none.
+- **KEY TRACK** (0..100%): the cutoff follows the note from C4; 100% is one to one (an octave up, the cutoff an
+  octave up), so high notes stop sounding duller than low ones.
+- **VEL > MOD ENV** (-100..+100%): an accent's MOD envelope up to twice as deep (or none).
+- Saved with the grit in SEC_GRIT, version 3 (34 bytes an entry); versions 1 and 2 are still read.
+
 ## DOT orders (2026-10-30)
 
 Beyond the HTML's HORIZ, VERT, SNAKE and RANDOM, five routes; the chord trigger grid gets them too (one routine,
