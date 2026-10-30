@@ -19,7 +19,7 @@ enum {
     SECVER_FX = 1,
     SECVER_CHORD = 1,
     SECVER_GRIT = 3,
-    SECVER_MOD = 2
+    SECVER_MOD = 3
 };
 
 #define SAMPLE_WIRE_SIZE   83u
@@ -30,7 +30,8 @@ enum {
 #define GRIT_ENTRY_SIZE_V2 26u
 #define GRIT_ENTRY_SIZE    34u
 #define MOD_ENTRY_SIZE_V1  40u
-#define MOD_ENTRY_SIZE     44u
+#define MOD_ENTRY_SIZE_V2  44u
+#define MOD_ENTRY_SIZE     57u
 #define SLOT_SEQ_WIRE_SIZE (2u + MELLO_MAX_SLOT_SEQ_STEPS * 3u)
 #define SLOT_WIRE_SIZE     (1u + (MELLO_SLOT_NAME_CHARS + 1u) + SNAPSHOT_WIRE_SIZE)
 
@@ -699,6 +700,8 @@ static bool has_mod(const MelloModRouting *m, const MelloDotMatrixConfig dot[MEL
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i)
         if (m->dot_evolve[i]) return true;
     if (m->rnd_follow || m->rnd_mirror) return true;
+    for (i = 0u; i < MELLO_RAND_TARGETS; ++i)
+        if (m->rnd_amount[i] != 100u) return true;
     return m->tm_on_loop != dm.tm_on_loop || d->cells != d5.cells || d->mode != d5.mode ||
            d->length != d5.length || d->reset != d5.reset || d->follow != d5.follow ||
            d->amount != d5.amount ||
@@ -723,6 +726,7 @@ static void encode_mod(Writer *w, uint8_t index, const MelloModRouting *m,
     encode_dot(w, &dot[MELLO_DOT_MOD2]);
     wr_u16(w, m->rnd_follow);
     wr_u16(w, m->rnd_mirror);
+    wr_bytes(w, m->rnd_amount, MELLO_RAND_TARGETS);
 }
 static bool decode_mod(Reader *r, uint16_t ver, MelloModRouting *m,
                        MelloDotMatrixConfig dot[MELLO_DOT_MATRIX_COUNT])
@@ -741,7 +745,10 @@ static bool decode_mod(Reader *r, uint16_t ver, MelloModRouting *m,
     if (!rd_u8(r, &b) || !rd_u16(r, &dot[MELLO_DOT_MOD1].amount)) return false;
     m->tm_on_loop = b != 0u;
     if (!decode_dot(r, &dot[MELLO_DOT_MOD2])) return false;
-    return ver < 2u || (rd_u16(r, &m->rnd_follow) && rd_u16(r, &m->rnd_mirror)); /* version 1: no links */
+    memset(m->rnd_amount, 100, sizeof m->rnd_amount); /* versions 1 and 2: every target at 100% */
+    if (ver < 2u) return true;                        /* version 1: no links */
+    if (!rd_u16(r, &m->rnd_follow) || !rd_u16(r, &m->rnd_mirror)) return false;
+    return ver < 3u || rd_bytes(r, m->rnd_amount, MELLO_RAND_TARGETS);
 }
 
 static bool encode_payload(Writer *w, const MelloEngine *e)
@@ -921,7 +928,7 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             }
         } else if (id == SEC_MOD && ver >= 1u && ver <= SECVER_MOD) {
             uint8_t count, i;
-            uint32_t size = ver == 1u ? MOD_ENTRY_SIZE_V1 : MOD_ENTRY_SIZE;
+            uint32_t size = ver == 1u ? MOD_ENTRY_SIZE_V1 : (ver == 2u ? MOD_ENTRY_SIZE_V2 : MOD_ENTRY_SIZE);
             if (len < 1u || !rd_u8(&r, &count) || len != 1u + (uint32_t)count * size) return false;
             for (i = 0u; i < count; ++i) {
                 uint8_t idx;

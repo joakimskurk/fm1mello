@@ -412,6 +412,8 @@ static MelloModRouting sanitize_mod_routing(MelloModRouting c)
     }
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) c.dot_evolve[i] = clamp_amount(c.dot_evolve[i]);
     c.rnd_mirror &= MELLO_RAND_LINKABLE;
+    for (i = 0u; i < MELLO_RAND_TARGETS; ++i)
+        if (c.rnd_amount[i] > 100u) c.rnd_amount[i] = 100u;
     c.rnd_follow &= (uint16_t)(MELLO_RAND_LINKABLE & ~c.rnd_mirror);
     return c;
 }
@@ -604,6 +606,7 @@ void mello_mod_routing_defaults(MelloModRouting *c)
     c->dot_target[0] = MELLO_DEST_CUTOFF;
     c->dot_target[1] = MELLO_DEST_NOISE;
     c->tm_on_loop = true;
+    memset(c->rnd_amount, 100, sizeof c->rnd_amount);
 }
 
 void mello_tm_defaults(MelloTmConfig *c)
@@ -2087,7 +2090,22 @@ static uint16_t prob_from_hundredths(uint8_t hundredths);
  * scale and span allow, 1000 the highest) or mirrors it. Numbers are set by it (pulses and ratchets 1-4, chance
  * 30-100%), flags drawn with it as their chance (accent / sub up to 70%, slide 60%, skip 40%), so the roll stays a
  * roll but leans with the melody. */
-static void randomize_links(MelloEngine *e, uint8_t pmax)
+/* Which targets a roll changes on each step: the mask, each target kept with its amount's chance (EDIT). A target at
+ * 100% draws nothing, so rolls at the defaults are what they were. Bit 15 (no target) carries WAVE / CHORD's draw. */
+static void randomize_step_masks(MelloEngine *e, uint16_t mask, uint16_t out[MELLO_MAX_STEPS])
+{
+    uint8_t i, b;
+    for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
+        uint16_t m = mask;
+        for (b = 0u; b < MELLO_RAND_TARGETS; ++b)
+            if ((m & (1u << b)) && e->modr.rnd_amount[b] < 100u &&
+                !chance_permille(&e->gen_rng, (uint16_t)(e->modr.rnd_amount[b] * 10u)))
+                m &= (uint16_t)~(1u << b);
+        out[i] = m;
+    }
+}
+
+static void randomize_links(MelloEngine *e, uint8_t pmax, const uint16_t smask[MELLO_MAX_STEPS])
 {
     uint16_t links =
         (uint16_t)((e->modr.rnd_follow | e->modr.rnd_mirror) & e->randomize.mask & MELLO_RAND_LINKABLE);
@@ -2095,6 +2113,8 @@ static void randomize_links(MelloEngine *e, uint8_t pmax)
     if (!links) return;
     for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
         MelloStep *st = &e->project.steps[i];
+        uint16_t links_here = links;
+        links = (uint16_t)(links_here & smask[i]); /* only where the roll reached */
         uint32_t up = pmax ? (uint32_t)(st->pitch < 0 ? 0 : st->pitch) * 1000u / pmax : 500u, p;
         if (up > 1000u) up = 1000u;
 #define LINKED(bit) ((links & (bit)) ? ((e->modr.rnd_mirror & (bit)) ? 1000u - up : up) : 0u)
@@ -2114,6 +2134,7 @@ static void randomize_links(MelloEngine *e, uint8_t pmax)
         if (links & MELLO_RAND_SKIP)
             st->skip = chance_permille(&e->gen_rng, (uint16_t)(LINKED(MELLO_RAND_SKIP) * 4u / 10u));
 #undef LINKED
+        links = links_here;
     }
 }
 
@@ -2126,7 +2147,7 @@ static uint16_t prob_from_hundredths(uint8_t hundredths)
 void mello_engine_randomize_steps(MelloEngine *e)
 {
     uint8_t i;
-    uint16_t mask;
+    uint16_t mask, smask[MELLO_MAX_STEPS];
     const ScaleDef *sd;
     uint8_t pmax;
     static const int8_t oct_choices[5] = {0, 0, 0, 1, -1};
@@ -2134,13 +2155,14 @@ void mello_engine_randomize_steps(MelloEngine *e)
     mask = (uint16_t)(e->randomize.mask & MELLO_RAND_ALL);
     sd = &SCALES[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR];
     pmax = (uint8_t)(sd->n * e->project.pitch_span_oct - 1u);
+    randomize_step_masks(e, mask, smask);
     for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
         MelloStep *st = &e->project.steps[i];
-        if (mask & MELLO_RAND_PITCH) st->pitch = (int8_t)rng_bounded(&e->gen_rng, (uint32_t)pmax + 1u);
-        if (mask & MELLO_RAND_PULSES)
+        if (smask[i] & MELLO_RAND_PITCH) st->pitch = (int8_t)rng_bounded(&e->gen_rng, (uint32_t)pmax + 1u);
+        if (smask[i] & MELLO_RAND_PULSES)
             st->pulses =
                 chance_permille(&e->gen_rng, 600u) ? 1u : (uint8_t)(rng_bounded(&e->gen_rng, 3u) + 1u);
-        if (mask & MELLO_RAND_RATCHET) {
+        if (smask[i] & MELLO_RAND_RATCHET) {
             if (chance_permille(&e->gen_rng, 780u))
                 st->ratchet = 1u;
             else if (chance_permille(&e->gen_rng, 600u))
@@ -2148,7 +2170,7 @@ void mello_engine_randomize_steps(MelloEngine *e)
             else
                 st->ratchet = (uint8_t)(rng_bounded(&e->gen_rng, 4u) + 2u);
         }
-        if (mask & MELLO_RAND_GATE) {
+        if (smask[i] & MELLO_RAND_GATE) {
             if (chance_permille(&e->gen_rng, 100u))
                 st->gate = MELLO_GATE_REST;
             else if (chance_permille(&e->gen_rng, 200u))
@@ -2156,12 +2178,12 @@ void mello_engine_randomize_steps(MelloEngine *e)
             else
                 st->gate = MELLO_GATE_SINGLE;
         }
-        if (mask & MELLO_RAND_OCTAVE) st->octave = oct_choices[rng_bounded(&e->gen_rng, 5u)];
-        if (mask & MELLO_RAND_ACCENT) st->accent = chance_permille(&e->gen_rng, 120u);
-        if (mask & MELLO_RAND_SUB) st->sub = chance_permille(&e->gen_rng, 220u);
-        if (mask & MELLO_RAND_SLIDE) st->slide = chance_permille(&e->gen_rng, 80u);
-        if (mask & MELLO_RAND_SKIP) st->skip = chance_permille(&e->gen_rng, 50u);
-        if (mask & MELLO_RAND_PROB) {
+        if (smask[i] & MELLO_RAND_OCTAVE) st->octave = oct_choices[rng_bounded(&e->gen_rng, 5u)];
+        if (smask[i] & MELLO_RAND_ACCENT) st->accent = chance_permille(&e->gen_rng, 120u);
+        if (smask[i] & MELLO_RAND_SUB) st->sub = chance_permille(&e->gen_rng, 220u);
+        if (smask[i] & MELLO_RAND_SLIDE) st->slide = chance_permille(&e->gen_rng, 80u);
+        if (smask[i] & MELLO_RAND_SKIP) st->skip = chance_permille(&e->gen_rng, 50u);
+        if (smask[i] & MELLO_RAND_PROB) {
             if (chance_permille(&e->gen_rng, 900u))
                 st->probability = 65535u;
             else {
@@ -2170,11 +2192,19 @@ void mello_engine_randomize_steps(MelloEngine *e)
                 st->probability = prob_from_hundredths(h);
             }
         }
-        if (mask & MELLO_RAND_SAMPLE)
+        if (smask[i] & MELLO_RAND_SAMPLE)
             st->sample_slot = chance_permille(&e->gen_rng, 150u)
                                   ? 0u
                                   : (uint8_t)(rng_bounded(&e->gen_rng, MELLO_SAMPLE_SLOT_COUNT) + 1u);
     }
+    if ((mask & MELLO_RAND_WAVE) && e->modr.rnd_amount[12] < 100u &&
+        !chance_permille(&e->gen_rng, (uint16_t)(e->modr.rnd_amount[12] * 10u)))
+        mask &= (uint16_t)~MELLO_RAND_WAVE;
+#if MELLO_FEATURE_CHORD_MACHINE
+    if ((mask & MELLO_RAND_CHORD) && e->modr.rnd_amount[11] < 100u &&
+        !chance_permille(&e->gen_rng, (uint16_t)(e->modr.rnd_amount[11] * 10u)))
+        mask &= (uint16_t)~MELLO_RAND_CHORD;
+#endif
     if (mask & MELLO_RAND_WAVE) {
         uint32_t wr = rng_bounded(&e->gen_rng, 1000u);
         e->sound.osc_wave =
@@ -2214,7 +2244,7 @@ void mello_engine_randomize_steps(MelloEngine *e)
         e->chord = sanitize_chord_config(e->chord);
     }
 #endif
-    randomize_links(e, pmax);
+    randomize_links(e, pmax, smask);
     sanitize_project(&e->project);
     if (e->playing)
         rebuild_preserving_phase(e);
@@ -2245,7 +2275,7 @@ static uint16_t clamp_u16_random(int32_t v, uint16_t lo, uint16_t hi)
 static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity intensity)
 {
     uint8_t i;
-    uint16_t mask;
+    uint16_t mask, smask[MELLO_MAX_STEPS];
     const ScaleDef *sd;
     uint8_t pmax;
     bool high = intensity == MELLO_RANDOMIZE_HIGH;
@@ -2253,9 +2283,10 @@ static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity int
     mask = (uint16_t)(e->randomize.mask & MELLO_RAND_ALL);
     sd = &SCALES[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR];
     pmax = (uint8_t)(sd->n * e->project.pitch_span_oct - 1u);
+    randomize_step_masks(e, mask, smask);
     for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
         MelloStep *st = &e->project.steps[i];
-        if (mask & MELLO_RAND_PITCH) {
+        if (smask[i] & MELLO_RAND_PITCH) {
             if (high) {
                 uint8_t v = (uint8_t)rng_bounded(&e->gen_rng, (uint32_t)pmax + 1u);
                 if (pmax && v == (uint8_t)st->pitch)
@@ -2265,20 +2296,20 @@ static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity int
                 st->pitch =
                     (int8_t)clamp_u8_random((int32_t)st->pitch + random_delta(&e->gen_rng, 1), 0u, pmax);
         }
-        if (mask & MELLO_RAND_PULSES) {
+        if (smask[i] & MELLO_RAND_PULSES) {
             if (high)
                 st->pulses = (uint8_t)(1u + rng_bounded(&e->gen_rng, 8u));
             else
                 st->pulses = clamp_u8_random((int32_t)st->pulses + random_delta(&e->gen_rng, 1), 1u, 8u);
         }
-        if (mask & MELLO_RAND_RATCHET) {
+        if (smask[i] & MELLO_RAND_RATCHET) {
             if (high) {
                 uint32_t r = rng_bounded(&e->gen_rng, 1000u);
                 st->ratchet = r < 320u ? 1u : (uint8_t)(2u + rng_bounded(&e->gen_rng, 7u));
             } else
                 st->ratchet = clamp_u8_random((int32_t)st->ratchet + random_delta(&e->gen_rng, 1), 1u, 8u);
         }
-        if (mask & MELLO_RAND_GATE) {
+        if (smask[i] & MELLO_RAND_GATE) {
             if (high) {
                 uint32_t r = rng_bounded(&e->gen_rng, 1000u);
                 st->gate = r < 120u ? MELLO_GATE_REST
@@ -2289,25 +2320,25 @@ static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity int
                 st->gate = r == 0u ? MELLO_GATE_SINGLE : (r == 1u ? MELLO_GATE_HOLD : MELLO_GATE_REST);
             }
         }
-        if (mask & MELLO_RAND_OCTAVE) {
+        if (smask[i] & MELLO_RAND_OCTAVE) {
             if (high)
                 st->octave = (int8_t)((int32_t)rng_bounded(&e->gen_rng, 5u) - 2);
             else
                 st->octave = clamp_i8((int32_t)st->octave + random_delta(&e->gen_rng, 1), -2, 2);
         }
-        if (mask & MELLO_RAND_ACCENT)
+        if (smask[i] & MELLO_RAND_ACCENT)
             st->accent = high ? chance_permille(&e->gen_rng, 500u)
                               : (chance_permille(&e->gen_rng, 160u) ? !st->accent : st->accent);
-        if (mask & MELLO_RAND_SUB)
+        if (smask[i] & MELLO_RAND_SUB)
             st->sub = high ? chance_permille(&e->gen_rng, 500u)
                            : (chance_permille(&e->gen_rng, 150u) ? !st->sub : st->sub);
-        if (mask & MELLO_RAND_SLIDE)
+        if (smask[i] & MELLO_RAND_SLIDE)
             st->slide = high ? chance_permille(&e->gen_rng, 420u)
                              : (chance_permille(&e->gen_rng, 120u) ? !st->slide : st->slide);
-        if (mask & MELLO_RAND_SKIP)
+        if (smask[i] & MELLO_RAND_SKIP)
             st->skip = high ? chance_permille(&e->gen_rng, 260u)
                             : (chance_permille(&e->gen_rng, 80u) ? !st->skip : st->skip);
-        if (mask & MELLO_RAND_PROB) {
+        if (smask[i] & MELLO_RAND_PROB) {
             if (high) {
                 if (chance_permille(&e->gen_rng, 250u))
                     st->probability = 65535u;
@@ -2318,7 +2349,7 @@ static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity int
                 st->probability = clamp_u16_random((int32_t)st->probability + d, 0u, 65535u);
             }
         }
-        if (mask & MELLO_RAND_SAMPLE) {
+        if (smask[i] & MELLO_RAND_SAMPLE) {
             if (high)
                 st->sample_slot = (uint8_t)rng_bounded(&e->gen_rng, MELLO_SAMPLE_SLOT_COUNT + 1u);
             else
@@ -2326,6 +2357,14 @@ static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity int
                                                   MELLO_SAMPLE_SLOT_COUNT);
         }
     }
+    if ((mask & MELLO_RAND_WAVE) && e->modr.rnd_amount[12] < 100u &&
+        !chance_permille(&e->gen_rng, (uint16_t)(e->modr.rnd_amount[12] * 10u)))
+        mask &= (uint16_t)~MELLO_RAND_WAVE;
+#if MELLO_FEATURE_CHORD_MACHINE
+    if ((mask & MELLO_RAND_CHORD) && e->modr.rnd_amount[11] < 100u &&
+        !chance_permille(&e->gen_rng, (uint16_t)(e->modr.rnd_amount[11] * 10u)))
+        mask &= (uint16_t)~MELLO_RAND_CHORD;
+#endif
     if (mask & MELLO_RAND_WAVE) {
         if (high) {
             uint8_t w = (uint8_t)rng_bounded(&e->gen_rng, 5u);
@@ -2382,7 +2421,7 @@ static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity int
         e->chord = sanitize_chord_config(e->chord);
     }
 #endif
-    randomize_links(e, pmax);
+    randomize_links(e, pmax, smask);
     sanitize_project(&e->project);
     e->sound = sanitize_sound_config(e->sound);
     if (e->playing)

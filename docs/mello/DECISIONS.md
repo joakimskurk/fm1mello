@@ -198,6 +198,14 @@ SMP and PRB are off until switched on (a departure from the HTML). SOUND has INI
 as CLR2): the sound back to the defaults, undoable. OSC 2 is OFF by default and has OFF as a wave; turning its WAVE, MIX,
 SYNC or FM up brings it in (SAW, mix 50%).
 
+## Randomizer amounts (2026-10-30)
+
+RANDOM's EDIT (the EDIT button, lit): a white key picks a target, K1 sets its amount in 5% steps, drawn as a bar under
+each pill. The amount is the chance that a roll changes a step's value (for WAVE and CHORD, the sound's), so 30% pitch
+re-rolls about a third of the notes and keeps the rest. The mask still says what is rolled at all; links act only
+where the roll reached. 100% draws nothing extra, so default rolls are exactly what they were. Saved in SEC_MOD
+version 3 (57 bytes an entry); versions 1 and 2 are read as 100%.
+
 ## Randomizer links (2026-10-30)
 
 The randomizer (RNDMZR, the RANDOM page) rolled each target on its own. Now a rolled target can be linked to the step's

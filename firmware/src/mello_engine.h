@@ -65,8 +65,9 @@ extern "C" {
 #define MELLO_RAND_PROB    (1u << 9)
 #define MELLO_RAND_SAMPLE  (1u << 10)
 /* Bit 11 stays reserved for CHORD so existing masks never change meaning. */
-#define MELLO_RAND_CHORD (1u << 11)
-#define MELLO_RAND_WAVE  (1u << 12)
+#define MELLO_RAND_CHORD   (1u << 11)
+#define MELLO_RAND_WAVE    (1u << 12)
+#define MELLO_RAND_TARGETS 13u /* MELLO_RAND_* bits, 0..12 */
 /* What RNDMZR rolls on a new project: the first nine, the pattern; not the sound (WAVE, CHORD), samples or chance. */
 #define MELLO_RAND_DEFAULT                                                                                   \
     (MELLO_RAND_PITCH | MELLO_RAND_PULSES | MELLO_RAND_RATCHET | MELLO_RAND_GATE | MELLO_RAND_OCTAVE |       \
@@ -406,6 +407,9 @@ typedef struct {
      * or mirror it (-), MELLO_RAND_* bits of MELLO_RAND_LINKABLE; a target in both mirrors. */
     uint16_t rnd_follow;
     uint16_t rnd_mirror;
+    /* How much each target is rolled (RANDOM's EDIT): the chance, 0..100%, that a roll changes a step's value (or,
+     * for WAVE and CHORD, the sound's); by MELLO_RAND_* bit number. 100 by default: every step, as before. */
+    uint8_t rnd_amount[MELLO_RAND_TARGETS];
 } MelloModRouting;
 #define MELLO_RAND_LINKABLE                                                                                  \
     (MELLO_RAND_PULSES | MELLO_RAND_RATCHET | MELLO_RAND_ACCENT | MELLO_RAND_SUB | MELLO_RAND_SLIDE |        \
