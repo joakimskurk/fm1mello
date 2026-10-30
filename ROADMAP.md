@@ -88,8 +88,9 @@ of the HTML (`tools/tone-ref/shoot.mjs`).
 - [x] The HTML's visual expression: text on its real background (no black boxes), HOME's steps as the HTML's lanes
       (gradient bars, note letters, the playing step brighter), SOUND / MOD LFO / FX / GLOBAL as the HTML's synth panel
       (spaced titles, label/value rows, green ring sliders, pills), rounded frames everywhere, the readout as a panel.
-- [ ] The same treatment for STEP, SEGMENT, LOOP, SLOT SEQ, SLOTS, SUB, CHORD and SAMPLE (they have the colours and
-      rounded frames, not yet the panel layout).
+- [x] The same treatment for STEP, SEGMENT, LOOP, SLOT SEQ, SLOTS, SUB, CHORD and SAMPLE: a panel with a spaced
+      title and the layer, the page's picture (strip, segments, slot cards, 5-SEQ, chord, sample) with pills, and
+      K1-K4 two by two under it (sliders where a value has a range); sub, chord and sample times in ms.
 - [ ] The momentary performance keys: FILL, SUB MUTE, REPEAT, REVERSE, RESTART (they need engine support).
 - [ ] Note names in HOME's step bars as the HTML's lanes; the remaining pages' bodies in music units.
 - [ ] Randomizer "skyline": its length and bar width follow the sequence length.

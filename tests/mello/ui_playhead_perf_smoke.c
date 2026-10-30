@@ -12,9 +12,9 @@ static void count_fill(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, ui
     if (x < 0 || y < 0 || w < 0 || h < 0 || x + w > 240 || y + h > 240) bounds_error = 1;
     ++fills;
     if (y == 36 && h == 10 && x >= 8 && x < 232) ++step_cells;
-    /* WP-B3 moved the 32-cell SEGMENT strip down to preserve a full 16 px
-       label row above it. Keep the same 32-cell/bounds contract at y=52. */
-    if (y == 52 && h == 14 && x >= 8 && x < 232) ++segment_cells;
+    /* The SEGMENT strip sits in its panel under the title and the A-F letter row (Phase 3's HTML look): the same
+       32-cell/bounds contract at y=70. */
+    if (y == 70 && h == 12 && x >= 8 && x < 232) ++segment_cells;
 }
 static void count_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, const char *text,
                        uint16_t colour, uint8_t align)

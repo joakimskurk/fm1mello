@@ -2887,6 +2887,60 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
     o->fill(o->ctx, 7, 28, 226, 1, accent);
 }
 
+static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24]);
+static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max);
+static uint16_t knob_colour(MelloUi *ui, uint8_t k);
+static uint16_t ui_text_len(const char *s);
+
+/* The HTML's section: a rounded panel from y to the strip, its title spaced in the page's colour, the layer on the
+ * right. */
+static void ui_section(MelloUi *ui, const MelloUiDrawOps *o, int16_t y, const char *title, uint16_t accent)
+{
+    const char *layer = layer_name(ui);
+    ui_round_fill(o, 4, y, 232, (int16_t)(169 - y), UI_PANEL);
+    ui_round_frame(o, 4, y, 232, (int16_t)(169 - y), ui_mix(accent, UI_BLACK, 150));
+    ui_spaced(o, 10, (int16_t)(y + 3), 124, title, accent, 0);
+    if (layer) ui_spaced(o, 136, (int16_t)(y + 3), 96, layer, UI_DIM, 2);
+}
+
+/* A pill as the HTML's buttons: on = filled in a dark shade of its colour with a bright edge, off = a dim edge. */
+static void ui_pill(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, const char *t, bool on,
+                    uint16_t c)
+{
+    /* 18 high from a pixel above the text: the text's own 16 px background leaves the edges standing */
+    if (on) ui_round_fill(o, x, (int16_t)(y - 1), w, 18, ui_mix(c, UI_BLACK, 150));
+    ui_round_frame(o, x, (int16_t)(y - 1), w, 18, on ? c : UI_LINE);
+    o->text(o->ctx, (int16_t)(x + 2), y, (int16_t)(w - 4), 0, t, on ? UI_BRIGHT : UI_DIM, 1);
+}
+
+/* K1-K4 as the HTML's controls, two by two under the page's picture (rows at y and y + 26): the label left and the
+ * value right, a slider under it where the value has a range, the value in a pill where it is a word. The same texts
+ * as the footer and the readout (footer_texts). */
+static void draw_knob_grid(MelloUi *ui, const MelloUiDrawOps *o, int16_t y)
+{
+    char v[4][24];
+    const char *l[4];
+    uint8_t k;
+    footer_texts(ui, l, v);
+    for (k = 0u; k < 4u; ++k) {
+        int16_t x = (int16_t)(10 + (k & 1u) * 114u), cy = (int16_t)(y + (k >> 1) * 26), w = 106,
+                vw = (int16_t)(ui_text_len(v[k]) * 8u);
+        uint16_t c = knob_colour(ui, k), nv, nm;
+        if (!v[k][0] || (v[k][0] == '-' && !v[k][1])) continue; /* an empty knob */
+        if (knob_norm(ui, k, &nv, &nm)) {
+            ui_spaced(o, x, cy, (int16_t)(w - vw - 4), l[k], UI_DIM, 0);
+            o->text(o->ctx, (int16_t)(x + w - vw), cy, vw, 0, v[k], c, 2);
+            ui_slider(o, x, (int16_t)(cy + 17), w, nv, nm, c);
+        } else {
+            int16_t pw = (int16_t)(vw + 8);
+            if (pw > w - 30) pw = (int16_t)(w - 30);
+            ui_spaced(o, x, cy, (int16_t)(w - pw - 2), l[k], UI_DIM, 0);
+            ui_round_frame(o, (int16_t)(x + w - pw), (int16_t)(cy - 1), pw, 18, ui_mix(c, UI_BLACK, 90));
+            o->text(o->ctx, (int16_t)(x + w - pw + 4), cy, (int16_t)(pw - 8), 0, v[k], c, 1);
+        }
+    }
+}
+
 static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
 {
     MelloEngine *e = eng(ui);
@@ -2896,349 +2950,139 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
     switch (ui->page) {
     case MELLO_UI_HOME: draw_home(ui, o); break;
     case MELLO_UI_SEQ_STEP: {
+        /* The HTML's STEP DETAIL: the sequence strip, then a panel with the step's note in its segment's colour, its
+         * flags as pills (lit when on), its pulses, ratchets, gate, chance and sample, and K1-K4 below. */
         MelloStep *s = &e->project.steps[ui->selected_step];
-        uint8_t i, vis = ui_step_overview_count(&e->project);
-        uint8_t midi = mello_resolve_step_midi(&e->project, s);
-        int16_t x;
-        /* Full-sequence strip: always show every main step; OCT only changes which 16 keys edit. */
+        uint8_t i, vis = ui_step_overview_count(&e->project),
+                   seg = ui_segment_for_step(&e->project, ui->selected_step);
+        uint16_t sc = ui_segment_colour(seg);
+        char *q;
         for (i = 0u; i < vis; ++i) draw_step_overview_cell(ui, o, i, 0u);
+        q = copy_s(a, "STEP ");
+        q = put_u32(q, (uint32_t)ui->selected_step + 1u);
+        q = copy_s(q, "  ");
+        midi_note_name(q, mello_resolve_step_midi(&e->project, s));
+        ui_section(ui, o, 50, a, sc);
         {
-            uint8_t bs = (uint8_t)(ui->step_bank * 16u), be = (uint8_t)(bs + 16u);
-            int16_t bx, bx2;
-            if (be > vis) be = vis;
-            if (bs < vis) {
-                bx = (int16_t)(8 + ((uint32_t)bs * 224u) / vis);
-                bx2 = (int16_t)(8 + ((uint32_t)be * 224u) / vis - 1);
-                o->fill(o->ctx, bx, 47, (int16_t)(bx2 - bx + 1), 1, UI_BLUE);
-            }
+            static const char *fl[4] = {"SLIDE", "ACC", "SUB", "SKIP"};
+            static const uint16_t fc[4] = {UI_BLUE, UI_CORAL, UI_GOLD, UI_RED};
+            bool on[4];
+            on[0] = s->slide, on[1] = s->accent, on[2] = s->sub, on[3] = s->skip;
+            for (i = 0u; i < 4u; ++i) ui_pill(o, (int16_t)(10 + i * 56u), 71, 52, fl[i], on[i], fc[i]);
         }
         {
-            static const char *tab[4] = {"TRIG", "NOTE", "FLAGS", "SEQ"};
-            uint16_t tc[4] = {ui_segment_colour(ui_segment_for_step(&e->project, ui->selected_step)), UI_BLUE,
-                              UI_CORAL, UI_SOFT};
-            uint8_t seg = ui_segment_for_step(&e->project, ui->selected_step);
-            value_u(a, "STEP", (uint32_t)ui->selected_step + 1u);
-            midi_note_name(b, midi);
-            o->text(o->ctx, 8, 48, 52, 0, a, UI_WHITE, 0);
-            o->text(o->ctx, 64, 48, 42, 0, b, ui_segment_colour(seg), 1);
-            value_i(a, "OCT", s->octave);
-            o->text(o->ctx, 108, 48, 48, 0, a, UI_MID, 0);
-            value_u(a, "P", s->pulses);
-            o->text(o->ctx, 160, 48, 24, 0, a, UI_MID, 1);
-            o->text(o->ctx, 188, 48, 44, 0, tab[ui->step_subpage < 4u ? ui->step_subpage : 0u],
-                    tc[ui->step_subpage < 4u ? ui->step_subpage : 0u], 2);
-
-            for (i = 0u; i < 4u; ++i) {
-                x = (int16_t)(8 + i * 56u);
-                ui_frame(o, x, 66, 52, 18, i == ui->step_subpage ? tc[i] : UI_PANEL2);
-                o->text(o->ctx, x + 2, 67, 48, 0, tab[i], i == ui->step_subpage ? tc[i] : UI_DIM, 1);
+            /* pulses and ratchets as the HTML's 1-8 rows, in small: lit up to the value */
+            for (i = 0u; i < 8u; ++i) {
+                ui_round_fill(o, (int16_t)(10 + i * 9u), 93, 7, 12, i < s->pulses ? UI_ACC : UI_TRACK);
+                ui_round_fill(o, (int16_t)(88 + i * 9u), 93, 7, 12, i < s->ratchet ? UI_MAGENTA : UI_TRACK);
             }
+            q = copy_s(b, s->sample_slot ? "SMP " : "SMP -");
+            if (s->sample_slot) *q++ = (char)('A' + s->sample_slot - 1u), *q = 0;
+            o->text(o->ctx, 164, 91, 66, 0, b, s->sample_slot ? UI_BLUE : UI_DIM, 2);
         }
-
-        o->text(o->ctx, 8, 87, 48, 0, "PULSES", UI_DIM, 0);
-        for (i = 0u; i < 8u; ++i) {
-            uint16_t c = i < s->pulses ? UI_ACC : UI_PANEL2;
-            o->fill(o->ctx, (int16_t)(58 + i * 10u), 93, 7, 4, c);
-        }
-        o->text(o->ctx, 145, 87, 46, 0, "RATCH", UI_DIM, 0);
-        for (i = 0u; i < 8u; ++i) {
-            uint16_t c = i < s->ratchet ? UI_MAGENTA : UI_PANEL2;
-            o->fill(o->ctx, (int16_t)(191 + i * 5u), 91, 3, 8, c);
-        }
-
-        o->text(o->ctx, 8, 106, 38, 0, "GATE", UI_DIM, 0);
-        for (i = 0u; i < 4u; ++i) {
-            int16_t gx = (int16_t)(50 + i * 25u);
-            uint16_t c = i == (uint8_t)s->gate ? UI_ACC : UI_PANEL2;
-            ui_frame(o, gx, 104, 20, 13, c);
-            if (i == 0u)
-                o->fill(o->ctx, gx + 4, 110, 12, 1, c);
-            else if (i == 1u)
-                o->fill(o->ctx, gx + 4, 108, 12, 5, c);
-            else if (i == 2u) {
-                ui_frame(o, gx + 7, 107, 6, 7, c);
-            } else {
-                o->fill(o->ctx, gx + 4, 107, 12, 1, c);
-                o->fill(o->ctx, gx + 4, 110, 12, 1, c);
-                o->fill(o->ctx, gx + 4, 113, 12, 1, c);
-            }
-        }
-
-        {
-            const char *fl[4] = {"SLD", "ACC", "SUB", "SKIP"};
-            uint8_t on[4] = {s->slide ? 1u : 0u, s->accent ? 1u : 0u, s->sub ? 1u : 0u, s->skip ? 1u : 0u};
-            uint16_t fc[4] = {UI_BLUE, UI_CORAL, UI_GOLD, UI_RED};
-            for (i = 0u; i < 4u; ++i) {
-                x = (int16_t)(8 + i * 55u);
-                ui_frame(o, x, 124, 49, 18, on[i] ? fc[i] : UI_PANEL2);
-                o->text(o->ctx, x + 2, 125, 45, 0, fl[i], on[i] ? fc[i] : UI_DIM, 1);
-            }
-        }
-        value_u(a, "PROB", prob_pct(s->probability));
-        o->text(o->ctx, 8, 146, 64, 0, a, UI_PURPLE, 0);
-        ui_hbar(o, 76, 150, 88, s->probability, 65535u, UI_PURPLE);
-        if (s->sample_slot == 0u)
-            copy_s(b, "SAMP OFF");
-        else {
-            char *q = copy_s(b, "SAMP ");
-            *q++ = (char)('A' + s->sample_slot - 1u);
-            *q = 0;
-        }
-        o->text(o->ctx, 168, 146, 64, 0, b, s->sample_slot ? UI_BLUE : UI_DIM, 2);
+        draw_knob_grid(ui, o, 118);
         break;
     }
     case MELLO_UI_SEQ_SEGMENT: {
-        uint8_t s = ui->selected_segment, i, bounds[MELLO_MAX_SEGMENTS + 1u], sc;
-        int16_t x;
+        /* Segments A-F over the sequence, in their colours: letters over their steps, the playing step framed; the
+         * segments as pills; K1-K4 below. */
+        uint8_t s = ui->selected_segment, i, bounds[MELLO_MAX_SEGMENTS + 1u], sc, vis;
+        char *q;
         if (s >= e->project.seg_count) s = 0u;
         sc = ui_segment_bounds(&e->project, bounds);
-        /* A-F brackets over the same 16-cell sequence language used by HOME. */
-        {
-            uint8_t vis = ui_step_overview_count(&e->project);
-            for (i = 0u; i < sc; ++i) {
-                uint8_t bs = bounds[i], be = bounds[i + 1u];
-                int16_t bx, bx2;
-                uint16_t c = ui_segment_colour(i);
-                if (bs >= vis) continue;
-                if (be > vis) be = vis;
-                bx = (int16_t)(8 + ((uint32_t)bs * 224u) / vis);
-                bx2 = (int16_t)(8 + ((uint32_t)be * 224u) / vis - 2);
-                o->fill(o->ctx, bx, 48, (int16_t)(bx2 - bx + 1), 1, c);
-                o->fill(o->ctx, bx, 48, 1, 4, c);
-                o->fill(o->ctx, bx2, 48, 1, 4, c);
-                a[0] = (char)('A' + i);
-                a[1] = 0;
-                o->text(o->ctx, bx, 31, (int16_t)(bx2 - bx + 1), 0, a, c, 1);
-            }
-            for (i = 0u; i < vis; ++i) {
-                uint8_t seg = 0xFFu, j;
-                int16_t cw = ui_step_overview_w(&e->project, i);
-                x = ui_step_overview_x(&e->project, i);
-                for (j = 0u; j < sc; ++j)
-                    if (i >= bounds[j] && i < bounds[j + 1u]) {
-                        seg = j;
-                        break;
-                    }
-                o->fill(o->ctx, x, 52, cw, 14, i < e->project.seq_len ? UI_PANEL2 : UI_BLACK);
-                if (i < e->project.seq_len && seg != 0xFFu)
-                    o->fill(o->ctx, x, 61, cw, 2, ui_segment_colour(seg));
-                if (seg == s) o->fill(o->ctx, x, 53, cw, 2, ui_segment_colour(s));
-                if (ui->transport->display_step == i) ui_frame(o, x, 52, cw, 14, UI_WHITE);
-            }
-            if (s < sc && bounds[s] < vis) {
-                uint8_t be = bounds[s + 1u] > vis ? vis : bounds[s + 1u];
-                int16_t sx = (int16_t)(8 + ((uint32_t)bounds[s] * 224u) / vis);
-                int16_t sx2 = (int16_t)(8 + ((uint32_t)be * 224u) / vis - 1);
-                if (sx2 > sx) ui_frame(o, sx, 50, (int16_t)(sx2 - sx), 18, UI_SOFT);
-            }
+        vis = ui_step_overview_count(&e->project);
+        q = copy_s(a, "SEGMENT ");
+        *q++ = (char)('A' + s), *q = 0;
+        ui_section(ui, o, 32, a, ui_segment_colour(s));
+        for (i = 0u; i < vis; ++i) {
+            uint8_t seg = 0xFFu, j;
+            int16_t cw = ui_step_overview_w(&e->project, i), x = ui_step_overview_x(&e->project, i);
+            for (j = 0u; j < sc; ++j)
+                if (i >= bounds[j] && i < bounds[j + 1u]) seg = j;
+            if (i >= e->project.seq_len || seg == 0xFFu) continue;
+            o->fill(o->ctx, x, 70, (int16_t)(cw - 1), 12,
+                    seg == s ? ui_mix(ui_segment_colour(seg), UI_PANEL, 120) : ui_segment_colour_dim(seg));
+            if (ui->transport->display_step == i) ui_frame(o, x, 70, (int16_t)(cw - 1), 12, UI_WHITE);
         }
-        value_u(a, "SEG", (uint32_t)s + 1u);
-        b[0] = (char)('A' + s);
-        b[1] = 0;
-        o->text(o->ctx, 8, 70, 46, 0, a, UI_WHITE, 0);
-        o->text(o->ctx, 55, 70, 20, 0, b, ui_segment_colour(s), 1);
-        value_u(a, "x", e->project.seg_repeats[s]);
-        o->text(o->ctx, 84, 70, 40, 0, a, UI_MAGENTA, 0);
-        o->text(o->ctx, 130, 70, 44, 0, e->project.seg_direction[s] == MELLO_SEG_REV ? "REV" : "FWD", UI_BLUE,
-                1);
-        o->text(o->ctx, 179, 70, 53, 0,
-                e->project.seg_mode[s] == MELLO_SEG_PINGPONG ? "P-P"
-                : e->project.seg_mode[s] == MELLO_SEG_RANDOM ? "RND"
-                                                             : "LIN",
-                e->project.seg_mode[s] == MELLO_SEG_RANDOM ? UI_PURPLE : UI_BLUE, 1);
-
-        if (ui->segment_subpage == 0u) {
-            o->text(o->ctx, 8, 90, 42, 0, "RPT", UI_DIM, 0);
-            for (i = 0u; i < 4u; ++i) {
-                x = (int16_t)(55 + i * 24u);
-                ui_frame(o, x, 87, 20, 15, i + 1u == e->project.seg_repeats[s] ? UI_MAGENTA : UI_PANEL2);
-                a[0] = 'x';
-                a[1] = (char)('1' + i);
-                a[2] = 0;
-                o->text(o->ctx, x + 1, 91, 18, 0, a,
-                        i + 1u == e->project.seg_repeats[s] ? UI_MAGENTA : UI_DIM, 1);
-            }
-            ui_frame(o, 157, 87, 34, 15, e->project.seg_direction[s] == MELLO_SEG_FWD ? UI_BLUE : UI_PANEL2);
-            ui_frame(o, 195, 87, 37, 15, e->project.seg_direction[s] == MELLO_SEG_REV ? UI_BLUE : UI_PANEL2);
-            o->text(o->ctx, 158, 91, 32, 0, "FWD",
-                    e->project.seg_direction[s] == MELLO_SEG_FWD ? UI_BLUE : UI_DIM, 1);
-            o->text(o->ctx, 196, 91, 35, 0, "REV",
-                    e->project.seg_direction[s] == MELLO_SEG_REV ? UI_BLUE : UI_DIM, 1);
-
-            o->text(o->ctx, 8, 113, 40, 0, "MODE", UI_DIM, 0);
-            {
-                const char *mn[3] = {"LIN", "P-P", "RND"};
-                for (i = 0u; i < 3u; ++i) {
-                    x = (int16_t)(55 + i * 44u);
-                    uint16_t mc = i == 2u ? UI_PURPLE : UI_BLUE;
-                    ui_frame(o, x, 109, 38, 16, i == (uint8_t)e->project.seg_mode[s] ? mc : UI_PANEL2);
-                    o->text(o->ctx, x + 2, 113, 34, 0, mn[i],
-                            i == (uint8_t)e->project.seg_mode[s] ? mc : UI_DIM, 1);
-                }
-            }
-            ui_frame(o, 193, 109, 39, 16, e->project.seg_skip[s] ? UI_RED : UI_PANEL2);
-            o->text(o->ctx, 195, 113, 35, 0, "SKIP", e->project.seg_skip[s] ? UI_RED : UI_DIM, 1);
-        } else {
-            o->text(o->ctx, 8, 89, 50, 0, "COUNT", UI_DIM, 0);
-            for (i = 0u; i < MELLO_MAX_SEGMENTS; ++i) {
-                x = (int16_t)(60 + i * 28u);
-                ui_frame(o, x, 86, 24, 16, i + 1u == e->project.seg_count ? ui_segment_colour(i) : UI_PANEL2);
-                a[0] = (char)('1' + i);
-                a[1] = 0;
-                o->text(o->ctx, x + 2, 90, 20, 0, a,
-                        i + 1u == e->project.seg_count ? ui_segment_colour(i) : UI_DIM, 1);
-            }
-
-            o->text(o->ctx, 8, 113, 50, 0, "SELECT", UI_DIM, 0);
-            for (i = 0u; i < e->project.seg_count; ++i) {
-                x = (int16_t)(60 + i * 28u);
-                ui_frame(o, x, 109, 24, 16, i == s ? UI_SOFT : ui_segment_colour_dim(i));
-                a[0] = (char)('A' + i);
-                a[1] = 0;
-                o->text(o->ctx, x + 2, 113, 20, 0, a, i == s ? UI_WHITE : ui_segment_colour(i), 1);
-            }
-            if (s > 0u) {
-                value_u(a, "SPLIT", e->project.seg_splits[s - 1u]);
-                o->text(o->ctx, 8, 132, 70, 0, a, UI_GOLD, 0);
-            } else
-                o->text(o->ctx, 8, 132, 70, 0, "SPLIT --", UI_DIM, 0);
-            ui_frame(o, 193, 129, 39, 16, e->project.seg_skip[s] ? UI_RED : UI_PANEL2);
-            o->text(o->ctx, 195, 133, 35, 0, "SKIP", e->project.seg_skip[s] ? UI_RED : UI_DIM, 1);
+        for (i = 0u; i < sc; ++i) {
+            int16_t bx = (int16_t)(8 + ((uint32_t)bounds[i] * 224u) / vis),
+                    bx2 =
+                        (int16_t)(8 + ((uint32_t)(bounds[i + 1u] > vis ? vis : bounds[i + 1u]) * 224u) / vis);
+            if (bounds[i] >= vis) continue;
+            a[0] = (char)('A' + i), a[1] = 0;
+            o->text(o->ctx, bx, 52, (int16_t)(bx2 - bx), 0, a, i == s ? UI_BRIGHT : ui_segment_colour(i), 1);
         }
-
-        value_u(a, "START", (uint32_t)bounds[s] + 1u);
-        value_u(b, "END", bounds[s + 1u]);
-        o->text(o->ctx, 82, 154, 60, 0, a, UI_MID, 0);
-        o->text(o->ctx, 145, 154, 52, 0, b, UI_MID, 0);
-        o->text(o->ctx, 8, 154, 68, 0, ui->segment_subpage ? "STRUCT" : "PLAY",
-                ui->segment_subpage ? UI_GOLD : ui_segment_colour(s), 0);
+        for (i = 0u; i < sc; ++i) {
+            a[0] = (char)('A' + i), a[1] = 0;
+            ui_pill(o, (int16_t)(10 + i * 30u), 88, 26, a, i == s, ui_segment_colour(i));
+        }
+        q = copy_s(b, "STEPS ");
+        q = put_u32(q, (uint32_t)bounds[s] + 1u);
+        q = copy_s(q, "-");
+        (void)put_u32(q, bounds[s + 1u]);
+        o->text(o->ctx, 132, 88, 98, 0, b, e->project.seg_skip[s] ? UI_RED : UI_MID, 2);
+        draw_knob_grid(ui, o, 118);
         break;
     }
     case MELLO_UI_SEQ_LOOP: {
-        static const char *tabs[3] = {"STEP", "HARM", "LOOP"};
-        MelloLoopCycleStep *s = &e->loop_cycle.steps[ui->selected_loop_step];
+        /* The loop cycle's eight slots as the HTML's SLOT cards, in small: each one's hold as a bar, its root
+         * offset as a gold line, an octave mark; the playing one lit, the selected one framed. */
         uint8_t i, len = e->loop_cycle.length;
+        uint16_t lc = e->loop_cycle.active ? UI_GOLD : UI_BLUE;
         if (len < 2u) len = 2u;
         if (len > MELLO_MAX_LOOP_CYCLE_STEPS) len = MELLO_MAX_LOOP_CYCLE_STEPS;
-        o->text(o->ctx, 8, 33, 80, 0, e->loop_cycle.active ? "LOOP CYCLE" : "AUDITION",
-                e->loop_cycle.active ? UI_GOLD : UI_BLUE, 0);
-        value_u(a, "STEP", (uint32_t)ui->selected_loop_step + 1u);
-        o->text(o->ctx, 96, 33, 48, 0, a, UI_BRIGHT, 0);
-        value_u(a, "LEN", len);
-        o->text(o->ctx, 152, 33, 40, 0, a, UI_MID, 0);
-        o->text(o->ctx, 200, 33, 32, 0, e->loop_cycle.sync ? "SYNC" : "FREE",
-                e->loop_cycle.sync ? UI_GOLD : UI_DIM, 2);
-        for (i = 0u; i < 3u; ++i) {
-            int16_t tx = (int16_t)(8 + i * 75u);
-            uint16_t tc = i == ui->loop_subpage ? UI_GOLD : UI_PANEL2;
-            ui_frame(o, tx, 51, 70, 18, tc);
-            o->text(o->ctx, tx + 2, 52, 66, 0, tabs[i], i == ui->loop_subpage ? UI_GOLD : UI_DIM, 1);
-        }
-        /* The eight physical cells always mirror the first eight white keys. */
+        ui_section(ui, o, 32, e->loop_cycle.active ? "LOOP CYCLE" : "LOOP: AUDITION", lc);
         for (i = 0u; i < MELLO_MAX_LOOP_CYCLE_STEPS; ++i) {
             MelloLoopCycleStep *ls = &e->loop_cycle.steps[i];
-            int16_t x = (int16_t)(8 + i * 28u);
-            int16_t hold_h = (int16_t)(5 + ((uint32_t)(ls->hold > 128u ? 128u : ls->hold) * 34u) / 128u);
-            int16_t root_y = (int16_t)(91 - ((int32_t)ls->root_offset * 1));
-            uint8_t in_len = i < len;
-            uint8_t active = i == e->loop_cycle_pos;
-            uint8_t selected = i == ui->selected_loop_step;
-            o->fill(o->ctx, x, 72, 23, 55, in_len ? UI_PANEL : UI_BLACK);
-            ui_frame(o, x, 72, 23, 55,
-                     active ? (e->loop_cycle.active ? UI_GOLD : UI_BLUE)
-                            : (selected ? UI_WHITE : (in_len ? UI_PANEL2 : UI_BLACK)));
+            int16_t x = (int16_t)(10 + i * 28u),
+                    hold_h = (int16_t)(3 + ((uint32_t)(ls->hold > 128u ? 128u : ls->hold) * 28u) / 128u),
+                    root_y = (int16_t)(70 - ls->root_offset);
+            bool in_len = i < len, active = i == e->loop_cycle_pos, selected = i == ui->selected_loop_step;
+            ui_round_fill(o, x, 52, 24, 38, in_len ? UI_PANEL2 : UI_PANEL);
+            ui_round_frame(o, x, 52, 24, 38,
+                           active ? lc : (selected ? UI_BRIGHT : (in_len ? UI_LINE : UI_TRACK)));
             if (in_len) {
-                o->fill(o->ctx, x + 3, (int16_t)(123 - hold_h), 17, hold_h,
-                        active ? (e->loop_cycle.active ? UI_GOLD : UI_BLUE) : UI_MID);
-                root_y = (int16_t)(root_y + 10);
-                if (root_y < 76) root_y = 76;
-                if (root_y > 121) root_y = 121;
-                o->fill(o->ctx, x + 3, root_y, 17, 2, UI_GOLD);
-                if (ls->octave) o->fill(o->ctx, x + 3, ls->octave > 0 ? 75 : 121, 17, 2, UI_BLUE);
+                ui_vgrad(o, (int16_t)(x + 3), (int16_t)(87 - hold_h), 18, hold_h, active ? lc : UI_MID,
+                         ui_mix(active ? lc : UI_MID, UI_PANEL2, 160));
+                if (root_y < 54) root_y = 54;
+                if (root_y > 86) root_y = 86;
+                o->fill(o->ctx, (int16_t)(x + 3), root_y, 18, 2, UI_GOLD);
+                if (ls->octave) o->fill(o->ctx, (int16_t)(x + 3), ls->octave > 0 ? 54 : 86, 18, 2, UI_BLUE);
             }
-            a[0] = (char)('1' + i);
-            a[1] = 0;
-            o->text(o->ctx, x, 130, 23, 0, a,
-                    active ? (e->loop_cycle.active ? UI_GOLD : UI_BLUE) : (selected ? UI_WHITE : UI_DIM), 1);
+            a[0] = (char)('1' + i), a[1] = 0;
+            o->text(o->ctx, x, 91, 24, 0, a, active ? lc : (selected ? UI_BRIGHT : UI_DIM), 1);
         }
-        if (ui->loop_subpage == 0u) {
-            value_u(a, "H", s->hold);
-            value_i(b, "R", s->root_offset);
-            o->text(o->ctx, 8, 148, 52, 0, a, UI_GOLD, 0);
-            o->text(o->ctx, 64, 148, 54, 0, b, UI_MID, 0);
-            value_i(a, "T", s->pitch);
-            value_i(b, "O", s->octave);
-            o->text(o->ctx, 122, 148, 50, 0, a, UI_ACC, 0);
-            o->text(o->ctx, 176, 148, 56, 0, b, UI_BLUE, 2);
-        } else if (ui->loop_subpage == 1u) {
-            if (s->root_note < 0)
-                copy_s(a, "FOLLOW");
-            else {
-                value_u(a, "KEY", (uint32_t)s->root_note);
-            }
-            if (s->scale_set < 0)
-                copy_s(b, "FOLLOW");
-            else
-                copy_s(b, mello_scale_name((MelloScale)s->scale_set));
-            o->text(o->ctx, 8, 148, 56, 0, a, UI_GOLD, 0);
-            o->text(o->ctx, 68, 148, 76, 0, b, UI_MID, 1);
-            value_u(a, "S", mello_loop_cycle_sub_tone(s));
-            value_i(b, "B", mello_loop_cycle_sub_transpose(s));
-            o->text(o->ctx, 148, 148, 36, 0, a, UI_MID, 0);
-            o->text(o->ctx, 188, 148, 44, 0, b, UI_BLUE, 2);
-        } else {
-            value_u(a, "LEN", len);
-            o->text(o->ctx, 8, 148, 48, 0, a, UI_GOLD, 0);
-            o->text(o->ctx, 60, 148, 40, 0, e->loop_cycle.sync ? "SYNC" : "FREE",
-                    e->loop_cycle.sync ? UI_GOLD : UI_MID, 1);
-            o->text(o->ctx, 104, 148, 72, 0, e->loop_cycle.active ? "CYCLE ON" : "CYCLE OFF",
-                    e->loop_cycle.active ? UI_GOLD : UI_DIM, 1);
-            o->text(o->ctx, 180, 148, 52, 0, "K4 RST", UI_DIM, 2);
-        }
+        draw_knob_grid(ui, o, 118);
         break;
     }
     case MELLO_UI_SEQ_SLOTSEQ: {
-        MelloSlotSeqStep *s = &e->slot_seq.steps[ui->selected_slot_seq_step];
+        /* Sixteen positions of the slot sequence (this bank), two rows: the slot each plays, in its colour, and its
+         * hold as a bar; the playing one framed bright. */
         uint8_t i, start = (uint8_t)(ui->slot_seq_bank * 16u), len = e->slot_seq.length;
-        o->text(o->ctx, 8, 33, 96, 0, e->slot_seq.active ? "SLOT SEQ ON" : "SLOT SEQ OFF",
-                e->slot_seq.active ? UI_BLUE : UI_DIM, 0);
-        value_u(a, "LEN", len);
-        o->text(o->ctx, 106, 33, 52, 0, a, UI_MID, 1);
-        value_u(a, "BANK", ui->slot_seq_bank + 1u);
-        o->text(o->ctx, 162, 33, 70, 0, a, UI_GOLD, 2);
-        /* 16-position bank: cell fill carries slot identity, bottom bar carries HOLD. */
+        ui_section(ui, o, 32, e->slot_seq.active ? "SLOT SEQ ON" : "SLOT SEQ OFF",
+                   e->slot_seq.active ? UI_BLUE : UI_DIM);
         for (i = 0u; i < 16u; ++i) {
             uint8_t idx = (uint8_t)(start + i);
             MelloSlotSeqStep *ss = &e->slot_seq.steps[idx];
-            int16_t x = (int16_t)(8 + (i % 8u) * 28u), y = (int16_t)(54 + (i / 8u) * 43u);
-            uint8_t in_len = idx < len, active = e->slot_seq.active && idx == e->slot_seq_pos,
-                    selected = idx == ui->selected_slot_seq_step;
-            uint16_t col = ss->slot < 0 ? UI_DIM : UI_BLUE;
-            o->fill(o->ctx, x, y, 23, 33, in_len ? UI_PANEL : UI_BLACK);
-            ui_frame(o, x, y, 23, 33,
-                     active ? UI_WHITE : (selected ? UI_SOFT : (in_len ? UI_PANEL2 : UI_BLACK)));
+            int16_t x = (int16_t)(10 + (i % 8u) * 28u), y = (int16_t)(52 + (i / 8u) * 27u);
+            bool in_len = idx < len, active = e->slot_seq.active && idx == e->slot_seq_pos,
+                 selected = idx == ui->selected_slot_seq_step;
+            static const uint16_t shade[4] = {UI_ACC, UI_BLUE, UI_PURPLE, UI_GOLD};
+            uint16_t c = ss->slot >= 0 ? shade[(uint8_t)ss->slot % 4u] : UI_LINE;
+            ui_round_fill(o, x, y, 24, 25,
+                          in_len && ss->slot >= 0 ? ui_mix(c, UI_PANEL, 150)
+                                                  : (in_len ? UI_PANEL2 : UI_PANEL));
+            ui_round_frame(o, x, y, 24, 25,
+                           active ? UI_WHITE : (selected ? UI_BRIGHT : (in_len ? UI_LINE : UI_TRACK)));
             if (in_len && ss->slot >= 0) {
-                uint8_t shade = (uint8_t)(((uint8_t)ss->slot % 4u));
-                o->fill(o->ctx, x + 3, y + 4, 17, 16,
-                        shade == 0u   ? UI_ACC
-                        : shade == 1u ? UI_BLUE
-                        : shade == 2u ? UI_PURPLE
-                                      : UI_GOLD);
                 value_u(a, "", (uint32_t)ss->slot + 1u);
-                o->text(o->ctx, x + 2, y + 7, 19, 0, a, UI_WHITE, 1);
+                o->text(o->ctx, x, (int16_t)(y + 3), 24, 0, a, UI_BRIGHT, 1);
             }
-            if (in_len) {
-                int16_t hw = (int16_t)(3 + ((uint32_t)(ss->hold > 256u ? 256u : ss->hold) * 14u) / 256u);
-                o->fill(o->ctx, x + 3, y + 25, hw, 3, col);
-            }
+            if (in_len)
+                o->fill(o->ctx, (int16_t)(x + 3), (int16_t)(y + 20),
+                        (int16_t)(2 + ((uint32_t)(ss->hold > 256u ? 256u : ss->hold) * 16u) / 256u), 2, c);
         }
-        if (s->slot < 0)
-            copy_s(a, "SLOT OFF");
-        else
-            value_u(a, "SLOT", (uint32_t)s->slot + 1u);
-        value_u(b, "HOLD", s->hold);
-        o->text(o->ctx, 8, 146, 104, 0, a, s->slot < 0 ? UI_DIM : UI_BLUE, 0);
-        o->text(o->ctx, 120, 146, 112, 0, b, UI_GOLD, 2);
+        draw_knob_grid(ui, o, 118);
         break;
     }
     case MELLO_UI_RANDOM: {
@@ -3300,34 +3144,33 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         break;
     }
     case MELLO_UI_SLOTS: {
+        /* This bank's sixteen slots, two rows: saved ones filled, the playing one green, the queued one blue; the
+         * selected slot's name as the title (where RENAME's cursor runs). */
         MelloPatternSlot *s = &e->slots[ui->selected_slot];
         uint8_t i, start = (uint8_t)(ui->slot_bank * 16u);
-        value_u(a, "BANK", ui->slot_bank + 1u);
-        o->text(o->ctx, 8, 33, 58, 0, a, UI_GOLD, 0);
-        value_u(a, "VISIBLE", e->visible_slot_count);
-        o->text(o->ctx, 70, 33, 88, 0, a, UI_BLUE, 1);
-        o->text(o->ctx, 162, 33, 70, 0, ui->slots_subpage ? "RENAME" : "LOAD", UI_MID, 2);
+        ui_section(ui, o, 32, "", UI_ACC);
+        value_u(a, "", (uint32_t)ui->selected_slot + 1u);
+        o->text(o->ctx, 10, 35, 24, 0, a, UI_DIM, 0);
+        o->text(o->ctx, 34, 35, 100, 0, s->valid ? s->name : "EMPTY", s->valid ? UI_ACC : UI_DIM, 0);
+        if (ui->slots_subpage && s->valid)
+            o->fill(o->ctx, (int16_t)(34 + ui->slot_name_cursor * 8u), 51, 8, 2, UI_GOLD);
         for (i = 0u; i < 16u; ++i) {
             uint8_t idx = (uint8_t)(start + i);
             MelloPatternSlot *ps = &e->slots[idx];
-            int16_t x = (int16_t)(8 + (i % 8u) * 28u), y = (int16_t)(54 + (i / 8u) * 36u);
-            uint8_t selected = idx == ui->selected_slot, active = e->active_slot == (int8_t)idx,
-                    queued = e->queued_slot == (int8_t)idx, visible = idx < e->visible_slot_count;
-            uint16_t frame =
-                active ? UI_ACC
-                       : (queued ? UI_BLUE : (selected ? UI_WHITE : (visible ? UI_PANEL2 : UI_BLACK)));
-            o->fill(o->ctx, x, y, 23, 27, ps->valid ? UI_PANEL2 : (visible ? UI_PANEL : UI_BLACK));
-            ui_frame(o, x, y, 23, 27, frame);
-            if (ps->valid)
-                o->fill(o->ctx, x + 4, y + 5, 15, 10, active ? UI_ACC : (queued ? UI_BLUE : UI_MID));
+            int16_t x = (int16_t)(10 + (i % 8u) * 28u), y = (int16_t)(54 + (i / 8u) * 26u);
+            bool selected = idx == ui->selected_slot, active = e->active_slot == (int8_t)idx,
+                 queued = e->queued_slot == (int8_t)idx, visible = idx < e->visible_slot_count;
+            uint16_t c = active ? UI_ACC : (queued ? UI_BLUE : UI_MID);
+            ui_round_fill(o, x, y, 24, 23,
+                          ps->valid ? ui_mix(c, UI_PANEL, active || queued ? 110 : 170)
+                                    : (visible ? UI_PANEL2 : UI_PANEL));
+            ui_round_frame(o, x, y, 24, 23,
+                           selected ? UI_BRIGHT : (ps->valid ? c : (visible ? UI_LINE : UI_TRACK)));
             value_u(a, "", idx + 1u);
-            o->text(o->ctx, x + 2, y + 17, 19, 0, a, selected ? UI_WHITE : (visible ? UI_DIM : UI_BLACK), 1);
+            o->text(o->ctx, x, (int16_t)(y + 3), 24, 0, a,
+                    ps->valid ? UI_BRIGHT : (visible ? UI_DIM : UI_TRACK), 1);
         }
-        o->text(o->ctx, 8, 132, 224, 0, s->valid ? s->name : "EMPTY", s->valid ? UI_ACC : UI_DIM, 0);
-        if (ui->slots_subpage && s->valid) {
-            int16_t cx = (int16_t)(8 + ((uint32_t)ui->slot_name_cursor * 224u) / MELLO_SLOT_NAME_CHARS);
-            o->fill(o->ctx, cx, 151, 8, 2, UI_GOLD);
-        }
+        draw_knob_grid(ui, o, 118);
         break;
     }
     case MELLO_UI_DOT: {
@@ -3458,117 +3301,83 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         break;
     }
     case MELLO_UI_SUB: {
+        /* The dedicated sub's 5-SEQ as yellow cards: each step's tone as a bar (off = a line), its octave mark; the
+         * playing one gold, the selected one framed; then K1-K4. */
         uint8_t i, xlen = e->sub.x_length;
         if (xlen != 2u && xlen != 3u && xlen != 5u) xlen = 5u;
-        o->text(o->ctx, 8, 33, 70, 0, e->sub.on ? "SUB ON" : "SUB OFF", e->sub.on ? UI_GOLD : UI_DIM, 0);
-        o->text(o->ctx, 82, 33, 72, 0, sub_mode_name(e->sub.mode), UI_GOLD, 1);
-        value_i(a, "OCT", e->sub.octave);
-        o->text(o->ctx, 158, 33, 74, 0, a, UI_MID, 2);
-        /* Main generator: pulse density + gate length remain visible regardless of X override. */
-        o->text(o->ctx, 8, 53, 42, 0, "PULSE", UI_DIM, 0);
-        ui_hbar(o, 52, 56, 78, e->sub.euclid_pulses, 64u, UI_GOLD);
-        value_u(a, "", e->sub.euclid_pulses);
-        o->text(o->ctx, 134, 53, 24, 0, a, UI_GOLD, 0);
-        o->text(o->ctx, 162, 53, 34, 0, "ROT", UI_DIM, 0);
-        value_u(a, "", e->sub.euclid_rotate);
-        o->text(o->ctx, 198, 53, 34, 0, a, UI_MID, 2);
-        o->text(o->ctx, 8, 69, 42, 0, "GATE", UI_DIM, 0);
-        ui_hbar(o, 52, 72, 106, e->sub.gate_amount > 1200u ? 1200u : e->sub.gate_amount, 1200u, UI_GOLD);
-        value_u(a, "", e->sub.gate_amount / 10u);
-        o->text(o->ctx, 162, 69, 70, 0, a, UI_MID, 2);
-        /* SUB 5-SEQ is a compact 2/3/5-step yellow sequencer. Disabled cells remain physically present. */
-        o->text(o->ctx, 8, 87, 72, 0, e->sub.x_on ? "SUB 5-SEQ" : "5-SEQ OFF", e->sub.x_on ? UI_GOLD : UI_DIM,
-                0);
-        value_u(a, "LEN", xlen);
-        o->text(o->ctx, 84, 87, 40, 0, a, UI_MID, 0);
-        o->text(o->ctx, 128, 87, 104, 0, e->sub.x_reset ? "RESET LOOP" : "FREE RUN",
-                e->sub.x_reset ? UI_GOLD : UI_DIM, 2);
+        (void)copy_s(copy_s(a, e->sub.on ? "SUB  " : "SUB OFF  "), sub_mode_name(e->sub.mode));
+        ui_section(ui, o, 32, a, e->sub.on ? UI_GOLD : UI_DIM);
+        ui_spaced(o, 10, 52, 100, "SUB 5-SEQ", e->sub.x_on ? UI_GOLD : UI_DIM, 0);
+        o->text(o->ctx, 110, 52, 120, 0, !e->sub.x_on ? "OFF" : (e->sub.x_reset ? "RESET LOOP" : "FREE RUN"),
+                e->sub.x_on ? UI_GOLD : UI_DIM, 2);
         for (i = 0u; i < MELLO_SUB_X_MAX_STEPS; ++i) {
             MelloSubXStep *xs = &e->sub.x_steps[i];
-            int16_t x = (int16_t)(8 + i * 45u);
-            int16_t tone_h = (int16_t)(5 + (xs->tone * 4u));
-            uint8_t in_len = i < xlen;
-            uint8_t active = e->sub.x_on && e->sub_x_active_index == (int8_t)i;
-            uint8_t selected = i == ui->selected_sub_x_step;
-            o->fill(o->ctx, x, 104, 40, 42, in_len ? UI_PANEL : UI_BLACK);
-            ui_frame(o, x, 104, 40, 42,
-                     active ? UI_GOLD : (selected ? UI_WHITE : (in_len ? UI_PANEL2 : UI_BLACK)));
+            int16_t x = (int16_t)(10 + i * 45u), tone_h = (int16_t)(4 + xs->tone * 3u);
+            bool in_len = i < xlen, active = e->sub.x_on && e->sub_x_active_index == (int8_t)i,
+                 selected = i == ui->selected_sub_x_step;
+            uint16_t bar = e->sub.x_on ? UI_GOLD : UI_MID;
+            ui_round_fill(o, x, 70, 40, 28, in_len ? UI_PANEL2 : UI_PANEL);
+            ui_round_frame(o, x, 70, 40, 28,
+                           active ? UI_GOLD : (selected ? UI_BRIGHT : (in_len ? UI_LINE : UI_TRACK)));
             if (in_len && xs->on) {
-                if (tone_h > 28) tone_h = 28;
-                o->fill(o->ctx, x + 4, (int16_t)(139 - tone_h), 32, tone_h, UI_GOLD);
-            } else if (in_len) {
-                o->fill(o->ctx, x + 4, 137, 32, 2, UI_DIM);
-            }
-            if (in_len && xs->octave) o->fill(o->ctx, x + 4, xs->octave > 0 ? 108 : 142, 32, 2, UI_BLUE);
-            a[0] = (char)('1' + i);
-            a[1] = 0;
-            o->text(o->ctx, x, 149, 40, 0, a, active ? UI_GOLD : (selected ? UI_WHITE : UI_DIM), 1);
+                if (tone_h > 20) tone_h = 20;
+                ui_vgrad(o, (int16_t)(x + 4), (int16_t)(94 - tone_h), 32, tone_h, bar,
+                         ui_mix(bar, UI_PANEL2, 150));
+            } else if (in_len)
+                o->fill(o->ctx, (int16_t)(x + 4), 92, 32, 2, UI_LINE);
+            if (in_len && xs->octave)
+                o->fill(o->ctx, (int16_t)(x + 4), xs->octave > 0 ? 73 : 95, 32, 2, UI_BLUE);
+            a[0] = (char)('1' + i), a[1] = 0;
+            o->text(o->ctx, x, 99, 40, 0, a, active ? UI_GOLD : (selected ? UI_BRIGHT : UI_DIM), 1);
         }
+        draw_knob_grid(ui, o, 118);
         break;
     }
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD: {
+        /* The chord layer in its violet: the chain of chords (the selected one's notes as pills), or its trigger grid,
+         * or its pattern's voice masks; then K1-K4. */
         MelloChordConfig *c = &e->chord;
         uint8_t i;
         uint16_t col = UI_CHORD;
-        o->text(o->ctx, 8, 33, 72, 0, c->on ? "CHORD ON" : "CHORD OFF", c->on ? col : UI_DIM, 0);
-        o->text(o->ctx, 82, 33, 72, 0, chord_mode_name(c->mode), col, 1);
-        o->text(o->ctx, 158, 33, 74, 0, c->trigger == MELLO_CHORD_TRIGGER_GRID ? "GRID" : "STEP", UI_MID, 2);
+        (void)copy_s(copy_s(a, c->on ? "CHORD  " : "CHORD OFF  "), chord_mode_name(c->mode));
+        ui_section(ui, o, 32, a, c->on ? col : UI_DIM);
         if (ui->chord_subpage == 3u) {
             for (i = 0u; i < 16u; ++i) {
-                int16_t x = (int16_t)(20 + (i % 4u) * 51u), y = (int16_t)(57 + (i / 4u) * 23u);
-                uint8_t on = (c->grid_cells & (uint16_t)(1u << i)) != 0u;
-                o->fill(o->ctx, x, y, 45, 18, on ? col : UI_PANEL);
-                ui_frame(o, x, y, 45, 18, on ? col : UI_PANEL2);
-                if (e->chord_grid_active_cell == (int8_t)i) ui_frame(o, x + 2, y + 2, 41, 14, UI_WHITE);
+                int16_t x = (int16_t)(10 + (i % 4u) * 56u), y = (int16_t)(52 + (i / 4u) * 13u);
+                bool on = (c->grid_cells & (uint16_t)(1u << i)) != 0u,
+                     here = e->chord_grid_active_cell == (int8_t)i;
+                ui_round_fill(o, x, y, 52, 11, on ? ui_mix(col, UI_PANEL, here ? 40 : 130) : UI_PANEL2);
+                ui_round_frame(o, x, y, 52, 11, here ? UI_BRIGHT : (on ? col : UI_LINE));
             }
-            o->text(o->ctx, 8, 153, 224, 0, "CHORD TRIGGER GRID", col, 0);
         } else if (ui->chord_subpage == 4u) {
             for (i = 0u; i < c->pattern_length; ++i) {
                 int16_t x = (int16_t)(10 + i * 28u);
-                uint8_t j;
-                uint8_t m = c->pattern_masks[i];
-                ui_frame(o, x, 62, 24, 72, i == ui->selected_chord_pattern ? UI_WHITE : UI_PANEL2);
+                uint8_t j, m = c->pattern_masks[i];
+                ui_round_frame(o, x, 52, 24, 52, i == ui->selected_chord_pattern ? UI_BRIGHT : UI_LINE);
                 for (j = 0u; j < 4u; ++j)
-                    o->fill(o->ctx, x + 4, 68 + j * 14, 16, 8, (m & (1u << j)) ? col : UI_PANEL2);
+                    ui_round_fill(o, (int16_t)(x + 4), (int16_t)(55 + j * 12u), 16, 9,
+                                  (m & (1u << j)) ? col : UI_TRACK);
             }
-            o->text(o->ctx, 8, 145, 224, 0, "PATTERN: SOLO + POLY MASKS", UI_DIM, 0);
         } else {
-            uint8_t notes[4],
-                n = mello_engine_resolve_chord_notes(
-                    e, ui->selected_chord_step < c->length ? ui->selected_chord_step : 0u, notes);
+            uint8_t notes[4], sel = ui->selected_chord_step < c->length ? ui->selected_chord_step : 0u,
+                              n = mello_engine_resolve_chord_notes(e, sel, notes);
             for (i = 0u; i < c->length; ++i) {
-                int16_t x = (int16_t)(8 + i * 28u);
-                uint16_t fc =
-                    i == e->chord_chain_pos ? UI_WHITE : (i == ui->selected_chord_step ? col : UI_PANEL2);
-                ui_frame(o, x, 58, 23, 32, fc);
-                value_u(a, "", (uint32_t)c->steps[i].degree + 1u);
-                o->text(o->ctx, x, 68, 23, 0, a, fc, 1);
+                bool playing = i == e->chord_chain_pos, selected = i == sel;
+                value_u(b, "", (uint32_t)c->steps[i].degree + 1u);
+                ui_pill(o, (int16_t)(10 + i * 28u), 53, 24, b, selected, col);
+                if (playing) o->fill(o->ctx, (int16_t)(14 + i * 28u), 71, 16, 2, UI_BRIGHT);
             }
             for (i = 0u; i < n; ++i) {
-                int16_t x = (int16_t)(12 + i * 55u);
-                midi_note_name(a, notes[i]);
-                ui_frame(o, x, 105, 49, 33, col);
-                o->text(o->ctx, x + 2, 116, 45, 0, a, col, 1);
-            }
-            if (ui->chord_subpage == 1u)
-                o->text(o->ctx, 8, 148, 224, 0,
-                        chord_shape_name(c->steps[ui->selected_chord_step % c->length].shape), col, 1);
-            else if (ui->chord_subpage == 2u)
-                o->text(o->ctx, 8, 148, 224, 0, "DEDICATED TONE + MAIN FX", UI_DIM, 0);
-            else {
-                const char *clock_hint;
-                if (c->trigger == MELLO_CHORD_TRIGGER_GRID)
-                    clock_hint = "GRID CLOCK / CHAIN HIT";
-                else if (c->mode == MELLO_CHORD_HOLD)
-                    clock_hint = "HOLD PAD / CHAIN STEP";
-                else if (c->mode == MELLO_CHORD_STAB)
-                    clock_hint = "STAB PULSE / CHAIN STEP";
-                else
-                    clock_hint = "ARP/PAT PULSE / CHAIN STEP";
-                o->text(o->ctx, 8, 148, 224, 0, clock_hint, UI_DIM, 0);
+                int16_t x = (int16_t)(10 + i * 56u);
+                midi_note_name(b, notes[i]);
+                ui_round_fill(o, x, 75, 52, 36,
+                              ui_mix(col, UI_PANEL, 170)); /* taller than the large text's box */
+                ui_round_frame(o, x, 75, 52, 36, col);
+                o->text(o->ctx, (int16_t)(x + 1), 77, 50, 1, b, UI_BRIGHT, 1);
             }
         }
+        draw_knob_grid(ui, o, 118);
         break;
     }
 #endif
@@ -3576,69 +3385,41 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
     case MELLO_UI_SOUND_RESERVED: draw_param_panel(ui, o); break;
     case MELLO_UI_AUDIO_FX: draw_param_panel(ui, o); break;
     case MELLO_UI_SAMPLE_RESERVED: {
+        /* The HTML's SAMPLE LAYER: slots A-D as pills (filled = loaded), the layer's state; the trim as a bar with
+         * gold edges (PITCH adds the transpose mark), or the envelope's curve; then K1-K4. */
         uint8_t si = e->sample.edit_slot < MELLO_SAMPLE_SLOT_COUNT ? e->sample.edit_slot : 0u, i;
         MelloSampleSlotConfig *sl = &e->sample.slots[si];
         const MelloSampleSlotMeta *sm = ui->sample_bank ? &ui->sample_bank->meta[si] : 0;
-        uint8_t loaded = (uint8_t)(sm && sm->loaded);
-        uint32_t ms =
-            loaded ? (sm->sample_count * 1000u + MELLO_SAMPLE_SOURCE_RATE / 2u) / MELLO_SAMPLE_SOURCE_RATE
-                   : 0u;
-        o->text(o->ctx, 8, 33, 96, 0,
-                ui->sample_subpage == 0u   ? "SAMPLE MAIN"
-                : ui->sample_subpage == 1u ? "SAMPLE PITCH"
-                : ui->sample_subpage == 2u ? "TRIM / LOOP"
-                                           : "ENVELOPE",
-                UI_GOLD, 0);
-        o->text(o->ctx, 104, 33, 128, 0,
-                e->sample.on ? (e->sample.per_step ? "PER STEP" : "FIXED SLOT") : "LAYER OFF",
-                e->sample.on ? UI_GOLD : UI_DIM, 2);
-        /* A-D occupancy is metadata, not an invented waveform. */
+        bool loaded = sm && sm->loaded;
+        ui_section(ui, o, 32, e->sample.on ? (e->sample.per_step ? "PER STEP" : "FIXED SLOT") : "LAYER OFF",
+                   e->sample.on ? UI_BLUE : UI_DIM);
         for (i = 0u; i < MELLO_SAMPLE_SLOT_COUNT; ++i) {
             const MelloSampleSlotMeta *mi = ui->sample_bank ? &ui->sample_bank->meta[i] : 0;
-            int16_t x = (int16_t)(8 + i * 56u);
-            uint8_t ld = (uint8_t)(mi && mi->loaded);
-            uint8_t selected = i == si;
-            o->fill(o->ctx, x, 51, 52, 22, ld ? UI_PANEL2 : UI_PANEL);
-            ui_frame(o, x, 51, 52, 22, selected ? UI_WHITE : (ld ? UI_ACC : UI_PANEL2));
-            a[0] = (char)('A' + i);
-            a[1] = 0;
-            o->text(o->ctx, x + 2, 55, 48, 0, a, selected ? UI_WHITE : (ld ? UI_ACC : UI_DIM), 1);
+            a[0] = (char)('A' + i), a[1] = 0;
+            ui_pill(o, (int16_t)(10 + i * 34u), 53, 30, a, i == si, mi && mi->loaded ? UI_ACC : UI_BLUE);
         }
-        if (loaded) {
-            char line[32], *p = copy_s(line, "SLOT ");
-            *p++ = (char)('A' + si);
-            *p++ = ' ';
-            copy_s(p, sm->name);
-            o->text(o->ctx, 8, 80, 150, 0, line, UI_ACC, 0);
-            value_u(a, "MS", ms);
-            o->text(o->ctx, 162, 80, 70, 0, a, UI_BLUE, 2);
-        } else {
-            o->text(o->ctx, 8, 80, 224, 0, "EMPTY - USB UPLOAD STOPPED", UI_DIM, 0);
-        }
-        if (ui->sample_subpage == 3u) {
-            ui_env_graph(o, 8, 101, 224, 55, sl->attack_ms, sl->decay_ms, sl->sustain_permille,
-                         sl->release_ms, UI_ACC);
-        } else {
-            int16_t tx0 = (int16_t)(8 + ((uint32_t)224u * sl->trim_start) / 1000u),
-                    tx1 = (int16_t)(8 + ((uint32_t)224u * sl->trim_end) / 1000u);
-            o->fill(o->ctx, 8, 104, 224, 30, UI_PANEL);
-            ui_frame(o, 8, 104, 224, 30, UI_PANEL2);
+        o->text(o->ctx, 146, 53, 84, 0, loaded ? sm->name : "EMPTY", loaded ? UI_ACC : UI_DIM, 2);
+        if (ui->sample_subpage == 3u)
+            ui_env_graph(o, 10, 76, 220, 32, sl->attack_ms, sl->decay_ms, sl->sustain_permille,
+                         sl->release_ms, UI_BLUE);
+        else {
+            int16_t tx0 = (int16_t)(10 + ((uint32_t)220u * sl->trim_start) / 1000u),
+                    tx1 = (int16_t)(10 + ((uint32_t)220u * sl->trim_end) / 1000u);
+            ui_round_fill(o, 10, 76, 220, 30, UI_PANEL2);
             if (tx1 < tx0 + 2) tx1 = (int16_t)(tx0 + 2);
-            if (tx1 > 231) tx1 = 231;
-            o->fill(o->ctx, tx0, 109, (int16_t)(tx1 - tx0), 20, loaded ? UI_ACC : UI_MID);
-            o->fill(o->ctx, tx0, 104, 2, 30, UI_GOLD);
-            o->fill(o->ctx, tx1, 104, 2, 30, UI_GOLD);
+            if (tx1 > 228) tx1 = 228;
+            ui_vgrad(o, tx0, 81, (int16_t)(tx1 - tx0), 20, loaded ? UI_ACC : UI_MID,
+                     ui_mix(loaded ? UI_ACC : UI_MID, UI_PANEL2, 160));
+            o->fill(o->ctx, tx0, 76, 2, 30, UI_GOLD);
+            o->fill(o->ctx, tx1, 76, 2, 30, UI_GOLD);
             if (ui->sample_subpage == 1u) {
-                int16_t center = 120 + (int16_t)(sl->coarse_semitones * 4);
-                if (center < 10) center = 10;
-                if (center > 230) center = 230;
-                o->fill(o->ctx, center, 101, 2, 36, UI_BLUE);
+                int16_t center = (int16_t)(120 + sl->coarse_semitones * 4);
+                if (center < 12) center = 12;
+                if (center > 226) center = 226;
+                o->fill(o->ctx, center, 74, 2, 34, UI_BLUE);
             }
-            if (sl->loop) o->text(o->ctx, 12, 139, 48, 0, "LOOP", UI_GOLD, 0);
-            if (sl->track) o->text(o->ctx, 64, 139, 56, 0, "TRACK", UI_BLUE, 0);
-            value_u(a, "LEVEL", sl->level / 10u);
-            o->text(o->ctx, 124, 139, 108, 0, a, UI_MID, 2);
         }
+        draw_knob_grid(ui, o, 118);
         break;
     }
     }
@@ -3871,6 +3652,75 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 15: v = f->reverb_tone; break;
         case 16: v = f->reverb_pre_ms, m = 120u; break;
         case 17: v = f->reverb_level, m = 3000u; break;
+        default: return false;
+        }
+    } else if (ui->page == MELLO_UI_SEQ_STEP) { /* the ranges as each adjust_* clamps them */
+        const MelloStep *s = &e->project.steps[ui->selected_step % MELLO_MAX_STEPS];
+        switch (ui->step_subpage * 4u + k) {
+        case 0:
+            v = (uint32_t)(s->pitch < 0 ? 0 : s->pitch);
+            m = (uint32_t)e->project.pitch_span_oct * scale_len(e->project.scale) - 1u;
+            break;
+        case 1: v = (uint32_t)s->pulses - 1u, m = 7u; break;
+        case 2: v = (uint32_t)s->ratchet - 1u, m = 7u; break;
+        case 5: v = prob_pct(s->probability), m = 100u; break;
+        case 12: v = e->project.seq_len, m = MELLO_MAX_STEPS; break;
+        default: return false;
+        }
+    } else if (ui->page == MELLO_UI_SEQ_LOOP && ui->loop_subpage == 0u) {
+        const MelloLoopCycleStep *ls =
+            &e->loop_cycle.steps[ui->selected_loop_step % MELLO_MAX_LOOP_CYCLE_STEPS];
+        int32_t sv = k == 1u ? ls->root_offset + 12 : (k == 2u ? ls->octave + 2 : ls->pitch + 12);
+        v = k == 0u ? ls->hold : (uint32_t)(sv < 0 ? 0 : sv);
+        m = k == 0u ? 256u : (k == 2u ? 4u : 24u);
+    } else if (ui->page == MELLO_UI_SEQ_SLOTSEQ && (k == 1u || k == 3u)) {
+        v = k == 1u ? e->slot_seq.steps[ui->selected_slot_seq_step % MELLO_MAX_SLOT_SEQ_STEPS].hold
+                    : e->slot_seq.length;
+        m = k == 1u ? 256u : MELLO_MAX_SLOT_SEQ_STEPS;
+    } else if (ui->page == MELLO_UI_SLOTS && ui->slots_subpage == 0u && k == 1u) {
+        v = e->visible_slot_count, m = MELLO_MAX_SLOTS;
+    } else if (ui->page == MELLO_UI_SUB) {
+        const MelloSubConfig *c = &e->sub;
+        switch (ui->sub_subpage * 4u + k) {
+        case 1: v = c->euclid_pulses, m = 64u; break;
+        case 2: v = c->euclid_rotate, m = 64u; break;
+        case 7:
+        case 11: v = c->gate_amount, m = 1200u; break;
+        case 12: v = c->level; break;
+        case 14: v = c->decay_ms, m = 700u; break;
+        case 15: v = c->release_ms, m = 1200u; break;
+        case 16: v = c->glide_ms, m = 200u; break;
+        case 17: v = c->cut; break;
+        case 18: v = c->drive; break;
+        default: return false;
+        }
+#if MELLO_FEATURE_CHORD_MACHINE
+    } else if (ui->page == MELLO_UI_CHORD) {
+        const MelloChordConfig *c = &e->chord;
+        switch (ui->chord_subpage * 4u + k) {
+        case 3: v = c->level; break;
+        case 11: v = c->gate_amount, m = 1200u; break;
+        case 13: v = c->grid_length, m = 16u; break;
+        case 14: v = c->grid_amount; break;
+        case 19: v = c->release_ms, m = 4000u; break;
+        default: return false;
+        }
+#endif
+    } else if (ui->page == MELLO_UI_SAMPLE_RESERVED) {
+        const MelloSampleSlotConfig *sl = &e->sample.slots[e->sample.edit_slot % MELLO_SAMPLE_SLOT_COUNT];
+        switch (ui->sample_subpage * 4u + k) {
+        case 0:
+        case 6: v = sl->level, m = 1500u; break;
+        case 1:
+        case 7: v = sl->dist; break;
+        case 4: v = (uint32_t)(sl->coarse_semitones + 24), m = 48u; break;
+        case 5: v = (uint32_t)(sl->fine_cents + 100), m = 200u; break;
+        case 8: v = sl->trim_start; break;
+        case 9: v = sl->trim_end; break;
+        case 12: v = sl->attack_ms, m = 2000u; break;
+        case 13: v = sl->decay_ms, m = 2000u; break;
+        case 14: v = sl->sustain_permille; break;
+        case 15: v = sl->release_ms, m = 3000u; break;
         default: return false;
         }
     } else if (ui->page == MELLO_UI_GLOBAL && ui->global_subpage == 0u && k == 0u) {
@@ -4172,12 +4022,12 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             l[1] = "WAVE";
             copy_s(v[1], wave_name(e->sub.wave));
             l[2] = "DEC";
-            value_u(v[2], "", e->sub.decay_ms);
+            value_ms(v[2], e->sub.decay_ms);
             l[3] = "REL";
-            value_u(v[3], "", e->sub.release_ms);
+            value_ms(v[3], e->sub.release_ms);
         } else {
             l[0] = "GLIDE";
-            value_u(v[0], "", e->sub.glide_ms);
+            value_ms(v[0], e->sub.glide_ms);
             l[1] = "CUT";
             value_u(v[1], "", e->sub.cut / 10u);
             l[2] = "DRIVE";
@@ -4235,7 +4085,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             l[2] = "VOICES";
             value_u(v[2], "", c->voices);
             l[3] = "REL";
-            value_u(v[3], "", c->release_ms);
+            value_ms(v[3], c->release_ms);
         }
         break;
     }
@@ -4436,13 +4286,13 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[3], sl->loop ? "ON" : "OFF");
         } else {
             l[0] = "ATK";
-            value_u(v[0], "", sl->attack_ms);
+            value_ms(v[0], sl->attack_ms);
             l[1] = "DEC";
-            value_u(v[1], "", sl->decay_ms);
+            value_ms(v[1], sl->decay_ms);
             l[2] = "SUS";
             value_u(v[2], "", sl->sustain_permille / 10u);
             l[3] = "REL";
-            value_u(v[3], "", sl->release_ms);
+            value_ms(v[3], sl->release_ms);
         }
         break;
     }
