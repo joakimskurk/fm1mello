@@ -112,7 +112,7 @@ int main(void)
     CHECK(differs(plain), "NOTCH did nothing");
 
     s = base;
-    s.osc2_mix = 1000u, s.osc2_sync = true, s.osc2_semi = 7;
+    s.osc2_mix = 1000u, s.osc2_wave = MELLO_WAVE_SAW, s.osc2_sync = true, s.osc2_semi = 7;
     play(&s, 45u);
     r = rms(BLOCKS / 2u, BLOCKS, &b);
     printf("OSC 2 synced +7: rms %.0f, brightness %.3f\n", r, b);
@@ -159,7 +159,8 @@ int main(void)
     s = base;
     s.osc_wave = MELLO_WAVE_SQUARE, s.filter_res = 1000u, s.unison = MELLO_UNISON_MAX, s.detune = 1000u;
     s.noise_level = s.noise_fm = 1000u;
-    s.osc2_mix = 500u, s.osc2_semi = 24, s.osc2_sync = true, s.fm_amount = 1000u, s.saturation = 1000u;
+    s.osc2_mix = 500u, s.osc2_wave = MELLO_WAVE_SAW, s.osc2_semi = 24, s.osc2_sync = true,
+    s.fm_amount = 1000u, s.saturation = 1000u;
     s.filter_mode = MELLO_FILTER_BP, s.menv_amount = 1000, s.menv_target = MELLO_MENV_FM;
     s.lfo_on = true, s.lfo_target = MELLO_LFO_OSC2, s.lfo_depth = 1000u;
     play(&s, 108u);

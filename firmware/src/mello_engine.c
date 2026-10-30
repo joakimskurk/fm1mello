@@ -303,8 +303,7 @@ static MelloSoundConfig sanitize_sound_config(MelloSoundConfig c)
     if (c.unison < 1u) c.unison = 1u;
     if (c.unison > MELLO_UNISON_MAX) c.unison = MELLO_UNISON_MAX;
     c.detune = clamp_amount(c.detune);
-    if (c.osc2_wave >= MELLO_WAVE_OFF)
-        c.osc2_wave = MELLO_WAVE_SAW; /* OSC 2 is silenced by its mix, not OFF */
+    if (c.osc2_wave > MELLO_WAVE_OFF) c.osc2_wave = MELLO_WAVE_OFF;
     c.osc2_semi = clamp_i8(c.osc2_semi, -24, 24);
     c.osc2_fine = clamp_i8(c.osc2_fine, -50, 50);
     c.osc2_mix = clamp_amount(c.osc2_mix);
@@ -698,7 +697,7 @@ void mello_chord_defaults(MelloChordConfig *c)
 void mello_randomize_defaults(MelloRandomizeConfig *c)
 {
     if (!c) return;
-    c->mask = MELLO_RAND_ALL;
+    c->mask = MELLO_RAND_DEFAULT; /* feedback 2026-10-30: rolling the sound by default was too much */
 }
 
 void mello_sound_defaults(MelloSoundConfig *c)
@@ -727,7 +726,7 @@ void mello_sound_defaults(MelloSoundConfig *c)
     c->noise_fm = 0u;
     c->unison = 1u;
     c->detune = 0u;
-    c->osc2_wave = MELLO_WAVE_SAW;
+    c->osc2_wave = MELLO_WAVE_OFF;
     c->osc2_semi = 0;
     c->osc2_fine = 7; /* mixed in, a little apart from OSC 1 */
     c->osc2_mix = 0u;

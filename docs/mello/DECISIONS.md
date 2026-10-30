@@ -190,6 +190,14 @@ A splash/boot identity screen is required before final product-polish acceptance
   - Saved in SEC_MOD (40 bytes a working pattern or slot, only when it differs from the defaults). MOD 1's amount
     stays in SEC_WORKING / SEC_SLOTS with the HTML's meaning (1000 = depth 240); SEC_MOD carries the exact depth.
 
+## The randomizer and the sound (2026-10-30)
+
+Feedback: the randomizer ruined the synth sound and there was no way back. The HTML's default mask rolls everything;
+the FM-1's now rolls the first nine targets (PIT, PUL, RAT, GAT, OCT, ACC, SUB, SLD, SKP), the pattern: WAVE, CHORD,
+SMP and PRB are off until switched on (a departure from the HTML). SOUND has INIT (black key 1, press twice within 3 s,
+as CLR2): the sound back to the defaults, undoable. OSC 2 is OFF by default and has OFF as a wave; turning its WAVE, MIX,
+SYNC or FM up brings it in (SAW, mix 50%).
+
 ## Randomizer links (2026-10-30)
 
 The randomizer (RNDMZR, the RANDOM page) rolled each target on its own. Now a rolled target can be linked to the step's

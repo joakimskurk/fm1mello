@@ -181,7 +181,7 @@ int main(void)
         transport.midi_sub_channel != 1u || transport.midi_note_out_enabled)
         return 19;
     if (transport.engine.slot_seq.active || mello_engine_slot_valid(&transport.engine, 5u) ||
-        transport.engine.randomize.mask != MELLO_RAND_ALL)
+        transport.engine.randomize.mask != MELLO_RAND_DEFAULT)
         return 20;
     if (transport.midi_send != midi_send || transport.midi_ctx != (void *)0x1234 ||
         transport.event_sink != event_sink || transport.event_sink_ctx != (void *)0x5678)

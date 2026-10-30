@@ -1854,7 +1854,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                     a->lead.phase += vi;
                     lead = o1 = tone_osc_sample(c->osc_wave, a->lead.phase, inc_size(vi), pwm);
                 }
-                if (c->osc2_mix) {
+                if (c->osc2_mix && c->osc2_wave != MELLO_WAVE_OFF) {
                     /* OSC 2: SEMI and FINE from OSC 1, hard sync (it restarts where OSC 1 wraps, at the same
                      * fraction of its own cycle) and FM from OSC 1 (linear, through zero, up to 4x its frequency;
                      * squared). The Virus's oscillator pair. */

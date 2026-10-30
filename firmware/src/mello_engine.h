@@ -65,8 +65,12 @@ extern "C" {
 #define MELLO_RAND_PROB    (1u << 9)
 #define MELLO_RAND_SAMPLE  (1u << 10)
 /* Bit 11 stays reserved for CHORD so existing masks never change meaning. */
-#define MELLO_RAND_CHORD    (1u << 11)
-#define MELLO_RAND_WAVE     (1u << 12)
+#define MELLO_RAND_CHORD (1u << 11)
+#define MELLO_RAND_WAVE  (1u << 12)
+/* What RNDMZR rolls on a new project: the first nine, the pattern; not the sound (WAVE, CHORD), samples or chance. */
+#define MELLO_RAND_DEFAULT                                                                                   \
+    (MELLO_RAND_PITCH | MELLO_RAND_PULSES | MELLO_RAND_RATCHET | MELLO_RAND_GATE | MELLO_RAND_OCTAVE |       \
+     MELLO_RAND_ACCENT | MELLO_RAND_SUB | MELLO_RAND_SLIDE | MELLO_RAND_SKIP)
 #define MELLO_RAND_BASE_ALL ((1u << 11) - 1u)
 #if MELLO_FEATURE_CHORD_MACHINE
 #define MELLO_RAND_ALL (MELLO_RAND_BASE_ALL | MELLO_RAND_CHORD | MELLO_RAND_WAVE)
@@ -240,7 +244,7 @@ typedef struct {
     uint8_t unison;       /* 1..MELLO_UNISON_MAX oscillators */
     uint16_t detune;      /* 0..1000: the unison spread, up to +-60 cents */
     /* The Virus layer (DECISIONS.md "Virus layer"); off by default (OSC 2 mix 0, FM 0, SAT 0, LP, MOD ENV 0). */
-    MelloWaveform osc2_wave; /* OSC 2: free-running, or hard-synced to OSC 1 */
+    MelloWaveform osc2_wave; /* OSC 2: free-running, or hard-synced to OSC 1; OFF by default */
     int8_t osc2_semi;        /* -24..+24 semitones from OSC 1 */
     int8_t osc2_fine;        /* -50..+50 cents */
     uint16_t osc2_mix;       /* 0..1000: 0 = OSC 1 only, 1000 = OSC 2 only */
