@@ -3,6 +3,21 @@
 From the October 2026 review ([docs/review-2026-10/REVIEW.md](docs/review-2026-10/REVIEW.md)): keep the model,
 sequencer and storage; rewrite the sound to match the HTML, rebuild HOME as an instrument. One phase at a time.
 
+## Now: feedback from playing 0.5 (2026-10-30)
+
+In the order to do them; each is the next work before Phase 3 / 5's open items.
+- [ ] **Playback stops by itself and the last note hangs for ever** (still happens). Find what stops the transport and
+      why no NOTE_OFF follows; a stop must always release every voice.
+- [ ] **A modulation nobody set**: it sounds like ratchets or amplitude / filter modulation, sometimes following the
+      pitch, with odd under- and overtones. Find its source (candidates: OSC 2's 7-cent beating when mixed in,
+      unison detune, the randomizer rolling WAVE / PWM, the noise FM's aliasing). OSC 2 off by default.
+- [ ] **The randomizer ruins the sound and there is no way back**: synth parameters (WAVE, CHORD) out of its default
+      mask; the default is the first nine targets (PIT .. SKP). A way back to a clean sound.
+- [ ] **Randomizer EDIT**: on the RANDOM page, EDIT sets how much each target is rolled (an amount, not on / off).
+- [ ] **Noise too strong**: noise is too much from 20-30%, noise FM usable only up to ~15%; rescale both so the whole
+      knob is usable, and a low cut on the noise so it does not fill the low register.
+- [ ] **SUB: a DRONE mode**: the sub always on while playing.
+
 ## Phase 0: clean ground (done in this repo)
 
 - [x] Stop WP-E3 (Reverb V3). It tuned towards a target the HTML never had.
