@@ -191,6 +191,7 @@ typedef struct {
 #if MELLO_FEATURE_CHORD_MACHINE
     uint8_t seen_chord_pos;
     int8_t seen_chord_grid;
+    uint8_t seen_chord_lit;
 #endif
     uint8_t seen_running;
     uint8_t home_old_step;

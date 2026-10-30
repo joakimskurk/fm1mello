@@ -106,20 +106,34 @@ typedef struct {
 } MelloAudioSubVoice;
 
 #if MELLO_FEATURE_CHORD_MACHINE
+/* Voices to play from: a chord's four, and two more so a new chord does not cut the last one's release. */
+#define MELLO_CHORD_AUDIO_VOICES 6u
+#define MELLO_CHORD_CHORUS_LEN   1024u /* 23 ms: the chorus's delay line */
 typedef struct {
-    uint32_t phase[MELLO_CHORD_MAX_VOICES];
-    uint32_t inc[MELLO_CHORD_MAX_VOICES];
-    uint8_t note[MELLO_CHORD_MAX_VOICES];
-    uint8_t active[MELLO_CHORD_MAX_VOICES];
+    uint32_t phase[MELLO_CHORD_AUDIO_VOICES];
+    uint32_t inc[MELLO_CHORD_AUDIO_VOICES];
+    int32_t venv[MELLO_CHORD_AUDIO_VOICES];  /* each voice's ADSR, Q24, every 16 samples */
+    int32_t vgain[MELLO_CHORD_AUDIO_VOICES]; /* and its gain, Q24, ramped between: no steps */
+    int32_t vstep[MELLO_CHORD_AUDIO_VOICES];
+    uint8_t vstage[MELLO_CHORD_AUDIO_VOICES]; /* 0 off, 1 attack, 2 decay / sustain, 3 release */
+    uint32_t vage[MELLO_CHORD_AUDIO_VOICES];  /* when it started (the oldest is taken when none is free) */
+    uint8_t note[MELLO_CHORD_AUDIO_VOICES];
+    uint8_t active[MELLO_CHORD_AUDIO_VOICES]; /* gated: its NOTE_OFF has not come */
     uint8_t active_count;
-    int32_t env_q24;
-    int32_t env_step_q24;
-    int32_t env_target_q24;
+    uint32_t age;
+    int32_t env_q24; /* the loudest voice's level: 0 when the layer is silent */
     MelloEnvStage env_stage;
-    /* Dedicated soft band-pass state keeps the chord layer out of the lead/sub extremes. */
-    int32_t tone_lp;
-    int32_t hp_x1;
-    int32_t hp_y1;
+    int32_t fenv;   /* the filter envelope, Q24, restarted by every note */
+    uint8_t fstage; /* 1 attack, 2 decay */
+    int32_t lp, bp; /* the filter (state variable, 12 dB) */
+    int32_t hp_x1, hp_y1;
+    int32_t f_q15, damp_q15; /* its coefficients, every 16 samples */
+    uint8_t ctl;
+    int16_t chorus_buf[MELLO_CHORD_CHORUS_LEN];
+    uint16_t chorus_pos;
+    uint32_t chorus_lfo;
+    /* from the config: the envelopes' rates for 16 samples (Q24), the sustain */
+    int32_t k_att, k_dec, k_rel, k_fatt, k_fdec, sus_q24;
 } MelloAudioChordVoice;
 #endif
 

@@ -507,6 +507,20 @@ typedef struct {
     uint16_t grid_amount;
     uint8_t pattern_length;
     uint8_t pattern_masks[MELLO_CHORD_PATTERN_STEPS]; /* low 4 bits choose chord voices */
+    /* The voice (2026-10-30), as a Juno's: ADSR per voice, a resonant 12 dB low-pass with its own envelope, a
+     * stereo chorus, its own send to the delay and reverb. */
+    uint16_t cut;            /* 0..1000: 60 Hz .. 6.4 kHz */
+    uint16_t res;            /* 0..1000 */
+    uint16_t fenv;           /* 0..1000: the filter envelope opens the filter up to 48 semitones */
+    uint16_t fenv_attack_ms; /* 1..2000 */
+    uint16_t fenv_decay_ms;  /* 10..4000 */
+    uint16_t decay_ms;       /* 10..4000, to SUSTAIN */
+    uint16_t sustain;        /* 0..1000 */
+    uint16_t chorus;         /* 0..1000: off .. a deep, wide ensemble */
+    uint16_t space;          /* 0..1000: the send to the delay and reverb (1000 = the lead's) */
+    uint8_t strum_ms;        /* 0..60: each voice of a chord this much after the one under it */
+    bool link;               /* HOME's CUTOFF (the lead's) moves the chord filter as far */
+    bool voice_lead;         /* a new chord in the inversion nearest the last one */
 } MelloChordConfig;
 #endif
 
@@ -729,6 +743,11 @@ typedef struct {
     uint8_t chord_pattern_pos;
     uint8_t chord_last_notes[MELLO_CHORD_MAX_VOICES];
     uint8_t chord_last_count;
+    uint8_t chord_voiced[MELLO_CHORD_MAX_VOICES]; /* the chord sounding, as voiced (voice leading) */
+    uint8_t chord_voiced_n;
+    uint8_t chord_voiced_slot; /* which chain chord it is (0xFF: none yet) */
+    uint8_t chord_prev[MELLO_CHORD_MAX_VOICES]; /* the chord before it, as voiced: voice leading's reference */
+    uint8_t chord_prev_n;
 #endif
 
     MelloRandomizeConfig randomize;
@@ -872,6 +891,9 @@ void mello_engine_chord_set_config(MelloEngine *engine, const MelloChordConfig *
 void mello_engine_chord_reset(MelloEngine *engine);
 uint8_t mello_engine_resolve_chord_notes(const MelloEngine *engine, uint8_t chord_step,
                                          uint8_t out_notes[MELLO_CHORD_MAX_VOICES]);
+/* A chain chord's name in the key and scale now: "Am", "F", "Dm7", "CM7", "Bo" (diminished), "C+" (augmented),
+ * "Csus4", "E5". out holds 8. */
+void mello_engine_chord_name(const MelloEngine *engine, uint8_t chord_step, char out[8]);
 #endif
 void mello_engine_sound_set_config(MelloEngine *engine, const MelloSoundConfig *config);
 void mello_engine_sample_set_config(MelloEngine *engine, const MelloSampleConfig *config);

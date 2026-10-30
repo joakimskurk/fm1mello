@@ -201,6 +201,19 @@ static MelloChordConfig sanitize_chord_config(MelloChordConfig c)
         if (s->hold > 16u) s->hold = 16u;
     }
     for (i = 0u; i < MELLO_CHORD_PATTERN_STEPS; ++i) c.pattern_masks[i] &= 0x0Fu;
+    if (c.cut > 1000u) c.cut = 1000u;
+    if (c.res > 1000u) c.res = 1000u;
+    if (c.fenv > 1000u) c.fenv = 1000u;
+    if (c.fenv_attack_ms < 1u) c.fenv_attack_ms = 1u;
+    if (c.fenv_attack_ms > 2000u) c.fenv_attack_ms = 2000u;
+    if (c.fenv_decay_ms < 10u) c.fenv_decay_ms = 10u;
+    if (c.fenv_decay_ms > 4000u) c.fenv_decay_ms = 4000u;
+    if (c.decay_ms < 10u) c.decay_ms = 10u;
+    if (c.decay_ms > 4000u) c.decay_ms = 4000u;
+    if (c.sustain > 1000u) c.sustain = 1000u;
+    if (c.chorus > 1000u) c.chorus = 1000u;
+    if (c.space > 1000u) c.space = 1000u;
+    if (c.strum_ms > 60u) c.strum_ms = 60u;
     return c;
 }
 #endif
@@ -670,8 +683,20 @@ void mello_chord_defaults(MelloChordConfig *c)
     c->level = 320u;
     c->wave = MELLO_WAVE_SAW;
     c->gate_amount = 720u;
-    c->attack_ms = 22u;
-    c->release_ms = 420u;
+    c->attack_ms = 40u;
+    c->release_ms = 900u;
+    c->cut = 600u; /* ~1 kHz, opened to ~2.8 kHz by the envelope at each chord */
+    c->res = 180u;
+    c->fenv = 380u;
+    c->fenv_attack_ms = 8u;
+    c->fenv_decay_ms = 700u;
+    c->decay_ms = 900u;
+    c->sustain = 750u;
+    c->chorus = 600u;
+    c->space = 1000u;
+    c->strum_ms = 0u;
+    c->link = false;
+    c->voice_lead = false; /* the chords as they are written; VLEAD is a choice */
     for (i = 0u; i < MELLO_CHORD_MAX_STEPS; ++i) {
         c->steps[i].degree = deg[i % 4u];
         c->steps[i].shape = MELLO_CHORD_TRIAD;
@@ -1275,6 +1300,9 @@ void mello_engine_start(MelloEngine *e)
     e->chord_arp_dir = 1;
     e->chord_pattern_pos = 0u;
     e->chord_last_count = 0u;
+    e->chord_voiced_n = 0u;
+    e->chord_prev_n = 0u;
+    e->chord_voiced_slot = 0xFFu;
 #endif
     if (!mello_engine_rebuild_sequence(e)) {
         e->playing = true;
@@ -2162,6 +2190,9 @@ void mello_engine_chord_reset(MelloEngine *e)
     e->chord_arp_dir = 1;
     e->chord_pattern_pos = 0u;
     e->chord_last_count = 0u;
+    e->chord_voiced_n = 0u;
+    e->chord_prev_n = 0u;
+    e->chord_voiced_slot = 0xFFu;
 }
 #endif
 
@@ -2807,6 +2838,38 @@ uint8_t mello_engine_resolve_chord_notes(const MelloEngine *e, uint8_t chord_ste
     }
     return n;
 }
+void mello_engine_chord_name(const MelloEngine *e, uint8_t chord_step, char out[8])
+{
+    static const char *names[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    const MelloChordStep *s;
+    const char *q = "", *n;
+    int32_t root, i3, i5, i7;
+    uint8_t k = 0u;
+    if (!out) return;
+    out[0] = 0;
+    if (!e || !e->chord.length) return;
+    s = &e->chord.steps[chord_step % e->chord.length];
+    root = chord_scale_degree_midi(e, s->degree, 0);
+    i3 = ((int32_t)chord_scale_degree_midi(e, (uint8_t)(s->degree + 2u), 0) - root + 24) % 12;
+    i5 = ((int32_t)chord_scale_degree_midi(e, (uint8_t)(s->degree + 4u), 0) - root + 24) % 12;
+    i7 = ((int32_t)chord_scale_degree_midi(e, (uint8_t)(s->degree + 6u), 0) - root + 24) % 12;
+    if (s->shape == MELLO_CHORD_POWER)
+        q = "5";
+    else if (s->shape == MELLO_CHORD_SUS2)
+        q = "sus2";
+    else if (s->shape == MELLO_CHORD_SUS4)
+        q = "sus4";
+    else if (s->shape == MELLO_CHORD_SEVENTH && e->chord.voices >= 4u)
+        q = i3 == 3 && i5 == 6 ? (i7 == 9 ? "o7" : "h7") /* half-diminished */
+            : i3 == 3          ? (i7 == 11 ? "mM7" : "m7")
+            : i3 == 4 && i5 == 8 ? "+7"
+                                 : (i7 == 11 ? "M7" : "7");
+    else
+        q = i3 == 3 && i5 == 6 ? "o" : i3 == 3 ? "m" : i5 == 8 ? "+" : "";
+    for (n = names[root % 12]; *n && k < 7u; ++n) out[k++] = *n;
+    for (; *q && k < 7u; ++q) out[k++] = *q;
+    out[k] = 0;
+}
 static bool chord_grid_hit(MelloEngine *e, bool is_step_start)
 {
     MelloChordConfig *c = &e->chord;
@@ -2825,31 +2888,87 @@ static bool chord_grid_hit(MelloEngine *e, bool is_step_start)
     if (is_step_start) e->chord_grid_follow++;
     return on && chance_permille(&e->gen_rng, c->grid_amount);
 }
+/* voice: which of the chord's voices (0 the lowest), carried in ratchet_index for the CHORD page's lanes. */
 static void emit_chord_note(MelloEngine *e, MelloEventType type, uint32_t tick, uint8_t step, uint8_t pulse,
-                            uint8_t total, uint8_t note, uint8_t vel)
+                            uint8_t total, uint8_t note, uint8_t vel, uint8_t voice)
 {
-    emit_basic(e, type, tick, step, pulse, total, note, vel, 0u, false, true);
+    emit_basic(e, type, tick, step, pulse, total, note, vel, voice, false, true);
+}
+
+static void sort_notes(uint8_t *n, uint8_t c)
+{
+    uint8_t i, j;
+    for (i = 1u; i < c; ++i)
+        for (j = i; j > 0u && n[j - 1u] > n[j]; --j) {
+            uint8_t t = n[j];
+            n[j] = n[j - 1u];
+            n[j - 1u] = t;
+        }
+}
+
+/* Voice leading: of the chord's inversions, an octave down, as written or up, the one whose voices move least from
+ * prev's (lowest to lowest, and so on) while staying near where the chord is written (a cost that grows with the
+ * square of the distance), so a progression does not climb or sink round after round. notes is sorted on return. */
+static void chord_voice_lead(uint8_t *notes, uint8_t n, const uint8_t *prev, uint8_t pn)
+{
+    uint8_t best[MELLO_CHORD_MAX_VOICES], cand[MELLO_CHORD_MAX_VOICES], r, i, m = n < pn ? n : pn;
+    int32_t best_cost = 0x7FFFFFFF, written = 0, o;
+    sort_notes(notes, n);
+    for (i = 0u; i < n; ++i) written += notes[i];
+    for (r = 0u; r < n; ++r)
+        for (o = -12; o <= 12; o += 12) {
+            int32_t cost = 0, sum = 0, d;
+            bool ok = true;
+            for (i = 0u; i < n; ++i) {
+                int32_t v = (int32_t)notes[i] + (i < r ? 12 : 0) + o;
+                if (v < 24 || v > 96) ok = false;
+                cand[i] = (uint8_t)v;
+            }
+            if (!ok) continue;
+            sort_notes(cand, n);
+            for (i = 0u; i < n; ++i) sum += cand[i];
+            for (i = 0u; i < m; ++i) {
+                d = (int32_t)cand[i] - (int32_t)prev[i];
+                cost += 2 * (d < 0 ? -d : d);
+            }
+            d = (sum - written) / (int32_t)n; /* the pull back to where it is written grows with the distance */
+            cost += d * d;
+            if (cost < best_cost) {
+                best_cost = cost;
+                memcpy(best, cand, n);
+            }
+        }
+    if (best_cost != 0x7FFFFFFF) memcpy(notes, best, n);
 }
 static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advance_chain)
 {
     MelloChordConfig *c = &e->chord;
     MelloChordStep *cs;
     uint8_t notes[4], n, i, mask = 0u, slot;
-    uint32_t dur, unit_ticks;
+    uint32_t dur, unit_ticks, strum;
     bool fresh;
     if (!c->on || !pe) return;
     slot = (uint8_t)(e->chord_chain_pos % c->length);
     cs = &c->steps[slot];
     fresh = e->chord_chain_hold == 0u;
     n = mello_engine_resolve_chord_notes(e, slot, notes);
+    if (slot != e->chord_voiced_slot) { /* a new chord in the chain: the one sounding is voice leading's reference */
+        memcpy(e->chord_prev, e->chord_voiced, sizeof e->chord_prev);
+        e->chord_prev_n = e->chord_voiced_n;
+        e->chord_voiced_slot = slot;
+    }
+    if (c->voice_lead && e->chord_prev_n) chord_voice_lead(notes, n, e->chord_prev, e->chord_prev_n);
+    memcpy(e->chord_voiced, notes, n);
+    e->chord_voiced_n = n;
+    strum = c->strum_ms ? ms_to_ticks(&e->project, c->strum_ms) : 0u;
     if (c->mode == MELLO_CHORD_HOLD) {
         if (fresh) {
             for (i = 0u; i < e->chord_last_count; ++i)
                 emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_OFF, e->now_tick, pe->step_index, pe->pulse_index,
-                                pe->total_pulses, e->chord_last_notes[i], 0u);
-            for (i = 0u; i < n; ++i) {
-                emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_ON, e->now_tick, pe->step_index, pe->pulse_index,
-                                pe->total_pulses, notes[i], 88u);
+                                pe->total_pulses, e->chord_last_notes[i], 0u, i);
+            for (i = 0u; i < n; ++i) { /* STRUM: each voice after the one under it */
+                emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_ON, e->now_tick + strum * i, pe->step_index,
+                                pe->pulse_index, pe->total_pulses, notes[i], 88u, i);
                 e->chord_last_notes[i] = notes[i];
             }
             e->chord_last_count = n;
@@ -2894,11 +3013,12 @@ static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advanc
         dur = (unit_ticks * (uint32_t)c->gate_amount) / 1000u;
         dur = clamp_duration_ms_as_ticks(&e->project, dur, 20u, 4000u);
         for (i = 0u; i < n; ++i)
-            if (mask & (uint8_t)(1u << i)) {
-                emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_ON, e->now_tick, pe->step_index, pe->pulse_index,
-                                pe->total_pulses, notes[i], 88u);
-                emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_OFF, e->now_tick + dur, pe->step_index,
-                                pe->pulse_index, pe->total_pulses, notes[i], 0u);
+            if (mask & (uint8_t)(1u << i)) { /* STRUM moves a voice's whole note (its OFF never comes first) */
+                uint32_t at = e->now_tick + (c->mode == MELLO_CHORD_STAB ? strum * i : 0u);
+                emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_ON, at, pe->step_index, pe->pulse_index,
+                                pe->total_pulses, notes[i], 88u, i);
+                emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_OFF, at + dur, pe->step_index, pe->pulse_index,
+                                pe->total_pulses, notes[i], 0u, i);
             }
     }
     if (advance_chain) {

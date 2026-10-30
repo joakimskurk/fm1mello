@@ -17,7 +17,7 @@ enum {
     SECVER_SLOTS = 1,
     SECVER_SLOT_SEQ = 1,
     SECVER_FX = 1,
-    SECVER_CHORD = 1,
+    SECVER_CHORD = 2, /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading) */
     SECVER_GRIT = 3,
     SECVER_MOD = 3
 };
@@ -25,7 +25,8 @@ enum {
 #define SAMPLE_WIRE_SIZE   83u
 #define SNAPSHOT_WIRE_SIZE 528u
 #define FX_WIRE_SIZE       34u
-#define CHORD_WIRE_SIZE    (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
+#define CHORD_WIRE_SIZE_V1 (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
+#define CHORD_WIRE_SIZE    (CHORD_WIRE_SIZE_V1 + 21u)
 #define GRIT_ENTRY_SIZE_V1 8u
 #define GRIT_ENTRY_SIZE_V2 26u
 #define GRIT_ENTRY_SIZE    34u
@@ -522,9 +523,22 @@ static void encode_chord(Writer *w, const MelloChordConfig *c)
     wr_u16(w, c->grid_amount);
     wr_u8(w, c->pattern_length);
     for (i = 0u; i < MELLO_CHORD_PATTERN_STEPS; ++i) wr_u8(w, c->pattern_masks[i]);
+    wr_u16(w, c->cut);
+    wr_u16(w, c->res);
+    wr_u16(w, c->fenv);
+    wr_u16(w, c->fenv_attack_ms);
+    wr_u16(w, c->fenv_decay_ms);
+    wr_u16(w, c->decay_ms);
+    wr_u16(w, c->sustain);
+    wr_u16(w, c->chorus);
+    wr_u16(w, c->space);
+    wr_u8(w, c->strum_ms);
+    wr_u8(w, c->link ? 1u : 0u);
+    wr_u8(w, c->voice_lead ? 1u : 0u);
 }
-/* Out-of-range values are left to mello_engine_chord_set_config's sanitizer. */
-static bool decode_chord(Reader *r, MelloChordConfig *c)
+/* Out-of-range values are left to mello_engine_chord_set_config's sanitizer. Version 1 has no voice: c keeps the
+ * defaults' (mello_chord_defaults), and its attack and release as saved. */
+static bool decode_chord(Reader *r, MelloChordConfig *c, uint8_t ver)
 {
     uint8_t i, on, trigger, mode, wave, shape, grid_mode, reset, follow;
     if (!rd_u8(r, &on) || !rd_u8(r, &trigger) || !rd_u8(r, &mode) || !rd_u8(r, &c->length) ||
@@ -551,6 +565,16 @@ static bool decode_chord(Reader *r, MelloChordConfig *c)
     c->grid_follow = follow != 0u;
     for (i = 0u; i < MELLO_CHORD_PATTERN_STEPS; ++i)
         if (!rd_u8(r, &c->pattern_masks[i])) return false;
+    if (ver >= 2u) {
+        uint8_t link, lead;
+        if (!rd_u16(r, &c->cut) || !rd_u16(r, &c->res) || !rd_u16(r, &c->fenv) || !rd_u16(r, &c->fenv_attack_ms) ||
+            !rd_u16(r, &c->fenv_decay_ms) || !rd_u16(r, &c->decay_ms) || !rd_u16(r, &c->sustain) ||
+            !rd_u16(r, &c->chorus) || !rd_u16(r, &c->space) || !rd_u8(r, &c->strum_ms) || !rd_u8(r, &link) ||
+            !rd_u8(r, &lead))
+            return false;
+        c->link = link != 0u;
+        c->voice_lead = lead != 0u;
+    }
     return true;
 }
 #endif
@@ -874,10 +898,11 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             if (len != FX_WIRE_SIZE || !decode_fx(&r, &fx)) return false;
             if (apply && e) mello_engine_fx_set_config(e, &fx);
 #if MELLO_FEATURE_CHORD_MACHINE
-        } else if (id == SEC_CHORD && ver == SECVER_CHORD) {
+        } else if (id == SEC_CHORD && ver >= 1u && ver <= SECVER_CHORD) {
             MelloChordConfig chord;
             mello_chord_defaults(&chord);
-            if (len != CHORD_WIRE_SIZE || !decode_chord(&r, &chord)) return false;
+            if (len != (ver == 1u ? CHORD_WIRE_SIZE_V1 : CHORD_WIRE_SIZE) || !decode_chord(&r, &chord, ver))
+                return false;
             if (apply && e) mello_engine_chord_set_config(e, &chord);
 #endif
         } else if (id == SEC_SLOTS && ver == SECVER_SLOTS) {

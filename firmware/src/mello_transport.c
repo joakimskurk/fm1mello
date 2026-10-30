@@ -128,6 +128,7 @@ static void all_notes_off(MelloTransport *t)
         t->active_note_count[1][n] = 0u;
     }
     t->scheduled_count = 0u;
+    t->chord_seen = t->chord_off = t->display_chord_lit = 0u;
 }
 
 static void consume_engine_events(MelloTransport *t, uint32_t pulse_tick, uint32_t pulse_due_us)
@@ -167,6 +168,19 @@ static void consume_engine_events(MelloTransport *t, uint32_t pulse_tick, uint32
 #if MELLO_FEATURE_CHORD_MACHINE
             if (ev.type == MELLO_EVENT_CHORD_NOTE_ON || ev.type == MELLO_EVENT_CHORD_NOTE_OFF)
                 voice = MELLO_VOICE_CHORD;
+#endif
+#if MELLO_FEATURE_CHORD_MACHINE
+            if (voice == MELLO_VOICE_CHORD) { /* the voice is in ratchet_index */
+                uint8_t cv = (uint8_t)(ev.ratchet_index & 3u), bit = (uint8_t)(1u << cv);
+                if (is_on) {
+                    t->chord_on_us[cv] = due;
+                    t->chord_seen |= bit;
+                    t->chord_off &= (uint8_t)~bit;
+                } else {
+                    t->chord_off_us[cv] = due;
+                    t->chord_off |= bit;
+                }
+            }
 #endif
             /* Phase 9 audio sink always receives the source event, regardless of MIDI mode. */
             if (t->event_sink) t->event_sink(t->event_sink_ctx, &ev, due);
@@ -360,6 +374,16 @@ void mello_transport_poll_ahead(MelloTransport *t, uint32_t now_us, uint32_t ahe
     poll_master_clock(t, now_us);
     poll_internal_transport(t, now_us + ahead_us);
     dispatch_scheduled(t, now_us);
+#if MELLO_FEATURE_CHORD_MACHINE
+    {
+        uint8_t v, lit = 0u;
+        for (v = 0u; v < 4u; ++v)
+            if ((t->chord_seen & (1u << v)) && (int32_t)(now_us - t->chord_on_us[v]) >= 0 &&
+                (!(t->chord_off & (1u << v)) || (int32_t)(now_us - t->chord_off_us[v]) < 0))
+                lit |= (uint8_t)(1u << v);
+        t->display_chord_lit = t->running ? lit : 0u;
+    }
+#endif
 }
 
 static void slave_clock_tick(MelloTransport *t, uint32_t now_us)

@@ -653,59 +653,189 @@ static int32_t sample_render_voice(MelloAudio *a, MelloAudioSampleVoice *v)
 }
 
 #if MELLO_FEATURE_CHORD_MACHINE
-static void chord_release(MelloAudio *a)
+#define CHORD_OVERSHOOT 21810381 /* 1.3 in Q24: an attack aims past 1 and stops there, as an analog one */
+/* A one-pole rate for 16 samples, Q24, that covers ms in about tau time constants (x10). */
+static int32_t chord_rate(uint16_t ms, uint32_t tau_x10)
 {
-    if (!a) return;
-    a->chord.env_stage = MELLO_ENV_RELEASE;
-    env_set_segment(&a->chord.env_step_q24, &a->chord.env_target_q24, a->chord.env_q24, 0,
-                    ms_samples(a->chord_config.release_ms));
+    uint32_t n = (uint32_t)(ms ? ms : 1u) * 441u, k = (tau_x10 << 24) / n; /* n: samples x 10 */
+    return k >= (1u << 20) ? (1 << 24) : (int32_t)(k * 16u);
+}
+/* The config's envelope rates and sustain, worked out once when it changes. */
+static void chord_coeffs(MelloAudio *a)
+{
+    const MelloChordConfig *c = &a->chord_config;
+    MelloAudioChordVoice *v = &a->chord;
+    v->k_att = chord_rate(c->attack_ms, 15u); /* aims at 1.3, so it reaches 1 in about ATTACK */
+    v->k_dec = chord_rate(c->decay_ms, 40u);
+    v->k_rel = chord_rate(c->release_ms, 40u);
+    v->k_fatt = chord_rate(c->fenv_attack_ms, 15u);
+    v->k_fdec = chord_rate(c->fenv_decay_ms, 40u);
+    v->sus_q24 = (int32_t)((uint32_t)c->sustain * 16777u);
+}
+static void chord_release_voice(MelloAudioChordVoice *v, uint8_t i)
+{
+    if (v->active[i]) {
+        v->active[i] = 0u;
+        v->active_count--;
+    }
+    if (v->vstage[i]) v->vstage[i] = 3u;
 }
 static void chord_note_on(MelloAudio *a, uint8_t note)
 {
-    uint8_t i, free_slot = 0xFFu;
+    MelloAudioChordVoice *v = &a->chord;
+    uint8_t i, pick = 0xFFu;
     if (!a || !a->chord_config.on) return;
-    for (i = 0u; i < MELLO_CHORD_MAX_VOICES; ++i) {
-        if (a->chord.active[i] && a->chord.note[i] == note) return;
-        if (!a->chord.active[i] && free_slot == 0xFFu) free_slot = i;
+    for (i = 0u; i < MELLO_CHORD_AUDIO_VOICES; ++i) /* the same note again: that voice, from where it is */
+        if (v->vstage[i] && v->note[i] == note) pick = i;
+    for (i = 0u; pick == 0xFFu && i < MELLO_CHORD_AUDIO_VOICES; ++i)
+        if (!v->vstage[i]) pick = i;
+    if (pick == 0xFFu) { /* none free: the quietest released one, or else the oldest */
+        int32_t low = 0x7FFFFFFF;
+        uint32_t oldest = 0u;
+        for (i = 0u; i < MELLO_CHORD_AUDIO_VOICES; ++i)
+            if (v->vstage[i] == 3u && v->venv[i] < low) low = v->venv[i], pick = i;
+        for (i = 0u; pick == 0xFFu && i < MELLO_CHORD_AUDIO_VOICES; ++i)
+            if (v->age - v->vage[i] >= oldest) oldest = v->age - v->vage[i], pick = i;
+        if (pick == 0xFFu) pick = 0u;
     }
-    if (free_slot == 0xFFu) free_slot = 0u;
-    a->chord.note[free_slot] = note;
-    a->chord.inc[free_slot] = note_inc(note);
-    a->chord.active[free_slot] = 1u;
-    a->chord.active_count = 0u;
-    for (i = 0u; i < MELLO_CHORD_MAX_VOICES; ++i)
-        if (a->chord.active[i]) a->chord.active_count++;
-    if (a->chord.env_stage == MELLO_ENV_OFF || a->chord.env_stage == MELLO_ENV_RELEASE) {
-        a->chord.env_stage = MELLO_ENV_ATTACK;
-        env_set_segment(&a->chord.env_step_q24, &a->chord.env_target_q24, a->chord.env_q24, Q24_ONE,
-                        ms_samples(a->chord_config.attack_ms));
+    v->note[pick] = note;
+    v->inc[pick] = note_inc(note);
+    if (!v->active[pick]) {
+        v->active[pick] = 1u;
+        v->active_count++;
     }
+    v->vstage[pick] = 1u;
+    v->vage[pick] = ++v->age;
+    v->fstage = 1u; /* the filter envelope with every note, from where it is */
+    v->env_stage = MELLO_ENV_ATTACK;
 }
 static void chord_note_off(MelloAudio *a, uint8_t note)
 {
     uint8_t i;
     if (!a) return;
-    for (i = 0u; i < MELLO_CHORD_MAX_VOICES; ++i)
+    for (i = 0u; i < MELLO_CHORD_AUDIO_VOICES; ++i)
         if (a->chord.active[i] && a->chord.note[i] == note) {
-            a->chord.active[i] = 0u;
+            chord_release_voice(&a->chord, i);
             break;
         }
-    a->chord.active_count = 0u;
-    for (i = 0u; i < MELLO_CHORD_MAX_VOICES; ++i)
-        if (a->chord.active[i]) a->chord.active_count++;
-    if (!a->chord.active_count) chord_release(a);
 }
 static void chord_kill(MelloAudio *a)
 {
-    uint8_t i;
+    MelloAudioChordVoice *v;
     if (!a) return;
-    for (i = 0u; i < MELLO_CHORD_MAX_VOICES; ++i) a->chord.active[i] = 0u;
-    a->chord.active_count = 0u;
-    a->chord.env_q24 = 0;
-    a->chord.env_stage = MELLO_ENV_OFF;
-    a->chord.tone_lp = 0;
-    a->chord.hp_x1 = 0;
-    a->chord.hp_y1 = 0;
+    v = &a->chord;
+    memset(v->active, 0, sizeof v->active);
+    memset(v->vstage, 0, sizeof v->vstage);
+    memset(v->venv, 0, sizeof v->venv);
+    memset(v->vgain, 0, sizeof v->vgain);
+    memset(v->vstep, 0, sizeof v->vstep);
+    memset(v->chorus_buf, 0, sizeof v->chorus_buf);
+    v->active_count = 0u;
+    v->env_q24 = 0;
+    v->env_stage = MELLO_ENV_OFF;
+    v->fenv = 0;
+    v->lp = v->bp = v->hp_x1 = v->hp_y1 = 0;
+}
+/* Every 16 samples: the envelopes (each voice's gain then ramps to its new level over the 16) and the filter. */
+static void chord_control(MelloAudio *a)
+{
+    MelloAudioChordVoice *v = &a->chord;
+    const MelloChordConfig *c = &a->chord_config;
+    int32_t peak = 0, q8, w;
+    uint8_t i;
+    for (i = 0u; i < MELLO_CHORD_AUDIO_VOICES; ++i) {
+        int32_t e = v->venv[i];
+        if (v->vstage[i] == 1u) {
+            e += (int32_t)(((int64_t)(CHORD_OVERSHOOT - e) * v->k_att) >> 24);
+            if (e >= 1 << 24) e = 1 << 24, v->vstage[i] = 2u;
+        } else if (v->vstage[i] == 2u)
+            e += (int32_t)(((int64_t)(v->sus_q24 - e) * v->k_dec) >> 24);
+        else if (v->vstage[i] == 3u) {
+            e -= (int32_t)(((int64_t)e * v->k_rel) >> 24);
+            if (e < 4096) e = 0, v->vstage[i] = 0u;
+        } else
+            e = 0;
+        v->venv[i] = e;
+        v->vstep[i] = (e - v->vgain[i]) / 16;
+        if (e > peak) peak = e;
+        if (v->vgain[i] > peak) peak = v->vgain[i];
+    }
+    v->env_q24 = peak;
+    if (!peak) v->env_stage = MELLO_ENV_OFF;
+    if (v->fstage == 1u) {
+        v->fenv += (int32_t)(((int64_t)(CHORD_OVERSHOOT - v->fenv) * v->k_fatt) >> 24);
+        if (v->fenv >= 1 << 24) v->fenv = 1 << 24, v->fstage = 2u;
+    } else
+        v->fenv -= (int32_t)(((int64_t)v->fenv * v->k_fdec) >> 24);
+    /* CUT 0..1000 = 60 Hz .. 6.4 kHz (81 semitones), the envelope up to 48 more, LINK as far as the lead's CUTOFF
+     * from its middle; counted from 960 Hz (semi_ratio_q16 reaches +-48 semitones) */
+    q8 = (int32_t)c->cut * 20736 / 1000 + (int32_t)(((int64_t)v->fenv * ((int32_t)c->fenv * 12288 / 1000)) >> 24) -
+         48 * 256;
+    if (c->link) q8 += ((int32_t)a->config.filter_cut - 500) * 235 / 10;
+    if (q8 > 33 * 256) q8 = 33 * 256;
+    w = (int32_t)(((int64_t)semi_ratio_q16(q8) * 4482) >> 16); /* 2 pi fc / fs, Q15 */
+    w -= (int32_t)((((int64_t)w * w >> 15) * w) >> 15) / 24;     /* 2 sin(w / 2) */
+    v->f_q15 = clamp32(w, 40, 29000);
+    v->damp_q15 = 65536 - (int32_t)c->res * 62000 / 1000; /* damping 2 (RES 0) .. 0.1: just short of whistling */
+}
+/* One sample of the chord layer, left and right (before LEVEL). */
+static void chord_render(MelloAudio *a, int32_t *out_l, int32_t *out_r)
+{
+    static const int16_t norm[5] = {0, 32767, 18500, 13200, 10400};
+    MelloAudioChordVoice *v = &a->chord;
+    const MelloChordConfig *c = &a->chord_config;
+    int32_t x = 0, hp, wet_l, wet_r, m;
+    uint8_t i;
+    if (!v->k_att) chord_coeffs(a); /* before the first config */
+    if (!(v->ctl++ & 15u)) chord_control(a);
+    for (i = 0u; i < MELLO_CHORD_AUDIO_VOICES; ++i) {
+        if (!v->vstage[i] && !v->vgain[i]) continue;
+        v->vgain[i] += v->vstep[i];
+        v->phase[i] += v->inc[i];
+        x += q15mul(osc_sample(c->wave, v->phase[i], v->inc[i], 500u), v->vgain[i] >> 9);
+    }
+    x = q15mul(clamp32(x, -131071, 131071) >> 1, norm[c->voices <= 4u ? c->voices : 4u]) * 2;
+    /* the filter: a state variable low-pass (Chamberlin), 12 dB */
+    x = clamp32(x, -65535, 65535);
+    v->lp = clamp32(v->lp + (int32_t)(((int64_t)v->f_q15 * v->bp) >> 15), -262143, 262143);
+    hp = x - v->lp - (int32_t)(((int64_t)v->damp_q15 * v->bp) >> 15);
+    v->bp = clamp32(v->bp + (int32_t)(((int64_t)v->f_q15 * hp) >> 15), -262143, 262143);
+    x = clamp32(v->lp, -65535, 65535);
+    /* ~120 Hz high-pass: the chords leave the bass to the sub */
+    hp = q15mul(32210, clamp32(v->hp_y1 + x - v->hp_x1, -65535, 65535));
+    v->hp_x1 = x;
+    v->hp_y1 = hp;
+    x = clamp32(hp, -32767, 32767);
+    if (!c->chorus) {
+        *out_l = *out_r = x;
+        return;
+    }
+    {
+        /* CHORUS, as a Juno's: one delay line read at 3.5 ms +- up to 1.8 ms, left and right swung against each
+         * other by a triangle at 0.45 .. 0.85 Hz, mixed up to half and half with the dry signal. */
+        uint32_t tri, d, pos, f;
+        int32_t depth = (int32_t)c->chorus * 80 / 1000, s0, s1; /* samples */
+        v->chorus_buf[v->chorus_pos] = (int16_t)x;
+        v->chorus_lfo += 43826u + (uint32_t)c->chorus * 39u;
+        tri = v->chorus_lfo >> 16;
+        tri = tri < 32768u ? tri * 2u : (65535u - tri) * 2u; /* 0..65535 */
+        d = (uint32_t)((154 << 8) + ((((int32_t)tri - 32768) * depth) >> 7)); /* Q8 samples */
+        pos = (uint32_t)v->chorus_pos + MELLO_CHORD_CHORUS_LEN * 2u - (d >> 8);
+        f = d & 0xFFu;
+        s0 = v->chorus_buf[pos % MELLO_CHORD_CHORUS_LEN];
+        s1 = v->chorus_buf[(pos - 1u) % MELLO_CHORD_CHORUS_LEN];
+        wet_l = s0 + (((s1 - s0) * (int32_t)f) >> 8);
+        d = (uint32_t)((154 << 8) - ((((int32_t)tri - 32768) * depth) >> 7));
+        pos = (uint32_t)v->chorus_pos + MELLO_CHORD_CHORUS_LEN * 2u - (d >> 8);
+        f = d & 0xFFu;
+        s0 = v->chorus_buf[pos % MELLO_CHORD_CHORUS_LEN];
+        s1 = v->chorus_buf[(pos - 1u) % MELLO_CHORD_CHORUS_LEN];
+        wet_r = s0 + (((s1 - s0) * (int32_t)f) >> 8);
+        v->chorus_pos = (uint16_t)((v->chorus_pos + 1u) % MELLO_CHORD_CHORUS_LEN);
+        m = (int32_t)c->chorus * 16384 / 1000;
+        *out_l = x + q15mul(wet_l - x, m);
+        *out_r = x + q15mul(wet_r - x, m);
+    }
 }
 #endif
 
@@ -1384,6 +1514,7 @@ static void apply_pending(MelloAudio *a)
         bool was_on = a->chord_config.on;
         a->chord_config = a->pending_chord_config;
         if (was_on && !a->chord_config.on) chord_kill(a);
+        chord_coeffs(a);
     }
 #endif
     if (sub_drive_changed) {
@@ -1660,7 +1791,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 mod_env, dmod[MELLO_DEST_COUNT];
         bool mods = false;
 #if MELLO_FEATURE_CHORD_MACHINE
-        int32_t chord_mix = 0;
+        int32_t chord_mix = 0, chord_l = 0, chord_r = 0;
 #endif
         uint16_t cut = (uint16_t)(ramp_q8(&a->rp_cut) >> 8), res = (uint16_t)(ramp_q8(&a->rp_res) >> 8);
         int32_t master = ramp_q8(&a->rp_master) >> 8, rev_send = ramp_q8(&a->rp_rev_send) >> 8,
@@ -1685,11 +1816,6 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (before == MELLO_ENV_ATTACK && a->sub.env_stage == MELLO_ENV_DECAY) sub_begin_decay(a);
         } else if (a->sub.env_stage == MELLO_ENV_DECAY || a->sub.env_stage == MELLO_ENV_RELEASE)
             sub_curve_tick(a);
-#if MELLO_FEATURE_CHORD_MACHINE
-        if (a->chord.env_stage == MELLO_ENV_ATTACK || a->chord.env_stage == MELLO_ENV_RELEASE)
-            (void)env_tick(&a->chord.env_q24, a->chord.env_step_q24, a->chord.env_target_q24,
-                           &a->chord.env_stage);
-#endif
         if (a->lead.slide_left)
             voice_slide_tick(&a->lead.inc, a->lead.target_inc, &a->lead.pitch_q16, a->lead.slide_step,
                              &a->lead.slide_left);
@@ -1935,39 +2061,15 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (a->sub_gain != 32767) sub = q15mul(clamp32(sub, -65535, 65535), a->sub_gain); /* SUB MUTE */
         }
 #if MELLO_FEATURE_CHORD_MACHINE
-        if (a->chord_config.on && a->chord.active_count && a->chord.env_q24 > 0 &&
+        if (a->chord_config.on && (a->chord.env_stage != MELLO_ENV_OFF || a->chord.active_count) &&
             a->chord_config.wave != MELLO_WAVE_OFF) {
-            uint8_t cv;
-            int32_t sum = 0;
-            static const int16_t norm[5] = {0, 32767, 18500, 13200, 10400};
-            for (cv = 0u; cv < MELLO_CHORD_MAX_VOICES; ++cv)
-                if (a->chord.active[cv]) {
-                    int32_t base, soft;
-                    a->chord.phase[cv] += a->chord.inc[cv];
-                    base = osc_sample(a->chord_config.wave, a->chord.phase[cv], a->chord.inc[cv], 500u);
-                    /* A quiet sine fundamental thickens the layer without adding the lead's bright edge. */
-                    soft = SINE_Q15[(uint8_t)(a->chord.phase[cv] >> 24)];
-                    sum += q15mul(base, 22000) + q15mul(soft, 10700);
-                }
-            sum = q15mul(sum, norm[a->chord.active_count <= 4u ? a->chord.active_count : 4u]);
-            sum = q15mul(sum, a->chord.env_q24 >> 8);
-            /* Fixed ~3.5 kHz low-pass followed by ~120 Hz high-pass: a mid-bed, not a second lead/sub. */
-            a->chord.tone_lp += q15mul(sum - a->chord.tone_lp, 12880);
-            {
-                const int32_t hp_a = 32210;
-                int32_t hp = q15mul(hp_a, a->chord.hp_y1 + a->chord.tone_lp - a->chord.hp_x1);
-                a->chord.hp_x1 = a->chord.tone_lp;
-                a->chord.hp_y1 = hp;
-                sum = hp;
-            }
+            int32_t duck = 32767 - (((a->lead.env_q24 >> 8) * 3) >> 4);
+            chord_render(a, &chord_l, &chord_r);
             /* Automatic ~19% duck at full lead envelope leaves the melodic transient in front. */
-            {
-                int32_t lead_env = a->lead.env_q24 >> 8;
-                int32_t duck = 32767 - ((lead_env * 3) >> 4);
-                if (duck < 24500) duck = 24500;
-                sum = q15mul(sum, duck);
-            }
-            chord_mix = sum * (int32_t)a->chord_config.level / 1000;
+            if (duck < 24500) duck = 24500;
+            chord_l = q15mul(chord_l, duck) * (int32_t)a->chord_config.level / 1000;
+            chord_r = q15mul(chord_r, duck) * (int32_t)a->chord_config.level / 1000;
+            chord_mix = (chord_l + chord_r) / 2;
         }
 #endif
         {
@@ -2003,12 +2105,15 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             mix = mix * dist_level / 1000;
         }
 #if MELLO_FEATURE_CHORD_MACHINE
-        /* Chord keeps its own spectral identity and bypasses lead distortion, but shares delay/reverb space. */
-        mix += chord_mix * 800 / 1000;
 #endif
         {
             int32_t fx_in = mix;
             mix = fx_in * 840 / 1000;
+#if MELLO_FEATURE_CHORD_MACHINE
+            /* The chords bypass the lead's distortion; their SPACE is their own send to the delay and reverb
+             * (1000 = as the lead's), their width their own (added after the delay, below). */
+            fx_in += chord_mix * 800 / 1000 * (int32_t)a->chord_config.space / 1000;
+#endif
             if (a->delay_buffer && a->delay_capacity > 2u && a->delay_samples) {
                 /* The delay time ramps (Tone's delayTime.rampTo): read between samples while it moves. */
                 uint32_t di = (uint32_t)delay_q8 >> 8, fr = (uint32_t)delay_q8 & 0xFFu, rp, rp1;
@@ -2028,6 +2133,10 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             }
             mix_l = mix;
             mix_r = mix;
+#if MELLO_FEATURE_CHORD_MACHINE
+            mix_l += chord_l * 672 / 1000; /* 800 x 840 as the lead's dry */
+            mix_r += chord_r * 672 / 1000;
+#endif
             if (a->reverb_buffer && a->reverb_capacity > 1024u &&
                 (a->fx.reverb_wet || a->tail_guard_frames)) {
                 int32_t send = fx_in * rev_send / 1000, rv_l = 0, rv_r = 0;

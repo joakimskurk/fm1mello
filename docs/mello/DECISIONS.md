@@ -192,6 +192,40 @@ A splash/boot identity screen is required before final product-polish acceptance
   - Saved in SEC_MOD (40 bytes a working pattern or slot, only when it differs from the defaults). MOD 1's amount
     stays in SEC_WORKING / SEC_SLOTS with the HTML's meaning (1000 = depth 240); SEC_MOD carries the exact depth.
 
+## The chord voice (2026-10-30)
+
+Feedback: the chords' harmony is good, their sound is not as good as the rest, and nothing moves on the page while a
+pattern plays. The chord layer is not in the HTML, so this is the FM-1's own; it is built as a Juno's pad (one
+oscillator a voice, one filter, a chorus), which sounds good and is cheap.
+
+- Voices: six to play from (a chord's four and two more, so a new chord does not cut the last one's release); a voice
+  of the same note is taken again from where it is, else a free one, else the quietest releasing, else the oldest.
+- AMP: ATTACK, DECAY, SUSTAIN, RELEASE per voice (one-pole curves, an attack aimed at 1.3 as an analog one; worked out
+  every 16 samples and ramped between).
+- FILTER: a resonant 12 dB state-variable low-pass on the layer, CUT 60 Hz .. 6.4 kHz, RES up to just short of
+  whistling, ENV up to +48 semitones from a filter envelope (MOTION's F ATK, F DEC) that every note restarts, LINK: HOME's
+  CUTOFF moves it as far as the lead's. The old fixed 3.5 kHz low-pass is gone; the ~120 Hz high-pass stays (the bass is
+  the sub's).
+- TONE: WAVE; CHORUS (one 23 ms delay line read at 3.5 ms +- up to 1.8 ms, left and right swung against each other by a
+  0.45 .. 0.85 Hz triangle, up to half wet): the layer's width; SPACE: its own send to the delay and reverb (100% = the
+  lead's, as before); LEVEL.
+- VLEAD (voice leading, off by default so the chords stay as written): a new chord in the inversion, an octave down,
+  as written or up, whose voices move least from the last chord's, with a cost that grows with the square of its
+  distance from where it is written, so a progression does not climb or sink.
+- STRUM 0..60 ms: each voice of a chord after the one under it (HOLD, STAB), the whole note moved so its OFF never
+  comes first.
+- Layers: PLAY (MODE, TRIG, CHAIN, GATE), CHORD, VOICING (INV, SPREAD, VOICES, VLEAD), GRID only with TRIG GRID,
+  PATTERN only with MODE PATTERN, TONE, FILTER, MOTION (F ATK, F DEC, STRUM), AMP.
+- The page: the chain as chord names in the key ("Cm7", "G#M7", "Bo", "C+", "Fsus4", "E5"), the one sounding
+  underlined; the voices of the chord sounding, lowest left, each lit while it sounds (the transport keeps each voice's
+  NOTE_ON and NOTE_OFF due times; the engine puts the voice in the event's ratchet_index); PATTERN's columns with the
+  one playing framed and its voices lit; AMP and MOTION as envelope graphs. HOME shows the chord sounding after its name.
+- Defaults (a new project, or one saved before, whose chords keep their notes): CUT ~1 kHz opened to ~2.8 kHz by the
+  envelope, RES 18%, ATTACK 40 ms, DECAY 900 ms, SUSTAIN 75%, RELEASE 900 ms, CHORUS 60%.
+- Cost: the layer on adds about 28% to the audio render (the old one 13%) with a release overlapping the next chord;
+  the audio interrupt was 27.9% of the chip (ROADMAP, fm1-emu), so about 4% more of it. Measured on the host; to be
+  confirmed in fm1-emu.
+
 ## Segments made easy (2026-10-30)
 
 The HTML sets segments with a count and absolute split steps, each split only from the segment it starts, and its

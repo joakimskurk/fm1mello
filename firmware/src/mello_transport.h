@@ -68,6 +68,13 @@ typedef struct {
     uint8_t display_pulse;
     uint8_t display_segment;
     uint32_t pattern_wraps;
+    /* The chord's voices as they sound (the CHORD page's lanes): each one's NOTE_ON and NOTE_OFF due times, which
+     * the events give ahead of time, and from them, at each poll, the ones sounding now (bit = voice). */
+    uint32_t chord_on_us[4];
+    uint32_t chord_off_us[4];
+    uint8_t chord_seen; /* bit: that voice has had a NOTE_ON */
+    uint8_t chord_off;  /* bit: its NOTE_OFF is known */
+    uint8_t display_chord_lit;
 } MelloTransport;
 
 void mello_transport_init(MelloTransport *t, const MelloProject *project, uint32_t seed,

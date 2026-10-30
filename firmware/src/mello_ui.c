@@ -1301,6 +1301,18 @@ static const char *chord_mode_name(MelloChordMode m)
     default: return "STAB";
     }
 }
+/* CHORD's layers: PLAY, CHORD, VOICING, GRID (with TRIG GRID), PATTERN (with MODE PATTERN), TONE, FILTER, MOTION,
+ * AMP. */
+#define CHORD_LAYERS 9u
+static bool chord_layer_shown(const MelloChordConfig *c, uint8_t l)
+{
+    return l == 3u ? c->trigger == MELLO_CHORD_TRIGGER_GRID : l == 4u ? c->mode == MELLO_CHORD_PATTERN : true;
+}
+static uint16_t chord_ms(uint16_t v, int16_t delta, uint16_t lo, uint16_t hi)
+{
+    int32_t step = v < 100u ? 2 : v < 500u ? 10 : 50; /* finer where short times differ most */
+    return (uint16_t)clamp_i32((int32_t)v + delta * step, lo, hi);
+}
 static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
 {
     MelloEngine *e = eng(ui);
@@ -1308,57 +1320,50 @@ static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
     MelloChordStep *s;
     if (!e || !delta) return;
     c = e->chord;
-    if (ui->chord_subpage == 0u) {
-        if (knob == 0u)
-            c.mode = (MelloChordMode)wrap_u8((int32_t)c.mode + (delta > 0 ? 1 : -1), MELLO_CHORD_MODE_COUNT);
-        else if (knob == 1u)
-            c.trigger = (MelloChordTrigger)wrap_u8((int32_t)c.trigger + (delta > 0 ? 1 : -1), 2u);
-        else if (knob == 2u)
-            c.length = (uint8_t)clamp_i32((int32_t)c.length + delta, 1, MELLO_CHORD_MAX_STEPS);
-        else
-            c.level = (uint16_t)clamp_i32((int32_t)c.level + delta * 10, 0, 1000);
-    } else if (ui->chord_subpage == 1u) {
-        s = &c.steps[ui->selected_chord_step % c.length];
-        if (knob == 0u)
-            s->degree = (uint8_t)clamp_i32((int32_t)s->degree + delta, 0, 11);
-        else if (knob == 1u)
-            s->shape =
-                (MelloChordShape)wrap_u8((int32_t)s->shape + (delta > 0 ? 1 : -1), MELLO_CHORD_SHAPE_COUNT);
-        else if (knob == 2u)
-            s->hold = (uint8_t)clamp_i32((int32_t)s->hold + delta, 1, 16);
-        else
-            s->octave = (int8_t)clamp_i32((int32_t)s->octave + delta, -2, 2);
-    } else if (ui->chord_subpage == 2u) {
-        s = &c.steps[ui->selected_chord_step % c.length];
-        if (knob == 0u)
-            s->inversion = (uint8_t)clamp_i32((int32_t)s->inversion + delta, 0, 3);
-        else if (knob == 1u)
-            s->spread = (uint8_t)clamp_i32((int32_t)s->spread + delta, 0, 3);
-        else if (knob == 2u)
-            c.wave = step_sub_waveform(c.wave, delta);
-        else
-            c.gate_amount = (uint16_t)clamp_i32((int32_t)c.gate_amount + delta * 10, 100, 1200);
-    } else if (ui->chord_subpage == 3u) {
-        if (knob == 0u)
-            c.grid_mode =
-                (MelloDotMode)wrap_u8((int32_t)c.grid_mode + (delta > 0 ? 1 : -1), MELLO_DOT_MODE_COUNT);
-        else if (knob == 1u)
-            c.grid_length = (uint8_t)clamp_i32((int32_t)c.grid_length + delta, 1, 16);
-        else if (knob == 2u)
-            c.grid_amount = (uint16_t)clamp_i32((int32_t)c.grid_amount + delta * 10, 0, 1000);
-        else
-            c.grid_follow = delta > 0;
-    } else {
+    s = &c.steps[ui->selected_chord_step % c.length];
+    switch (ui->chord_subpage * 4u + knob) {
+    case 0: c.mode = (MelloChordMode)wrap_u8((int32_t)c.mode + (delta > 0 ? 1 : -1), MELLO_CHORD_MODE_COUNT); break;
+    case 1: c.trigger = (MelloChordTrigger)wrap_u8((int32_t)c.trigger + (delta > 0 ? 1 : -1), 2u); break;
+    case 2: c.length = (uint8_t)clamp_i32((int32_t)c.length + delta, 1, MELLO_CHORD_MAX_STEPS); break;
+    case 3: c.gate_amount = (uint16_t)clamp_i32((int32_t)c.gate_amount + delta * 10, 100, 1200); break;
+    case 4: s->degree = (uint8_t)clamp_i32((int32_t)s->degree + delta, 0, 11); break;
+    case 5:
+        s->shape = (MelloChordShape)wrap_u8((int32_t)s->shape + (delta > 0 ? 1 : -1), MELLO_CHORD_SHAPE_COUNT);
+        break;
+    case 6: s->hold = (uint8_t)clamp_i32((int32_t)s->hold + delta, 1, 16); break;
+    case 7: s->octave = (int8_t)clamp_i32((int32_t)s->octave + delta, -2, 2); break;
+    case 8: s->inversion = (uint8_t)clamp_i32((int32_t)s->inversion + delta, 0, 3); break;
+    case 9: s->spread = (uint8_t)clamp_i32((int32_t)s->spread + delta, 0, 3); break;
+    case 10: c.voices = (uint8_t)clamp_i32((int32_t)c.voices + delta, 2, 4); break;
+    case 11: c.voice_lead = delta > 0; break;
+    case 12: c.grid_mode = (MelloDotMode)wrap_u8((int32_t)c.grid_mode + (delta > 0 ? 1 : -1), MELLO_DOT_MODE_COUNT); break;
+    case 13: c.grid_length = (uint8_t)clamp_i32((int32_t)c.grid_length + delta, 1, 16); break;
+    case 14: c.grid_amount = (uint16_t)clamp_i32((int32_t)c.grid_amount + delta * 10, 0, 1000); break;
+    case 15: c.grid_follow = delta > 0; break;
+    case 16: {
         uint8_t p = ui->selected_chord_pattern % c.pattern_length;
-        if (knob == 0u)
-            c.pattern_masks[p] = (uint8_t)clamp_i32((int32_t)c.pattern_masks[p] + delta, 0, 15);
-        else if (knob == 1u)
-            c.pattern_length =
-                (uint8_t)clamp_i32((int32_t)c.pattern_length + delta, 1, MELLO_CHORD_PATTERN_STEPS);
-        else if (knob == 2u)
-            c.voices = (uint8_t)clamp_i32((int32_t)c.voices + delta, 2, 4);
-        else
-            c.release_ms = (uint16_t)clamp_i32((int32_t)c.release_ms + delta * 10, 5, 4000);
+        c.pattern_masks[p] = (uint8_t)clamp_i32((int32_t)c.pattern_masks[p] + delta, 0, 15);
+        break;
+    }
+    case 17:
+        c.pattern_length = (uint8_t)clamp_i32((int32_t)c.pattern_length + delta, 1, MELLO_CHORD_PATTERN_STEPS);
+        break;
+    case 20: c.wave = step_sub_waveform(c.wave, delta); break;
+    case 21: c.chorus = (uint16_t)clamp_i32((int32_t)c.chorus + delta * 10, 0, 1000); break;
+    case 22: c.space = (uint16_t)clamp_i32((int32_t)c.space + delta * 10, 0, 1000); break;
+    case 23: c.level = (uint16_t)clamp_i32((int32_t)c.level + delta * 10, 0, 1000); break;
+    case 24: c.cut = (uint16_t)clamp_i32((int32_t)c.cut + delta * 10, 0, 1000); break;
+    case 25: c.res = (uint16_t)clamp_i32((int32_t)c.res + delta * 10, 0, 1000); break;
+    case 26: c.fenv = (uint16_t)clamp_i32((int32_t)c.fenv + delta * 10, 0, 1000); break;
+    case 27: c.link = delta > 0; break;
+    case 28: c.fenv_attack_ms = chord_ms(c.fenv_attack_ms, delta, 1u, 2000u); break;
+    case 29: c.fenv_decay_ms = chord_ms(c.fenv_decay_ms, delta, 10u, 4000u); break;
+    case 30: c.strum_ms = (uint8_t)clamp_i32((int32_t)c.strum_ms + delta, 0, 60); break;
+    case 32: c.attack_ms = chord_ms(c.attack_ms, delta, 1u, 2000u); break;
+    case 33: c.decay_ms = chord_ms(c.decay_ms, delta, 10u, 4000u); break;
+    case 34: c.sustain = (uint16_t)clamp_i32((int32_t)c.sustain + delta * 10, 0, 1000); break;
+    case 35: c.release_ms = chord_ms(c.release_ms, delta, 5u, 4000u); break;
+    default: return;
     }
     mello_engine_chord_set_config(e, &c);
     mark_edit(ui);
@@ -1661,9 +1666,14 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
     case MELLO_UI_TURING: ui->tm_subpage = wrap_u8((int32_t)ui->tm_subpage + (delta > 0 ? 1 : -1), 4u); break;
     case MELLO_UI_SUB: ui->sub_subpage = wrap_u8((int32_t)ui->sub_subpage + (delta > 0 ? 1 : -1), 5u); break;
 #if MELLO_FEATURE_CHORD_MACHINE
-    case MELLO_UI_CHORD:
-        ui->chord_subpage = wrap_u8((int32_t)ui->chord_subpage + (delta > 0 ? 1 : -1), 5u);
+    case MELLO_UI_CHORD: {
+        uint8_t n = 0u, l = ui->chord_subpage;
+        do /* past the layers not in use */
+            l = wrap_u8((int32_t)l + (delta > 0 ? 1 : -1), CHORD_LAYERS);
+        while (!chord_layer_shown(&eng(ui)->chord, l) && ++n < CHORD_LAYERS);
+        ui->chord_subpage = l;
         break;
+    }
 #endif
     case MELLO_UI_GLOBAL:
         ui->global_subpage = wrap_u8((int32_t)ui->global_subpage + (delta > 0 ? 1 : -1), 2u);
@@ -2370,6 +2380,7 @@ void mello_ui_tick(MelloUi *ui)
 #if MELLO_FEATURE_CHORD_MACHINE
                     ui->seen_chord_pos != e->chord_chain_pos ||
                     ui->seen_chord_grid != e->chord_grid_active_cell ||
+                    (ui->page == MELLO_UI_CHORD && ui->seen_chord_lit != ui->transport->display_chord_lit) ||
 #endif
                     ui->seen_running != run;
 
@@ -2417,8 +2428,11 @@ void mello_ui_tick(MelloUi *ui)
         ui->seen_tm_pos = e->tm_active_index;
         ui->seen_sub_x_pos = e->sub_x_active_index;
 #if MELLO_FEATURE_CHORD_MACHINE
+        if (ui->page == MELLO_UI_HOME && e->chord.on && ui->seen_chord_pos != e->chord_chain_pos)
+            ui->dirty |= MELLO_UI_DIRTY_HEADER; /* the chord's name */
         ui->seen_chord_pos = e->chord_chain_pos;
         ui->seen_chord_grid = e->chord_grid_active_cell;
+        ui->seen_chord_lit = ui->transport->display_chord_lit;
 #endif
         ui->seen_running = run;
         ui->dirty |= MELLO_UI_DIRTY_STATUS | MELLO_UI_DIRTY_LEDS;
@@ -3043,6 +3057,15 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
     }
     p = copy_s(b, ui->page == MELLO_UI_HOME && ui->keys_mode ? (ui->keys_rec ? "HOME REC" : "HOME KEYS")
                                                              : domain_name(ui));
+#if MELLO_FEATURE_CHORD_MACHINE
+    if (e && ui->page == MELLO_UI_HOME && !ui->keys_mode && e->chord.on && ui->transport->running &&
+        e->chord_voiced_slot < e->chord.length) { /* HOME: the chord sounding, after the page's name */
+        char cn[8];
+        mello_engine_chord_name(e, e->chord_voiced_slot, cn);
+        *p++ = ' ';
+        p = copy_s(p, cn);
+    } else
+#endif
     if (e && !ui->keys_mode &&
         (ui->page == MELLO_UI_HOME || ui->page == MELLO_UI_SEQ_STEP || ui->page == MELLO_UI_SEQ_SEGMENT)) {
         uint8_t seg = ui->page == MELLO_UI_SEQ_SEGMENT ? ui->selected_segment
@@ -3574,30 +3597,53 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                 ui_round_frame(o, x, y, 52, 11, here ? UI_BRIGHT : (on ? col : UI_LINE));
             }
         } else if (ui->chord_subpage == 4u) {
-            for (i = 0u; i < c->pattern_length; ++i) {
+            /* the voice masks, the one playing framed and its voices lit as they sound */
+            uint8_t pl = c->pattern_length ? c->pattern_length : 1u,
+                    at = ui->transport->running ? (uint8_t)((e->chord_pattern_pos + pl - 1u) % pl) : 0xFFu,
+                    lit = ui->transport->display_chord_lit;
+            for (i = 0u; i < pl; ++i) {
                 int16_t x = (int16_t)(10 + i * 28u);
                 uint8_t j, m = c->pattern_masks[i];
-                ui_round_frame(o, x, 52, 24, 52, i == ui->selected_chord_pattern ? UI_BRIGHT : UI_LINE);
-                for (j = 0u; j < 4u; ++j)
-                    ui_round_fill(o, (int16_t)(x + 4), (int16_t)(55 + j * 12u), 16, 9,
-                                  (m & (1u << j)) ? col : UI_TRACK);
+                ui_round_frame(o, x, 52, 24, 52,
+                               i == at ? UI_BRIGHT : i == ui->selected_chord_pattern ? col : UI_LINE);
+                for (j = 0u; j < 4u; ++j) {
+                    bool on = (m & (1u << j)) != 0u;
+                    ui_round_fill(o, (int16_t)(x + 4), (int16_t)(91 - j * 12u), 16, 9,
+                                  !on                         ? UI_TRACK
+                                  : i == at && (lit >> j) & 1u ? UI_BRIGHT
+                                                              : col);
+                }
             }
         } else {
-            uint8_t notes[4], sel = ui->selected_chord_step < c->length ? ui->selected_chord_step : 0u,
-                              n = mello_engine_resolve_chord_notes(e, sel, notes);
+            /* The chain as chord names, the one sounding underlined; under it the chord's voices, lowest left,
+             * each lit while it sounds (or, on AMP and MOTION, the envelope). */
+            uint8_t notes[4], sel = ui->selected_chord_step < c->length ? ui->selected_chord_step : 0u, n,
+                              sounding = ui->transport->running ? e->chord_voiced_slot : 0xFFu,
+                              lit = ui->transport->display_chord_lit;
+            int16_t w = (int16_t)(220 / c->length);
             for (i = 0u; i < c->length; ++i) {
-                bool playing = i == e->chord_chain_pos, selected = i == sel;
-                value_u(b, "", (uint32_t)c->steps[i].degree + 1u);
-                ui_pill(o, (int16_t)(10 + i * 28u), 53, 24, b, selected, col);
-                if (playing) o->fill(o->ctx, (int16_t)(14 + i * 28u), 71, 16, 2, UI_BRIGHT);
+                mello_engine_chord_name(e, i, b);
+                ui_pill(o, (int16_t)(10 + i * w), 53, (int16_t)(w - 3), b, i == sel, col);
+                if (i == sounding) o->fill(o->ctx, (int16_t)(14 + i * w), 71, (int16_t)(w - 11), 2, UI_BRIGHT);
             }
-            for (i = 0u; i < n; ++i) {
-                int16_t x = (int16_t)(10 + i * 56u);
-                midi_note_name(b, notes[i]);
-                ui_round_fill(o, x, 75, 52, 36,
-                              ui_mix(col, UI_PANEL, 170)); /* taller than the large text's box */
-                ui_round_frame(o, x, 75, 52, 36, col);
-                o->text(o->ctx, (int16_t)(x + 1), 77, 50, 1, b, UI_BRIGHT, 1);
+            if (ui->chord_subpage == 8u)
+                ui_env_graph(o, 10, 78, 220, 32, c->attack_ms, c->decay_ms, c->sustain, c->release_ms, col);
+            else if (ui->chord_subpage == 7u)
+                ui_env_graph(o, 10, 78, 220, 32, c->fenv_attack_ms, c->fenv_decay_ms, 0u, 0u, col);
+            else {
+                if (sounding != 0xFFu && e->chord_voiced_n) {
+                    n = e->chord_voiced_n;
+                    for (i = 0u; i < n; ++i) notes[i] = e->chord_voiced[i];
+                } else
+                    n = mello_engine_resolve_chord_notes(e, sel, notes);
+                for (i = 0u; i < n && i < 4u; ++i) {
+                    int16_t x = (int16_t)(10 + i * 56u);
+                    bool on = (lit >> i) & 1u;
+                    midi_note_name(b, notes[i]);
+                    ui_round_fill(o, x, 77, 52, 34, on ? ui_mix(col, UI_WHITE, 200) : ui_mix(col, UI_PANEL, 170));
+                    ui_round_frame(o, x, 77, 52, 34, on ? UI_WHITE : col);
+                    o->text(o->ctx, (int16_t)(x + 1), 78, 50, 1, b, on ? UI_BLACK : UI_BRIGHT, 1);
+                }
             }
         }
         draw_knob_grid(ui, o, 118);
@@ -4001,11 +4047,22 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
     } else if (ui->page == MELLO_UI_CHORD) {
         const MelloChordConfig *c = &e->chord;
         switch (ui->chord_subpage * 4u + k) {
-        case 3: v = c->level; break;
-        case 11: v = c->gate_amount, m = 1200u; break;
+        case 3: v = c->gate_amount, m = 1200u; break;
         case 13: v = c->grid_length, m = 16u; break;
         case 14: v = c->grid_amount; break;
-        case 19: v = c->release_ms, m = 4000u; break;
+        case 21: v = c->chorus; break;
+        case 22: v = c->space; break;
+        case 23: v = c->level; break;
+        case 24: v = c->cut; break;
+        case 25: v = c->res; break;
+        case 26: v = c->fenv; break;
+        case 28: v = c->fenv_attack_ms, m = 2000u; break;
+        case 29: v = c->fenv_decay_ms, m = 4000u; break;
+        case 30: v = c->strum_ms, m = 60u; break;
+        case 32: v = c->attack_ms, m = 2000u; break;
+        case 33: v = c->decay_ms, m = 4000u; break;
+        case 34: v = c->sustain; break;
+        case 35: v = c->release_ms, m = 4000u; break;
         default: return false;
         }
 #endif
@@ -4343,54 +4400,71 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         break;
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD: {
+        static const char *lab[CHORD_LAYERS][4] = {
+            {"MODE", "TRIG", "CHAIN", "GATE"},      {"DEG", "SHAPE", "HOLD", "OCT"},
+            {"INV", "SPREAD", "VOICES", "VLEAD"},   {"MODE", "LEN", "DEPTH", "FOLLOW"},
+            {"MASK", "LEN", "K3", "K4"},              {"WAVE", "CHORUS", "SPACE", "LEVEL"},
+            {"CUT", "RES", "ENV", "LINK"},          {"F ATK", "F DEC", "STRUM", "K4"},
+            {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"}};
         MelloChordConfig *c = &e->chord;
         MelloChordStep *s = &c->steps[ui->selected_chord_step % c->length];
-        if (ui->chord_subpage == 0u) {
-            l[0] = "MODE";
+        uint8_t L = ui->chord_subpage % CHORD_LAYERS;
+        for (k = 0u; k < 4u; ++k) {
+            l[k] = lab[L][k];
+            copy_s(v[k], "-");
+        }
+        switch (L) {
+        case 0:
             copy_s(v[0], chord_mode_name(c->mode));
-            l[1] = "TRIG";
             copy_s(v[1], c->trigger == MELLO_CHORD_TRIGGER_GRID ? "GRID" : "STEP");
-            l[2] = "CHAIN";
             value_u(v[2], "", c->length);
-            l[3] = "LEVEL";
-            value_u(v[3], "", c->level / 10u);
-        } else if (ui->chord_subpage == 1u) {
-            l[0] = "DEG";
-            value_u(v[0], "", s->degree + 1u);
-            l[1] = "SHAPE";
-            copy_s(v[1], chord_shape_name(s->shape));
-            l[2] = "HOLD";
-            value_u(v[2], "", s->hold);
-            l[3] = "OCT";
-            value_i(v[3], "", s->octave);
-        } else if (ui->chord_subpage == 2u) {
-            l[0] = "INV";
-            value_u(v[0], "", s->inversion);
-            l[1] = "SPREAD";
-            value_u(v[1], "", s->spread);
-            l[2] = "WAVE";
-            copy_s(v[2], wave_name(c->wave));
-            l[3] = "GATE";
             value_u(v[3], "", c->gate_amount / 10u);
-        } else if (ui->chord_subpage == 3u) {
-            l[0] = "MODE";
-            copy_s(v[0], dot_mode_name(c->grid_mode));
-            l[1] = "LEN";
-            value_u(v[1], "", c->grid_length);
-            l[2] = "DEPTH";
-            value_u(v[2], "", c->grid_amount / 10u);
-            l[3] = "FOLLOW";
-            copy_s(v[3], c->grid_follow ? "ON" : "OFF");
-        } else {
-            uint8_t p = ui->selected_chord_pattern % c->pattern_length;
-            l[0] = "MASK";
-            value_u(v[0], "", c->pattern_masks[p]);
-            l[1] = "LEN";
-            value_u(v[1], "", c->pattern_length);
-            l[2] = "VOICES";
+            break;
+        case 1:
+            value_u(v[0], "", s->degree + 1u);
+            copy_s(v[1], chord_shape_name(s->shape));
+            value_u(v[2], "", s->hold);
+            value_i(v[3], "", s->octave);
+            break;
+        case 2:
+            value_u(v[0], "", s->inversion);
+            value_u(v[1], "", s->spread);
             value_u(v[2], "", c->voices);
-            l[3] = "REL";
+            copy_s(v[3], c->voice_lead ? "ON" : "OFF");
+            break;
+        case 3:
+            copy_s(v[0], dot_mode_name(c->grid_mode));
+            value_u(v[1], "", c->grid_length);
+            value_u(v[2], "", c->grid_amount / 10u);
+            copy_s(v[3], c->grid_follow ? "ON" : "OFF");
+            break;
+        case 4:
+            value_u(v[0], "", c->pattern_masks[ui->selected_chord_pattern % c->pattern_length]);
+            value_u(v[1], "", c->pattern_length);
+            break;
+        case 5:
+            copy_s(v[0], wave_name(c->wave));
+            value_u(v[1], "", c->chorus / 10u);
+            value_u(v[2], "", c->space / 10u);
+            value_u(v[3], "", c->level / 10u);
+            break;
+        case 6:
+            value_u(v[0], "", c->cut / 10u);
+            value_u(v[1], "", c->res / 10u);
+            value_u(v[2], "", c->fenv / 10u);
+            copy_s(v[3], c->link ? "ON" : "OFF");
+            break;
+        case 7:
+            value_ms(v[0], c->fenv_attack_ms);
+            value_ms(v[1], c->fenv_decay_ms);
+            value_ms(v[2], c->strum_ms);
+            break;
+        default:
+            value_ms(v[0], c->attack_ms);
+            value_ms(v[1], c->decay_ms);
+            value_u(v[2], "", c->sustain / 10u);
             value_ms(v[3], c->release_ms);
+            break;
         }
         break;
     }
@@ -4877,6 +4951,13 @@ static const char *layer_name(const MelloUi *ui)
     case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 10u];
     case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 5u];
     case MELLO_UI_SAMPLE_RESERVED: return smp[ui->sample_subpage % 4u];
+#if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_UI_CHORD: {
+        static const char *chd[CHORD_LAYERS] = {"PLAY",    "CHORD", "VOICING", "GRID", "PATTERN",
+                                                "TONE",    "FILTER", "MOTION", "AMP"};
+        return chd[ui->chord_subpage % CHORD_LAYERS];
+    }
+#endif
     case MELLO_UI_HOME: return ui->held_step == MELLO_UI_NO_STEP ? 0 : "HELD STEP";
     default: return 0;
     }

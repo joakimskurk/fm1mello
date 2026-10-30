@@ -97,6 +97,18 @@ int main(void)
     c.grid_amount = 777u;
     c.pattern_length = 6u;
     for (i = 0u; i < MELLO_CHORD_PATTERN_STEPS; ++i) c.pattern_masks[i] = (uint8_t)(15u - i);
+    c.cut = 123u; /* the voice (section version 2) */
+    c.res = 456u;
+    c.fenv = 789u;
+    c.fenv_attack_ms = 33u;
+    c.fenv_decay_ms = 2222u;
+    c.decay_ms = 1500u;
+    c.sustain = 321u;
+    c.chorus = 999u;
+    c.space = 444u;
+    c.strum_ms = 37u;
+    c.link = !c.link;
+    c.voice_lead = !c.voice_lead;
     mello_engine_chord_set_config(&e, &c);
     want = e.chord;
 
@@ -124,6 +136,11 @@ int main(void)
               c.pattern_length == want.pattern_length &&
               memcmp(c.pattern_masks, want.pattern_masks, sizeof c.pattern_masks) == 0,
           "chord grid/pattern fields differ after reload");
+    CHECK(c.cut == want.cut && c.res == want.res && c.fenv == want.fenv && c.fenv_attack_ms == want.fenv_attack_ms &&
+              c.fenv_decay_ms == want.fenv_decay_ms && c.decay_ms == want.decay_ms && c.sustain == want.sustain &&
+              c.chorus == want.chorus && c.space == want.space && c.strum_ms == want.strum_ms &&
+              c.link == want.link && c.voice_lead == want.voice_lead,
+          "chord voice fields differ after reload");
     printf("PASS: Chord Machine settings survive a power cycle\n");
 #else
     (void)boot;
