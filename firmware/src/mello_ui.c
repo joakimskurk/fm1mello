@@ -279,7 +279,10 @@ static void open_page(MelloUi *ui, MelloUiPage page)
     case MELLO_UI_SEQ_SEGMENT: ui->segment_subpage = 0u; break;
     case MELLO_UI_SEQ_LOOP: ui->loop_subpage = 0u; break;
     case MELLO_UI_SLOTS: ui->slots_subpage = 0u; break;
-    case MELLO_UI_DOT: ui->selected_dot_target = 0u; break;
+    case MELLO_UI_DOT:
+        ui->selected_dot_target = 0u;
+        ui->dot_shape = false;
+        break;
     case MELLO_UI_TURING: ui->tm_subpage = 0u; break;
     case MELLO_UI_SUB: ui->sub_subpage = 0u; break;
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -345,6 +348,22 @@ static const char *lfo_target_name(MelloLfoTarget t)
     case MELLO_LFO_SAT: return "SAT";
     default: return "?";
     }
+}
+
+static const char *mod_dest_name(uint8_t d)
+{
+    static const char *n[MELLO_DEST_COUNT] = {"OFF", "CUTOFF", "RES",  "DECAY", "PITCH",  "OSC 2",
+                                              "FM",  "NOISE",  "N.FM", "SAT",   "DETUNE", "PWM"};
+    return d < MELLO_DEST_COUNT ? n[d] : "?";
+}
+
+/* DOT's layers in SELECT's order: each matrix, and after each MOD lane its SHAPE. */
+static const uint8_t DOT_LAYERS[7][2] = {
+    {MELLO_DOT_ACCENT, 0u}, {MELLO_DOT_MOD1, 0u},    {MELLO_DOT_MOD1, 1u}, {MELLO_DOT_MOD2, 0u},
+    {MELLO_DOT_MOD2, 1u},   {MELLO_DOT_RATCHET, 0u}, {MELLO_DOT_SUB, 0u}};
+static int8_t dot_lane(uint8_t matrix)
+{
+    return matrix == MELLO_DOT_MOD1 ? 0 : (matrix == MELLO_DOT_MOD2 ? 1 : -1);
 }
 
 static const char *menv_target_name(MelloModEnvTarget t)
@@ -453,8 +472,10 @@ typedef enum {
     MELLO_CTX_RANDOM_ALL,
     MELLO_CTX_DOT_REROLL,
     MELLO_CTX_DOT_RESET,
+    MELLO_CTX_DOT_FOLLOW, /* the matrix reads only at step starts (was a rotary) */
     MELLO_CTX_TURING_TOGGLE,
     MELLO_CTX_TURING_REROLL,
+    MELLO_CTX_TURING_LOOP, /* mutate at the loop's one, or on every step */
     MELLO_CTX_SUB_TOGGLE,
     MELLO_CTX_SUB_STEP,
     MELLO_CTX_CHORD_TOGGLE,
@@ -500,10 +521,12 @@ static const MelloContextAction context_actions[MELLO_UI_SAMPLE_RESERVED + 1u][8
     [MELLO_UI_SLOTS] = {[5] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_DOT] = {[1] = {MELLO_CTX_DOT_REROLL, "RND"},
                       [2] = {MELLO_CTX_DOT_RESET, "RST"},
+                      [3] = {MELLO_CTX_DOT_FOLLOW, "FLW"},
                       [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                       [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_TURING] = {[0] = {MELLO_CTX_TURING_TOGGLE, "ON"},
                          [1] = {MELLO_CTX_TURING_REROLL, "RND"},
+                         [2] = {MELLO_CTX_TURING_LOOP, "LOOP"},
                          [5] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                          [6] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_SUB] = {[0] = {MELLO_CTX_SUB_TOGGLE, "ON"},
@@ -1048,14 +1071,33 @@ static void adjust_dot(MelloUi *ui, uint8_t knob, int16_t delta)
     if (!e || !delta) return;
     t = (MelloDotTarget)ui->selected_dot_target;
     c = e->dot[t];
+    if (ui->dot_shape && dot_lane(t) >= 0) { /* SHAPE: where the lane goes, and how a lit cell moves it */
+        MelloModRouting m = e->modr;
+        uint8_t l = (uint8_t)dot_lane(t);
+        if (knob == 0u) /* never OFF: DEPTH 0 is off */
+            m.dot_target[l] = (uint8_t)(1u + wrap_u8((int32_t)m.dot_target[l] - 1 + (delta > 0 ? 1 : -1),
+                                                     MELLO_DEST_COUNT - 1u));
+        else if (knob == 1u)
+            m.dot_attack_ms[l] = (uint16_t)clamp_i32((int32_t)m.dot_attack_ms[l] + delta * 5, 0, 2000);
+        else if (knob == 2u)
+            m.dot_release_ms[l] = (uint16_t)clamp_i32((int32_t)m.dot_release_ms[l] + delta * 10, 5, 4000);
+        else
+            m.dot_gate[l] = delta > 0;
+        mello_engine_mod_routing_set(e, &m);
+        mark_edit(ui);
+        return;
+    }
     if (knob == 0u)
         c.mode = (MelloDotMode)wrap_u8((int32_t)c.mode + (delta > 0 ? 1 : -1), 4u);
     else if (knob == 1u)
         c.length = (uint8_t)clamp_i32((int32_t)c.length + delta, 1, 16);
     else if (knob == 2u)
         c.amount = (uint16_t)clamp_i32((int32_t)c.amount + delta * 10, 0, 1000);
-    else if (knob == 3u)
-        c.follow = delta > 0;
+    else {
+        MelloModRouting m = e->modr;
+        m.dot_evolve[t] = (uint16_t)clamp_i32((int32_t)m.dot_evolve[t] + delta * 10, 0, 1000);
+        mello_engine_mod_routing_set(e, &m);
+    }
     mello_engine_dot_set_config(e, t, &c);
     mark_edit(ui);
 }
@@ -1079,6 +1121,16 @@ static void adjust_turing(MelloUi *ui, uint8_t knob, int16_t delta)
             c.rate = (MelloTmRate)wrap_u8((int32_t)c.rate + (delta > 0 ? 1 : -1), 3u);
         else if (knob == 3u)
             c.offset = (int8_t)clamp_i32((int32_t)c.offset + delta, -31, 31);
+    } else if (ui->tm_subpage == 3u) { /* SOUND: two routes, destination and depth (+-) */
+        MelloModRouting m = e->modr;
+        uint8_t l = knob >> 1;
+        if (!(knob & 1u))
+            m.tm_dest[l] = wrap_u8((int32_t)m.tm_dest[l] + (delta > 0 ? 1 : -1), MELLO_DEST_COUNT);
+        else
+            m.tm_depth[l] = (int16_t)clamp_i32((int32_t)m.tm_depth[l] + delta * 10, -1000, 1000);
+        mello_engine_mod_routing_set(e, &m);
+        mark_edit(ui);
+        return;
     } else if (ui->tm_subpage == 1u) {
         uint8_t mask = (uint8_t)(1u << knob);
         c.routes = delta > 0 ? (uint8_t)(c.routes | mask) : (uint8_t)(c.routes & (uint8_t)~mask);
@@ -1509,10 +1561,17 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
     case MELLO_UI_SLOTS:
         ui->slots_subpage = wrap_u8((int32_t)ui->slots_subpage + (delta > 0 ? 1 : -1), 2u);
         break;
-    case MELLO_UI_DOT:
-        ui->selected_dot_target = wrap_u8((int32_t)ui->selected_dot_target + (delta > 0 ? 1 : -1), 4u);
-        break;
-    case MELLO_UI_TURING: ui->tm_subpage = wrap_u8((int32_t)ui->tm_subpage + (delta > 0 ? 1 : -1), 3u); break;
+    case MELLO_UI_DOT: {
+        uint8_t i;
+        for (i = 0u;
+             i < 7u && !(DOT_LAYERS[i][0] == ui->selected_dot_target && DOT_LAYERS[i][1] == ui->dot_shape);
+             ++i) {
+        }
+        i = wrap_u8((int32_t)(i % 7u) + (delta > 0 ? 1 : -1), 7u);
+        ui->selected_dot_target = DOT_LAYERS[i][0];
+        ui->dot_shape = DOT_LAYERS[i][1] != 0u;
+    } break;
+    case MELLO_UI_TURING: ui->tm_subpage = wrap_u8((int32_t)ui->tm_subpage + (delta > 0 ? 1 : -1), 4u); break;
     case MELLO_UI_SUB: ui->sub_subpage = wrap_u8((int32_t)ui->sub_subpage + (delta > 0 ? 1 : -1), 5u); break;
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD:
@@ -1848,6 +1907,21 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         MelloDotMatrixConfig c = e->dot[t];
         c.reset = !c.reset;
         mello_engine_dot_set_config(e, t, &c);
+        mark_edit(ui);
+        break;
+    }
+    case MELLO_CTX_DOT_FOLLOW: {
+        MelloDotTarget t = (MelloDotTarget)ui->selected_dot_target;
+        MelloDotMatrixConfig c = e->dot[t];
+        c.follow = !c.follow;
+        mello_engine_dot_set_config(e, t, &c);
+        mark_edit(ui);
+        break;
+    }
+    case MELLO_CTX_TURING_LOOP: {
+        MelloModRouting m = e->modr;
+        m.tm_on_loop = !m.tm_on_loop;
+        mello_engine_mod_routing_set(e, &m);
         mark_edit(ui);
         break;
     }
@@ -2440,8 +2514,8 @@ static uint16_t ui_segment_colour_dim(uint8_t segment)
 
 static uint16_t ui_dot_colour(uint8_t target)
 {
-    static const uint16_t c[4] = {UI_CORAL, UI_CYAN, UI_MAGENTA, UI_GOLD};
-    return c[target < 4u ? target : 0u];
+    static const uint16_t c[MELLO_DOT_MATRIX_COUNT] = {UI_CORAL, UI_CYAN, UI_MAGENTA, UI_GOLD, UI_BLUE};
+    return c[target < MELLO_DOT_MATRIX_COUNT ? target : 0u];
 }
 
 static uint16_t ui_page_accent(MelloUi *ui)
@@ -3261,20 +3335,24 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
          * dot in each, the cells that are on glowing in the matrix's colour, the cells past its length dark; the
          * read position framed bright with a fading trail of where it was, so its direction shows; the run mode
          * as pills under it. */
-        MelloDotMatrixConfig *c = &e->dot[ui->selected_dot_target];
-        static const char *tn[4] = {"ACCENT", "FILTER", "RATCH", "SUB"};
+        uint8_t sel_id = ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT;
+        MelloDotMatrixConfig *c = &e->dot[sel_id];
+        static const uint8_t tid[MELLO_DOT_MATRIX_COUNT] = {MELLO_DOT_ACCENT, MELLO_DOT_MOD1, MELLO_DOT_MOD2,
+                                                            MELLO_DOT_RATCHET, MELLO_DOT_SUB};
+        static const char *tn[MELLO_DOT_MATRIX_COUNT] = {"ACC", "MOD 1", "MOD 2", "RATCH", "SUB"};
         static const char *mn[4] = {"HOR", "VER", "SNK", "RND"};
-        static const uint16_t tc[4] = {UI_CORAL, UI_CYAN, UI_MAGENTA, UI_GOLD};
+        int8_t lane = dot_lane(sel_id);
         uint8_t i, r, col, len = c->length < 1u ? 1u : c->length;
-        uint16_t colour = tc[ui->selected_dot_target];
-        int8_t at = e->dot_active_cell[ui->selected_dot_target];
-        for (i = 0u; i < 4u; ++i) {
-            int16_t tx = (int16_t)(4 + i * 58u);
-            bool sel = i == ui->selected_dot_target;
-            if (sel) ui_round_fill(o, tx, 32, 56, 17, ui_mix(tc[i], UI_BLACK, 170));
-            ui_round_frame(o, tx, 32, 56, 17, sel ? tc[i] : UI_LINE);
-            o->text(o->ctx, (int16_t)(tx + 2), 33, 52, 0, tn[i],
-                    sel ? UI_BRIGHT : ui_mix(tc[i], UI_BLACK, 110), 1);
+        uint16_t colour = ui_dot_colour(sel_id);
+        int8_t at = e->dot_active_cell[sel_id];
+        for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) {
+            int16_t tx = (int16_t)(4 + i * 47u);
+            bool sel = tid[i] == sel_id;
+            uint16_t tc = ui_dot_colour(tid[i]);
+            if (sel) ui_round_fill(o, tx, 32, 45, 17, ui_mix(tc, UI_BLACK, 170));
+            ui_round_frame(o, tx, 32, 45, 17, sel ? tc : UI_LINE);
+            o->text(o->ctx, (int16_t)(tx + 2), 33, 41, 0, tn[i], sel ? UI_BRIGHT : ui_mix(tc, UI_BLACK, 110),
+                    1);
         }
         for (r = 0u; r < 4u; ++r)
             for (col = 0u; col < 4u; ++col) {
@@ -3300,6 +3378,25 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                     o->fill(o->ctx, (int16_t)(x + 24), (int16_t)(y + 8), here ? 4 : 2, here ? 4 : 2,
                             here ? UI_BRIGHT : (on ? UI_BRIGHT : UI_LINE));
             }
+        if (ui->dot_shape && lane >= 0) {
+            /* SHAPE: what a lit cell sends, drawn: up in ATK, down in REL; GATE holds a flat top between them
+             * (lit cells in a row), HIT goes straight down. Times share the width by their length. */
+            const MelloModRouting *m = &e->modr;
+            uint32_t at_ms = m->dot_attack_ms[lane], rl = m->dot_release_ms[lane],
+                     hold = m->dot_gate[lane] ? (at_ms + rl) / 2u + 20u : 0u, tot = at_ms + hold + rl;
+            int16_t x0 = 6, w = 120, wa = (int16_t)(at_ms * (uint32_t)w / tot),
+                    wh = (int16_t)(hold * (uint32_t)w / tot), k;
+            ui_round_fill(o, 4, 146, 124, 19, UI_PANEL);
+            for (k = 0; k < w; ++k) {
+                int16_t hgt = k < wa ? (int16_t)(1 + k * 14 / (wa ? wa : 1))
+                              : k < wa + wh
+                                  ? 15
+                                  : (int16_t)(15 - (k - wa - wh) * 14 / (w - wa - wh > 0 ? w - wa - wh : 1));
+                o->fill(o->ctx, (int16_t)(x0 + k), (int16_t)(163 - hgt), 1, 2, colour);
+            }
+            o->text(o->ctx, 132, 148, 104, 0, mod_dest_name(m->dot_target[lane]), colour, 2);
+            break;
+        }
         for (i = 0u; i < 4u; ++i) {
             int16_t mx = (int16_t)(4 + i * 34u);
             bool sel = (uint8_t)c->mode == i;
@@ -3307,10 +3404,14 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             ui_round_frame(o, mx, 147, 32, 17, sel ? colour : UI_LINE);
             o->text(o->ctx, (int16_t)(mx + 4), 148, 24, 0, mn[i], sel ? UI_BRIGHT : UI_DIM, 1);
         }
-        (void)copy_s(put_u32(a, c->amount / 10u), "%");
-        o->text(o->ctx, 144, 148, 40, 0, a, colour, 2);
-        o->text(o->ctx, 188, 148, 46, 0, c->follow ? "FOLLOW" : (c->reset ? "RESET" : "FREE"),
-                c->follow ? UI_BLUE : UI_DIM, 2);
+        if (lane >= 0) /* where the lane goes, so the matrix says what it does */
+            o->text(o->ctx, 140, 148, 96, 0, mod_dest_name(e->modr.dot_target[lane]), colour, 2);
+        else {
+            (void)copy_s(put_u32(a, c->amount / 10u), "%");
+            o->text(o->ctx, 144, 148, 40, 0, a, colour, 2);
+            o->text(o->ctx, 188, 148, 46, 0, c->follow ? "FOLLOW" : (c->reset ? "RESET" : "FREE"),
+                    c->follow ? UI_BLUE : UI_DIM, 2);
+        }
         break;
     }
     case MELLO_UI_TURING: {
@@ -3570,6 +3671,21 @@ static void footer_pair(const MelloUiDrawOps *o, uint8_t k, const char *label, c
     o->text(o->ctx, x + 2, 204, 56, 0, shown, colour, 1);
 }
 
+/* A black key that switches something: 1 on, 0 off; -1 for a key that acts (no state to show). */
+static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
+{
+    MelloEngine *e = eng(ui);
+    if (!e) return -1;
+    switch (v) {
+    case MELLO_CTX_DOT_FOLLOW: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].follow ? 1 : 0;
+    case MELLO_CTX_DOT_RESET: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].reset ? 1 : 0;
+    case MELLO_CTX_TURING_TOGGLE: return e->tm.on ? 1 : 0;
+    case MELLO_CTX_TURING_LOOP: return e->modr.tm_on_loop ? 1 : 0;
+    case MELLO_CTX_SUB_TOGGLE: return e->sub.on ? 1 : 0;
+    default: return -1;
+    }
+}
+
 /* The black-key strip: one cell per black key, in the keyboard's own groups (3 2 3 2 1 from F#3), so a key is found
  * by its group and place rather than by a number. A labelled key is a framed cell; a free one a dim dot. */
 static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
@@ -3622,11 +3738,14 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
             x = (int16_t)(x + w + 1);
         } else if (a && a->verb != MELLO_CTX_NONE && a->label) {
             int16_t w = (int16_t)(ui_text_len(a->label) * 8u + 2u);
+            int8_t lit = ctx_lit(ui, a->verb);
             uint16_t c = a->verb == MELLO_CTX_RANDOM_CLEAR || a->verb == MELLO_CTX_GLOBAL_RESET
                              ? (ui->reset_armed ? UI_RED : UI_DIM)
-                             : accent;
-            ui_round_frame(o, x, 172, w, 16, UI_LINE); /* a pill, as the HTML's buttons: a dim edge */
-            o->text(o->ctx, (int16_t)(x + 1), 172, (int16_t)(w - 2), 0, a->label, c, 1);
+                             : (lit == 0 ? UI_DIM : accent);
+            if (lit > 0)
+                ui_round_fill(o, x, 172, w, 16, ui_mix(accent, UI_BLACK, 150)); /* a switch that is on */
+            ui_round_frame(o, x, 172, w, 16, lit > 0 ? accent : UI_LINE); /* a pill, as the HTML's buttons */
+            o->text(o->ctx, (int16_t)(x + 1), 172, (int16_t)(w - 2), 0, a->label, lit > 0 ? UI_BRIGHT : c, 1);
             x = (int16_t)(x + w + 1); /* air between pills, as the HTML's buttons */
         } else {
             o->fill(o->ctx, x, 179, 2, 2, UI_LINE);
@@ -3952,15 +4071,28 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         }
         break;
     case MELLO_UI_DOT: {
-        MelloDotMatrixConfig *c = &e->dot[ui->selected_dot_target];
+        MelloDotMatrixConfig *c = &e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT];
+        int8_t lane = dot_lane(ui->selected_dot_target);
+        if (ui->dot_shape && lane >= 0) {
+            l[0] = "TARGET";
+            copy_s(v[0], mod_dest_name(e->modr.dot_target[lane]));
+            l[1] = "ATK";
+            value_ms(v[1], e->modr.dot_attack_ms[lane]);
+            l[2] = "REL";
+            value_ms(v[2], e->modr.dot_release_ms[lane]);
+            l[3] = "HOLD";
+            copy_s(v[3], e->modr.dot_gate[lane] ? "GATE" : "HIT");
+            break;
+        }
         l[0] = "MODE";
         copy_s(v[0], dot_mode_name(c->mode));
         l[1] = "LEN";
         value_u(v[1], "", c->length);
-        l[2] = "DEPTH";
-        value_u(v[2], "", c->amount / 10u);
-        l[3] = "FOLLOW";
-        copy_s(v[3], c->follow ? "ON" : "OFF");
+        l[2] = lane >= 0 ? "DEPTH"
+                         : "CHANCE"; /* a MOD lane's amount moves its target; the others' is a chance */
+        value_pct(v[2], c->amount);
+        l[3] = "EVOLVE";
+        value_pct(v[3], e->modr.dot_evolve[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT]);
         break;
     }
     case MELLO_UI_TURING:
@@ -3975,6 +4107,16 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
                                                               : "1X");
             l[3] = "OFFSET";
             value_i(v[3], "", e->tm.offset);
+        } else if (ui->tm_subpage == 3u) {
+            uint8_t r;
+            for (r = 0u; r < 2u; ++r) {
+                l[r * 2u] = r ? "DEST B" : "DEST A";
+                copy_s(v[r * 2u], mod_dest_name(e->modr.tm_dest[r]));
+                l[r * 2u + 1u] = r ? "DEPTH B" : "DEPTH A";
+                copy_s(
+                    put_i32(v[r * 2u + 1u], (e->modr.tm_depth[r] + (e->modr.tm_depth[r] < 0 ? -5 : 5)) / 10),
+                    "%");
+            }
         } else if (ui->tm_subpage == 1u) {
             l[0] = "GATE";
             copy_s(v[0], e->tm.routes & MELLO_TM_ROUTE_GATE ? "ON" : "OFF");
@@ -4549,7 +4691,8 @@ static const char *layer_name(const MelloUi *ui)
 {
     static const char *step[4] = {"TRIG", "NOTE", "FLAGS", "SEQ"}, *seg[2] = {"PLAY", "STRUCT"},
                       *loop[3] = {"STEP", "HARM", "LOOP"}, *slots[2] = {"LOAD", "RENAME"},
-                      *dot[4] = {"ACCENT", "FILTER", "RATCHET", "SUB"}, *tm[3] = {"MAIN", "ROUTES", "DEPTH"},
+                      *dot[5] = {"ACCENT", "MOD 1", "RATCHET", "SUB", "MOD 2"},
+                      *dsh[2] = {"MOD 1 SHAPE", "MOD 2 SHAPE"}, *tm[4] = {"MAIN", "ROUTES", "DEPTH", "SOUND"},
                       *sub[5] = {"TRIG", "5-SEQ", "STEP", "VOICE", "TONE"}, *glo[2] = {"CLOCK", "MIDI"},
                       *snd[9] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO", "FOLLOWER SUB", "PLAY / LEVEL",
                                  "GRIT",         "OSC 2",        "CHARACTER", "MOD ENV"},
@@ -4560,8 +4703,11 @@ static const char *layer_name(const MelloUi *ui)
     case MELLO_UI_SEQ_SEGMENT: return seg[ui->segment_subpage % 2u];
     case MELLO_UI_SEQ_LOOP: return loop[ui->loop_subpage % 3u];
     case MELLO_UI_SLOTS: return slots[ui->slots_subpage % 2u];
-    case MELLO_UI_DOT: return dot[ui->selected_dot_target % 4u];
-    case MELLO_UI_TURING: return tm[ui->tm_subpage % 3u];
+    case MELLO_UI_DOT:
+        return ui->dot_shape && dot_lane(ui->selected_dot_target) >= 0
+                   ? dsh[dot_lane(ui->selected_dot_target)]
+                   : dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT];
+    case MELLO_UI_TURING: return tm[ui->tm_subpage % 4u];
     case MELLO_UI_SUB: return sub[ui->sub_subpage % 5u];
     case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 2u];
     case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 9u];

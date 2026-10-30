@@ -153,7 +153,8 @@ typedef struct {
     uint8_t slot_seq_bank;
     uint8_t selected_slot;
     uint8_t slot_bank;
-    uint8_t selected_dot_target;
+    uint8_t selected_dot_target; /* the matrix (MelloDotTarget) */
+    bool dot_shape;              /* a MOD lane's SHAPE layer */
     uint8_t tm_bank;
     uint8_t selected_tm_bit;
     uint8_t selected_sub_x_step;

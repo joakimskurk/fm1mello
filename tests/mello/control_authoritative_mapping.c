@@ -21,8 +21,8 @@ static const MapCase cases[] = {
     {"RANDOM", MELLO_UI_RANDOM, "B1:NONE B2:ALL B3:CLR2 B5:RNDMZR B6:UNDO"},
     {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:RNDMZR B6:UNDO"},
     {"SLOTS", MELLO_UI_SLOTS, "B5:RNDMZR B6:UNDO"},
-    {"DOT", MELLO_UI_DOT, "B1:RND B2:RST B5:RNDMZR B6:UNDO"},
-    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B5:RNDMZR B6:UNDO"},
+    {"DOT", MELLO_UI_DOT, "B1:RND B2:RST B3:FLW B5:RNDMZR B6:UNDO"},
+    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B2:LOOP B5:RNDMZR B6:UNDO"},
     {"SUB", MELLO_UI_SUB, "B0:ON B4:STEP B5:RNDMZR B6:UNDO"},
 #if MELLO_FEATURE_CHORD_MACHINE
     {"CHORD", MELLO_UI_CHORD, "B0:ON B5:RNDMZR B6:UNDO"},
@@ -176,9 +176,9 @@ static void verify_every_page_and_inactive_slot(void)
         }
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if (active != 51u) die("MAP", "active slot count != 51 with Chord");
+    if (active != 53u) die("MAP", "active slot count != 53 with Chord");
 #else
-    if (active != 48u) die("MAP", "active slot count != 48 without Chord");
+    if (active != 50u) die("MAP", "active slot count != 50 without Chord");
 #endif
     printf("C5 MAP COVERAGE: pages=%u active=%u inactive=%u\n", (unsigned)(sizeof(cases) / sizeof(cases[0])),
            active, inactive);
