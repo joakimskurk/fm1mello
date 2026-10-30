@@ -472,7 +472,8 @@ typedef enum {
     MELLO_CTX_RANDOM_ALL,
     MELLO_CTX_DOT_REROLL,
     MELLO_CTX_DOT_RESET,
-    MELLO_CTX_DOT_FOLLOW, /* the matrix reads only at step starts (was a rotary) */
+    MELLO_CTX_DOT_FOLLOW,  /* the matrix reads only at step starts (was a rotary) */
+    MELLO_CTX_DOT_REVERSE, /* the route backwards */
     MELLO_CTX_TURING_TOGGLE,
     MELLO_CTX_TURING_REROLL,
     MELLO_CTX_TURING_LOOP, /* mutate at the loop's one, or on every step */
@@ -534,6 +535,7 @@ static const MelloContextAction context_actions[MELLO_UI_SAMPLE_RESERVED + 1u][1
     [MELLO_UI_DOT] = {[1] = {MELLO_CTX_DOT_REROLL, "RND"},
                       [2] = {MELLO_CTX_DOT_RESET, "RST"},
                       [3] = {MELLO_CTX_DOT_FOLLOW, "FLW"},
+                      [4] = {MELLO_CTX_DOT_REVERSE, "REV"},
                       [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                       [9] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_TURING] = {[0] = {MELLO_CTX_TURING_TOGGLE, "ON"},
@@ -1106,7 +1108,7 @@ static void adjust_dot(MelloUi *ui, uint8_t knob, int16_t delta)
         return;
     }
     if (knob == 0u)
-        c.mode = (MelloDotMode)wrap_u8((int32_t)c.mode + (delta > 0 ? 1 : -1), 4u);
+        c.mode = (MelloDotMode)wrap_u8((int32_t)c.mode + (delta > 0 ? 1 : -1), MELLO_DOT_MODE_COUNT);
     else if (knob == 1u)
         c.length = (uint8_t)clamp_i32((int32_t)c.length + delta, 1, 16);
     else if (knob == 2u)
@@ -1285,7 +1287,8 @@ static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
             c.gate_amount = (uint16_t)clamp_i32((int32_t)c.gate_amount + delta * 10, 100, 1200);
     } else if (ui->chord_subpage == 3u) {
         if (knob == 0u)
-            c.grid_mode = (MelloDotMode)wrap_u8((int32_t)c.grid_mode + (delta > 0 ? 1 : -1), 4u);
+            c.grid_mode =
+                (MelloDotMode)wrap_u8((int32_t)c.grid_mode + (delta > 0 ? 1 : -1), MELLO_DOT_MODE_COUNT);
         else if (knob == 1u)
             c.grid_length = (uint8_t)clamp_i32((int32_t)c.grid_length + delta, 1, 16);
         else if (knob == 2u)
@@ -1941,6 +1944,14 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         mark_edit(ui);
         break;
     }
+    case MELLO_CTX_DOT_REVERSE: {
+        MelloDotTarget t = (MelloDotTarget)ui->selected_dot_target;
+        MelloDotMatrixConfig c = e->dot[t];
+        c.reverse = !c.reverse;
+        mello_engine_dot_set_config(e, t, &c);
+        mark_edit(ui);
+        break;
+    }
     case MELLO_CTX_TURING_LOOP: {
         MelloModRouting m = e->modr;
         m.tm_on_loop = !m.tm_on_loop;
@@ -2390,10 +2401,9 @@ static const char *gate_name(MelloGateMode g)
 
 static const char *dot_mode_name(MelloDotMode m)
 {
-    return m == MELLO_DOT_VERTICAL ? "VERT"
-           : m == MELLO_DOT_SNAKE  ? "SNAKE"
-           : m == MELLO_DOT_RANDOM ? "RANDOM"
-                                   : "HORIZ";
+    static const char *n[MELLO_DOT_MODE_COUNT] = {"HORIZ",  "VERT", "SNAKE",  "RANDOM", "P-PONG",
+                                                  "SPIRAL", "DIAG", "BOUNCE", "WALK"};
+    return (uint32_t)m < MELLO_DOT_MODE_COUNT ? n[m] : "?";
 }
 
 static const char *sub_mode_name(MelloSubMode m)
@@ -3242,10 +3252,21 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         static const uint8_t tid[MELLO_DOT_MATRIX_COUNT] = {MELLO_DOT_ACCENT, MELLO_DOT_MOD1, MELLO_DOT_MOD2,
                                                             MELLO_DOT_RATCHET, MELLO_DOT_SUB};
         static const char *tn[MELLO_DOT_MATRIX_COUNT] = {"ACC", "MOD 1", "MOD 2", "RATCH", "SUB"};
-        static const char *mn[4] = {"HOR", "VER", "SNK", "RND"};
         int8_t lane = dot_lane(sel_id);
-        uint8_t i, r, col, len = c->length < 1u ? 1u : c->length;
-        uint16_t colour = ui_dot_colour(sel_id);
+        uint8_t i, r, col, len = c->length < 1u ? 1u : c->length, route[MELLO_DOT_ROUTE_MAX], route_pos[16],
+                           route_n;
+        uint16_t colour = ui_dot_colour(sel_id), route_cells = 0u;
+        /* The route the matrix reads, numbered in its cells (the first time it comes to each); RANDOM and WALK have
+         * none fixed, so their cells only show they are in play. */
+        memset(route_pos, 0, sizeof route_pos);
+        route_n = mello_dot_route(c->mode, len, route);
+        for (i = 0u; i < route_n; ++i) {
+            /* forwards the first time the route reaches the cell; with REV, backwards: its last time, from the end */
+            uint8_t k = c->reverse ? (uint8_t)(route_n - 1u - i) : i;
+            route_cells |= (uint16_t)(1u << route[k]);
+            if (!route_pos[route[k]] && c->mode != MELLO_DOT_RANDOM && c->mode != MELLO_DOT_WALK)
+                route_pos[route[k]] = (uint8_t)(i + 1u);
+        }
         int8_t at = e->dot_active_cell[sel_id];
         for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) {
             int16_t tx = (int16_t)(4 + i * 47u);
@@ -3260,7 +3281,8 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             for (col = 0u; col < 4u; ++col) {
                 uint8_t idx = (uint8_t)(r * 4u + col);
                 int16_t x = (int16_t)(8 + col * 57u), y = (int16_t)(53 + r * 23u);
-                bool on = (c->cells & (uint16_t)(1u << idx)) != 0u, inside = idx < len;
+                bool on = (c->cells & (uint16_t)(1u << idx)) != 0u,
+                     inside = (route_cells & (1u << idx)) != 0u;
                 bool here = at == (int8_t)idx, trail1 = ui->dot_trail[0] == (int8_t)idx,
                      trail2 = ui->dot_trail[1] == (int8_t)idx;
                 uint16_t fillc = !inside ? UI_BLACK
@@ -3277,8 +3299,13 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                     ui_round_frame(o, (int16_t)(x + 1), (int16_t)(y + 1), 50, 18,
                                    colour); /* a thicker frame */
                 if (inside)                 /* the HTML's dot in each cell: bright where on or read */
-                    o->fill(o->ctx, (int16_t)(x + 24), (int16_t)(y + 8), here ? 4 : 2, here ? 4 : 2,
+                    o->fill(o->ctx, (int16_t)(x + 34), (int16_t)(y + 8), here ? 4 : 2, here ? 4 : 2,
                             here ? UI_BRIGHT : (on ? UI_BRIGHT : UI_LINE));
+                if (route_pos[idx]) { /* the route: where this cell comes in it (REV counts from the end) */
+                    value_u(a, "", route_pos[idx]);
+                    o->text(o->ctx, (int16_t)(x + 4), (int16_t)(y + 2), 20, 0, a,
+                            here ? UI_BRIGHT : (on ? ui_mix(UI_BRIGHT, colour, 100) : UI_DIM), 0);
+                }
             }
         if (ui->dot_shape && lane >= 0) {
             /* SHAPE: what a lit cell sends, drawn: up in ATK, down in REL; GATE holds a flat top between them
@@ -3299,12 +3326,13 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             o->text(o->ctx, 132, 148, 104, 0, mod_dest_name(m->dot_target[lane]), colour, 2);
             break;
         }
-        for (i = 0u; i < 4u; ++i) {
-            int16_t mx = (int16_t)(4 + i * 34u);
-            bool sel = (uint8_t)c->mode == i;
-            if (sel) ui_round_fill(o, mx, 147, 32, 17, ui_mix(colour, UI_BLACK, 170));
-            ui_round_frame(o, mx, 147, 32, 17, sel ? colour : UI_LINE);
-            o->text(o->ctx, (int16_t)(mx + 4), 148, 24, 0, mn[i], sel ? UI_BRIGHT : UI_DIM, 1);
+        /* the route by name, as a pill (and REV beside it when on) */
+        ui_round_fill(o, 4, 147, 72, 17, ui_mix(colour, UI_BLACK, 170));
+        ui_round_frame(o, 4, 147, 72, 17, colour);
+        o->text(o->ctx, 8, 148, 64, 0, dot_mode_name(c->mode), UI_BRIGHT, 1);
+        if (c->reverse) {
+            ui_round_frame(o, 80, 147, 34, 17, colour);
+            o->text(o->ctx, 84, 148, 26, 0, "REV", colour, 1);
         }
         if (lane >= 0) /* where the lane goes, so the matrix says what it does */
             o->text(o->ctx, 140, 148, 96, 0, mod_dest_name(e->modr.dot_target[lane]), colour, 2);
@@ -3519,6 +3547,8 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     switch (v) {
     case MELLO_CTX_DOT_FOLLOW: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].follow ? 1 : 0;
     case MELLO_CTX_DOT_RESET: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].reset ? 1 : 0;
+    case MELLO_CTX_DOT_REVERSE:
+        return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].reverse ? 1 : 0;
     case MELLO_CTX_TURING_TOGGLE: return e->tm.on ? 1 : 0;
     case MELLO_CTX_TURING_LOOP: return e->modr.tm_on_loop ? 1 : 0;
     case MELLO_CTX_SUB_TOGGLE: return e->sub.on ? 1 : 0;

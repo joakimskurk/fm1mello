@@ -112,7 +112,7 @@ simple (Phase 3's iceberg).
       and EVOLVE's 11. Left: velocity and key tracking.
 - [ ] Randomizer: route to several destinations at once, and an invert option per route, so one parameter mirrors
       another inverted.
-- [ ] LFO matrix (DOT): more playback orders: reverse, spiral, and others (ping-pong, diagonal, random walk...).
+- [x] DOT orders: P-PONG, SPIRAL, DIAG, BOUNCE, WALK, and REV for any of them (DECISIONS.md "DOT orders").
 - [ ] Chord mode: unusable as it is. Redesign it, both the sound and how it is played, so it is usable and makes
       musical sense (see DECISIONS.md "Harmonic layer" for the earlier candidates).
 
