@@ -748,6 +748,12 @@ typedef struct {
     uint8_t perf_mode; /* 0 the sequence, 1 REVERSE, 2 REPEAT */
     uint8_t perf_mode_len;
     bool perf_restart; /* to step 1 at the next pulse */
+    /* A HOLD note sounding (its ON sent, its OFF to come at the step's last pulse), so that REVERSE / REPEAT, which
+     * may never play that pulse, can end it. */
+    bool hold_open;
+    uint8_t hold_note;
+    uint8_t hold_step;
+    uint8_t hold_total;
 
     MelloEvent queue[MELLO_EVENT_QUEUE_CAP];
     uint8_t q_head;

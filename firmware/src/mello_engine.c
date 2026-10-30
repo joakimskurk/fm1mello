@@ -1149,6 +1149,7 @@ void mello_engine_reset_transport(MelloEngine *e)
     e->pulse_index = 0u;
     e->has_active_step = false;
     e->perf_hist_n = 0u; /* REVERSE / REPEAT start from this run's pulses */
+    e->hold_open = false;
     e->perf_buf_n = 0u;
     mello_event_clear(e);
 }
@@ -1429,14 +1430,27 @@ static void generate_gate_events(MelloEngine *e, const MelloStep *s, bool pass, 
     uint32_t t = e->now_tick;
     ratchets = clamp_1_8(ratchets);
     if (gate == MELLO_GATE_REST) return;
-    if (gate == MELLO_GATE_HOLD) {
+    if (gate == MELLO_GATE_HOLD && e->perf_mode) {
+        /* REVERSE / REPEAT replay pulses out of order, so a HOLD's ON (its first pulse) and OFF (its last) may not
+         * both come, or not in that order: while they play, a HOLD step is a note of one pulse (as their stutter),
+         * which also never overlaps the next replay. */
         if (pulse_idx == 0u)
+            emit_note_pair(e, t, t + (pulse_ticks * 22u) / 25u, e->step_index, 0u, total, note, vel, 0u,
+                           s->slide, pass);
+        return;
+    }
+    if (gate == MELLO_GATE_HOLD) {
+        if (pulse_idx == 0u) {
             emit_basic(e, MELLO_EVENT_NOTE_ON, t, e->step_index, pulse_idx, total, note, vel, 0u, s->slide,
                        pass);
+            e->hold_open = true, e->hold_note = note, e->hold_step = e->step_index, e->hold_total = total;
+        }
         if (pulse_idx == (uint8_t)(total - 1u)) {
+            /* The OFF of the ON at pulse 0, so tagged with that pulse: mello_audio releases a note only on its own
+             * OFF (event_tag), and an OFF tagged with the last pulse left the note on for ever. */
             uint32_t off = t + (pulse_ticks * 22u) / 25u;
-            emit_basic(e, MELLO_EVENT_NOTE_OFF, off, e->step_index, pulse_idx, total, note, 0u, 0u, s->slide,
-                       pass);
+            emit_basic(e, MELLO_EVENT_NOTE_OFF, off, e->step_index, 0u, total, note, 0u, 0u, s->slide, pass);
+            e->hold_open = false;
         }
         return;
     }
@@ -2801,6 +2815,13 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     e->perf_hist_w = (uint8_t)((e->perf_hist_w + 1u) % MELLO_PERF_HISTORY);
     if (e->perf_hist_n < MELLO_PERF_HISTORY) e->perf_hist_n++;
     if (e->perf_mode && !e->perf_buf_n) perf_fill_buffer(e, e->perf_mode, e->perf_mode_len);
+    if (e->hold_open && (e->perf_mode || pe.step_index != e->hold_step)) {
+        /* A HOLD note nothing will end: REVERSE / REPEAT may not play its last pulse, and an edit (a roll, a step's
+         * gate or pulses, a segment) may have taken that pulse away. End it now. */
+        emit_basic(e, MELLO_EVENT_NOTE_OFF, e->now_tick, e->hold_step, 0u, e->hold_total, e->hold_note, 0u,
+                   0u, false, true);
+        e->hold_open = false;
+    }
     if (e->perf_mode && e->perf_buf_n) {
         pe = e->perf_buf[e->perf_buf_pos];
         e->perf_buf_pos = (uint8_t)((e->perf_buf_pos + 1u) % e->perf_buf_n);

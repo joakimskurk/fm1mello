@@ -6,8 +6,11 @@ sequencer and storage; rewrite the sound to match the HTML, rebuild HOME as an i
 ## Now: feedback from playing 0.5 (2026-10-30)
 
 In the order to do them; each is the next work before Phase 3 / 5's open items.
-- [ ] **Playback stops by itself and the last note hangs for ever** (still happens). Find what stops the transport and
-      why no NOTE_OFF follows; a stop must always release every voice.
+- [x] **Playback stops by itself and the last note hangs for ever**: a HOLD step over several pulses sent its
+      NOTE_OFF tagged with its last pulse, and mello_audio (which releases a note only on its own OFF, for legato)
+      ignored it, so the note sounded until another came: over rests, for ever, as if playback had stopped. The OFF
+      now carries the ON's pulse; a HOLD that REVERSE / REPEAT or an edit would leave open is ended
+      (hold_release_regression).
 - [ ] **A modulation nobody set**: it sounds like ratchets or amplitude / filter modulation, sometimes following the
       pitch, with odd under- and overtones. Find its source (candidates: OSC 2's 7-cent beating when mixed in,
       unison detune, the randomizer rolling WAVE / PWM, the noise FM's aliasing). OSC 2 off by default.
