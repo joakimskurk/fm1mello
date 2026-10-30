@@ -398,7 +398,14 @@ typedef struct {
     uint8_t tm_dest[MELLO_DOT_MOD_LANES];        /* MelloModDest */
     int16_t tm_depth[MELLO_DOT_MOD_LANES];       /* -1000..1000 */
     bool tm_on_loop;                             /* EVOLVE mutates at the loop's one, not on every step */
+    /* The randomizer's links (DECISIONS.md "Randomizer links"): rolled targets that follow each step's pitch (+)
+     * or mirror it (-), MELLO_RAND_* bits of MELLO_RAND_LINKABLE; a target in both mirrors. */
+    uint16_t rnd_follow;
+    uint16_t rnd_mirror;
 } MelloModRouting;
+#define MELLO_RAND_LINKABLE                                                                                  \
+    (MELLO_RAND_PULSES | MELLO_RAND_RATCHET | MELLO_RAND_ACCENT | MELLO_RAND_SUB | MELLO_RAND_SLIDE |        \
+     MELLO_RAND_SKIP | MELLO_RAND_PROB)
 
 typedef struct {
     bool on;

@@ -190,6 +190,19 @@ A splash/boot identity screen is required before final product-polish acceptance
   - Saved in SEC_MOD (40 bytes a working pattern or slot, only when it differs from the defaults). MOD 1's amount
     stays in SEC_WORKING / SEC_SLOTS with the HTML's meaning (1000 = depth 240); SEC_MOD carries the exact depth.
 
+## Randomizer links (2026-10-30)
+
+The randomizer (RNDMZR, the RANDOM page) rolled each target on its own. Now a rolled target can be linked to the step's
+pitch, the skyline the RANDOM page draws: **+** follows it, **-** mirrors it (asked for: "one parameter mirrors another
+inverted"), so a roll comes out as one musical gesture rather than unrelated noise. RANDOM's second layer, LINKS
+(SELECT): a target's key steps free -> + -> - -> free, and linking a target rolls it.
+- The source is the pitch after the roll (0 the lowest the scale and span allow, 1 the highest). Linkable: pulses and
+  ratchets (1-4 by it), chance (30-100%), and accent / sub (up to 70% likely), slide (60%), skip (40%), drawn with it,
+  so a roll stays a roll but leans with the melody. Pitch is the source; gate, octave, sample, chord and wave stay free.
+- Every intensity (LOW, MED = the HTML's, HIGH) applies the links after its roll; nothing is linked by default.
+- Saved in SEC_MOD version 2 (44 bytes an entry); version 1 is still read.
+- The skyline already takes the sequence's length (bars as wide as 224 px / steps).
+
 ## Velocity and key tracking (2026-10-30)
 
 SOUND / TRACKING, after MOD ENV. The FM-1's velocities are the HTML's: a plain step 91 (0.72), an accent 121 (0.95);

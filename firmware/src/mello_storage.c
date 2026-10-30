@@ -19,7 +19,7 @@ enum {
     SECVER_FX = 1,
     SECVER_CHORD = 1,
     SECVER_GRIT = 3,
-    SECVER_MOD = 1
+    SECVER_MOD = 2
 };
 
 #define SAMPLE_WIRE_SIZE   83u
@@ -29,7 +29,8 @@ enum {
 #define GRIT_ENTRY_SIZE_V1 8u
 #define GRIT_ENTRY_SIZE_V2 26u
 #define GRIT_ENTRY_SIZE    34u
-#define MOD_ENTRY_SIZE     40u
+#define MOD_ENTRY_SIZE_V1  40u
+#define MOD_ENTRY_SIZE     44u
 #define SLOT_SEQ_WIRE_SIZE (2u + MELLO_MAX_SLOT_SEQ_STEPS * 3u)
 #define SLOT_WIRE_SIZE     (1u + (MELLO_SLOT_NAME_CHARS + 1u) + SNAPSHOT_WIRE_SIZE)
 
@@ -697,6 +698,7 @@ static bool has_mod(const MelloModRouting *m, const MelloDotMatrixConfig dot[MEL
             return true;
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i)
         if (m->dot_evolve[i]) return true;
+    if (m->rnd_follow || m->rnd_mirror) return true;
     return m->tm_on_loop != dm.tm_on_loop || d->cells != d5.cells || d->mode != d5.mode ||
            d->length != d5.length || d->reset != d5.reset || d->follow != d5.follow ||
            d->amount != d5.amount ||
@@ -719,8 +721,11 @@ static void encode_mod(Writer *w, uint8_t index, const MelloModRouting *m,
     wr_u8(w, m->tm_on_loop ? 1u : 0u);
     wr_u16(w, dot[MELLO_DOT_MOD1].amount);
     encode_dot(w, &dot[MELLO_DOT_MOD2]);
+    wr_u16(w, m->rnd_follow);
+    wr_u16(w, m->rnd_mirror);
 }
-static bool decode_mod(Reader *r, MelloModRouting *m, MelloDotMatrixConfig dot[MELLO_DOT_MATRIX_COUNT])
+static bool decode_mod(Reader *r, uint16_t ver, MelloModRouting *m,
+                       MelloDotMatrixConfig dot[MELLO_DOT_MATRIX_COUNT])
 {
     uint8_t i, b;
     uint16_t v;
@@ -735,7 +740,8 @@ static bool decode_mod(Reader *r, MelloModRouting *m, MelloDotMatrixConfig dot[M
         if (!rd_u16(r, &m->dot_evolve[i])) return false;
     if (!rd_u8(r, &b) || !rd_u16(r, &dot[MELLO_DOT_MOD1].amount)) return false;
     m->tm_on_loop = b != 0u;
-    return decode_dot(r, &dot[MELLO_DOT_MOD2]);
+    if (!decode_dot(r, &dot[MELLO_DOT_MOD2])) return false;
+    return ver < 2u || (rd_u16(r, &m->rnd_follow) && rd_u16(r, &m->rnd_mirror)); /* version 1: no links */
 }
 
 static bool encode_payload(Writer *w, const MelloEngine *e)
@@ -913,9 +919,10 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
                         e->slots[idx].sound = c; /* sanitized when the slot loads */
                 }
             }
-        } else if (id == SEC_MOD && ver == SECVER_MOD) {
+        } else if (id == SEC_MOD && ver >= 1u && ver <= SECVER_MOD) {
             uint8_t count, i;
-            if (len < 1u || !rd_u8(&r, &count) || len != 1u + (uint32_t)count * MOD_ENTRY_SIZE) return false;
+            uint32_t size = ver == 1u ? MOD_ENTRY_SIZE_V1 : MOD_ENTRY_SIZE;
+            if (len < 1u || !rd_u8(&r, &count) || len != 1u + (uint32_t)count * size) return false;
             for (i = 0u; i < count; ++i) {
                 uint8_t idx;
                 MelloModRouting m;
@@ -923,7 +930,7 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
                 if (!rd_u8(&r, &idx) || (idx != GRIT_WORKING && idx >= MELLO_MAX_SLOTS)) return false;
                 memset(&m, 0, sizeof m);
                 memset(dot, 0, sizeof dot);
-                if (!decode_mod(&r, &m, dot)) return false;
+                if (!decode_mod(&r, ver, &m, dot)) return false;
                 if (apply && e) {
                     if (idx == GRIT_WORKING) { /* the setters sanitize */
                         MelloDotMatrixConfig d1 = e->dot[MELLO_DOT_MOD1];
