@@ -3607,37 +3607,32 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
     case MELLO_UI_TURING: {
         uint8_t i;
         uint8_t len = e->tm.length < 3u ? 3u : e->tm.length;
-        uint8_t window = len <= 8u ? 0u : (uint8_t)((ui->selected_tm_bit / 8u) * 8u);
-        if ((uint16_t)window + 8u > len) window = (uint8_t)(len > 8u ? len - 8u : 0u);
+        int16_t lw = (int16_t)(224 / len); /* every lane in view, as wide as the length lets them */
         o->text(o->ctx, 8, 33, 92, 0, e->tm.on ? (e->tm.locked ? "EVOLVE LOCK" : "EVOLVE ON") : "EVOLVE OFF",
                 e->tm.on ? UI_BLUE : UI_DIM, 0);
         value_u(a, "LEN", len);
-        o->text(o->ctx, 102, 33, 42, 0, a, UI_MID, 1);
+        o->text(o->ctx, 100, 33, 48, 0, a, UI_MID, 1); /* "LEN 32" fills it */
         o->text(o->ctx, 148, 33, 84, 0,
                 e->tm.rate == MELLO_TM_RATE_HALF     ? "RATE 1/2X"
                 : e->tm.rate == MELLO_TM_RATE_DOUBLE ? "RATE 2X"
                                                      : "RATE 1X",
                 UI_MID, 2);
-        /* Eight register lanes: continuous float value in green + gate pad in cyan. */
-        for (i = 0u; i < 8u; ++i) {
-            uint8_t idx = (uint8_t)(window + i);
-            int16_t x = (int16_t)(8 + i * 28u);
-            int16_t h = idx < len ? (int16_t)(((uint32_t)e->tm_float_reg[idx] * 69u) / 65535u) : 0;
-            uint8_t gate = idx < len && e->tm_bool_reg[idx];
-            uint8_t active = e->tm_active_index == (int8_t)idx;
-            o->fill(o->ctx, x, 52, 23, 84, UI_PANEL);
-            ui_frame(o, x, 52, 23, 84,
-                     active ? UI_WHITE : (idx == ui->selected_tm_bit ? UI_SOFT : UI_PANEL2));
-            if (h > 0) o->fill(o->ctx, x + 3, (int16_t)(128 - h), 17, h, UI_BLUE);
-            o->fill(o->ctx, x + 3, 130, 17, 4, gate ? UI_ACC : UI_PANEL2);
-            a[0] = (char)('1' + (idx % 10u));
-            a[1] = 0;
-            if (idx >= 9u) {
-                a[0] = (char)('0' + ((idx + 1u) / 10u));
-                a[1] = (char)('0' + ((idx + 1u) % 10u));
-                a[2] = 0;
+        /* The whole register (feedback 2026-10-30: past 8 steps the playing one went out of sight): a lane a step,
+         * its value as a bar and its gate as a pad under it; the playing lane framed white, the selected one soft;
+         * step numbers where the lanes are wide enough, else every fourth. */
+        for (i = 0u; i < len; ++i) {
+            int16_t x = (int16_t)(8 + i * lw), cw = (int16_t)(lw - (lw > 6 ? 2 : 1));
+            int16_t h = (int16_t)(((uint32_t)e->tm_float_reg[i] * 69u) / 65535u);
+            uint8_t gate = e->tm_bool_reg[i];
+            uint8_t active = e->tm_active_index == (int8_t)i;
+            o->fill(o->ctx, x, 52, cw, 84, UI_PANEL);
+            if (h > 0) o->fill(o->ctx, (int16_t)(x + (cw > 8 ? 2 : 0)), (int16_t)(128 - h), (int16_t)(cw > 8 ? cw - 4 : cw), h, UI_BLUE);
+            o->fill(o->ctx, (int16_t)(x + (cw > 8 ? 2 : 0)), 130, (int16_t)(cw > 8 ? cw - 4 : cw), 4, gate ? UI_ACC : UI_PANEL2);
+            if (active || i == ui->selected_tm_bit) ui_frame(o, x, 52, cw, 84, active ? UI_WHITE : UI_SOFT);
+            if (lw >= 20 || (i % 4u) == 0u) {
+                a[0] = (char)('0' + ((i + 1u) / 10u)), a[1] = (char)('0' + ((i + 1u) % 10u)), a[2] = 0;
+                o->text(o->ctx, x, 137, (int16_t)(lw >= 20 ? cw : 22), 0, i < 9u ? a + 1 : a, active ? UI_WHITE : UI_DIM, 0);
             }
-            o->text(o->ctx, x, 137, 23, 0, a, active ? UI_WHITE : UI_DIM, 1);
         }
         o->text(o->ctx, 8, 154, 36, 0, "MUT", UI_DIM, 0);
         ui_hbar(o, 45, 157, 92, e->tm.mutation_prob, 500u, UI_PURPLE);

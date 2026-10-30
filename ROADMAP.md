@@ -43,8 +43,9 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
       to an inharmonic ~7 kHz the tone filter cannot take out, and its output imaged above 11 kHz. Now a 31-tap
       half-band filter each way: 64.9 dB down, and the return above 16 kHz -62 dB (was -59, -23 before the tone
       filter). No clipping in the network even with the drums and distortion full. To confirm by ear.
-- [ ] **EVOLVE longer than 8 steps**: the page shows 8 lanes, windowed on the selected step, so the playing one goes
-      out of sight. Show the whole register (up to 32), the one playing always in view.
+- [x] **EVOLVE longer than 8 steps**: the page shows 8 lanes, windowed on the selected step, so the playing one goes
+      out of sight. Show the whole register (up to 32), the one playing always in view. Done: a lane a step across the
+      width (7 px each at 32), the playing one framed white, step numbers every fourth where the lanes are narrow.
 - [ ] **Delay: LO CUT and HI CUT** on its return, to shape it (ask: "pre dist").
 - [x] **The black keys' strip**: use the whole width, each label over its key, so it is plain which key does what.
       Done: eleven cells across the width in the keys' order, the keyboard's groups apart, a free key a short dim cell,
