@@ -81,7 +81,7 @@ int main(void)
 
     turn(&u, 3000u, MELLO_UI_ENC_SELECT, 1); /* SELECT: the layer, by name */
     render(&u);
-    if (u.readout != MELLO_UI_READOUT_LAYER || !body_has("GRIT")) return fail("SELECT shows no layer");
+    if (u.readout != MELLO_UI_READOUT_LAYER || !body_has("OSC 2")) return fail("SELECT shows no layer");
 
     mello_ui_set_page(&u, MELLO_UI_RANDOM); /* a page change drops it */
     if (u.readout) return fail("readout survived a page change");

@@ -88,9 +88,9 @@ static void verify_algorithm_duplicates_select(void)
         turn(&b, MELLO_UI_ENC_ALGORITHM, +1);
         if (layer(&a, cases[i].page) != layer(&b, cases[i].page))
             fail(cases[i].name, "ALGORITHM no longer duplicates SELECT layer movement");
-        /* SOUND's second layer is GRIT, subpage 5 (it came after the others, and sits after OSC). */
+        /* SOUND's second layer is OSC 2, subpage 6 (Phase 5's layers came later, and sit after OSC). */
         if (cases[i].layers > 1u &&
-            layer(&a, cases[i].page) != (cases[i].page == MELLO_UI_SOUND_RESERVED ? 5u : 1u))
+            layer(&a, cases[i].page) != (cases[i].page == MELLO_UI_SOUND_RESERVED ? 6u : 1u))
             fail(cases[i].name, "layer encoder baseline mismatch");
         if (cases[i].layers == 1u && layer(&a, cases[i].page) != 0u)
             fail(cases[i].name, "single-layer page unexpectedly moved");

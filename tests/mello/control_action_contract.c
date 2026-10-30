@@ -104,9 +104,18 @@ static void verify_sample_navigation(void)
     setup(&p, &t, &st, &u, MELLO_UI_HOME);
     buttons(&u, 100u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED) fail("ENV", "HOME did not open SOUND");
-    /* ENV again: SOUND's next layer (OSC -> GRIT -> ENV -> FOLLOWER); SAMPLE is GLOBAL's (GLO again). */
+    /* ENV again: SOUND's next layer (OSC -> OSC 2 -> CHARACTER -> GRIT -> MOD ENV -> AMP ENV -> FOLLOWER);
+     * SAMPLE is GLOBAL's (GLO again). */
     buttons(&u, 200u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 5u) fail("ENV", "SOUND did not go to GRIT");
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 6u) fail("ENV", "SOUND did not go to OSC 2");
+    {
+        static const uint8_t next[3] = {7u, 5u, 8u};
+        uint8_t i;
+        for (i = 0u; i < 3u; ++i) {
+            buttons(&u, 210u + i * 10u, bit_u32(MELLO_UI_BTN_ENV), 0u);
+            if (u.sound_subpage != next[i]) fail("ENV", "SOUND's Phase 5 layers out of order");
+        }
+    }
     buttons(&u, 250u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 1u)
         fail("ENV", "SOUND did not go to AMP ENV");

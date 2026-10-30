@@ -339,8 +339,24 @@ static const char *lfo_target_name(MelloLfoTarget t)
     case MELLO_LFO_NOISE: return "NOISE";
     case MELLO_LFO_NOISE_FM: return "NOISE FM";
     case MELLO_LFO_DETUNE: return "DETUNE";
+    case MELLO_LFO_RES: return "RES";
+    case MELLO_LFO_OSC2: return "OSC 2";
+    case MELLO_LFO_FM: return "FM";
+    case MELLO_LFO_SAT: return "SAT";
     default: return "?";
     }
+}
+
+static const char *menv_target_name(MelloModEnvTarget t)
+{
+    static const char *n[MELLO_MENV_TARGET_COUNT] = {"CUTOFF", "PITCH", "OSC 2", "FM", "NOISE", "RES"};
+    return (unsigned)t < MELLO_MENV_TARGET_COUNT ? n[t] : "?";
+}
+
+static const char *filter_mode_name(MelloFilterMode m)
+{
+    static const char *n[MELLO_FILTER_MODE_COUNT] = {"LP", "HP", "BP", "NOTCH"};
+    return (unsigned)m < MELLO_FILTER_MODE_COUNT ? n[m] : "?";
 }
 
 static const char *delay_div_name(uint8_t d)
@@ -1268,6 +1284,38 @@ static void adjust_sound(MelloUi *ui, uint8_t knob, int16_t delta)
             c.follower_sub_octave = (int8_t)clamp_i32((int32_t)c.follower_sub_octave + delta, -2, 0);
         else
             c.follower_sub_wave = step_sub_waveform(c.follower_sub_wave, delta);
+    } else if (ui->sound_subpage == 6u) { /* OSC 2 */
+        if (knob == 0u)                   /* no OFF: MIX 0 is OSC 2 off */
+            c.osc2_wave = (MelloWaveform)wrap_u8((int32_t)c.osc2_wave + (delta > 0 ? 1 : -1), MELLO_WAVE_OFF);
+        else if (knob == 1u)
+            c.osc2_semi = (int8_t)clamp_i32((int32_t)c.osc2_semi + (delta > 0 ? 1 : -1), -24, 24);
+        else if (knob == 2u)
+            c.osc2_fine = (int8_t)clamp_i32((int32_t)c.osc2_fine + delta, -50, 50);
+        else
+            c.osc2_mix = (uint16_t)clamp_i32((int32_t)c.osc2_mix + delta * 10, 0, 1000);
+    } else if (ui->sound_subpage == 7u) { /* CHARACTER */
+        if (knob == 0u || knob == 1u) {
+            if (knob == 0u)
+                c.osc2_sync = delta > 0;
+            else
+                c.fm_amount = (uint16_t)clamp_i32((int32_t)c.fm_amount + delta * 10, 0, 1000);
+            /* Sync and FM act on OSC 2: with OSC 2 not mixed in, bringing either in brings OSC 2 in, halfway. */
+            if ((c.osc2_sync || c.fm_amount) && !c.osc2_mix) c.osc2_mix = 500u;
+        } else if (knob == 2u)
+            c.saturation = (uint16_t)clamp_i32((int32_t)c.saturation + delta * 10, 0, 1000);
+        else
+            c.filter_mode = (MelloFilterMode)clamp_i32((int32_t)c.filter_mode + (delta > 0 ? 1 : -1), 0,
+                                                       MELLO_FILTER_MODE_COUNT - 1);
+    } else if (ui->sound_subpage == 8u) { /* MOD ENV */
+        if (knob == 0u)
+            c.menv_amount = (int16_t)clamp_i32((int32_t)c.menv_amount + delta * 10, -1000, 1000);
+        else if (knob == 1u)
+            c.menv_attack_ms = (uint16_t)clamp_i32((int32_t)c.menv_attack_ms + delta * 5, 0, 2000);
+        else if (knob == 2u)
+            c.menv_decay_ms = (uint16_t)clamp_i32((int32_t)c.menv_decay_ms + delta * 10, 5, 5000);
+        else
+            c.menv_target = (MelloModEnvTarget)wrap_u8((int32_t)c.menv_target + (delta > 0 ? 1 : -1),
+                                                       MELLO_MENV_TARGET_COUNT);
     } else if (ui->sound_subpage == 5u) { /* GRIT */
         if (knob == 0u)
             c.noise_level = (uint16_t)clamp_i32((int32_t)c.noise_level + delta * 10, 0, 1000);
@@ -1475,15 +1523,15 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
         ui->global_subpage = wrap_u8((int32_t)ui->global_subpage + (delta > 0 ? 1 : -1), 2u);
         break;
     case MELLO_UI_SOUND_RESERVED:
-        /* OSC, GRIT, ENV, FOLLOWER, LEVEL: the LFO (subpage 2) is MOD's, reached with the LFO button. GRIT came
-         * later (subpage 5) and sits after OSC. */
+        /* OSC, OSC 2, CHARACTER, GRIT, MOD ENV, AMP ENV, FOLLOWER, LEVEL: the LFO (subpage 2) is MOD's, reached
+         * with the LFO button. Phase 5's layers (subpages 5-8) came later and sit after OSC, before the HTML's. */
         {
-            static const uint8_t order[5] = {0u, 5u, 1u, 3u, 4u};
+            static const uint8_t order[8] = {0u, 6u, 7u, 5u, 8u, 1u, 3u, 4u};
             uint8_t i;
             if (ui->sound_subpage == 2u) return;
-            for (i = 0u; i < 5u && order[i] != ui->sound_subpage; ++i) {
+            for (i = 0u; i < 8u && order[i] != ui->sound_subpage; ++i) {
             }
-            ui->sound_subpage = order[wrap_u8((int32_t)(i % 5u) + (delta > 0 ? 1 : -1), 5u)];
+            ui->sound_subpage = order[wrap_u8((int32_t)(i % 8u) + (delta > 0 ? 1 : -1), 8u)];
         }
         break;
     case MELLO_UI_AUDIO_FX:
@@ -1945,7 +1993,7 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
     if (pressed & bit_u32(MELLO_UI_BTN_GLO)) /* GLOBAL -> SAMPLE -> GLOBAL */
         open_page(ui, ui->page == MELLO_UI_GLOBAL ? MELLO_UI_SAMPLE_RESERVED : MELLO_UI_GLOBAL);
     if (pressed &
-        bit_u32(MELLO_UI_BTN_ENV)) { /* SOUND: OSC -> GRIT -> ENV -> FOLLOWER -> LEVEL (LFO is MOD's) */
+        bit_u32(MELLO_UI_BTN_ENV)) { /* SOUND: its layers in adjust_algorithm's order (the LFO is MOD's) */
         if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage != 2u)
             adjust_algorithm(ui, 1);
         else
@@ -2419,7 +2467,10 @@ static uint16_t ui_page_accent(MelloUi *ui)
         case 0u: return UI_CYAN;
         case 2u: return UI_PURPLE;
         case 3u: return UI_GOLD;
-        case 5u: return UI_CORAL; /* grit, as DRIVE */
+        case 5u:
+        case 7u: return UI_CORAL;  /* grit and character, as DRIVE */
+        case 6u: return UI_CYAN;   /* an oscillator, as OSC */
+        case 8u: return UI_PURPLE; /* modulation, as the LFO */
         default: return UI_ACC;
         }
     case MELLO_UI_SAMPLE_RESERVED: return UI_BLUE;
@@ -3672,6 +3723,14 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 21: v = c->noise_fm; break;
         case 22: v = (uint32_t)c->unison - 1u, m = MELLO_UNISON_MAX - 1u; break;
         case 23: v = c->detune; break;
+        case 25: v = (uint32_t)(c->osc2_semi + 24), m = 48u; break;
+        case 26: v = (uint32_t)(c->osc2_fine + 50), m = 100u; break;
+        case 27: v = c->osc2_mix; break;
+        case 29: v = c->fm_amount; break;
+        case 30: v = c->saturation; break;
+        case 32: v = (uint32_t)(c->menv_amount + 1000), m = 2000u; break;
+        case 33: v = c->menv_attack_ms, m = 2000u; break;
+        case 34: v = c->menv_decay_ms, m = 5000u; break;
         default: return false;
         }
     } else if (ui->page == MELLO_UI_AUDIO_FX) {
@@ -4107,6 +4166,36 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             value_i(v[2], "", e->sound.follower_sub_octave);
             l[3] = "WAVE";
             copy_s(v[3], wave_name(e->sound.follower_sub_wave));
+        } else if (ui->sound_subpage == 6u) {
+            const MelloSoundConfig *c = &e->sound;
+            l[0] = "WAVE";
+            copy_s(v[0], wave_name(c->osc2_wave));
+            l[1] = "SEMI";
+            copy_s(put_i32(v[1], c->osc2_semi), " ST");
+            l[2] = "FINE";
+            copy_s(put_i32(v[2], c->osc2_fine), " CT");
+            l[3] = "MIX";
+            value_pct(v[3], c->osc2_mix);
+        } else if (ui->sound_subpage == 7u) {
+            const MelloSoundConfig *c = &e->sound;
+            l[0] = "SYNC";
+            copy_s(v[0], c->osc2_sync ? "ON" : "OFF");
+            l[1] = "FM";
+            value_pct(v[1], c->fm_amount);
+            l[2] = "SAT";
+            value_pct(v[2], c->saturation);
+            l[3] = "FILTER";
+            copy_s(v[3], filter_mode_name(c->filter_mode));
+        } else if (ui->sound_subpage == 8u) {
+            const MelloSoundConfig *c = &e->sound;
+            l[0] = "AMT";
+            copy_s(put_i32(v[0], (c->menv_amount + (c->menv_amount < 0 ? -5 : 5)) / 10), "%");
+            l[1] = "ATK";
+            value_ms(v[1], c->menv_attack_ms);
+            l[2] = "DEC";
+            value_ms(v[2], c->menv_decay_ms);
+            l[3] = "TARGET";
+            copy_s(v[3], menv_target_name(c->menv_target));
         } else if (ui->sound_subpage == 5u) {
             uint32_t d = e->sound.detune;
             l[0] = "NOISE";
@@ -4462,8 +4551,8 @@ static const char *layer_name(const MelloUi *ui)
                       *loop[3] = {"STEP", "HARM", "LOOP"}, *slots[2] = {"LOAD", "RENAME"},
                       *dot[4] = {"ACCENT", "FILTER", "RATCHET", "SUB"}, *tm[3] = {"MAIN", "ROUTES", "DEPTH"},
                       *sub[5] = {"TRIG", "5-SEQ", "STEP", "VOICE", "TONE"}, *glo[2] = {"CLOCK", "MIDI"},
-                      *snd[6] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO",
-                                 "FOLLOWER SUB", "PLAY / LEVEL", "GRIT"},
+                      *snd[9] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO", "FOLLOWER SUB", "PLAY / LEVEL",
+                                 "GRIT",         "OSC 2",        "CHARACTER", "MOD ENV"},
                       *fx[5] = {"DISTORTION", "DELAY", "DELAY CONFIG", "REVERB", "REVERB RETURN"},
                       *smp[4] = {"SAMPLE MAIN", "SAMPLE PITCH", "TRIM / LOOP", "ENVELOPE"};
     switch (ui->page) {
@@ -4475,7 +4564,7 @@ static const char *layer_name(const MelloUi *ui)
     case MELLO_UI_TURING: return tm[ui->tm_subpage % 3u];
     case MELLO_UI_SUB: return sub[ui->sub_subpage % 5u];
     case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 2u];
-    case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 6u];
+    case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 9u];
     case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 5u];
     case MELLO_UI_SAMPLE_RESERVED: return smp[ui->sample_subpage % 4u];
     case MELLO_UI_HOME: return ui->held_step == MELLO_UI_NO_STEP ? 0 : "HELD STEP";
@@ -4486,13 +4575,13 @@ static const char *layer_name(const MelloUi *ui)
 /* The footer's short labels in full, for the readout's large line (13 characters fit). */
 static const char *full_label(const char *l)
 {
-    static const char *map[][2] = {{"CUT", "CUTOFF"},      {"RES", "RESONANCE"},    {"ATK", "ATTACK"},
-                                   {"DEC", "DECAY"},       {"SUS", "SUSTAIN"},      {"REL", "RELEASE"},
-                                   {"PWM", "PULSE WIDTH"}, {"FDBK", "FEEDBACK"},    {"AMT", "AMOUNT"},
-                                   {"CHAR", "CHARACTER"},  {"RATCH", "RATCHET"},    {"OCT", "OCTAVE"},
-                                   {"PRE", "PRE-DELAY"},   {"DIV", "DIVISION"},     {"D.LEVEL", "DIST LEVEL"},
-                                   {"SUBOSC", "SUB OSC"},  {"PROB", "PROBABILITY"}, {"LEN", "LENGTH"},
-                                   {"DEP", "DEPTH"},       {"ACC", "ACCENT"},       {"N.FM", "NOISE FM"}};
+    static const char *map[][2] = {
+        {"CUT", "CUTOFF"},       {"RES", "RESONANCE"},  {"ATK", "ATTACK"},         {"DEC", "DECAY"},
+        {"SUS", "SUSTAIN"},      {"REL", "RELEASE"},    {"PWM", "PULSE WIDTH"},    {"FDBK", "FEEDBACK"},
+        {"AMT", "AMOUNT"},       {"CHAR", "CHARACTER"}, {"RATCH", "RATCHET"},      {"OCT", "OCTAVE"},
+        {"PRE", "PRE-DELAY"},    {"DIV", "DIVISION"},   {"D.LEVEL", "DIST LEVEL"}, {"SUBOSC", "SUB OSC"},
+        {"PROB", "PROBABILITY"}, {"LEN", "LENGTH"},     {"DEP", "DEPTH"},          {"ACC", "ACCENT"},
+        {"N.FM", "NOISE FM"},    {"SAT", "SATURATION"}, {"FINE", "FINE TUNE"},     {"SEMI", "SEMITONES"}};
     uint8_t i;
     for (i = 0u; i < sizeof map / sizeof map[0]; ++i) {
         const char *a = l, *b = map[i][0]; /* no strcmp on the target's libc */

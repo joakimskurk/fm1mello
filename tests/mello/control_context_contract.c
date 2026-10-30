@@ -260,9 +260,12 @@ static void verify_mod_navigation(void)
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u)
         die("ENV after LFO", "stayed on Audio LFO");
     press(&u, 420u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 5u)
-        die("ENV 2", "OSC is not followed by GRIT");
-    press(&u, 425u, bit_u32(MELLO_UI_BTN_ENV), 0u);
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 6u)
+        die("ENV 2", "OSC is not followed by OSC 2");
+    press(&u, 422u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* CHARACTER */
+    press(&u, 423u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* GRIT */
+    press(&u, 424u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* MOD ENV */
+    press(&u, 425u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* AMP ENV */
     press(&u, 430u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 3u)
         die("ENV 4", "did not skip the LFO layer");

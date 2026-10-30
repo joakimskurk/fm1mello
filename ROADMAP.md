@@ -102,7 +102,10 @@ simple (Phase 3's iceberg).
 - [x] Synth: optional "grit", inspired by the Access Virus: noise mixed in, noise FM of the pitch, unison voices with
       detune. The default stays a plain saw, as now. SOUND / GRIT; NOISE, NOISE FM and DETUNE are LFO targets
       (DECISIONS.md "Grit"). Left: grit on the DOT / EVOLVE routes (with "more modulation targets" below).
-- [ ] Modulation: generally more parameters as modulation targets.
+- [x] More of the Virus (DECISIONS.md "Virus layer"): OSC 2 with hard sync and FM, SAT into the filter, filter modes
+      LP / HP / BP / NOTCH, a MOD envelope (cutoff, pitch, OSC 2, FM, noise, res); the LFO reaches RES, OSC 2, FM, SAT.
+- [ ] Modulation: generally more parameters as modulation targets. Done: the LFO's 11 and the MOD envelope's 6
+      targets. Left: the DOT and EVOLVE routes to the sound's new targets; velocity and key tracking.
 - [ ] Randomizer: route to several destinations at once, and an invert option per route, so one parameter mirrors
       another inverted.
 - [ ] LFO matrix (DOT): more playback orders: reverse, spiral, and others (ping-pong, diagonal, random walk...).

@@ -48,7 +48,7 @@ From HOME: start, randomize, undo, shape the sound, set the tempo, mute steps an
 
 | Button | Page | Layers (SELECT or press again) |
 |---|---|---|
-| ENV | **SOUND** | OSC / FILTER · GRIT · AMP ENVELOPE · FOLLOWER SUB · LEVEL |
+| ENV | **SOUND** | OSC / FILTER · OSC 2 · CHARACTER · GRIT · MOD ENV · AMP ENVELOPE · FOLLOWER SUB · LEVEL |
 | LFO | **MOD** | LFO · DOT MATRIX · EVOLVE (Turing) |
 | FX | **FX** | DISTORTION · DELAY · REVERB |
 | SEQ | **SEQ** | STEP (detail) · STRUCTURE (segments, loop, chain) |
