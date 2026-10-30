@@ -940,6 +940,7 @@ void mello_engine_init(MelloEngine *e, const MelloProject *project, uint32_t see
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) mello_dot_defaults_for(&e->dot[i], i);
     mello_tm_defaults(&e->tm);
     mello_mod_routing_defaults(&e->modr);
+    e->perf.repeat_len = 4u; /* a beat, until a white key says otherwise */
     mello_sub_defaults(&e->sub);
 #if MELLO_FEATURE_CHORD_MACHINE
     mello_chord_defaults(&e->chord);
@@ -1114,6 +1115,8 @@ void mello_engine_reset_transport(MelloEngine *e)
     e->step_index = 0u;
     e->pulse_index = 0u;
     e->has_active_step = false;
+    e->perf_hist_n = 0u; /* REVERSE / REPEAT start from this run's pulses */
+    e->perf_buf_n = 0u;
     mello_event_clear(e);
 }
 
@@ -1893,6 +1896,47 @@ static void tm_ensure_lengths(MelloEngine *e, uint8_t len)
     }
 }
 
+/* REVERSE: the history newest first (but the pulse just heard); REPEAT: its last n pulses, oldest first. */
+static void perf_fill_buffer(MelloEngine *e, uint8_t mode, uint8_t n)
+{
+    uint8_t i, have = e->perf_hist_n;
+    e->perf_buf_n = 0u;
+    e->perf_buf_pos = 0u;
+    if (mode == 1u) {
+        for (i = 1u; i < have; ++i)
+            e->perf_buf[e->perf_buf_n++] =
+                e->perf_hist[(uint8_t)(e->perf_hist_w + MELLO_PERF_HISTORY - 1u - i) % MELLO_PERF_HISTORY];
+    } else {
+        if (n > have) n = have;
+        for (i = 0u; i < n; ++i)
+            e->perf_buf[e->perf_buf_n++] =
+                e->perf_hist[(uint8_t)(e->perf_hist_w + MELLO_PERF_HISTORY - n + i) % MELLO_PERF_HISTORY];
+    }
+}
+
+void mello_engine_set_perf(MelloEngine *e, const MelloPerf *p)
+{
+    uint8_t mode, len;
+    if (!e || !p) return;
+    len = p->repeat_len < 1u ? 1u : (p->repeat_len > 16u ? 16u : p->repeat_len);
+    if (p->fill == e->perf.fill && p->sub_mute == e->perf.sub_mute && p->reverse == e->perf.reverse &&
+        p->repeat == e->perf.repeat && len == e->perf.repeat_len)
+        return; /* nothing changed (it is called on every input) */
+    e->perf = *p;
+    e->perf.repeat_len = len;
+    mode = p->repeat ? 2u : (p->reverse ? 1u : 0u); /* REPEAT wins while both are held */
+    if (mode != e->perf_mode || (mode == 2u && len != e->perf_mode_len)) {
+        e->perf_mode = mode;
+        e->perf_mode_len = len;
+        if (mode) perf_fill_buffer(e, mode, len);
+    }
+}
+
+void mello_engine_perf_restart(MelloEngine *e)
+{
+    if (e) e->perf_restart = true;
+}
+
 void mello_engine_mod_routing_set(MelloEngine *e, const MelloModRouting *config)
 {
     if (e && config) e->modr = sanitize_mod_routing(*config);
@@ -2660,10 +2704,31 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     if (!e || !e->playing || !e->has_active_step || !e->runtime_built || e->runtime_segment_count == 0u)
         return false;
 
+    if (e->perf_restart) { /* RESTART: the first step, and the loop's one, now */
+        e->perf_restart = false;
+        e->active_runtime_segment = 0u;
+        e->segment_pulse_pos = 0u;
+        e->segment_repeat_done = 0u;
+        e->absolute_pulse = 0u;
+        e->dot_tick = e->dot_follow = 0u;
+        if (e->sub.x_reset) e->sub_x_pos = 0u;
+        e->perf_mode = 0u; /* a held REVERSE / REPEAT starts again from here */
+        e->perf_hist_n = 0u;
+    }
     set_current_entry(e);
     if (!e->has_active_step) return false;
     seg = &e->runtime_segments[e->active_runtime_segment];
     pe = e->runtime_pulses[seg->offset + e->segment_pulse_pos];
+    /* The performance keys: the sequence's own pulse goes into the history, and REVERSE / REPEAT play theirs. The
+     * sequence's place moves on below as always, so letting go is in time. */
+    e->perf_hist[e->perf_hist_w] = pe;
+    e->perf_hist_w = (uint8_t)((e->perf_hist_w + 1u) % MELLO_PERF_HISTORY);
+    if (e->perf_hist_n < MELLO_PERF_HISTORY) e->perf_hist_n++;
+    if (e->perf_mode && !e->perf_buf_n) perf_fill_buffer(e, e->perf_mode, e->perf_mode_len);
+    if (e->perf_mode && e->perf_buf_n) {
+        pe = e->perf_buf[e->perf_buf_pos];
+        e->perf_buf_pos = (uint8_t)((e->perf_buf_pos + 1u) % e->perf_buf_n);
+    }
     s = &e->project.steps[pe.step_index];
     e->step_index = pe.step_index;
     e->pulse_index = pe.pulse_index;
@@ -2704,8 +2769,9 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         e->tm_active_index = -1;
     }
 
-    pass = probability_pass(e, s->probability);
+    pass = e->perf.fill || probability_pass(e, s->probability); /* FILL: every step plays */
     eff_gate = has_gate_override ? gate_override : (pass ? s->gate : MELLO_GATE_REST);
+    if (e->perf.fill && eff_gate == MELLO_GATE_REST) eff_gate = MELLO_GATE_SINGLE;
 
     evaluate_dot_matrices(e, pe.pulse_index == 0u, &matrix_accent, &ratchet_add, &matrix_sub, dot_mod);
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -2724,6 +2790,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     }
 #endif
     eff_ratchet = clamp_1_8((uint8_t)(clamp_1_8(s->ratchet) + ratchet_add));
+    if (e->perf.fill) eff_ratchet = clamp_1_8((uint8_t)(eff_ratchet * 2u)); /* FILL: twice the ratchets */
     e->last_mod.effective_gate = eff_gate;
     e->last_mod.effective_ratchet = eff_ratchet;
     e->last_mod.effective_accent = (bool)(s->accent || matrix_accent);
@@ -2783,7 +2850,8 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         } else
             e->sub_x_active_index = -1;
 
-        if (sub_should) {
+        if (sub_should &&
+            !e->perf.sub_mute) { /* SUB MUTE: no new bass notes (mello_audio fades the sounding one) */
             uint32_t raw, dur;
             uint8_t sub_note = resolve_sub_midi(e, x_tone, x_oct);
             pulse_ticks = mello_pulse_ticks(&e->project);

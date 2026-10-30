@@ -140,6 +140,7 @@ static MelloUiDrawOps ui_draw_ops(void)
 static void sync_audio_config(void)
 {
     if (!audio_ready) return;
+    mello_audio_set_sub_mute(&audio, mt.engine.perf.sub_mute);
     if (memcmp(&synced_sound, &mt.engine.sound, sizeof synced_sound) ||
         memcmp(&synced_fx, &mt.engine.fx, sizeof synced_fx) ||
         memcmp(&synced_sub, &mt.engine.sub, sizeof synced_sub) ||

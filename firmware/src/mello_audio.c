@@ -1430,6 +1430,7 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
     if (!a) return;
     memset(a, 0, sizeof(*a));
     a->noise_seed = 0x2545F491u;
+    a->sub_gain = 32767;
     /* Unison oscillators start spread over the cycle, so that they never begin in phase (a flanged attack). */
     a->lead.uni_phase[0] = 0x55555555u;
     a->lead.uni_phase[1] = 0xAAAAAAAAu;
@@ -1477,6 +1478,10 @@ void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *s, const Mell
     a->pending_sub_config = *sub;
     a->pending_sample_config = *sample;
     config_update_end(a, update);
+}
+void mello_audio_set_sub_mute(MelloAudio *a, bool mute)
+{
+    if (a) a->sub_mute = mute;
 }
 void mello_audio_set_mod_routing(MelloAudio *a, const MelloModRouting *m)
 {
@@ -1712,6 +1717,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             int32_t cv = (int32_t)cut + TM_FILTER_OFFSET_PERMILLE[ti > 100u ? 100u : ti];
             cut = (uint16_t)clamp32(cv, 0, 1000);
         }
+        if (a->sub_mute ? a->sub_gain > 0 : a->sub_gain < 32767) /* SUB MUTE: ~10 ms either way */
+            a->sub_gain = clamp32(a->sub_gain + (a->sub_mute ? -75 : 75), 0, 32767);
         if (a->dot_lane[0].stage || a->dot_lane[1].stage || a->tm_value) {
             /* DOT's MOD lanes and EVOLVE's sound routes, summed per destination in permille of its range. */
             uint8_t l;
@@ -1862,10 +1869,11 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (fsub_level) {
                 a->lead.sub_phase += a->lead.sub_inc;
                 /* HTML: subOsc is triggered at vel * level and then passes Gain(level): level squared. */
-                int32_t lv = fsub_level;
-                lead += q15mul(
-                    tone_osc_sample(a->config.follower_sub_wave, a->lead.sub_phase, a->lead.sub_inc, 500u),
-                    lv * lv / 1000 * 32767 / 1000);
+                int32_t lv = fsub_level,
+                        fs = q15mul(tone_osc_sample(a->config.follower_sub_wave, a->lead.sub_phase,
+                                                    a->lead.sub_inc, 500u),
+                                    lv * lv / 1000 * 32767 / 1000);
+                lead += a->sub_gain == 32767 ? fs : q15mul(fs, a->sub_gain); /* SUB MUTE */
             }
             lead = q15mul(clamp32(lead, -65535, 65535), (a->lead.env_q24 >> 8));
             lead = q15mul(lead, (int32_t)a->lead.velocity * 258);
@@ -1889,6 +1897,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             }
             a->sub.drive_prev = filtered;
             sub = filtered * sub_level / 1000;
+            if (a->sub_gain != 32767) sub = q15mul(clamp32(sub, -65535, 65535), a->sub_gain); /* SUB MUTE */
         }
 #if MELLO_FEATURE_CHORD_MACHINE
         if (a->chord_config.on && a->chord.active_count && a->chord.env_q24 > 0 &&

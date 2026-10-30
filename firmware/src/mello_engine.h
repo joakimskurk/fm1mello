@@ -355,6 +355,16 @@ typedef struct {
     uint16_t amount; /* 0..1000 */
 } MelloDotMatrixConfig;
 
+/* HOME's performance keys, held (DECISIONS.md "Performance keys"). */
+#define MELLO_PERF_HISTORY 64u
+typedef struct {
+    bool fill;          /* every step plays (chance and rests aside), ratchets doubled */
+    bool sub_mute;      /* the bass under the lead (dedicated and follower sub) */
+    bool reverse;       /* what was heard, backwards */
+    bool repeat;        /* the last repeat_len pulses, round and round */
+    uint8_t repeat_len; /* 1..16 pulses */
+} MelloPerf;
+
 /* DOT's MOD lanes, DOT's evolve and EVOLVE's sound routes and timing. Saved in SEC_MOD (not in the snapshot's own
  * wire format), with DOT's fifth matrix. */
 typedef struct {
@@ -696,6 +706,19 @@ typedef struct {
 #endif
     bool undo_valid;
 
+    /* HOME's performance keys (mello_engine_set_perf): runtime only, never saved or undone. The sequence keeps
+     * its own place all along; REVERSE and REPEAT play from perf_buf instead, so letting go lands in time. */
+    MelloPerf perf;
+    MelloPulseEntry perf_hist[MELLO_PERF_HISTORY]; /* the last pulses of the sequence, oldest overwritten */
+    uint8_t perf_hist_w;
+    uint8_t perf_hist_n;
+    MelloPulseEntry perf_buf[MELLO_PERF_HISTORY]; /* what REVERSE / REPEAT play, in order, round and round */
+    uint8_t perf_buf_n;
+    uint8_t perf_buf_pos;
+    uint8_t perf_mode; /* 0 the sequence, 1 REVERSE, 2 REPEAT */
+    uint8_t perf_mode_len;
+    bool perf_restart; /* to step 1 at the next pulse */
+
     MelloEvent queue[MELLO_EVENT_QUEUE_CAP];
     uint8_t q_head;
     uint8_t q_tail;
@@ -769,6 +792,10 @@ void mello_engine_dot_reset_runtime(MelloEngine *engine);
 /* Turing / Evolve controls. */
 void mello_engine_tm_set_config(MelloEngine *engine, const MelloTmConfig *config);
 void mello_engine_mod_routing_set(MelloEngine *engine, const MelloModRouting *config);
+/* The performance keys as held now; call it whenever they change (and harmlessly when they do not). */
+void mello_engine_set_perf(MelloEngine *engine, const MelloPerf *perf);
+/* RESTART: the sequence from its first step at the next pulse (16th), the loop's one with it. */
+void mello_engine_perf_restart(MelloEngine *engine);
 void mello_engine_tm_set_length(MelloEngine *engine, uint8_t length);
 void mello_engine_tm_reroll(MelloEngine *engine);
 void mello_engine_tm_set_bool_register(MelloEngine *engine, const uint8_t *values, uint8_t count);
