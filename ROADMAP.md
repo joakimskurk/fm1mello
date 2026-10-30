@@ -48,8 +48,8 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
       width (7 px each at 32), the playing one framed white, step numbers every fourth where the lanes are narrow.
 - [x] **Delay: LO CUT and HI CUT** on its return, to shape it (ask: "pre dist"). Done: DELAY is WET, FDBK, LO CUT
       (12 dB an octave, 20 Hz .. 2 kHz, on the return and in the feedback, so each repeat is thinner; OFF by default),
-      HI CUT (the HTML's TONE); LEVEL moved to DELAY CONFIG, D.LEVEL to RETURNS. Not done: "pre dist" (the delay
-      before the distortion?) waits for an answer.
+      HI CUT (the HTML's TONE); LEVEL moved to DELAY CONFIG, D.LEVEL to RETURNS. PRE-DIST (FX's B0, off by
+      default): the delay before the distortion, so its filtered echoes are driven too.
 - [x] **The black keys' strip**: use the whole width, each label over its key, so it is plain which key does what.
       Done: eleven cells across the width in the keys' order, the keyboard's groups apart, a free key a short dim cell,
       the room left shared out; where there is no room for frames (HOME, SEGMENT, DRUMS), plain tinted cells a pixel
@@ -57,6 +57,11 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
 - [ ] **RANDOMIZE WAVE per step**: with WAVE in the mask a roll gives each step its own wave (never OFF).
 - [ ] **The bass sequencer: 16 steps** instead of 5-SEQ: length 1-16, per step tone, octave, glide and more; its own
       clock, not stopped by the main sequence's skipped or held steps unless asked to follow them.
+- [x] **More delay times**: DIV is now 16T, 16N, 8T, 8N, 4T, 8D, 4N, 4D, 2N (shortest first; the stored numbers keep
+      the HTML's four).
+- [ ] **A MUSICAL randomizer**: as now, and a setting to roll musically instead of at random (rhythmic, in phrase),
+      so fewer rolls are needed before tweaking.
+- [ ] **More parameters for the bass synth**, if there are any under the hood.
 - [x] **A simple 16-step drum machine**: minimal, classic voices, "Aphex Twin meets Richard Divine": the sonic
       differences come from per-step modulation and the randomizer. Its own clock as the bass's.
       Done (DECISIONS.md "Drums"): DRUMS after SUB and CHORD on BASS; KICK, SNARE, HAT, GLITCH; per step PITCH, DECAY,

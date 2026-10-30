@@ -274,11 +274,12 @@ typedef struct {
     uint16_t dist_level;     /* 200..1400 */
     uint16_t delay_wet;      /* 0..1000 */
     bool delay_sync;
-    uint8_t delay_div;        /* 0=8n, 1=16n, 2=4n, 3=8t */
+    uint8_t delay_div;        /* the HTML's 0=8n, 1=16n, 2=4n, 3=8t; then 4=16t, 5=4t, 6=8d, 7=4d, 8=2n */
     uint16_t delay_time_ms;   /* 30..1500 */
     uint16_t delay_feedback;  /* 0..950 */
     uint16_t delay_tone;      /* 0..1000: HI CUT on the return */
     uint16_t delay_lowcut;    /* 0..1000: LO CUT on the return and in the feedback, 20 Hz .. 2 kHz; 0 off */
+    bool delay_pre_dist;      /* the delay before the distortion: its filtered echoes are driven too (HTML: after) */
     uint16_t delay_level;     /* 0..1500 */
     uint16_t reverb_wet;      /* 0..1000 */
     uint16_t reverb_size;     /* 0..1000 */

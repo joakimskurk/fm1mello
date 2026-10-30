@@ -29,7 +29,7 @@ static const MapCase cases[] = {
 #endif
     {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B3:RST2 B9:UNDO B10:RNDMZR"},
     {"SOUND", MELLO_UI_SOUND_RESERVED, "B0:INIT B9:UNDO B10:RNDMZR"},
-    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B9:UNDO B10:RNDMZR"},
+    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B0:PRE-DIST B9:UNDO B10:RNDMZR"},
     {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B9:UNDO B10:RNDMZR"},
     {"DRUMS", MELLO_UI_DRUMS, "B0:K B1:S B2:H B3:G B4:ON B5:ACC B6:ROLL B7:FEED B9:UNDO B10:RNDMZR"},
 };
@@ -181,9 +181,9 @@ static void verify_every_page_and_inactive_slot(void)
         }
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if (active != 77u) die("MAP", "active slot count != 77 with Chord");
+    if (active != 78u) die("MAP", "active slot count != 78 with Chord");
 #else
-    if (active != 74u) die("MAP", "active slot count != 74 without Chord");
+    if (active != 75u) die("MAP", "active slot count != 75 without Chord");
 #endif
     printf("C5 MAP COVERAGE: pages=%u active=%u inactive=%u\n", (unsigned)(sizeof(cases) / sizeof(cases[0])),
            active, inactive);

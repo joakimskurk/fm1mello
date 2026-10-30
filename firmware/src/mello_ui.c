@@ -393,12 +393,16 @@ static const char *filter_mode_name(MelloFilterMode m)
 
 static const char *delay_div_name(uint8_t d)
 {
-    switch (d) {
-    case 1u: return "16N";
-    case 2u: return "4N";
-    case 3u: return "8T";
-    default: return "8N";
-    }
+    static const char *n[9] = {"8N", "16N", "4N", "8T", "16T", "4T", "8D", "4D", "2N"};
+    return n[d < 9u ? d : 0u];
+}
+/* DIV's values from the shortest to the longest (the stored numbers keep the HTML's four first). */
+static const uint8_t delay_div_order[9] = {4u, 1u, 3u, 0u, 5u, 6u, 2u, 7u, 8u};
+static uint8_t delay_div_step(uint8_t d, int16_t delta)
+{
+    uint8_t i = 0u;
+    while (i < 9u && delay_div_order[i] != d) ++i;
+    return delay_div_order[clamp_i32((int32_t)(i < 9u ? i : 3u) + (delta > 0 ? 1 : -1), 0, 8)];
 }
 
 static void set_selected_step_from_note(MelloUi *ui, uint8_t note_index)
@@ -512,6 +516,7 @@ typedef enum {
     MELLO_CTX_DRUM_ACCENT, /* the selected step's accent */
     MELLO_CTX_DRUM_ROLL,   /* roll the drums (undoable) */
     MELLO_CTX_DRUM_FEED,   /* RNDMZR rolls the drums too */
+    MELLO_CTX_DELAY_PRE,   /* FX: the delay before the distortion */
     MELLO_CTX_SAMPLE_TOGGLE,
     MELLO_CTX_HOME_RANDOM, /* reroll now, at the intensity ALGORITHM sets */
     MELLO_CTX_RNDMZR,      /* every page's B10, the last: tap = reroll (undoable), hold = the RANDOM page */
@@ -597,7 +602,9 @@ static const MelloContextAction context_actions[MELLO_UI_DRUMS + 1u][11] = {
     [MELLO_UI_SOUND_RESERVED] = {[0] = {MELLO_CTX_SOUND_INIT, "INIT"},
                                  [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                                  [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_AUDIO_FX] = {[10] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [9] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_AUDIO_FX] = {[0] = {MELLO_CTX_DELAY_PRE, "PRE-DIST"},
+                           [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                           [9] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_DRUMS] = {[0] = {MELLO_CTX_DRUM_KICK, "K"},
                         [1] = {MELLO_CTX_DRUM_SNARE, "S"},
                         [2] = {MELLO_CTX_DRUM_HAT, "H"},
@@ -1574,7 +1581,7 @@ static void adjust_audio_fx(MelloUi *ui, uint8_t knob, int16_t delta)
         if (knob == 0u)
             c.delay_sync = delta > 0;
         else if (knob == 1u)
-            c.delay_div = wrap_u8((int32_t)c.delay_div + (delta > 0 ? 1 : -1), 4u);
+            c.delay_div = delay_div_step(c.delay_div, delta);
         else if (knob == 2u)
             c.delay_time_ms = (uint16_t)clamp_i32((int32_t)c.delay_time_ms + delta * 10, 30, 1500);
         else
@@ -2048,6 +2055,14 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
             d.accents[ui->selected_drum_voice % MELLO_DRUM_VOICES] ^=
                 (uint16_t)(1u << (ui->selected_drum_step % MELLO_DRUM_STEPS));
         mello_engine_drums_set_config(e, &d);
+        persistent_dirty(ui, now_ms);
+        mark_edit(ui);
+        break;
+    }
+    case MELLO_CTX_DELAY_PRE: {
+        MelloFxConfig f = e->fx;
+        f.delay_pre_dist = !f.delay_pre_dist;
+        mello_engine_fx_set_config(e, &f);
         persistent_dirty(ui, now_ms);
         mark_edit(ui);
         break;
@@ -3879,6 +3894,7 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_DRUM_HAT:
     case MELLO_CTX_DRUM_GLITCH: return (uint8_t)(v - MELLO_CTX_DRUM_KICK) == ui->selected_drum_voice ? 1 : -1;
     case MELLO_CTX_DRUM_ON: return e->drums.on ? 1 : 0;
+    case MELLO_CTX_DELAY_PRE: return e->fx.delay_pre_dist ? 1 : 0;
     case MELLO_CTX_DRUM_FEED: return e->drums.feed ? 1 : 0;
     case MELLO_CTX_DRUM_ACCENT:
         return (e->drums.accents[ui->selected_drum_voice % MELLO_DRUM_VOICES] >>

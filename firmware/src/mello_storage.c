@@ -17,7 +17,7 @@ enum {
     SECVER_WORKING = 1,
     SECVER_SLOTS = 1,
     SECVER_SLOT_SEQ = 1,
-    SECVER_FX = 2, /* 2: the delay's LO CUT */
+    SECVER_FX = 3, /* 2: the delay's LO CUT; 3: PRE DIST */
     SECVER_CHORD = 2, /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading) */
     SECVER_GRIT = 3,
     SECVER_MOD = 3,
@@ -27,7 +27,8 @@ enum {
 #define SAMPLE_WIRE_SIZE   83u
 #define SNAPSHOT_WIRE_SIZE 528u
 #define FX_WIRE_SIZE_V1    34u
-#define FX_WIRE_SIZE       36u
+#define FX_WIRE_SIZE_V2    36u
+#define FX_WIRE_SIZE       37u
 #define CHORD_WIRE_SIZE_V1 (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
 #define CHORD_WIRE_SIZE    (CHORD_WIRE_SIZE_V1 + 21u)
 #define GRIT_ENTRY_SIZE_V1 8u
@@ -483,8 +484,9 @@ static void encode_fx(Writer *w, const MelloFxConfig *c)
     wr_u16(w, c->reverb_tone);
     wr_u16(w, c->reverb_level);
     wr_u16(w, c->delay_lowcut);
+    wr_u8(w, c->delay_pre_dist ? 1u : 0u);
 }
-/* Version 1 has no LO CUT: it stays off. */
+/* Version 1 has no LO CUT, 2 no PRE DIST: they stay off. */
 static bool decode_fx(Reader *r, MelloFxConfig *c, uint8_t ver)
 {
     uint8_t b;
@@ -496,7 +498,7 @@ static bool decode_fx(Reader *r, MelloFxConfig *c, uint8_t ver)
            rd_u16(r, &c->delay_tone) && rd_u16(r, &c->delay_level) && rd_u16(r, &c->reverb_wet) &&
            rd_u16(r, &c->reverb_size) && rd_u16(r, &c->reverb_decay_ms) && rd_u16(r, &c->reverb_pre_ms) &&
            rd_u16(r, &c->reverb_tone) && rd_u16(r, &c->reverb_level) &&
-           (ver < 2u || rd_u16(r, &c->delay_lowcut));
+           (ver < 2u || rd_u16(r, &c->delay_lowcut)) && (ver < 3u || (rd_u8(r, &b) && ((c->delay_pre_dist = b != 0u), true)));
 }
 
 /* DRUMS: the kit, then each voice's sound, hits, accents and per-step locks. A reader without this section skips it;
@@ -958,7 +960,9 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
         } else if (id == SEC_FX && ver >= 1u && ver <= SECVER_FX) {
             MelloFxConfig fx;
             memset(&fx, 0, sizeof(fx));
-            if (len != (ver == 1u ? FX_WIRE_SIZE_V1 : FX_WIRE_SIZE) || !decode_fx(&r, &fx, ver)) return false;
+            if (len != (ver == 1u ? FX_WIRE_SIZE_V1 : ver == 2u ? FX_WIRE_SIZE_V2 : FX_WIRE_SIZE) ||
+                !decode_fx(&r, &fx, ver))
+                return false;
             if (apply && e) mello_engine_fx_set_config(e, &fx);
 #if MELLO_FEATURE_CHORD_MACHINE
         } else if (id == SEC_CHORD && ver >= 1u && ver <= SECVER_CHORD) {

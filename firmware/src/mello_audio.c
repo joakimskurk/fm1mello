@@ -1556,6 +1556,37 @@ static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int3
 }
 /* One audio-rate sample of the reverb, the network at half the rate: the input averaged over two samples, the output
  * interpolated back. */
+/* One sample of the delay: in goes in (with the feedback), and its return comes out through LO CUT and HI CUT. The time
+ * ramps (Tone's delayTime.rampTo): delay_q8 is read between samples while it moves. */
+static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t delay_q8)
+{
+    uint32_t di = (uint32_t)delay_q8 >> 8, fr = (uint32_t)delay_q8 & 0xFFu, rp, rp1;
+    int32_t d, dl;
+    if (!a->delay_buffer || a->delay_capacity <= 2u || !a->delay_samples) return 0;
+    if (di < 1u) di = 1u;
+    if (di > a->delay_capacity - 2u) di = a->delay_capacity - 2u;
+    rp = a->delay_pos >= di ? a->delay_pos - di : a->delay_pos + a->delay_capacity - di;
+    d = a->delay_buffer[rp];
+    if (fr) {
+        rp1 = rp ? rp - 1u : a->delay_capacity - 1u;
+        d += ((a->delay_buffer[rp1] - d) * (int32_t)fr) >> 8;
+    }
+    if (a->fx.delay_lowcut) {
+        /* LO CUT, 12 dB an octave, 20 Hz .. 2 kHz: on the return and in the feedback, so each repeat is thinner than
+         * the last. 2 pi f / fs, Q15: f = 20 Hz x 100^(lowcut / 1000), counted from 320 Hz (48 semitones up). */
+        int32_t k = (int32_t)(((int64_t)semi_ratio_q16((int32_t)a->fx.delay_lowcut * 797 * 256 / 10000 - 48 * 256) *
+                               1494) >>
+                              16);
+        a->delay_lc[0] += (int32_t)(((int64_t)(d - a->delay_lc[0]) * k) >> 15);
+        d -= a->delay_lc[0];
+        a->delay_lc[1] += (int32_t)(((int64_t)(d - a->delay_lc[1]) * k) >> 15);
+        d -= a->delay_lc[1];
+    }
+    dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
+    a->delay_buffer[a->delay_pos] = sat16(send + d * dly_fb / 1000);
+    if (++a->delay_pos >= a->delay_capacity) a->delay_pos = 0u;
+    return dl;
+}
 /* The half-band filter (31 taps, Kaiser 7.5): flat to 8 kHz within 0.03 dB, -48 dB from 14 kHz. Its centre tap is
  * 1/2 and every other tap 0; these are the odd ones, Q15, nearest the centre first. */
 static const int16_t RV_HB[8] = {10269, -3020, 1401, -668, 291, -105, 27, -3};
@@ -1948,6 +1979,11 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         case 1: ms = qms / 4u; break;
         case 2: ms = qms; break;
         case 3: ms = qms / 3u; break;
+        case 4: ms = qms / 6u; break;      /* 16T */
+        case 5: ms = qms * 2u / 3u; break; /* 4T */
+        case 6: ms = qms * 3u / 4u; break; /* 8D */
+        case 7: ms = qms * 3u / 2u; break; /* 4D */
+        case 8: ms = qms * 2u; break;      /* 2N (as far as the delay's 1.5 s reach) */
         default: ms = qms / 2u; break;
         }
         a->delay_samples = (ms * 441u + 5u) / 10u;
@@ -2257,6 +2293,19 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             y = main_biquad_step(a->mf_coeff, a->mf_state[1], y);
             mix = clamp32(y, -65535, 65535);
         }
+        /* DRUMS: past the lead's filter and distortion, their own LEVEL and SPACE */
+        if (a->drum[0].on | a->drum[1].on | a->drum[2].on | a->drum[3].on)
+            drums = drum_render(a) * (int32_t)a->drum_config.level / 3000; /* LEVEL 70%: a little over the lead */
+        if (a->fx.delay_pre_dist) {
+            /* PRE DIST: the delay before the distortion, so its filtered echoes are driven too (the HTML has it
+             * after); what the chords and drums send to it goes there with them. */
+            int32_t in = mix;
+#if MELLO_FEATURE_CHORD_MACHINE
+            in += chord_mix * 800 / 1000 * (int32_t)a->chord_config.space / 1000;
+#endif
+            in += drums * (int32_t)a->drum_config.space / 1000;
+            mix += delay_tick(a, in * dly_send / 1000, dly_fb, delay_q8) * dly_level / 1000;
+        }
         {
             /* HTML: Tone.Distortion is always in the path (wet = distMix, 1 by default). At AMT 0 its curve is
              * y = x/3 with a hard clip at +-1: the HTML's gain staging. 2x oversampling as for the sub: it aliases
@@ -2284,41 +2333,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
              * (1000 = as the lead's), their width their own (added after the delay, below). */
             fx_in += chord_mix * 800 / 1000 * (int32_t)a->chord_config.space / 1000;
 #endif
-            /* DRUMS: past the lead's filter and distortion, their own LEVEL and SPACE */
-            if (a->drum[0].on | a->drum[1].on | a->drum[2].on | a->drum[3].on) {
-                drums = drum_render(a) * (int32_t)a->drum_config.level / 3000; /* LEVEL 70%: a little over the lead */
-                fx_in += drums * (int32_t)a->drum_config.space / 1000;
-            }
-            if (a->delay_buffer && a->delay_capacity > 2u && a->delay_samples) {
-                /* The delay time ramps (Tone's delayTime.rampTo): read between samples while it moves. */
-                uint32_t di = (uint32_t)delay_q8 >> 8, fr = (uint32_t)delay_q8 & 0xFFu, rp, rp1;
-                int32_t d, send = fx_in * dly_send / 1000, dl;
-                if (di < 1u) di = 1u;
-                if (di > a->delay_capacity - 2u) di = a->delay_capacity - 2u;
-                rp = a->delay_pos >= di ? a->delay_pos - di : a->delay_pos + a->delay_capacity - di;
-                d = a->delay_buffer[rp];
-                if (fr) {
-                    rp1 = rp ? rp - 1u : a->delay_capacity - 1u;
-                    d += ((a->delay_buffer[rp1] - d) * (int32_t)fr) >> 8;
-                }
-                if (a->fx.delay_lowcut) {
-                    /* LO CUT, 12 dB an octave, 20 Hz .. 2 kHz: on the return and in the feedback, so each repeat is
-                     * thinner than the last */
-                    /* 2 pi f / fs, Q15: f = 20 Hz x 100^(lowcut / 1000), counted from 320 Hz (48 semitones up) */
-                    int32_t k = (int32_t)(((int64_t)semi_ratio_q16((int32_t)a->fx.delay_lowcut * 797 * 256 / 10000 -
-                                                                   48 * 256) *
-                                           1494) >>
-                                          16);
-                    a->delay_lc[0] += (int32_t)(((int64_t)(d - a->delay_lc[0]) * k) >> 15);
-                    d -= a->delay_lc[0];
-                    a->delay_lc[1] += (int32_t)(((int64_t)(d - a->delay_lc[1]) * k) >> 15);
-                    d -= a->delay_lc[1];
-                }
-                dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
-                a->delay_buffer[a->delay_pos] = sat16(send + d * dly_fb / 1000);
-                if (++a->delay_pos >= a->delay_capacity) a->delay_pos = 0u;
-                mix += (dl * dly_level) / 1000;
-            }
+            fx_in += drums * (int32_t)a->drum_config.space / 1000;
+            if (!a->fx.delay_pre_dist) mix += delay_tick(a, fx_in * dly_send / 1000, dly_fb, delay_q8) * dly_level / 1000;
             mix_l = mix;
             mix_r = mix;
 #if MELLO_FEATURE_CHORD_MACHINE

@@ -375,7 +375,7 @@ static MelloFxConfig sanitize_fx_config(MelloFxConfig c)
     c.dist_tone = clamp_amount(c.dist_tone);
     c.dist_level = clamp_u16_range(c.dist_level, 200u, 1400u);
     c.delay_wet = clamp_amount(c.delay_wet);
-    if (c.delay_div > 3u) c.delay_div = 0u;
+    if (c.delay_div > 8u) c.delay_div = 0u;
     c.delay_time_ms = clamp_u16_range(c.delay_time_ms, 30u, 1500u);
     c.delay_feedback = clamp_u16_range(c.delay_feedback, 0u, 950u);
     c.delay_tone = clamp_amount(c.delay_tone);
