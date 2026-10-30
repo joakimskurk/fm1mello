@@ -28,8 +28,10 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
       ~450 Hz, 12 dB an octave): nothing of it under 200 Hz.
 - [x] **SUB: a DRONE mode**: SUB's MODE has DRONE after TM: one sub note from START to STOP at its full LEVEL, through
       rests and skips; KEY, OCT and the 5SEQ's tones move it (GLIDE), SUB MUTE fades it out and back (sub_drone).
-- [ ] **Segments are confusing and hard to adjust**: work deep on making them easy (how they are set, seen and played).
-      A new project starts with 3 or 4 segments, no repeats (decide which).
+- [x] **Segments are confusing and hard to adjust**: on SEGMENT a step key cuts (a segment starts there) or joins (where
+      one starts already); B0-B5 pick A-F, B7 EVEN spreads them; one layer: REPEAT, ORDER (FWD / REV / P-P / RND), SKIP,
+      LENGTH (the ones after keep theirs). A new LEN keeps their proportions. A new project has 4 x 4, once forward each:
+      it plays as one of 16 (segment_edit).
 
 ## Phase 0: clean ground (done in this repo)
 

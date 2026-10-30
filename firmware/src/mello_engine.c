@@ -527,9 +527,10 @@ void mello_project_defaults(MelloProject *p)
         p->steps[i].sample_slot = 1u;
         p->steps[i].probability = 65535u;
     }
-    p->seg_count = 1u;
-    p->seg_splits[0] = 8u;
-    p->seg_splits[1] = 10u;
+    /* Four segments of four, each once forward: it plays as one of sixteen, ready to be changed (the HTML has one). */
+    p->seg_count = 4u;
+    p->seg_splits[0] = 4u;
+    p->seg_splits[1] = 8u;
     p->seg_splits[2] = 12u;
     p->seg_splits[3] = 14u;
     p->seg_splits[4] = 15u;
@@ -1022,6 +1023,103 @@ static uint8_t build_bounds(const MelloProject *p, uint8_t bounds[MELLO_MAX_SEGM
     }
     bounds[sc] = n;
     return sc;
+}
+
+uint8_t mello_segment_bounds(const MelloProject *p, uint8_t bounds[MELLO_MAX_SEGMENTS + 1u])
+{
+    return build_bounds(p, bounds);
+}
+
+/* Writes bounds back as the splits (and sc as the count). */
+static void segment_store(MelloProject *p, const uint8_t *bounds, uint8_t sc)
+{
+    uint8_t i;
+    p->seg_count = sc;
+    for (i = 0u; i + 1u < sc; ++i) p->seg_splits[i] = bounds[i + 1u];
+}
+
+/* Segment i's settings to segment j. */
+static void segment_copy(MelloProject *p, uint8_t j, uint8_t i)
+{
+    p->seg_repeats[j] = p->seg_repeats[i];
+    p->seg_direction[j] = p->seg_direction[i];
+    p->seg_mode[j] = p->seg_mode[i];
+    p->seg_skip[j] = p->seg_skip[i];
+}
+
+int8_t mello_segment_toggle_start(MelloProject *p, uint8_t step)
+{
+    uint8_t b[MELLO_MAX_SEGMENTS + 2u], sc, j, k;
+    if (!p || step == 0u || step >= p->seq_len) return -1;
+    sc = build_bounds(p, b);
+    for (j = 1u; j < sc; ++j)
+        if (b[j] == step) { /* segment j joins j - 1, which keeps its settings */
+            for (k = j; k < sc; ++k) b[k] = b[k + 1u];
+            for (k = j; k + 1u < sc; ++k) segment_copy(p, k, (uint8_t)(k + 1u));
+            segment_store(p, b, (uint8_t)(sc - 1u));
+            return (int8_t)(j - 1u);
+        }
+    if (sc >= MELLO_MAX_SEGMENTS) return -1;
+    for (j = 0u; j + 1u < sc && b[j + 1u] <= step; ++j) {}
+    for (k = (uint8_t)(sc + 1u); k > j + 1u; --k) b[k] = b[k - 1u]; /* segment j is cut at step */
+    b[j + 1u] = step;
+    for (k = sc; k > j + 1u; --k) segment_copy(p, k, (uint8_t)(k - 1u));
+    segment_copy(p, (uint8_t)(j + 1u), j);
+    segment_store(p, b, (uint8_t)(sc + 1u));
+    return (int8_t)(j + 1u);
+}
+
+void mello_segment_even(MelloProject *p)
+{
+    uint8_t b[MELLO_MAX_SEGMENTS + 1u], sc, i;
+    if (!p) return;
+    sc = build_bounds(p, b);
+    for (i = 1u; i < sc; ++i) b[i] = (uint8_t)(((uint32_t)i * p->seq_len + sc / 2u) / sc);
+    segment_store(p, b, sc);
+}
+
+void mello_segment_set_length(MelloProject *p, uint8_t seg, uint8_t len)
+{
+    uint8_t b[MELLO_MAX_SEGMENTS + 1u], sc, n, k;
+    int32_t d, end;
+    if (!p) return;
+    sc = build_bounds(p, b);
+    n = b[sc];
+    if (seg >= sc || sc < 2u) return;
+    if (seg + 1u == sc) { /* the last: its start moves, the one before gives way */
+        int32_t start = (int32_t)n - (int32_t)len;
+        if (start < (int32_t)b[seg - 1u] + 1) start = (int32_t)b[seg - 1u] + 1;
+        if (start > (int32_t)n - 1) start = (int32_t)n - 1;
+        b[seg] = (uint8_t)start;
+        segment_store(p, b, sc);
+        return;
+    }
+    end = (int32_t)b[seg] + (int32_t)(len ? len : 1u);
+    if (end > (int32_t)n - (int32_t)(sc - 1u - seg)) end = (int32_t)n - (int32_t)(sc - 1u - seg);
+    d = end - (int32_t)b[seg + 1u];
+    for (k = (uint8_t)(seg + 1u); k < sc; ++k) b[k] = (uint8_t)((int32_t)b[k] + d);
+    for (k = (uint8_t)(sc - 1u); k > seg + 1u; --k) /* the last ones give way at the sequence's end */
+        if (b[k] > b[k + 1u] - 1u) b[k] = (uint8_t)(b[k + 1u] - 1u);
+    segment_store(p, b, sc);
+}
+
+void mello_segment_rescale(MelloProject *p, uint8_t old_len)
+{
+    uint8_t b[MELLO_MAX_SEGMENTS + 1u], sc, i, n;
+    MelloProject q;
+    if (!p || !old_len || old_len == p->seq_len) return;
+    q = *p; /* the segments as they played at the old length */
+    q.seq_len = old_len;
+    sc = build_bounds(&q, b);
+    n = p->seq_len;
+    if (sc > n) sc = n;
+    for (i = 1u; i < sc; ++i) {
+        uint32_t v = ((uint32_t)b[i] * n + old_len / 2u) / old_len;
+        if (v < (uint32_t)b[i - 1u] + 1u) v = (uint32_t)b[i - 1u] + 1u;
+        if (v > (uint32_t)(n - (sc - i))) v = (uint32_t)(n - (sc - i));
+        b[i] = (uint8_t)v;
+    }
+    segment_store(p, b, sc);
 }
 
 static uint16_t build_base_range(MelloEngine *e, uint8_t start, uint8_t end)

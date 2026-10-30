@@ -55,7 +55,7 @@ Exact page-by-page mapping is determined from the complete audit before implemen
 
 SELECT changes the current page's functional layer/subpage. The selected step/cell must not move when SELECT changes layer.
 
-Examples include STEP TRIG/NOTE/FLAGS/SEQ, SEGMENT PLAY/STRUCT, LOOP STEP/HARM/LOOP, TURING MAIN/ROUTE/DEPTH and SUB TRIG/5SEQ/STEP/VOICE/TONE.
+Examples include STEP TRIG/NOTE/FLAGS/SEQ, LOOP STEP/HARM/LOOP, TURING MAIN/ROUTE/DEPTH and SUB TRIG/5SEQ/STEP/VOICE/TONE.
 
 ### K1-K4 stay musical
 

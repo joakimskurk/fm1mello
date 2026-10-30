@@ -408,11 +408,12 @@ static void set_selected_step_from_note(MelloUi *ui, uint8_t note_index)
     if (idx >= MELLO_MAX_STEPS) return;
     ui->selected_step = idx;
     if (idx >= e->project.seq_len) {
-        uint8_t i, wanted = (uint8_t)(idx + 1u);
+        uint8_t i, wanted = (uint8_t)(idx + 1u), was = e->project.seq_len;
         uint8_t count = (uint8_t)(sizeof(sequence_lengths) / sizeof(sequence_lengths[0]));
         for (i = 0u; i < count && sequence_lengths[i] < wanted; ++i) {
         }
         e->project.seq_len = i < count ? sequence_lengths[i] : sequence_lengths[count - 1u];
+        mello_segment_rescale(&e->project, was);
         rebuild(ui);
     }
     mark_edit(ui);
@@ -493,6 +494,13 @@ typedef enum {
     MELLO_CTX_GLOBAL_TAP,
     MELLO_CTX_GLOBAL_RESET,
     MELLO_CTX_SOUND_INIT, /* the sound back to the defaults (press twice; UNDO undoes it) */
+    MELLO_CTX_SEG_A,      /* SEGMENT: B0-B5 pick segment A-F (keep the six in order) */
+    MELLO_CTX_SEG_B,
+    MELLO_CTX_SEG_C,
+    MELLO_CTX_SEG_D,
+    MELLO_CTX_SEG_E,
+    MELLO_CTX_SEG_F,
+    MELLO_CTX_SEG_EVEN, /* the segments as near equal as they go */
     MELLO_CTX_SAMPLE_TOGGLE,
     MELLO_CTX_HOME_RANDOM, /* reroll now, at the intensity ALGORITHM sets */
     MELLO_CTX_RNDMZR,      /* every page's B10, the last: tap = reroll (undoable), hold = the RANDOM page */
@@ -531,7 +539,15 @@ static const MelloContextAction context_actions[MELLO_UI_SAMPLE_RESERVED + 1u][1
     [MELLO_UI_SEQ_STEP] = {[4] = {MELLO_CTX_STEP_SKIP, "SKIP"},
                            [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                            [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_SEQ_SEGMENT] = {[10] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [9] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_SEQ_SEGMENT] = {[0] = {MELLO_CTX_SEG_A, "A"},
+                              [1] = {MELLO_CTX_SEG_B, "B"},
+                              [2] = {MELLO_CTX_SEG_C, "C"},
+                              [3] = {MELLO_CTX_SEG_D, "D"},
+                              [4] = {MELLO_CTX_SEG_E, "E"},
+                              [5] = {MELLO_CTX_SEG_F, "F"},
+                              [7] = {MELLO_CTX_SEG_EVEN, "EVEN"},
+                              [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                              [9] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_SEQ_LOOP] = {[2] = {MELLO_CTX_LOOP_RESET, "RST"},
                            [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                            [9] = {MELLO_CTX_UNDO, "UNDO"}},
@@ -730,14 +746,24 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         break;
     }
     case MELLO_UI_SEQ_STEP: set_selected_step_from_note(ui, note_index); break;
-    case MELLO_UI_SEQ_SEGMENT:
-        if ((uint8_t)w < MELLO_MAX_SEGMENTS) {
-            ui->selected_segment = (uint8_t)w;
-            if (ui->selected_segment >= e->project.seg_count)
-                ui->selected_segment = (uint8_t)(e->project.seg_count - 1u);
-            mark_edit(ui);
-        }
+    case MELLO_UI_SEQ_SEGMENT: {
+        /* A step key cuts: a segment starts at that step, or, where one starts already, it joins the one before.
+         * Step 1, and a seventh segment, only pick the segment the step is in. */
+        uint8_t step = (uint8_t)(ui->step_bank * 16u + (uint8_t)w), b[MELLO_MAX_SEGMENTS + 1u], sc, j;
+        int8_t r;
+        if (step >= e->project.seq_len) break;
+        r = mello_segment_toggle_start(&e->project, step);
+        if (r < 0) {
+            sc = mello_segment_bounds(&e->project, b);
+            for (j = 0u; j + 1u < sc && b[j + 1u] <= step; ++j) {}
+            r = (int8_t)j;
+        } else
+            rebuild(ui);
+        ui->selected_segment = (uint8_t)r;
+        ui->dirty |= MELLO_UI_DIRTY_HEADER; /* the segment's letter and colour */
+        mark_edit(ui);
         break;
+    }
     case MELLO_UI_SEQ_LOOP:
         if ((uint8_t)w < MELLO_MAX_LOOP_CYCLE_STEPS) {
             ui->selected_loop_step = (uint8_t)w;
@@ -936,7 +962,7 @@ static void adjust_step(MelloUi *ui, uint8_t knob, int16_t delta)
         break;
     default: /* SEQ */
         if (knob == 0u) {
-            uint8_t i;
+            uint8_t i, was = e->project.seq_len;
             uint8_t count = (uint8_t)(sizeof(sequence_lengths) / sizeof(sequence_lengths[0]));
             if (delta > 0) {
                 for (i = 0u; i < count && sequence_lengths[i] <= e->project.seq_len; ++i) {
@@ -947,6 +973,7 @@ static void adjust_step(MelloUi *ui, uint8_t knob, int16_t delta)
                 while (i > 0u && sequence_lengths[i - 1u] >= e->project.seq_len) --i;
                 e->project.seq_len = i > 0u ? sequence_lengths[i - 1u] : sequence_lengths[0];
             }
+            mello_segment_rescale(&e->project, was); /* the segments keep their proportions */
         } else if (knob == 1u) {
             int32_t idx = option_index_u16(master_lengths, 6u, e->project.master_len);
             idx = clamp_i32(idx + (delta > 0 ? 1 : -1), 0, 5);
@@ -968,40 +995,35 @@ static void adjust_step(MelloUi *ui, uint8_t knob, int16_t delta)
     (void)v;
 }
 
+/* A segment's order: FWD, REV, P-P, RND (the HTML's DIR and MODE in one; P-P backwards still plays, shown "P-P R"). */
+static uint8_t segment_order(const MelloProject *p, uint8_t s)
+{
+    if (p->seg_mode[s] == MELLO_SEG_RANDOM) return 3u;
+    if (p->seg_mode[s] == MELLO_SEG_PINGPONG) return 2u;
+    return p->seg_direction[s] == MELLO_SEG_REV ? 1u : 0u;
+}
+
 static void adjust_segment(MelloUi *ui, uint8_t knob, int16_t delta)
 {
     MelloEngine *e = eng(ui);
-    uint8_t s;
+    uint8_t s, b[MELLO_MAX_SEGMENTS + 1u], sc;
     if (!e || !delta) return;
+    sc = mello_segment_bounds(&e->project, b);
     s = ui->selected_segment;
-    if (s >= e->project.seg_count) s = (uint8_t)(e->project.seg_count - 1u);
+    if (s >= sc) s = (uint8_t)(sc - 1u);
+    if (s != ui->selected_segment) ui->dirty |= MELLO_UI_DIRTY_HEADER;
     ui->selected_segment = s;
-    if (ui->segment_subpage == 0u) {
-        if (knob == 0u)
-            e->project.seg_repeats[s] = (uint8_t)clamp_i32((int32_t)e->project.seg_repeats[s] + delta, 1, 4);
-        else if (knob == 1u)
-            e->project.seg_direction[s] =
-                e->project.seg_direction[s] == MELLO_SEG_FWD ? MELLO_SEG_REV : MELLO_SEG_FWD;
-        else if (knob == 2u)
-            e->project.seg_mode[s] =
-                (MelloSegmentMode)wrap_u8((int32_t)e->project.seg_mode[s] + (delta > 0 ? 1 : -1), 3u);
-        else if (knob == 3u)
-            e->project.seg_skip[s] = delta > 0;
-    } else {
-        if (knob == 0u) {
-            e->project.seg_count = (uint8_t)clamp_i32((int32_t)e->project.seg_count + delta, 1, 6);
-            if (ui->selected_segment >= e->project.seg_count)
-                ui->selected_segment = (uint8_t)(e->project.seg_count - 1u);
-        } else if (knob == 1u && s > 0u) {
-            uint8_t i = (uint8_t)(s - 1u);
-            int32_t lo = (i == 0u) ? 1 : (int32_t)e->project.seg_splits[i - 1u] + 1;
-            int32_t hi = (int32_t)e->project.seq_len - ((int32_t)e->project.seg_count - 1 - i);
-            e->project.seg_splits[i] = (uint8_t)clamp_i32((int32_t)e->project.seg_splits[i] + delta, lo, hi);
-        } else if (knob == 2u) {
-            e->project.seg_repeats[s] = (uint8_t)clamp_i32((int32_t)e->project.seg_repeats[s] + delta, 1, 4);
-        } else if (knob == 3u)
-            e->project.seg_skip[s] = delta > 0;
-    }
+    if (knob == 0u)
+        e->project.seg_repeats[s] = (uint8_t)clamp_i32((int32_t)e->project.seg_repeats[s] + delta, 1, 4);
+    else if (knob == 1u) {
+        uint8_t o = (uint8_t)clamp_i32((int32_t)segment_order(&e->project, s) + (delta > 0 ? 1 : -1), 0, 3);
+        e->project.seg_mode[s] = o == 3u ? MELLO_SEG_RANDOM : o == 2u ? MELLO_SEG_PINGPONG : MELLO_SEG_LINEAR;
+        e->project.seg_direction[s] = o == 1u ? MELLO_SEG_REV : MELLO_SEG_FWD;
+    } else if (knob == 2u)
+        e->project.seg_skip[s] = delta > 0;
+    else if (knob == 3u)
+        mello_segment_set_length(&e->project, s,
+                                 (uint8_t)clamp_i32((int32_t)(b[s + 1u] - b[s]) + delta, 1, MELLO_MAX_STEPS));
     rebuild(ui);
     mark_edit(ui);
 }
@@ -1620,9 +1642,6 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
         ui->step_subpage = wrap_u8((int32_t)ui->step_subpage + (delta > 0 ? 1 : -1), 4u);
         break;
     case MELLO_UI_RANDOM: ui->random_links = !ui->random_links; break;
-    case MELLO_UI_SEQ_SEGMENT:
-        ui->segment_subpage = wrap_u8((int32_t)ui->segment_subpage + (delta > 0 ? 1 : -1), 2u);
-        break;
     case MELLO_UI_SEQ_LOOP:
         ui->loop_subpage = wrap_u8((int32_t)ui->loop_subpage + (delta > 0 ? 1 : -1), 3u);
         break;
@@ -1911,6 +1930,23 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         mark_edit(ui);
         break;
     }
+    case MELLO_CTX_SEG_A:
+    case MELLO_CTX_SEG_B:
+    case MELLO_CTX_SEG_C:
+    case MELLO_CTX_SEG_D:
+    case MELLO_CTX_SEG_E:
+    case MELLO_CTX_SEG_F: {
+        uint8_t b[MELLO_MAX_SEGMENTS + 1u], n = (uint8_t)(a->verb - MELLO_CTX_SEG_A);
+        if (n < mello_segment_bounds(&e->project, b)) ui->selected_segment = n;
+        ui->dirty |= MELLO_UI_DIRTY_HEADER;
+        mark_edit(ui);
+        break;
+    }
+    case MELLO_CTX_SEG_EVEN:
+        mello_segment_even(&e->project);
+        rebuild(ui);
+        mark_edit(ui);
+        break;
     case MELLO_CTX_LOOP_RESET:
         mello_engine_loop_cycle_reset_position(e);
         mark_edit(ui);
@@ -3123,15 +3159,21 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         break;
     }
     case MELLO_UI_SEQ_SEGMENT: {
-        /* Segments A-F over the sequence, in their colours: letters over their steps, the playing step framed; the
-         * segments as pills; K1-K4 below. */
+        /* Segments A-F over the sequence, in their colours: each one's letter (and its order, where it is not
+         * forwards) over its steps, a cut where one starts, the playing step framed, a skipped one struck through;
+         * under them each segment as a pill with its length (x its repeats); K1-K4 below. */
+        static const char *mark[4] = {"", "<", "<>", "?"};
         uint8_t s = ui->selected_segment, i, bounds[MELLO_MAX_SEGMENTS + 1u], sc, vis;
         char *q;
-        if (s >= e->project.seg_count) s = 0u;
         sc = ui_segment_bounds(&e->project, bounds);
+        if (s >= sc) s = 0u;
         vis = ui_step_overview_count(&e->project);
         q = copy_s(a, "SEGMENT ");
-        *q++ = (char)('A' + s), *q = 0;
+        *q++ = (char)('A' + s);
+        *q++ = ' ';
+        q = put_u32(q, (uint32_t)bounds[s] + 1u);
+        q = copy_s(q, "-");
+        (void)put_u32(q, bounds[s + 1u]);
         ui_section(ui, o, 32, a, ui_segment_colour(s));
         for (i = 0u; i < vis; ++i) {
             uint8_t seg = 0xFFu, j;
@@ -3140,7 +3182,11 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                 if (i >= bounds[j] && i < bounds[j + 1u]) seg = j;
             if (i >= e->project.seq_len || seg == 0xFFu) continue;
             o->fill(o->ctx, x, 70, (int16_t)(cw - 1), 12,
-                    seg == s ? ui_mix(ui_segment_colour(seg), UI_PANEL, 120) : ui_segment_colour_dim(seg));
+                    e->project.seg_skip[seg] ? UI_PANEL2
+                    : seg == s               ? ui_mix(ui_segment_colour(seg), UI_PANEL, 120)
+                                             : ui_segment_colour_dim(seg));
+            if (e->project.seg_skip[seg]) o->fill(o->ctx, x, 75, (int16_t)(cw - 1), 2, UI_RED);
+            if (seg > 0u && i == bounds[seg]) o->fill(o->ctx, (int16_t)(x - 1), 66, 1, 20, UI_BRIGHT); /* a cut */
             if (ui->transport->display_step == i) ui_frame(o, x, 70, (int16_t)(cw - 1), 12, UI_WHITE);
         }
         for (i = 0u; i < sc; ++i) {
@@ -3149,17 +3195,18 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                         (int16_t)(8 + ((uint32_t)(bounds[i + 1u] > vis ? vis : bounds[i + 1u]) * 224u) / vis);
             if (bounds[i] >= vis) continue;
             a[0] = (char)('A' + i), a[1] = 0;
+            (void)copy_s(a + 1, mark[segment_order(&e->project, i)]);
             o->text(o->ctx, bx, 52, (int16_t)(bx2 - bx), 0, a, i == s ? UI_BRIGHT : ui_segment_colour(i), 1);
         }
         for (i = 0u; i < sc; ++i) {
-            a[0] = (char)('A' + i), a[1] = 0;
-            ui_pill(o, (int16_t)(10 + i * 30u), 88, 26, a, i == s, ui_segment_colour(i));
+            a[0] = (char)('A' + i);
+            q = put_u32(a + 1, (uint32_t)(bounds[i + 1u] - bounds[i]));
+            if (e->project.seg_repeats[i] > 1u) {
+                *q++ = 'x';
+                (void)put_u32(q, e->project.seg_repeats[i]);
+            }
+            ui_pill(o, (int16_t)(4 + i * 39u), 88, 36, a, i == s, ui_segment_colour(i));
         }
-        q = copy_s(b, "STEPS ");
-        q = put_u32(q, (uint32_t)bounds[s] + 1u);
-        q = copy_s(q, "-");
-        (void)put_u32(q, bounds[s + 1u]);
-        o->text(o->ctx, 132, 88, 98, 0, b, e->project.seg_skip[s] ? UI_RED : UI_MID, 2);
         draw_knob_grid(ui, o, 118);
         break;
     }
@@ -3645,6 +3692,16 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_PERF_SUB_MUTE: return e->perf.sub_mute ? 1 : 0;
     case MELLO_CTX_PERF_REVERSE: return e->perf.reverse ? 1 : 0;
     case MELLO_CTX_PERF_REPEAT: return e->perf.repeat ? 1 : 0;
+    case MELLO_CTX_SEG_A:
+    case MELLO_CTX_SEG_B:
+    case MELLO_CTX_SEG_C:
+    case MELLO_CTX_SEG_D:
+    case MELLO_CTX_SEG_E:
+    case MELLO_CTX_SEG_F: { /* the one picked lit, the others there plain, the ones not there dim */
+        uint8_t b[MELLO_MAX_SEGMENTS + 1u], n = (uint8_t)(v - MELLO_CTX_SEG_A);
+        if (n >= mello_segment_bounds(&e->project, b)) return 0;
+        return n == ui->selected_segment ? 1 : -1;
+    }
     default: return -1;
     }
 }
@@ -4058,31 +4115,19 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         break;
     }
     case MELLO_UI_SEQ_SEGMENT: {
-        uint8_t sg = ui->selected_segment < e->project.seg_count ? ui->selected_segment : 0u;
-        if (ui->segment_subpage == 0u) {
-            l[0] = "REPEAT";
-            value_u(v[0], "", e->project.seg_repeats[sg]);
-            l[1] = "DIR";
-            copy_s(v[1], e->project.seg_direction[sg] == MELLO_SEG_FWD ? "FWD" : "REV");
-            l[2] = "MODE";
-            copy_s(v[2], e->project.seg_mode[sg] == MELLO_SEG_LINEAR     ? "LIN"
-                         : e->project.seg_mode[sg] == MELLO_SEG_PINGPONG ? "P-P"
-                                                                         : "RND");
-            l[3] = "SKIP";
-            copy_s(v[3], e->project.seg_skip[sg] ? "ON" : "OFF");
-        } else {
-            l[0] = "COUNT";
-            value_u(v[0], "", e->project.seg_count);
-            l[1] = "SPLIT";
-            if (sg > 0u)
-                value_u(v[1], "", e->project.seg_splits[sg - 1u]);
-            else
-                copy_s(v[1], "START");
-            l[2] = "REPEAT";
-            value_u(v[2], "", e->project.seg_repeats[sg]);
-            l[3] = "SKIP";
-            copy_s(v[3], e->project.seg_skip[sg] ? "ON" : "OFF");
-        }
+        static const char *order[4] = {"FWD", "REV", "P-P", "RND"};
+        uint8_t b[MELLO_MAX_SEGMENTS + 1u], sc = mello_segment_bounds(&e->project, b),
+                sg = ui->selected_segment < sc ? ui->selected_segment : 0u;
+        l[0] = "REPEAT";
+        value_u(v[0], "", e->project.seg_repeats[sg]);
+        l[1] = "ORDER";
+        copy_s(v[1], e->project.seg_mode[sg] == MELLO_SEG_PINGPONG && e->project.seg_direction[sg] == MELLO_SEG_REV
+                         ? "P-P R"
+                         : order[segment_order(&e->project, sg)]);
+        l[2] = "SKIP";
+        copy_s(v[2], e->project.seg_skip[sg] ? "ON" : "OFF");
+        l[3] = "LENGTH";
+        value_u(v[3], "", (uint32_t)(b[sg + 1u] - b[sg]));
         break;
     }
     case MELLO_UI_SEQ_LOOP: {
@@ -4809,8 +4854,7 @@ static const char *domain_name(const MelloUi *ui)
 /* The name of the layer SELECT shows on the current page, or 0 where a page has none. */
 static const char *layer_name(const MelloUi *ui)
 {
-    static const char *step[4] = {"TRIG", "NOTE", "FLAGS", "SEQ"}, *seg[2] = {"PLAY", "STRUCT"},
-                      *loop[3] = {"STEP", "HARM", "LOOP"}, *slots[2] = {"LOAD", "RENAME"},
+    static const char *step[4] = {"TRIG", "NOTE", "FLAGS", "SEQ"}, *loop[3] = {"STEP", "HARM", "LOOP"}, *slots[2] = {"LOAD", "RENAME"},
                       *dot[5] = {"ACCENT", "MOD 1", "RATCHET", "SUB", "MOD 2"},
                       *dsh[2] = {"MOD 1 SHAPE", "MOD 2 SHAPE"}, *tm[4] = {"MAIN", "ROUTES", "DEPTH", "SOUND"},
                       *sub[5] = {"TRIG", "5-SEQ", "STEP", "VOICE", "TONE"}, *glo[2] = {"CLOCK", "MIDI"},
@@ -4820,7 +4864,6 @@ static const char *layer_name(const MelloUi *ui)
                       *smp[4] = {"SAMPLE MAIN", "SAMPLE PITCH", "TRIM / LOOP", "ENVELOPE"};
     switch (ui->page) {
     case MELLO_UI_SEQ_STEP: return step[ui->step_subpage % 4u];
-    case MELLO_UI_SEQ_SEGMENT: return seg[ui->segment_subpage % 2u];
     case MELLO_UI_SEQ_LOOP: return loop[ui->loop_subpage % 3u];
     case MELLO_UI_SLOTS: return slots[ui->slots_subpage % 2u];
     case MELLO_UI_RANDOM: return ui->random_edit ? "EDIT" : (ui->random_links ? "LINKS" : "MASK");
@@ -4971,7 +5014,13 @@ static uint32_t calc_key_leds(MelloUi *ui)
         uint8_t p = (uint8_t)(ui->selected_step % 16u);
         if (ui->selected_step / 16u == ui->step_bank) mask |= bit_u32(white_key_notes[p]);
     } else if (ui->page == MELLO_UI_SEQ_SEGMENT) {
-        if (ui->selected_segment < 6u) mask |= bit_u32(white_key_notes[ui->selected_segment]);
+        /* where each segment starts, lit; the playhead flips its key */
+        uint8_t base = (uint8_t)(ui->step_bank * 16u), at = ui->transport->display_step, b[MELLO_MAX_SEGMENTS + 1u],
+                sc = mello_segment_bounds(&e->project, b);
+        for (i = 0u; i < sc; ++i)
+            if (b[i] >= base && b[i] < base + 16u) mask |= bit_u32(white_key_notes[b[i] - base]);
+        if (ui->transport->running && at >= base && at < base + 16u)
+            mask ^= bit_u32(white_key_notes[at - base]);
     } else if (ui->page == MELLO_UI_SEQ_LOOP) {
         mask |= bit_u32(white_key_notes[ui->selected_loop_step]);
     } else if (ui->page == MELLO_UI_SEQ_SLOTSEQ) {

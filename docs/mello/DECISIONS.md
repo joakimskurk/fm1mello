@@ -192,6 +192,28 @@ A splash/boot identity screen is required before final product-polish acceptance
   - Saved in SEC_MOD (40 bytes a working pattern or slot, only when it differs from the defaults). MOD 1's amount
     stays in SEC_WORKING / SEC_SLOTS with the HTML's meaning (1000 = depth 240); SEC_MOD carries the exact depth.
 
+## Segments made easy (2026-10-30)
+
+The HTML sets segments with a count and absolute split steps, each split only from the segment it starts, and its
+splits start at 8, 10, 12, 14, 15: a second segment is 8 + 8, a fourth 8 + 2 + 2 + 4. On the FM-1 that was two layers
+(PLAY, STRUCT) with REPEAT and SKIP on both, and hard to follow. The FM-1 departs from it on the SEGMENT page only; the
+project's fields, the engine's playing and the stored format are the HTML's.
+
+- Where: the white keys are the steps (as on HOME and STEP, in the step bank). A key cuts: a segment starts at that step,
+  the new half with the old one's settings, and is picked. Where one starts already, it joins the one before, which
+  keeps its settings. Step 1 never cuts; a seventh segment is not made (the key picks the segment the step is in).
+  The keys are lit where segments start, the playhead flips its key.
+- Which: B0-B5 pick A-F (dim where there is none); B7 EVEN spreads the segments as near equal as they go.
+- What, one layer: K1 REPEAT 1-4, K2 ORDER (the HTML's DIR and MODE in one: FWD, REV, P-P, RND; a P-P backwards from
+  the HTML still plays and shows as P-P R), K3 SKIP, K4 LENGTH: the segment's end moves, the ones after keep their
+  lengths as far as the sequence lets them, the last giving way; the last segment's LENGTH moves its start.
+- LEN: a new sequence length scales the segments with it (16 to 8 steps: 4 x 4 becomes 4 x 2), where the HTML clamps
+  them at the end.
+- The picture: each segment's letter, and its order where it is not forwards (<, <>, ?), over its steps; a white cut
+  where one starts; a skipped one struck through in red; under them a pill each with letter, length and x repeats.
+- A new project has four segments of four, once forward each (the HTML has one of sixteen): it plays the same, and is
+  ready to change. Projects saved before keep theirs.
+
 ## SUB DRONE (2026-10-30)
 
 A fifth sub mode, after TM: the sub as a drone, sounding from START to STOP. The engine sends one SUB NOTE ON at the

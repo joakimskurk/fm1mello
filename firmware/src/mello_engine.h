@@ -776,6 +776,19 @@ typedef struct {
 } MelloEngine;
 
 void mello_project_defaults(MelloProject *project);
+/* Segments, as the SEGMENT page edits them. Each works on the segments as they play (the splits clamped to the
+ * sequence) and writes them back in order. bounds[] gets each segment's first step and, last, seq_len. */
+uint8_t mello_segment_bounds(const MelloProject *project, uint8_t bounds[MELLO_MAX_SEGMENTS + 1u]);
+/* A segment starts at step (it is cut in two, the new half like the old), or, where one already starts, it joins the
+ * one before. Returns the segment that now holds step, or -1 when nothing changed (step 1, a seventh segment). */
+int8_t mello_segment_toggle_start(MelloProject *project, uint8_t step);
+/* The sequence in seg_count segments as near equal as they go (16 in 3: 5, 5, 6). */
+void mello_segment_even(MelloProject *project);
+/* Segment seg is len steps long; the ones after it keep their lengths as far as the sequence lets them (the last gives
+ * way). The last segment's length moves its start. */
+void mello_segment_set_length(MelloProject *project, uint8_t seg, uint8_t len);
+/* seq_len went from old_len to what it is now: the segments keep their proportions. */
+void mello_segment_rescale(MelloProject *project, uint8_t old_len);
 void mello_loop_cycle_defaults(MelloLoopCycleConfig *config);
 uint8_t mello_loop_cycle_sub_tone(const MelloLoopCycleStep *step);
 int8_t mello_loop_cycle_sub_transpose(const MelloLoopCycleStep *step);

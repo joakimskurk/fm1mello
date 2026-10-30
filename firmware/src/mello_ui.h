@@ -106,7 +106,7 @@ typedef struct {
     MelloUiPage page;
 
     uint8_t step_subpage;    /* TRIG, NOTE, FLAGS, SEQ */
-    uint8_t segment_subpage; /* PLAY, STRUCT */
+    uint8_t segment_subpage; /* always 0: SEGMENT has one layer */
     uint8_t loop_subpage;    /* STEP, HARM, LOOP */
     uint8_t slots_subpage;   /* LOAD, NAME */
     uint8_t tm_subpage;      /* MAIN, ROUTES, DEPTH */

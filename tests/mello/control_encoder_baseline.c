@@ -13,7 +13,7 @@ typedef struct {
 static const LayerCase cases[] = {
     L("HOME", MELLO_UI_HOME, 1u),
     L("STEP", MELLO_UI_SEQ_STEP, 4u),
-    L("SEGMENT", MELLO_UI_SEQ_SEGMENT, 2u),
+    L("SEGMENT", MELLO_UI_SEQ_SEGMENT, 1u),
     L("LOOP", MELLO_UI_SEQ_LOOP, 3u),
     L("SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, 1u),
     L("RANDOM", MELLO_UI_RANDOM, 1u),

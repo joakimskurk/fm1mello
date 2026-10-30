@@ -89,14 +89,16 @@ int main(void)
     enc(&ui, MELLO_UI_ENC_KNOB4, +1);
     if (ui.step_bank != 0u || t.engine.project.pitch_span_oct <= before) return 6;
 
-    /* SEGMENT selected index stays on keys; STRUCT K3 edits repeats. */
+    /* SEGMENT: a step key cuts there and picks the new segment (A 1, B 2-4, C 5-8, D 9-16); K1 edits its repeats. */
     t.engine.project.seg_count = 3u;
-    ui.segment_subpage = 1u;
+    t.engine.project.seg_splits[0] = 4u;
+    t.engine.project.seg_splits[1] = 8u;
     mello_ui_set_page(&ui, MELLO_UI_SEQ_SEGMENT);
     key(&ui, 1u);
-    if (ui.selected_segment != 1u) return 7;
+    if (ui.selected_segment != 1u || t.engine.project.seg_count != 4u || t.engine.project.seg_splits[0] != 1u)
+        return 7;
     before = t.engine.project.seg_repeats[1];
-    enc(&ui, MELLO_UI_ENC_KNOB3, +1);
+    enc(&ui, MELLO_UI_ENC_KNOB1, +1);
     if (ui.selected_segment != 1u || t.engine.project.seg_repeats[1] <= before) return 8;
 
     /* LOOP CYCLE is direct 1-8 key selection. SELECT walks STEP/HARM/LOOP. */

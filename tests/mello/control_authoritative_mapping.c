@@ -15,7 +15,7 @@ typedef struct {
 static const MapCase cases[] = {
     {"HOME", MELLO_UI_HOME, "B0:- B1:+ B2:MUT B3:FL B4:SB B5:<< B6:RP B7:|< B8:CL B9:UNDO B10:RNDMZR"},
     {"STEP", MELLO_UI_SEQ_STEP, "B4:SKIP B9:UNDO B10:RNDMZR"},
-    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B9:UNDO B10:RNDMZR"},
+    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B0:A B1:B B2:C B3:D B4:E B5:F B7:EVEN B9:UNDO B10:RNDMZR"},
     {"LOOP", MELLO_UI_SEQ_LOOP, "B2:RST B9:UNDO B10:RNDMZR"},
     {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B9:UNDO B10:RNDMZR"},
     {"RANDOM", MELLO_UI_RANDOM, "B1:NONE B2:ALL B3:CLR2 B9:UNDO B10:RNDMZR"},
@@ -180,9 +180,9 @@ static void verify_every_page_and_inactive_slot(void)
         }
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if (active != 60u) die("MAP", "active slot count != 60 with Chord");
+    if (active != 67u) die("MAP", "active slot count != 67 with Chord");
 #else
-    if (active != 57u) die("MAP", "active slot count != 57 without Chord");
+    if (active != 64u) die("MAP", "active slot count != 64 without Chord");
 #endif
     printf("C5 MAP COVERAGE: pages=%u active=%u inactive=%u\n", (unsigned)(sizeof(cases) / sizeof(cases[0])),
            active, inactive);
