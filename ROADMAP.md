@@ -24,6 +24,8 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
 - [ ] **Noise too strong**: noise is too much from 20-30%, noise FM usable only up to ~15%; rescale both so the whole
       knob is usable, and a low cut on the noise so it does not fill the low register.
 - [ ] **SUB: a DRONE mode**: the sub always on while playing.
+- [ ] **Segments are confusing and hard to adjust**: work deep on making them easy (how they are set, seen and played).
+      A new project starts with 3 or 4 segments, no repeats (decide which).
 
 ## Phase 0: clean ground (done in this repo)
 
