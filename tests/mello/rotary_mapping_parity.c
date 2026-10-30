@@ -81,6 +81,7 @@ static void set_subpage(MelloUi *u, const Case *c)
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD: u->chord_subpage = c->subpage; break;
 #endif
+    case MELLO_UI_DRUMS: u->drum_subpage = c->subpage; break;
     case MELLO_UI_GLOBAL: u->global_subpage = c->subpage; break;
     case MELLO_UI_SOUND_RESERVED: u->sound_subpage = c->subpage; break;
     case MELLO_UI_AUDIO_FX: u->fx_subpage = c->subpage; break;
@@ -187,7 +188,11 @@ static const Case cases[] = {
     C("SAMPLE MAIN", MELLO_UI_SAMPLE_RESERVED, 0, 15, 0, "LEVEL", "DIST", "TRACK", "LOOP"),
     C("SAMPLE PITCH", MELLO_UI_SAMPLE_RESERVED, 1, 15, 0, "COARSE", "FINE", "LEVEL", "DIST"),
     C("SAMPLE TRIM", MELLO_UI_SAMPLE_RESERVED, 2, 15, 0, "START", "END", "TRACK", "LOOP"),
-    C("SAMPLE ENV", MELLO_UI_SAMPLE_RESERVED, 3, 15, 0, "ATK", "DEC", "SUS", "REL")};
+    C("SAMPLE ENV", MELLO_UI_SAMPLE_RESERVED, 3, 15, 0, "ATK", "DEC", "SUS", "REL"),
+    C("DRUMS VOICE", MELLO_UI_DRUMS, 0, 15, 0, "TUNE", "DECAY", "TONE", "LEVEL"),
+    C("DRUMS STEP", MELLO_UI_DRUMS, 1, 15, 0, "PITCH", "DECAY", "CRUSH", "RATCH"),
+    C("DRUMS VARY", MELLO_UI_DRUMS, 2, 15, 0, "CHANCE", "CRUSH", "SWING", "ROLL"),
+    C("DRUMS KIT", MELLO_UI_DRUMS, 3, 15, 0, "LENGTH", "FOLLOW", "SPACE", "LEVEL")};
 
 int main(void)
 {

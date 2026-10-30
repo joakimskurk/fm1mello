@@ -117,15 +117,16 @@ static int subcount(MelloUiPage p)
     case MELLO_UI_SEQ_SEGMENT: return 2;
     case MELLO_UI_SEQ_LOOP: return 3;
     case MELLO_UI_SLOTS: return 2;
-    case MELLO_UI_TURING: return 3;
+    case MELLO_UI_TURING: return 4;
     case MELLO_UI_SUB: return 5;
 #if MELLO_FEATURE_CHORD_MACHINE
-    case MELLO_UI_CHORD: return 5;
+    case MELLO_UI_CHORD: return 9;
 #endif
     case MELLO_UI_GLOBAL: return 2;
-    case MELLO_UI_SOUND_RESERVED: return 5;
+    case MELLO_UI_SOUND_RESERVED: return 10;
     case MELLO_UI_AUDIO_FX: return 5;
     case MELLO_UI_SAMPLE_RESERVED: return 4;
+    case MELLO_UI_DRUMS: return 4;
     default: return 1;
     }
 }
@@ -145,6 +146,7 @@ static void set_fixture(MelloUi *ui, MelloUiPage page, int sub)
     ui->sound_subpage = 0u;
     ui->fx_subpage = 0u;
     ui->sample_subpage = 0u;
+    ui->drum_subpage = 0u;
     mello_ui_set_page(ui, page);
     switch (page) {
     case MELLO_UI_SEQ_STEP: ui->step_subpage = (uint8_t)sub; break;
@@ -160,6 +162,7 @@ static void set_fixture(MelloUi *ui, MelloUiPage page, int sub)
     case MELLO_UI_SOUND_RESERVED: ui->sound_subpage = (uint8_t)sub; break;
     case MELLO_UI_AUDIO_FX: ui->fx_subpage = (uint8_t)sub; break;
     case MELLO_UI_SAMPLE_RESERVED: ui->sample_subpage = (uint8_t)sub; break;
+    case MELLO_UI_DRUMS: ui->drum_subpage = (uint8_t)sub; break;
     default: break;
     }
 }
@@ -295,7 +298,7 @@ int main(void)
     int page, sub, dir, variant, variants;
     memset(&audit, 0, sizeof(audit));
 
-    for (page = MELLO_UI_HOME; page <= MELLO_UI_SAMPLE_RESERVED; ++page) {
+    for (page = MELLO_UI_HOME; page <= MELLO_UI_DRUMS; ++page) {
         for (sub = 0; sub < subcount((MelloUiPage)page); ++sub) {
             variants = page == MELLO_UI_DOT ? 4 : page == MELLO_UI_RANDOM ? 3 : 1;
             for (variant = 0; variant < variants; ++variant)

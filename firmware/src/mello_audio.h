@@ -137,6 +137,20 @@ typedef struct {
 } MelloAudioChordVoice;
 #endif
 
+/* A drum voice (DRUMS): one hit at a time, retriggered by the next. */
+typedef struct {
+    uint8_t on;
+    int32_t env;          /* Q24, falls by k a sample (one-pole, to -60 dB in the hit's decay) */
+    int32_t k;
+    int32_t penv, pk;     /* a second, faster envelope: the kick's pitch, the snare's body, the glitch's FM index */
+    uint32_t phase, inc;  /* the tone (kick, snare body, hat square, glitch carrier) */
+    uint32_t phase2, inc2; /* the second (snare body, hat square, glitch modulator) */
+    int32_t gain;         /* Q15: LEVEL and the hit's velocity */
+    int32_t hp1, hp2, x1; /* noise filters */
+    uint8_t hold, hold_n; /* CRUSH: sample and hold, and the bits kept */
+    int32_t held, mask;
+} MelloAudioDrumVoice;
+
 typedef struct {
     bool active;
     bool gate;
@@ -179,6 +193,10 @@ typedef struct {
 #if MELLO_FEATURE_CHORD_MACHINE
     MelloChordConfig pending_chord_config;
 #endif
+    MelloDrumConfig drum_config;
+    MelloDrumConfig pending_drum_config;
+    MelloAudioDrumVoice drum[MELLO_DRUM_VOICES];
+    uint32_t drum_noise;
     volatile uint32_t config_generation;
     uint32_t applied_generation;
 
@@ -296,6 +314,7 @@ void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *sound, const 
 #if MELLO_FEATURE_CHORD_MACHINE
 void mello_audio_set_chord_config(MelloAudio *a, const MelloChordConfig *chord);
 #endif
+void mello_audio_set_drum_config(MelloAudio *a, const MelloDrumConfig *drums);
 void mello_audio_attach_sample_bank(MelloAudio *a, MelloSampleBank *bank);
 bool mello_audio_push_engine_event(MelloAudio *a, const MelloEvent *event, uint32_t due_us);
 void mello_audio_event_sink(void *ctx, const MelloEvent *event, uint32_t due_us);

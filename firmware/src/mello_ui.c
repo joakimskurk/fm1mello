@@ -185,6 +185,7 @@ static uint8_t page_button(MelloUi *ui)
     case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? MELLO_UI_BTN_LFO : MELLO_UI_BTN_ENV;
     case MELLO_UI_AUDIO_FX: return MELLO_UI_BTN_FX;
     case MELLO_UI_SAMPLE_RESERVED: return MELLO_UI_BTN_GLO;
+    case MELLO_UI_DRUMS: return MELLO_UI_BTN_ARP;
     case MELLO_UI_HOME:
     default: return MELLO_UI_BTN_HOME;
     }
@@ -211,6 +212,7 @@ const char *mello_ui_page_name(MelloUiPage page)
     case MELLO_UI_SOUND_RESERVED: return "SOUND";
     case MELLO_UI_AUDIO_FX: return "AUDIO FX";
     case MELLO_UI_SAMPLE_RESERVED: return "SAMPLE";
+    case MELLO_UI_DRUMS: return "DRUMS";
     default: return "MELLO";
     }
 }
@@ -272,7 +274,7 @@ void mello_ui_attach_sample_bank(MelloUi *ui, MelloSampleBank *bank)
 void mello_ui_set_page(MelloUi *ui, MelloUiPage page)
 {
     if (!ui) return;
-    if (page > MELLO_UI_SAMPLE_RESERVED) page = MELLO_UI_HOME;
+    if (page > MELLO_UI_DRUMS) page = MELLO_UI_HOME;
     if (ui->page == page) return;
     ui->page = page;
     ui->readout = 0u; /* it belonged to the old page */
@@ -302,6 +304,7 @@ static void open_page(MelloUi *ui, MelloUiPage page)
     case MELLO_UI_SOUND_RESERVED: ui->sound_subpage = 0u; break;
     case MELLO_UI_AUDIO_FX: ui->fx_subpage = 0u; break;
     case MELLO_UI_SAMPLE_RESERVED: ui->sample_subpage = 0u; break;
+    case MELLO_UI_DRUMS: ui->drum_subpage = 0u; break;
     default: break;
     }
     mello_ui_set_page(ui, page);
@@ -501,6 +504,14 @@ typedef enum {
     MELLO_CTX_SEG_E,
     MELLO_CTX_SEG_F,
     MELLO_CTX_SEG_EVEN, /* the segments as near equal as they go */
+    MELLO_CTX_DRUM_KICK, /* DRUMS: B0-B3 pick the voice (keep the four in order) */
+    MELLO_CTX_DRUM_SNARE,
+    MELLO_CTX_DRUM_HAT,
+    MELLO_CTX_DRUM_GLITCH,
+    MELLO_CTX_DRUM_ON,
+    MELLO_CTX_DRUM_ACCENT, /* the selected step's accent */
+    MELLO_CTX_DRUM_ROLL,   /* roll the drums (undoable) */
+    MELLO_CTX_DRUM_FEED,   /* RNDMZR rolls the drums too */
     MELLO_CTX_SAMPLE_TOGGLE,
     MELLO_CTX_HOME_RANDOM, /* reroll now, at the intensity ALGORITHM sets */
     MELLO_CTX_RNDMZR,      /* every page's B10, the last: tap = reroll (undoable), hold = the RANDOM page */
@@ -522,7 +533,7 @@ typedef struct {
 
 /* WP-C5 authoritative contextual-action mapping. The physical B0-B10 slot,
  * rendered label and handler verb are defined together here. */
-static const MelloContextAction context_actions[MELLO_UI_SAMPLE_RESERVED + 1u][11] = {
+static const MelloContextAction context_actions[MELLO_UI_DRUMS + 1u][11] = {
     /* HOME (UI_ICEBERG.md): transpose and MUTATE; FILL, SUB MUTE; REVERSE, REPEAT, RESTART; CLR2, UNDO; RNDMZR.
      * Short labels so all eleven fit; the strip says a held key's full name (draw_control_hint). */
     [MELLO_UI_HOME] = {[0] = {MELLO_CTX_TRANSPOSE_DOWN, "-"},
@@ -587,13 +598,23 @@ static const MelloContextAction context_actions[MELLO_UI_SAMPLE_RESERVED + 1u][1
                                  [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                                  [9] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_AUDIO_FX] = {[10] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [9] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_DRUMS] = {[0] = {MELLO_CTX_DRUM_KICK, "K"},
+                        [1] = {MELLO_CTX_DRUM_SNARE, "S"},
+                        [2] = {MELLO_CTX_DRUM_HAT, "H"},
+                        [3] = {MELLO_CTX_DRUM_GLITCH, "G"},
+                        [4] = {MELLO_CTX_DRUM_ON, "ON"},
+                        [5] = {MELLO_CTX_DRUM_ACCENT, "ACC"},
+                        [6] = {MELLO_CTX_DRUM_ROLL, "ROLL"},
+                        [7] = {MELLO_CTX_DRUM_FEED, "FEED"},
+                        [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                        [9] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_SAMPLE_RESERVED] = {[0] = {MELLO_CTX_SAMPLE_TOGGLE, "ON"},
                                   [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                                   [9] = {MELLO_CTX_UNDO, "UNDO"}}};
 
 static const MelloContextAction *context_action(MelloUiPage page, uint8_t slot)
 {
-    if ((uint32_t)page > (uint32_t)MELLO_UI_SAMPLE_RESERVED || slot >= 11u) return 0;
+    if ((uint32_t)page > (uint32_t)MELLO_UI_DRUMS || slot >= 11u) return 0;
     return &context_actions[(uint32_t)page][slot];
 }
 
@@ -852,6 +873,15 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         }
         break;
 #endif
+    case MELLO_UI_DRUMS:
+        if ((uint8_t)w < MELLO_DRUM_STEPS) { /* a step key: the voice's hit there on or off, and that step picked */
+            MelloDrumConfig d = e->drums;
+            d.hits[ui->selected_drum_voice % MELLO_DRUM_VOICES] ^= (uint16_t)(1u << (uint8_t)w);
+            ui->selected_drum_step = (uint8_t)w;
+            mello_engine_drums_set_config(e, &d);
+            mark_edit(ui);
+        }
+        break;
     case MELLO_UI_SAMPLE_RESERVED:
         if ((uint8_t)w < MELLO_SAMPLE_SLOT_COUNT) {
             MelloSampleConfig c = e->sample;
@@ -1370,6 +1400,41 @@ static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
 }
 #endif
 
+/* DRUMS' layers: VOICE (the voice picked), STEP (its step picked), VARY, KIT. */
+#define DRUM_LAYERS 4u
+static void adjust_drums(MelloUi *ui, uint8_t knob, int16_t delta)
+{
+    MelloEngine *e = eng(ui);
+    MelloDrumConfig d;
+    MelloDrumVoice *v;
+    MelloDrumLock *l;
+    if (!e || !delta) return;
+    d = e->drums;
+    v = &d.voice[ui->selected_drum_voice % MELLO_DRUM_VOICES];
+    l = &d.lock[ui->selected_drum_voice % MELLO_DRUM_VOICES][ui->selected_drum_step % MELLO_DRUM_STEPS];
+    switch ((ui->drum_subpage % DRUM_LAYERS) * 4u + knob) {
+    case 0: v->tune = (uint16_t)clamp_i32((int32_t)v->tune + delta * 10, 0, 1000); break;
+    case 1: v->decay = (uint16_t)clamp_i32((int32_t)v->decay + delta * 10, 0, 1000); break;
+    case 2: v->tone = (uint16_t)clamp_i32((int32_t)v->tone + delta * 10, 0, 1000); break;
+    case 3: v->level = (uint16_t)clamp_i32((int32_t)v->level + delta * 10, 0, 1000); break;
+    case 4: l->pitch = (int8_t)clamp_i32((int32_t)l->pitch + delta, -24, 24); break;
+    case 5: l->decay = (int8_t)clamp_i32((int32_t)l->decay + delta * 5, -100, 100); break;
+    case 6: l->crush = (uint8_t)clamp_i32((int32_t)l->crush + delta * 5, 0, 100); break;
+    case 7: l->ratchet = (uint8_t)clamp_i32((int32_t)l->ratchet + delta, 1, 4); break;
+    case 8: v->chance = (uint16_t)clamp_i32((int32_t)v->chance + delta * 10, 0, 1000); break;
+    case 9: v->crush = (uint16_t)clamp_i32((int32_t)v->crush + delta * 10, 0, 1000); break;
+    case 10: d.swing = (uint16_t)clamp_i32((int32_t)d.swing + delta * 10, 0, 1000); break;
+    case 11: d.roll = (uint16_t)clamp_i32((int32_t)d.roll + delta * 10, 0, 1000); break;
+    case 12: d.length = (uint8_t)clamp_i32((int32_t)d.length + delta, 1, MELLO_DRUM_STEPS); break;
+    case 13: d.follow = delta > 0; break;
+    case 14: d.space = (uint16_t)clamp_i32((int32_t)d.space + delta * 10, 0, 1000); break;
+    case 15: d.level = (uint16_t)clamp_i32((int32_t)d.level + delta * 10, 0, 1000); break;
+    default: return;
+    }
+    mello_engine_drums_set_config(e, &d);
+    mark_edit(ui);
+}
+
 static void adjust_sound(MelloUi *ui, uint8_t knob, int16_t delta)
 {
     MelloEngine *e = eng(ui);
@@ -1678,6 +1743,9 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
     case MELLO_UI_GLOBAL:
         ui->global_subpage = wrap_u8((int32_t)ui->global_subpage + (delta > 0 ? 1 : -1), 2u);
         break;
+    case MELLO_UI_DRUMS:
+        ui->drum_subpage = wrap_u8((int32_t)ui->drum_subpage + (delta > 0 ? 1 : -1), DRUM_LAYERS);
+        break;
     case MELLO_UI_SOUND_RESERVED:
         /* OSC, OSC 2, CHARACTER, GRIT, MOD ENV, AMP ENV, FOLLOWER, LEVEL: the LFO (subpage 2) is MOD's, reached
          * with the LFO button. Phase 5's layers (subpages 5-8) came later and sit after OSC, before the HTML's. */
@@ -1846,6 +1914,7 @@ static void adjust_knobs(MelloUi *ui, const int16_t enc_in[MELLO_UI_ENCODER_COUN
         case MELLO_UI_SOUND_RESERVED: adjust_sound(ui, k, d); break;
         case MELLO_UI_AUDIO_FX: adjust_audio_fx(ui, k, d); break;
         case MELLO_UI_SAMPLE_RESERVED: adjust_sample(ui, k, d); break;
+        case MELLO_UI_DRUMS: adjust_drums(ui, k, d); break;
         default: break;
         }
         if (ui->dirty) show_readout(ui, (uint8_t)(k + 1u), now_ms);
@@ -1952,6 +2021,35 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         mark_edit(ui);
         break;
     }
+    case MELLO_CTX_DRUM_KICK:
+    case MELLO_CTX_DRUM_SNARE:
+    case MELLO_CTX_DRUM_HAT:
+    case MELLO_CTX_DRUM_GLITCH:
+        ui->selected_drum_voice = (uint8_t)(a->verb - MELLO_CTX_DRUM_KICK);
+        mark_edit(ui);
+        break;
+    case MELLO_CTX_DRUM_ON:
+    case MELLO_CTX_DRUM_ACCENT:
+    case MELLO_CTX_DRUM_FEED: {
+        MelloDrumConfig d = e->drums;
+        if (a->verb == MELLO_CTX_DRUM_ON)
+            d.on = !d.on;
+        else if (a->verb == MELLO_CTX_DRUM_FEED)
+            d.feed = !d.feed;
+        else
+            d.accents[ui->selected_drum_voice % MELLO_DRUM_VOICES] ^=
+                (uint16_t)(1u << (ui->selected_drum_step % MELLO_DRUM_STEPS));
+        mello_engine_drums_set_config(e, &d);
+        persistent_dirty(ui, now_ms);
+        mark_edit(ui);
+        break;
+    }
+    case MELLO_CTX_DRUM_ROLL:
+        mello_engine_undo_snapshot(e);
+        mello_engine_drums_roll(e);
+        persistent_dirty(ui, now_ms);
+        mark_edit(ui);
+        break;
     case MELLO_CTX_SEG_EVEN:
         mello_segment_even(&e->project);
         rebuild(ui);
@@ -2206,9 +2304,9 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
             ui->sound_subpage = 2u;
         }
     }
-    if (pressed & bit_u32(MELLO_UI_BTN_ARP)) { /* BASS: SUB -> CHORD -> SUB */
+    if (pressed & bit_u32(MELLO_UI_BTN_ARP)) { /* BASS: SUB -> CHORD -> DRUMS -> SUB */
 #if MELLO_FEATURE_CHORD_MACHINE
-        open_page(ui, ui->page == MELLO_UI_SUB ? MELLO_UI_CHORD : MELLO_UI_SUB);
+        open_page(ui, ui->page == MELLO_UI_SUB ? MELLO_UI_CHORD : ui->page == MELLO_UI_CHORD ? MELLO_UI_DRUMS : MELLO_UI_SUB);
 #else
         if (ui->page == MELLO_UI_SUB) {
             MelloSubConfig c = e->sub;
@@ -2382,6 +2480,7 @@ void mello_ui_tick(MelloUi *ui)
                     ui->seen_chord_grid != e->chord_grid_active_cell ||
                     (ui->page == MELLO_UI_CHORD && ui->seen_chord_lit != ui->transport->display_chord_lit) ||
 #endif
+                    (ui->page == MELLO_UI_DRUMS && ui->seen_drum_step != e->drum_step) ||
                     ui->seen_running != run;
 
     /* Static/edit pages do not depend on the transport cursor. Do not redraw
@@ -2434,6 +2533,7 @@ void mello_ui_tick(MelloUi *ui)
         ui->seen_chord_grid = e->chord_grid_active_cell;
         ui->seen_chord_lit = ui->transport->display_chord_lit;
 #endif
+        ui->seen_drum_step = e->drum_step;
         ui->seen_running = run;
         ui->dirty |= MELLO_UI_DIRTY_STATUS | MELLO_UI_DIRTY_LEDS;
     }
@@ -2737,6 +2837,7 @@ static uint16_t ui_page_accent(MelloUi *ui)
         default: return UI_ACC;
         }
     case MELLO_UI_SAMPLE_RESERVED: return UI_BLUE;
+    case MELLO_UI_DRUMS: return UI_CORAL;
     case MELLO_UI_HOME:
     case MELLO_UI_SEQ_STEP:
         if (e) return ui_segment_colour(ui_segment_for_step(&e->project, ui->selected_step));
@@ -3653,6 +3754,37 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
     case MELLO_UI_GLOBAL: draw_param_panel(ui, o); break;
     case MELLO_UI_SOUND_RESERVED: draw_param_panel(ui, o); break;
     case MELLO_UI_AUDIO_FX: draw_param_panel(ui, o); break;
+    case MELLO_UI_DRUMS: {
+        /* The four voices' rows over the 16 steps, each in its colour: a hit filled (an accent brighter, its rolls as
+         * dots, a step with a lock marked under it), the picked voice's row lit and its picked step framed, the playing
+         * step's column framed, steps past LENGTH dim; then K1-K4. */
+        static const char *names[MELLO_DRUM_VOICES] = {"KICK", "SNARE", "HAT", "GLITCH"};
+        static const uint16_t col[MELLO_DRUM_VOICES] = {UI_CORAL, UI_GOLD, UI_CYAN, UI_PURPLE};
+        const MelloDrumConfig *d = &e->drums;
+        uint8_t vsel = ui->selected_drum_voice % MELLO_DRUM_VOICES, i, v;
+        int8_t at = ui->transport->running && d->on ? e->drum_step : -1;
+        (void)copy_s(copy_s(a, d->on ? "DRUMS  " : "DRUMS OFF  "), names[vsel]);
+        ui_section(ui, o, 32, a, d->on ? col[vsel] : UI_DIM);
+        for (v = 0u; v < MELLO_DRUM_VOICES; ++v)
+            for (i = 0u; i < MELLO_DRUM_STEPS; ++i) {
+                int16_t x = (int16_t)(8 + i * 14u), y = (int16_t)(52 + v * 14u);
+                const MelloDrumLock *lk = &d->lock[v][i];
+                bool hit = (d->hits[v] >> i) & 1u, acc = (d->accents[v] >> i) & 1u, in = i < d->length;
+                uint16_t c = !in       ? UI_PANEL
+                             : hit     ? (acc ? ui_mix(col[v], UI_WHITE, 150) : (v == vsel ? col[v] : ui_mix(col[v], UI_PANEL, 110)))
+                                       : (v == vsel ? UI_TRACK : ui_mix(col[v], UI_PANEL, 225));
+                o->fill(o->ctx, x, y, 12, 12, c);
+                if (hit && lk->ratchet > 1u) {
+                    uint8_t r;
+                    for (r = 0u; r < lk->ratchet; ++r) o->fill(o->ctx, (int16_t)(x + 1 + r * 3), (int16_t)(y + 1), 2, 2, UI_BLACK);
+                }
+                if (hit && (lk->pitch || lk->decay || lk->crush)) o->fill(o->ctx, (int16_t)(x + 3), (int16_t)(y + 9), 6, 2, UI_BLACK);
+                if (v == vsel && i == ui->selected_drum_step) ui_frame(o, x, y, 12, 12, UI_BRIGHT);
+            }
+        if (at >= 0) ui_frame(o, (int16_t)(7 + at * 14), 51, 14, 58, UI_WHITE);
+        draw_knob_grid(ui, o, 118);
+        break;
+    }
     case MELLO_UI_SAMPLE_RESERVED: {
         /* The HTML's SAMPLE LAYER: slots A-D as pills (filled = loaded), the layer's state; the trim as a bar with
          * gold edges (PITCH adds the transpose mark), or the envelope's curve; then K1-K4. */
@@ -3738,6 +3870,17 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_PERF_SUB_MUTE: return e->perf.sub_mute ? 1 : 0;
     case MELLO_CTX_PERF_REVERSE: return e->perf.reverse ? 1 : 0;
     case MELLO_CTX_PERF_REPEAT: return e->perf.repeat ? 1 : 0;
+    case MELLO_CTX_DRUM_KICK:
+    case MELLO_CTX_DRUM_SNARE:
+    case MELLO_CTX_DRUM_HAT:
+    case MELLO_CTX_DRUM_GLITCH: return (uint8_t)(v - MELLO_CTX_DRUM_KICK) == ui->selected_drum_voice ? 1 : -1;
+    case MELLO_CTX_DRUM_ON: return e->drums.on ? 1 : 0;
+    case MELLO_CTX_DRUM_FEED: return e->drums.feed ? 1 : 0;
+    case MELLO_CTX_DRUM_ACCENT:
+        return (e->drums.accents[ui->selected_drum_voice % MELLO_DRUM_VOICES] >>
+                (ui->selected_drum_step % MELLO_DRUM_STEPS)) & 1u
+                   ? 1
+                   : 0;
     case MELLO_CTX_SEG_A:
     case MELLO_CTX_SEG_B:
     case MELLO_CTX_SEG_C:
@@ -4066,6 +4209,29 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         default: return false;
         }
 #endif
+    } else if (ui->page == MELLO_UI_DRUMS) {
+        const MelloDrumConfig *d = &e->drums;
+        const MelloDrumVoice *dv = &d->voice[ui->selected_drum_voice % MELLO_DRUM_VOICES];
+        const MelloDrumLock *dl =
+            &d->lock[ui->selected_drum_voice % MELLO_DRUM_VOICES][ui->selected_drum_step % MELLO_DRUM_STEPS];
+        switch ((ui->drum_subpage % DRUM_LAYERS) * 4u + k) {
+        case 0: v = dv->tune; break;
+        case 1: v = dv->decay; break;
+        case 2: v = dv->tone; break;
+        case 3: v = dv->level; break;
+        case 4: v = (uint32_t)(dl->pitch + 24), m = 48u; break;
+        case 5: v = (uint32_t)(dl->decay + 100), m = 200u; break;
+        case 6: v = dl->crush, m = 100u; break;
+        case 7: v = dl->ratchet - 1u, m = 3u; break;
+        case 8: v = dv->chance; break;
+        case 9: v = dv->crush; break;
+        case 10: v = d->swing; break;
+        case 11: v = d->roll; break;
+        case 12: v = d->length - 1u, m = 15u; break;
+        case 14: v = d->space; break;
+        case 15: v = d->level; break;
+        default: return false;
+        }
     } else if (ui->page == MELLO_UI_SAMPLE_RESERVED) {
         const MelloSampleSlotConfig *sl = &e->sample.slots[e->sample.edit_slot % MELLO_SAMPLE_SLOT_COUNT];
         switch (ui->sample_subpage * 4u + k) {
@@ -4643,6 +4809,40 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[3], "-");
         }
         break;
+    case MELLO_UI_DRUMS: {
+        static const char *lab[DRUM_LAYERS][4] = {{"TUNE", "DECAY", "TONE", "LEVEL"},
+                                                  {"PITCH", "DECAY", "CRUSH", "RATCH"},
+                                                  {"CHANCE", "CRUSH", "SWING", "ROLL"},
+                                                  {"LENGTH", "FOLLOW", "SPACE", "LEVEL"}};
+        const MelloDrumConfig *d = &e->drums;
+        const MelloDrumVoice *dv = &d->voice[ui->selected_drum_voice % MELLO_DRUM_VOICES];
+        const MelloDrumLock *dl =
+            &d->lock[ui->selected_drum_voice % MELLO_DRUM_VOICES][ui->selected_drum_step % MELLO_DRUM_STEPS];
+        uint8_t L = ui->drum_subpage % DRUM_LAYERS;
+        for (k = 0u; k < 4u; ++k) l[k] = lab[L][k];
+        if (L == 0u) {
+            value_pct(v[0], dv->tune);
+            value_pct(v[1], dv->decay);
+            value_pct(v[2], dv->tone);
+            value_pct(v[3], dv->level);
+        } else if (L == 1u) {
+            value_i(v[0], "", dl->pitch);
+            value_i(v[1], "", dl->decay);
+            value_u(v[2], "", dl->crush);
+            value_u(v[3], "", dl->ratchet);
+        } else if (L == 2u) {
+            value_pct(v[0], dv->chance);
+            value_pct(v[1], dv->crush);
+            value_pct(v[2], d->swing);
+            value_pct(v[3], d->roll);
+        } else {
+            value_u(v[0], "", d->length);
+            copy_s(v[1], d->follow ? "ON" : "OFF");
+            value_pct(v[2], d->space);
+            value_pct(v[3], d->level);
+        }
+        break;
+    }
     case MELLO_UI_SAMPLE_RESERVED: {
         MelloSampleSlotConfig *sl =
             &e->sample.slots[e->sample.edit_slot < MELLO_SAMPLE_SLOT_COUNT ? e->sample.edit_slot : 0u];
@@ -4958,6 +5158,10 @@ static const char *layer_name(const MelloUi *ui)
         return chd[ui->chord_subpage % CHORD_LAYERS];
     }
 #endif
+    case MELLO_UI_DRUMS: {
+        static const char *drm[DRUM_LAYERS] = {"VOICE", "STEP", "VARY", "KIT"};
+        return drm[ui->drum_subpage % DRUM_LAYERS];
+    }
     case MELLO_UI_HOME: return ui->held_step == MELLO_UI_NO_STEP ? 0 : "HELD STEP";
     default: return 0;
     }
@@ -5143,6 +5347,13 @@ static uint32_t calc_key_leds(MelloUi *ui)
             if (ui->selected_chord_step < 16u) mask |= bit_u32(white_key_notes[ui->selected_chord_step]);
         }
 #endif
+    } else if (ui->page == MELLO_UI_DRUMS) {
+        /* the picked voice's hits lit; the drums' playhead flips its key */
+        uint16_t h = e->drums.hits[ui->selected_drum_voice % MELLO_DRUM_VOICES];
+        for (i = 0u; i < e->drums.length; ++i)
+            if (h & (1u << i)) mask |= bit_u32(white_key_notes[i]);
+        if (ui->transport->running && e->drums.on && e->drum_step >= 0)
+            mask ^= bit_u32(white_key_notes[(uint8_t)e->drum_step]);
     } else if (ui->page == MELLO_UI_SAMPLE_RESERVED) {
         for (i = 0u; i < MELLO_SAMPLE_SLOT_COUNT; ++i)
             if (ui->sample_bank && ui->sample_bank->meta[i].loaded) mask |= bit_u32(white_key_notes[i]);

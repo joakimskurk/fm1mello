@@ -456,6 +456,40 @@ typedef struct {
     MelloSubXStep x_steps[MELLO_SUB_X_MAX_STEPS];
 } MelloSubConfig;
 
+/* DRUMS (2026-10-30): four synthesized voices on a 16-step pattern with its own clock. The voices are plain; what
+ * makes them move is per-step: each hit's PITCH, DECAY, CRUSH and RATCH, and the rolls (ROLL, and RNDMZR with FEED). */
+#define MELLO_DRUM_VOICES 4u
+#define MELLO_DRUM_STEPS  16u
+typedef enum { MELLO_DRUM_KICK = 0, MELLO_DRUM_SNARE, MELLO_DRUM_HAT, MELLO_DRUM_GLITCH } MelloDrumVoiceId;
+typedef struct {
+    int8_t pitch;    /* -24..24 semitones */
+    int8_t decay;    /* -100..100: up to 4x shorter or longer */
+    uint8_t crush;   /* 0..100: added to the voice's CRUSH */
+    uint8_t ratchet; /* 1..8 hits in the step */
+} MelloDrumLock;
+typedef struct {
+    uint16_t tune;   /* 0..1000 */
+    uint16_t decay;  /* 0..1000 */
+    uint16_t tone;   /* 0..1000: the voice's character (kick drive, snare snap, hat metal, glitch FM ratio) */
+    uint16_t level;  /* 0..1000 */
+    uint16_t chance; /* 0..1000: the chance a hit plays */
+    uint16_t crush;  /* 0..1000: sample-rate and bit reduction */
+} MelloDrumVoice;
+typedef struct {
+    bool on;
+    bool follow;     /* step with the main sequence's steps (its skips and long steps stop it), not every pulse */
+    bool feed;       /* RNDMZR rolls the drums too */
+    uint8_t length;  /* 1..16 */
+    uint16_t swing;  /* 0..1000: the off steps up to half a step late */
+    uint16_t level;  /* 0..1000 */
+    uint16_t space;  /* 0..1000: the send to the delay and reverb */
+    uint16_t roll;   /* 0..1000: how much a roll changes */
+    MelloDrumVoice voice[MELLO_DRUM_VOICES];
+    uint16_t hits[MELLO_DRUM_VOICES];    /* bit = step */
+    uint16_t accents[MELLO_DRUM_VOICES]; /* bit = step */
+    MelloDrumLock lock[MELLO_DRUM_VOICES][MELLO_DRUM_STEPS];
+} MelloDrumConfig;
+
 #if MELLO_FEATURE_CHORD_MACHINE
 typedef enum {
     MELLO_CHORD_TRIAD = 0,
@@ -599,7 +633,8 @@ typedef enum {
     MELLO_EVENT_SAMPLE_NOTE_OFF,
     MELLO_EVENT_LOOP_CYCLE_CHANGE,
     MELLO_EVENT_SLOT_CHANGE,
-    MELLO_EVENT_SLOT_SEQ_CHANGE
+    MELLO_EVENT_SLOT_SEQ_CHANGE,
+    MELLO_EVENT_DRUM_HIT /* sample_slot: the voice; note: 64 + PITCH; velocity; drum_decay, drum_crush */
 } MelloEventType;
 
 typedef struct {
@@ -631,6 +666,8 @@ typedef struct {
         dot_mod[MELLO_DOT_MOD_LANES]; /* MOD 1 / MOD 2: 0..1000 lit, 0 unlit, MELLO_DOT_NOT_READ not read */
     int16_t tm_value;                 /* EVOLVE's register value, centred (+-32767); 0 while off */
     int8_t dot_cell[MELLO_DOT_MATRIX_COUNT];
+    int8_t drum_decay;  /* DRUM_HIT: the step's DECAY lock */
+    uint8_t drum_crush; /* DRUM_HIT: the step's CRUSH lock */
 } MelloEvent;
 #define MELLO_DOT_NOT_READ 0xFFFFu
 
@@ -762,6 +799,7 @@ typedef struct {
 #if MELLO_FEATURE_CHORD_MACHINE
     MelloChordConfig undo_chord;
 #endif
+    MelloDrumConfig undo_drums;
     bool undo_valid;
 
     /* HOME's performance keys (mello_engine_set_perf): runtime only, never saved or undone. The sequence keeps
@@ -783,6 +821,10 @@ typedef struct {
     uint8_t hold_step;
     uint8_t hold_total;
     /* The DRONE sub's note sounding (its ON sent, its OFF at STOP, or when the mode or SUB changes). */
+    MelloDrumConfig drums;
+    MelloPrng drum_rng; /* chance and rolls: the other streams stay as they were */
+    uint8_t drum_pos;   /* the drum step playing next */
+    int8_t drum_step;   /* the one playing, -1 stopped (the DRUMS page) */
     bool drone_open;
     uint8_t drone_note;
     uint8_t drone_step;
@@ -819,6 +861,10 @@ void mello_mod_routing_defaults(MelloModRouting *config);
 /* DOT's defaults for matrix id (the MOD lanes' amount is their depth: 24%, the HTML's filter dot). */
 void mello_dot_defaults_for(MelloDotMatrixConfig *config, uint8_t id);
 void mello_sub_defaults(MelloSubConfig *config);
+void mello_drum_defaults(MelloDrumConfig *config);
+void mello_engine_drums_set_config(MelloEngine *engine, const MelloDrumConfig *config);
+/* A roll of the drums: hits, accents and per-step locks, as much as roll says, the kick kept on the one. */
+void mello_engine_drums_roll(MelloEngine *engine);
 #if MELLO_FEATURE_CHORD_MACHINE
 void mello_chord_defaults(MelloChordConfig *config);
 #endif

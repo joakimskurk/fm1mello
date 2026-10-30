@@ -192,6 +192,32 @@ A splash/boot identity screen is required before final product-polish acceptance
   - Saved in SEC_MOD (40 bytes a working pattern or slot, only when it differs from the defaults). MOD 1's amount
     stays in SEC_WORKING / SEC_SLOTS with the HTML's meaning (1000 = depth 240); SEC_MOD carries the exact depth.
 
+## Drums (2026-10-30)
+
+A small drum machine, the FM-1's own (the HTML has none): "minimal, classic, Aphex Twin meets Richard Divine; the
+sonic differences come from modulation and the randomizer". Four synthesized voices on a 16-step pattern.
+
+- Voices, each with TUNE, DECAY, TONE, LEVEL: KICK (a sine falling from four times its pitch in ~40 ms; TONE drive),
+  SNARE (two body tones and high-passed noise; TONE the snap), HAT (noise and two ring-modulated squares, high-passed;
+  TONE noise .. metal, DECAY closed .. open), GLITCH (FM at an inharmonic ratio, its index falling fast; TONE the ratio).
+- Per step, per voice: the hit, an accent (ACC), and locks: PITCH +-24, DECAY (up to 4x shorter or longer), CRUSH
+  (sample and hold up to 16x and up to 11 bits dropped, on top of the voice's CRUSH), RATCH 1..4 (the later hits of a
+  roll softer).
+- Per voice CHANCE; for the kit LENGTH, SWING (the odd steps up to half a step late), SPACE (its send), LEVEL.
+- The clock: a step every engine pulse, whatever the sequence skips, holds or REVERSE / REPEAT play; FOLLOW steps with
+  the sequence's steps instead. It starts on the one at START.
+- Rolls: ROLL (B6) rolls the drums as much as ROLL says: each step's hits by voice (the kick likely on the one and the
+  third beat, the snare on the backbeat), accents and locks; the kick always on the one. FEED (B7): RNDMZR rolls them
+  with the pattern. Both are undone by UNDO. They draw from their own random stream, so the other rolls stay as they
+  were.
+- The page (BASS: SUB, CHORD, DRUMS): four rows in the voices' colours (coral, gold, cyan, purple), the picked one lit,
+  its picked step framed, accents bright, rolls as dots, locks marked, the playing step's column framed; the white keys
+  are the steps (a key toggles the picked voice's hit there and picks the step), B0-B3 pick the voice, B4 ON, B5 ACC.
+  Layers: VOICE, STEP (the picked step's locks), VARY (CHANCE, CRUSH, SWING, ROLL), KIT (LENGTH, FOLLOW, SPACE, LEVEL).
+- The sound: past the lead's filter and distortion, a little over the lead at LEVEL 70%. Cost: up to about 20% more
+  audio render with all four voices on every step (about 5% of the chip).
+- Saved in SEC_DRUMS (9). Not yet: MIDI out, LFO / DOT / EVOLVE routes to the drums.
+
 ## The chord voice (2026-10-30)
 
 Feedback: the chords' harmony is good, their sound is not as good as the rest, and nothing moves on the page while a

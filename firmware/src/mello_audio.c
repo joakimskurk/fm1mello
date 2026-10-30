@@ -489,6 +489,143 @@ static void sub_release(MelloAudio *a)
     sub_curve_begin(a, 0, a->sub_config.release_ms);
 }
 static int32_t soft_drive(int32_t x, uint16_t amount, uint16_t character);
+/* DRUMS: four plain voices, made to move by each hit's PITCH, DECAY and CRUSH. */
+static uint32_t hz_inc(uint32_t hz)
+{
+    return hz * 97392u; /* 2^32 / 44100 a Hz */
+}
+/* A one-pole fall to -60 dB (6.9 time constants) in ms, Q24 a sample. */
+static int32_t drum_rate(uint32_t ms)
+{
+    return (int32_t)(2625000u / (ms < 2u ? 2u : ms));
+}
+static int32_t drum_noise(MelloAudio *a)
+{
+    uint32_t x = a->drum_noise ? a->drum_noise : 0x9E3779B9u;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    a->drum_noise = x;
+    return (int32_t)(x >> 16) - 32768;
+}
+static void drum_hit(MelloAudio *a, const MelloEvent *e)
+{
+    static const uint16_t base_ms[MELLO_DRUM_VOICES] = {80u, 60u, 15u, 10u}, span_ms[MELLO_DRUM_VOICES] = {1120u, 540u, 785u, 390u};
+    uint8_t v = e->sample_slot;
+    MelloAudioDrumVoice *d;
+    const MelloDrumVoice *c;
+    uint32_t ms, ratio, crush;
+    if (v >= MELLO_DRUM_VOICES || !a->drum_config.on) return;
+    d = &a->drum[v];
+    c = &a->drum_config.voice[v];
+    ms = base_ms[v] + (uint32_t)c->decay * span_ms[v] / 1000u;
+    if (e->drum_decay) ms = inc_times(ms << 8, semi_ratio_q16((int32_t)e->drum_decay * 24 * 256 / 100)) >> 8;
+    ratio = semi_ratio_q16(((int32_t)e->note - 64) * 256); /* PITCH */
+    d->k = drum_rate(ms);
+    d->env = 1 << 24;
+    d->penv = 1 << 24;
+    d->gain = (int32_t)c->level * 32767 / 1000 * e->velocity / 127;
+    switch (v) {
+    case MELLO_DRUM_KICK: /* a sine falling from four times its pitch in ~40 ms */
+        d->inc = inc_times(hz_inc(35u + c->tune * 55u / 1000u), ratio);
+        d->pk = drum_rate(40u);
+        d->phase = 0u;
+        break;
+    case MELLO_DRUM_SNARE: /* two body tones that die in a third of the noise's time */
+        d->inc = inc_times(hz_inc(140u + c->tune * 180u / 1000u), ratio);
+        d->inc2 = inc_times(d->inc, 96338u); /* x 1.47 */
+        d->pk = drum_rate(ms / 3u);
+        d->phase = d->phase2 = 0u;
+        break;
+    case MELLO_DRUM_HAT: /* noise and two square waves ring-modulated, high-passed */
+        d->inc = inc_times(hz_inc(3100u + c->tune * 3000u / 1000u), ratio);
+        d->inc2 = inc_times(d->inc, 96338u);
+        d->pk = 0;
+        break;
+    default: /* GLITCH: FM at an inharmonic ratio, its index falling fast */
+        d->inc = inc_times(hz_inc(550u), semi_ratio_q16((int32_t)c->tune * 59 * 256 / 1000 - 7552)); /* 100 Hz .. 3 kHz */
+        d->inc = inc_times(d->inc, ratio);
+        d->inc2 = inc_times(d->inc, 32768u + (uint32_t)c->tone * 441u); /* x 0.5 .. 7.2 */
+        d->pk = drum_rate(ms / 4u + 2u);
+        break;
+    }
+    crush = (uint32_t)c->crush / 10u + e->drum_crush;
+    if (crush > 100u) crush = 100u;
+    d->hold_n = (uint8_t)(1u + crush * 15u / 100u);
+    d->mask = ~((1 << (crush * 11u / 100u)) - 1);
+    d->hold = 0u;
+    d->on = 1u;
+}
+/* One sample of the drums, mono (before LEVEL). */
+static int32_t drum_render(MelloAudio *a)
+{
+    int32_t sum = 0;
+    uint8_t v;
+    for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
+        MelloAudioDrumVoice *d = &a->drum[v];
+        const MelloDrumVoice *c = &a->drum_config.voice[v];
+        int32_t y, g;
+        if (!d->on) continue;
+        d->env -= (int32_t)(((int64_t)d->env * d->k) >> 24);
+        if (d->pk) d->penv -= (int32_t)(((int64_t)d->penv * d->pk) >> 24);
+        if (d->env < 2048) {
+            d->on = 0u;
+            continue;
+        }
+        g = d->env >> 9;
+        switch (v) {
+        case MELLO_DRUM_KICK:
+            d->phase += d->inc + (uint32_t)(((int64_t)d->inc * 3 * d->penv) >> 24);
+            y = SINE_Q15[(uint8_t)(d->phase >> 24)];
+            if (c->tone) y = soft_drive(y, c->tone, 500u); /* TONE: drive */
+            y = q15mul(y, g);
+            break;
+        case MELLO_DRUM_SNARE: {
+            int32_t n = drum_noise(a), body, pb = d->penv >> 9;
+            d->phase += d->inc;
+            d->phase2 += d->inc2;
+            body = (SINE_Q15[(uint8_t)(d->phase >> 24)] + SINE_Q15[(uint8_t)(d->phase2 >> 24)]) / 2;
+            d->hp1 += (n - d->hp1) >> 3; /* a high-pass at ~900 Hz */
+            n -= d->hp1;
+            /* TONE: snap, the noise against the body */
+            y = q15mul(q15mul(body, pb), 32767 - (int32_t)c->tone * 20) + q15mul(n, 9000 + (int32_t)c->tone * 23);
+            y = q15mul(clamp32(y, -32767, 32767), g);
+            break;
+        }
+        case MELLO_DRUM_HAT: {
+            int32_t n = drum_noise(a), metal;
+            d->phase += d->inc;
+            d->phase2 += d->inc2;
+            metal = ((d->phase ^ d->phase2) & 0x80000000u) ? 20000 : -20000;
+            y = n + q15mul(metal - n, (int32_t)c->tone * 32); /* TONE: noise .. metal */
+            d->hp1 += (y - d->hp1) >> 2; /* two high-passes at ~3 kHz */
+            y -= d->hp1;
+            d->hp2 += (y - d->hp2) >> 2;
+            y -= d->hp2;
+            y = q15mul(clamp32(y, -32767, 32767), g);
+            break;
+        }
+        default: {
+            int32_t m;
+            d->phase2 += d->inc2;
+            m = SINE_Q15[(uint8_t)(d->phase2 >> 24)];
+            d->phase += d->inc;
+            y = SINE_Q15[(uint8_t)((d->phase + (uint32_t)((int64_t)m * (d->penv >> 8))) >> 24)]; /* index to 0.5 */
+            y = q15mul(y, g);
+            break;
+        }
+        }
+        if (d->hold_n > 1u || d->mask != -1) { /* CRUSH: held for hold_n samples, its low bits dropped */
+            if (!d->hold--) {
+                d->held = y & d->mask;
+                d->hold = (uint8_t)(d->hold_n - 1u);
+            }
+            y = d->held;
+        }
+        sum += q15mul(y, d->gain);
+    }
+    return clamp32(sum, -65535, 65535);
+}
 static uint32_t sample_rate_q16(const MelloSampleSlotConfig *c, uint8_t note)
 {
     int32_t semi;
@@ -941,6 +1078,8 @@ static void apply_event(MelloAudio *a, const MelloEvent *e)
     else if (e->type == MELLO_EVENT_CHORD_NOTE_OFF)
         chord_note_off(a, e->note);
 #endif
+    else if (e->type == MELLO_EVENT_DRUM_HIT)
+        drum_hit(a, e);
     else if (e->type == MELLO_EVENT_SAMPLE_NOTE_ON)
         sample_attack_voice(a, e);
     else if (e->type == MELLO_EVENT_SAMPLE_NOTE_OFF)
@@ -1509,6 +1648,7 @@ static void apply_pending(MelloAudio *a)
     a->fx = a->pending_fx;
     a->sub_config = a->pending_sub_config;
     a->sample_config = a->pending_sample_config;
+    a->drum_config = a->pending_drum_config;
 #if MELLO_FEATURE_CHORD_MACHINE
     {
         bool was_on = a->chord_config.on;
@@ -1576,6 +1716,7 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
     a->lead.uni_phase[1] = 0xAAAAAAAAu;
     a->lead.uni_phase[2] = 0x2AAAAAAAu;
     mello_sound_defaults(&a->pending_config);
+    mello_drum_defaults(&a->pending_drum_config);
     mello_mod_routing_defaults(&a->pending_modr);
     a->modr = a->pending_modr;
     mello_fx_defaults(&a->pending_fx);
@@ -1629,6 +1770,14 @@ void mello_audio_set_mod_routing(MelloAudio *a, const MelloModRouting *m)
     if (!a || !m) return;
     update = config_update_begin(a);
     a->pending_modr = *m;
+    config_update_end(a, update);
+}
+void mello_audio_set_drum_config(MelloAudio *a, const MelloDrumConfig *c)
+{
+    uint32_t update;
+    if (!a || !c) return;
+    update = config_update_begin(a);
+    a->pending_drum_config = *c;
     config_update_end(a, update);
 }
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -1793,6 +1942,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
 #if MELLO_FEATURE_CHORD_MACHINE
         int32_t chord_mix = 0, chord_l = 0, chord_r = 0;
 #endif
+        int32_t drums = 0;
         uint16_t cut = (uint16_t)(ramp_q8(&a->rp_cut) >> 8), res = (uint16_t)(ramp_q8(&a->rp_res) >> 8);
         int32_t master = ramp_q8(&a->rp_master) >> 8, rev_send = ramp_q8(&a->rp_rev_send) >> 8,
                 rev_level = ramp_q8(&a->rp_rev_level) >> 8, dly_send = ramp_q8(&a->rp_dly_send) >> 8,
@@ -2114,6 +2264,11 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
              * (1000 = as the lead's), their width their own (added after the delay, below). */
             fx_in += chord_mix * 800 / 1000 * (int32_t)a->chord_config.space / 1000;
 #endif
+            /* DRUMS: past the lead's filter and distortion, their own LEVEL and SPACE */
+            if (a->drum[0].on | a->drum[1].on | a->drum[2].on | a->drum[3].on) {
+                drums = drum_render(a) * (int32_t)a->drum_config.level / 3000; /* LEVEL 70%: a little over the lead */
+                fx_in += drums * (int32_t)a->drum_config.space / 1000;
+            }
             if (a->delay_buffer && a->delay_capacity > 2u && a->delay_samples) {
                 /* The delay time ramps (Tone's delayTime.rampTo): read between samples while it moves. */
                 uint32_t di = (uint32_t)delay_q8 >> 8, fr = (uint32_t)delay_q8 & 0xFFu, rp, rp1;
@@ -2137,6 +2292,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             mix_l += chord_l * 672 / 1000; /* 800 x 840 as the lead's dry */
             mix_r += chord_r * 672 / 1000;
 #endif
+            mix_l += drums * 840 / 1000;
+            mix_r += drums * 840 / 1000;
             if (a->reverb_buffer && a->reverb_capacity > 1024u &&
                 (a->fx.reverb_wet || a->tail_guard_frames)) {
                 int32_t send = fx_in * rev_send / 1000, rv_l = 0, rv_r = 0;
@@ -2200,6 +2357,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
 #if MELLO_FEATURE_CHORD_MACHINE
                     && (a->chord.env_stage == MELLO_ENV_OFF || a->chord.env_q24 <= 0)
 #endif
-                    && samples_silent && a->tail_guard_frames == 0u;
+                    && !(a->drum[0].on | a->drum[1].on | a->drum[2].on | a->drum[3].on) && samples_silent &&
+                    a->tail_guard_frames == 0u;
     }
 }

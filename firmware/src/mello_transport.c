@@ -143,7 +143,8 @@ static void consume_engine_events(MelloTransport *t, uint32_t pulse_tick, uint32
             if (t->event_sink) t->event_sink(t->event_sink_ctx, &ev, pulse_due_us);
         } else if (ev.type == MELLO_EVENT_PATTERN_WRAP) {
             t->pattern_wraps++;
-        } else if (ev.type == MELLO_EVENT_SAMPLE_NOTE_ON || ev.type == MELLO_EVENT_SAMPLE_NOTE_OFF) {
+        } else if (ev.type == MELLO_EVENT_SAMPLE_NOTE_ON || ev.type == MELLO_EVENT_SAMPLE_NOTE_OFF ||
+                   ev.type == MELLO_EVENT_DRUM_HIT) {
             uint32_t delta_ticks = ev.tick - pulse_tick;
             uint32_t due = pulse_due_us + ticks_to_us_small(delta_ticks, t->engine.project.bpm);
             if (t->event_sink) t->event_sink(t->event_sink_ctx, &ev, due);

@@ -52,7 +52,7 @@ From HOME: start, randomize, undo, shape the sound, set the tempo, mute steps an
 | LFO | **MOD** | LFO · DOT MATRIX · EVOLVE (Turing) |
 | FX | **FX** | DISTORTION · DELAY · REVERB |
 | SEQ | **SEQ** | STEP (detail) · STRUCTURE (segments, loop, chain) |
-| ARP | **BASS** | SUB · CHORD |
+| ARP | **BASS** | SUB · CHORD · DRUMS |
 | SEL | **KEY / SCALE** | Root by pressing a key, scale on a knob |
 | GLO | **GLOBAL** | CLOCK · MIDI · SAMPLES |
 

@@ -668,6 +668,138 @@ void mello_sub_defaults(MelloSubConfig *c)
     }
 }
 
+void mello_drum_defaults(MelloDrumConfig *c)
+{
+    static const MelloDrumVoice v[MELLO_DRUM_VOICES] = {
+        {400u, 450u, 300u, 900u, 1000u, 0u}, /* KICK ~55 Hz, a little drive */
+        {450u, 400u, 550u, 700u, 1000u, 0u}, /* SNARE */
+        {600u, 150u, 400u, 500u, 1000u, 0u}, /* HAT, closed */
+        {500u, 200u, 600u, 450u, 1000u, 0u}  /* GLITCH */
+    };
+    uint8_t i, k;
+    if (!c) return;
+    memset(c, 0, sizeof(*c));
+    c->length = 16u;
+    c->level = 700u;
+    c->space = 250u;
+    c->roll = 500u;
+    for (i = 0u; i < MELLO_DRUM_VOICES; ++i) {
+        c->voice[i] = v[i];
+        for (k = 0u; k < MELLO_DRUM_STEPS; ++k) c->lock[i][k].ratchet = 1u;
+    }
+    /* a plain beat to start from: kick 1 and the and of 3, snare 2 and 4, hats on the offbeats, a glitch or two */
+    c->hits[MELLO_DRUM_KICK] = (1u << 0) | (1u << 10);
+    c->hits[MELLO_DRUM_SNARE] = (1u << 4) | (1u << 12);
+    c->hits[MELLO_DRUM_HAT] = (1u << 2) | (1u << 6) | (1u << 10) | (1u << 14);
+    c->hits[MELLO_DRUM_GLITCH] = (1u << 7) | (1u << 15);
+    c->accents[MELLO_DRUM_KICK] = 1u;
+}
+
+static MelloDrumConfig sanitize_drum_config(MelloDrumConfig c)
+{
+    uint8_t i, k;
+    if (c.length < 1u) c.length = 1u;
+    if (c.length > MELLO_DRUM_STEPS) c.length = MELLO_DRUM_STEPS;
+    if (c.swing > 1000u) c.swing = 1000u;
+    if (c.level > 1000u) c.level = 1000u;
+    if (c.space > 1000u) c.space = 1000u;
+    if (c.roll > 1000u) c.roll = 1000u;
+    for (i = 0u; i < MELLO_DRUM_VOICES; ++i) {
+        MelloDrumVoice *v = &c.voice[i];
+        if (v->tune > 1000u) v->tune = 1000u;
+        if (v->decay > 1000u) v->decay = 1000u;
+        if (v->tone > 1000u) v->tone = 1000u;
+        if (v->level > 1000u) v->level = 1000u;
+        if (v->chance > 1000u) v->chance = 1000u;
+        if (v->crush > 1000u) v->crush = 1000u;
+        for (k = 0u; k < MELLO_DRUM_STEPS; ++k) {
+            MelloDrumLock *l = &c.lock[i][k];
+            l->pitch = clamp_i8(l->pitch, -24, 24);
+            l->decay = clamp_i8(l->decay, -100, 100);
+            if (l->crush > 100u) l->crush = 100u;
+            if (l->ratchet < 1u) l->ratchet = 1u;
+            if (l->ratchet > 4u) l->ratchet = 4u;
+        }
+    }
+    return c;
+}
+
+void mello_engine_drums_set_config(MelloEngine *e, const MelloDrumConfig *config)
+{
+    if (!e || !config) return;
+    e->drums = sanitize_drum_config(*config);
+    if (e->drum_pos >= e->drums.length) e->drum_pos = 0u;
+}
+
+void mello_engine_drums_roll(MelloEngine *e)
+{
+    /* How likely each voice is to hit a step when rolled (permille), and how far its pitch goes. */
+    static const uint16_t density[MELLO_DRUM_VOICES] = {280u, 180u, 550u, 170u};
+    static const int8_t pitch_span[MELLO_DRUM_VOICES] = {5, 7, 12, 12};
+    MelloDrumConfig *d;
+    uint8_t v, k;
+    if (!e) return;
+    d = &e->drums;
+    for (v = 0u; v < MELLO_DRUM_VOICES; ++v)
+        for (k = 0u; k < d->length; ++k) {
+            MelloDrumLock *l = &d->lock[v][k];
+            uint16_t bit = (uint16_t)(1u << k), dens = density[v];
+            if (!chance_permille(&e->drum_rng, d->roll)) continue;
+            if (v == MELLO_DRUM_SNARE && (k % 8u) == 4u) dens = 850u; /* the backbeat stays likely */
+            if (v == MELLO_DRUM_KICK && (k % 8u) == 0u) dens = 750u;
+            if (chance_permille(&e->drum_rng, dens))
+                d->hits[v] |= bit;
+            else
+                d->hits[v] &= (uint16_t)~bit;
+            if (chance_permille(&e->drum_rng, 200u))
+                d->accents[v] |= bit;
+            else
+                d->accents[v] &= (uint16_t)~bit;
+            l->pitch = chance_permille(&e->drum_rng, 500u)
+                           ? 0
+                           : (int8_t)((int32_t)rng_bounded(&e->drum_rng, (uint32_t)pitch_span[v] * 2u + 1u) -
+                                      pitch_span[v]);
+            l->decay = chance_permille(&e->drum_rng, 500u)
+                           ? 0
+                           : (int8_t)((int32_t)rng_bounded(&e->drum_rng, 161u) - 80);
+            l->crush = chance_permille(&e->drum_rng, 700u) ? 0u : (uint8_t)(10u + rng_bounded(&e->drum_rng, 91u));
+            l->ratchet = chance_permille(&e->drum_rng, 850u) ? 1u : (uint8_t)(2u + rng_bounded(&e->drum_rng, 3u));
+        }
+    d->hits[MELLO_DRUM_KICK] |= 1u; /* the one */
+}
+
+/* One drum step: its hits (each with CHANCE), RATCH spread over the step, odd steps late by SWING. */
+static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
+{
+    MelloDrumConfig *d = &e->drums;
+    uint8_t st, v, r;
+    uint32_t off;
+    if (!d->on) return;
+    st = (uint8_t)(e->drum_pos % d->length);
+    e->drum_step = (int8_t)st;
+    e->drum_pos = (uint8_t)((st + 1u) % d->length);
+    off = (st & 1u) ? pulse_ticks * d->swing / 2000u : 0u;
+    for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
+        const MelloDrumLock *l = &d->lock[v][st];
+        uint8_t n = l->ratchet < 1u ? 1u : l->ratchet > 4u ? 4u : l->ratchet;
+        if (!(d->hits[v] & (1u << st))) continue;
+        if (d->voice[v].chance < 1000u && !chance_permille(&e->drum_rng, d->voice[v].chance)) continue;
+        for (r = 0u; r < n; ++r) {
+            MelloEvent ev;
+            memset(&ev, 0, sizeof(ev));
+            ev.type = MELLO_EVENT_DRUM_HIT;
+            ev.tick = e->now_tick + off + (pulse_ticks - off) * r / n;
+            ev.step_index = st;
+            ev.sample_slot = v;
+            ev.note = (uint8_t)(64 + l->pitch);
+            ev.velocity = (d->accents[v] & (1u << st)) ? 127u : r ? 72u : 96u; /* a roll's later hits softer */
+            ev.drum_decay = l->decay;
+            ev.drum_crush = l->crush;
+            (void)queue_push(e, &ev);
+        }
+    }
+}
+
 #if MELLO_FEATURE_CHORD_MACHINE
 void mello_chord_defaults(MelloChordConfig *c)
 {
@@ -1003,6 +1135,9 @@ void mello_engine_init(MelloEngine *e, const MelloProject *project, uint32_t see
     mello_mod_routing_defaults(&e->modr);
     e->perf.repeat_len = 4u; /* a beat, until a white key says otherwise */
     mello_sub_defaults(&e->sub);
+    mello_drum_defaults(&e->drums);
+    mello_prng_seed(&e->drum_rng, seed ^ 0x44524D53u);
+    e->drum_step = -1;
 #if MELLO_FEATURE_CHORD_MACHINE
     mello_chord_defaults(&e->chord);
     e->chord_grid_runtime.cycle = -1;
@@ -1276,6 +1411,8 @@ void mello_engine_reset_transport(MelloEngine *e)
     e->perf_hist_n = 0u; /* REVERSE / REPEAT start from this run's pulses */
     e->hold_open = false;
     e->drone_open = false;
+    e->drum_pos = 0u;
+    e->drum_step = -1;
     e->perf_buf_n = 0u;
     mello_event_clear(e);
 }
@@ -2568,6 +2705,7 @@ void mello_engine_undo_snapshot(MelloEngine *e)
 #if MELLO_FEATURE_CHORD_MACHINE
     e->undo_chord = e->chord;
 #endif
+    e->undo_drums = e->drums;
     e->undo_valid = true;
 }
 
@@ -2589,6 +2727,11 @@ bool mello_engine_undo_swap(MelloEngine *e)
         e->undo_chord = c;
     }
 #endif
+    {
+        MelloDrumConfig d = e->drums;
+        e->drums = e->undo_drums;
+        e->undo_drums = d;
+    }
     (void)mello_engine_rebuild_sequence(e);
     return true;
 }
@@ -2597,6 +2740,7 @@ void mello_engine_randomize_steps_intensity(MelloEngine *e, MelloRandomizeIntens
 {
     if (!e) return;
     mello_engine_undo_snapshot(e);
+    if (e->drums.on && e->drums.feed) mello_engine_drums_roll(e); /* FEED: the drums roll with the pattern */
     if (intensity == MELLO_RANDOMIZE_MED) {
         mello_engine_randomize_steps(e);
         return;
@@ -3233,7 +3377,10 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         }
     }
 
+    /* DRUMS: a step every pulse (its own clock: the sequence's skips, long steps and REVERSE / REPEAT do not stop
+     * it), or with FOLLOW at each of the sequence's steps. */
     pulse_ticks = mello_pulse_ticks(&e->project);
+    if (!e->drums.follow || pe.pulse_index == 0u) drums_tick(e, pulse_ticks);
     next_tick = e->now_tick + pulse_ticks;
     e->absolute_pulse++;
     did_wrap = old_loop_ticks > 0u && (e->absolute_pulse % old_loop_ticks) == 0u;
@@ -3337,6 +3484,7 @@ const char *mello_event_type_name(MelloEventType type)
     case MELLO_EVENT_CHORD_NOTE_OFF: return "CHORD_OFF";
 #endif
     case MELLO_EVENT_SAMPLE_NOTE_ON: return "SAMPLE_ON";
+    case MELLO_EVENT_DRUM_HIT: return "DRUM_HIT";
     case MELLO_EVENT_SAMPLE_NOTE_OFF: return "SAMPLE_OFF";
     case MELLO_EVENT_LOOP_CYCLE_CHANGE: return "LOOP_CYCLE";
     case MELLO_EVENT_SLOT_CHANGE: return "SLOT_CHANGE";

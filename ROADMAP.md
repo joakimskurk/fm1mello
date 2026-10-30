@@ -33,6 +33,24 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
       LENGTH (the ones after keep theirs). A new LEN keeps their proportions. A new project has 4 x 4, once forward each:
       it plays as one of 16 (segment_edit).
 
+### More feedback (2026-10-30, evening)
+
+- [ ] **UNDO / REDO**: the key toggles: UNDO, then REDO, back to UNDO when an edit leaves nothing to redo; its label says
+      which it will do.
+- [ ] **Reverb crackles in the highs.**
+- [ ] **EVOLVE longer than 8 steps**: the page shows 8 lanes, windowed on the selected step, so the playing one goes
+      out of sight. Show the whole register (up to 32), the one playing always in view.
+- [ ] **Delay: LO CUT and HI CUT** on its return, to shape it (ask: "pre dist").
+- [ ] **The black keys' strip**: use the whole width, each label over its key, so it is plain which key does what.
+- [ ] **RANDOMIZE WAVE per step**: with WAVE in the mask a roll gives each step its own wave (never OFF).
+- [ ] **The bass sequencer: 16 steps** instead of 5-SEQ: length 1-16, per step tone, octave, glide and more; its own
+      clock, not stopped by the main sequence's skipped or held steps unless asked to follow them.
+- [x] **A simple 16-step drum machine**: minimal, classic voices, "Aphex Twin meets Richard Divine": the sonic
+      differences come from per-step modulation and the randomizer. Its own clock as the bass's.
+      Done (DECISIONS.md "Drums"): DRUMS after SUB and CHORD on BASS; KICK, SNARE, HAT, GLITCH; per step PITCH, DECAY,
+      CRUSH, RATCH and accent; CHANCE, SWING, ROLL, FEED (RNDMZR rolls them too); a step every pulse, or with FOLLOW
+      the sequence's steps (drum_machine). Not yet: MIDI out for the drums, LFO / DOT / EVOLVE routes to them.
+
 ## Phase 0: clean ground (done in this repo)
 
 - [x] Stop WP-E3 (Reverb V3). It tuned towards a target the HTML never had.

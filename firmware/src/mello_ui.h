@@ -64,7 +64,8 @@ typedef enum {
     MELLO_UI_GLOBAL,
     MELLO_UI_SOUND_RESERVED,
     MELLO_UI_AUDIO_FX,
-    MELLO_UI_SAMPLE_RESERVED
+    MELLO_UI_SAMPLE_RESERVED,
+    MELLO_UI_DRUMS /* the last page */
 } MelloUiPage;
 
 #define MELLO_UI_NO_STEP           0xFFu
@@ -104,6 +105,10 @@ typedef struct {
     MelloTransport *transport;
     MelloStorage *storage;
     MelloUiPage page;
+    uint8_t drum_subpage; /* DRUMS: VOICE, STEP, VARY, KIT */
+    uint8_t selected_drum_voice;
+    uint8_t selected_drum_step;
+    int8_t seen_drum_step;
 
     uint8_t step_subpage;    /* TRIG, NOTE, FLAGS, SEQ */
     uint8_t segment_subpage; /* always 0: SEGMENT has one layer */
