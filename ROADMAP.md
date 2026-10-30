@@ -11,11 +11,11 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
       ignored it, so the note sounded until another came: over rests, for ever, as if playback had stopped. The OFF
       now carries the ON's pulse; a HOLD that REVERSE / REPEAT or an edit would leave open is ended
       (hold_release_regression).
-- [ ] **A modulation nobody set**: it sounds like ratchets or amplitude / filter modulation, sometimes following the
-      pitch, with odd under- and overtones. Not the limiter (never reached), the delay (its buffer holds 1.5 s) or
-      very low notes (3% under G2 after rolls). Suspect: the reverb's delay modulation (Phase 2, against "the
-      reverb comes and goes"), a slow vibrato with sidebands in the tail, clearest on square / pulse. A/B files
-      (build/listen-ab) to listen to; then keep, soften or drop it. OSC 2 is OFF by default (done).
+- [x] **A modulation nobody set** (heard in the web emulator, not in offline renders of the same engine): the
+      emulator could not keep up. HOME's performance keys (0.5-k1) searched the black keys' notes on every input:
+      the main loop ran 116 M instructions an emulated second against 0.4-h6's 70 M (52% idle, h6 71%), and the
+      emulator's audio broke up into what sounded like ratchets and modulation. A table now (0.5-f3: 70% idle).
+      OSC 2 is OFF by default.
 - [x] **The randomizer ruins the sound and there is no way back**: by default RNDMZR rolls the first nine targets
       (PIT .. SKP), not WAVE / CHORD / SMP / PRB (a roll left the saw in only 20% of cases, square / pulse 4-6 dB
       louder); SOUND's INIT (press twice) restores the default sound, and UNDO undoes it (ui_sound_init). A project

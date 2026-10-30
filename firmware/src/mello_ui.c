@@ -2205,14 +2205,9 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
     }
 }
 
-/* The black key at strip position b (0 = F#3 .. 10 = F#5), as a note index. */
-static uint8_t black_key_note(uint8_t b)
-{
-    uint8_t i;
-    for (i = 0u; i < 27u; ++i)
-        if (black_key_position(i) == (int8_t)b) return i;
-    return 0xFFu;
-}
+/* The black keys' note indices by strip position (0 = F#3 .. 10 = F#5): the 27 keys from F3 less the white ones. A
+ * table, as perf_poll reads them on every input (a search there cost most of the main loop: 0.5-k1 .. f2). */
+static const uint8_t BLACK_KEY_NOTES[11] = {1u, 3u, 5u, 8u, 10u, 13u, 15u, 17u, 20u, 22u, 25u};
 
 /* HOME's performance keys act while held: which are held now goes to the engine (mello_engine_set_perf) on every
  * input; anywhere else, in KEYS or with a step held, none are. The strip shows held keys by name. */
@@ -2223,11 +2218,10 @@ static void perf_poll(MelloUi *ui)
     uint16_t held = 0u;
     uint8_t b;
     if (!e) return;
-    if (ui->page == MELLO_UI_HOME && !ui->keys_mode && ui->held_step == MELLO_UI_NO_STEP)
-        for (b = 0u; b < 11u; ++b) {
-            uint8_t n = black_key_note(b);
-            if (n != 0xFFu && (ui->held_notes & bit_u32(n))) held |= (uint16_t)(1u << b);
-        }
+    if (ui->page == MELLO_UI_HOME && !ui->keys_mode && ui->held_step == MELLO_UI_NO_STEP && ui->held_notes)
+        for (b = 0u; b < 11u; ++b)
+            if (ui->held_notes & bit_u32(BLACK_KEY_NOTES[b])) held |= (uint16_t)(1u << b);
+    if (!held && !ui->held_black) return; /* nothing held, nothing was: the engine's perf is already off */
     if (held != ui->held_black) ui->dirty |= MELLO_UI_DIRTY_FOOTER;
     ui->held_black = held;
     memset(&p, 0, sizeof p);
