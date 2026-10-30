@@ -61,13 +61,14 @@ typedef struct {
     uint32_t env_curve_left; /* Tone.Envelope decay/release: exponential part, then a linear tail */
     uint32_t env_linear_left;
     uint32_t env_curve_coeff_q31;
+    uint32_t uni_phase[MELLO_UNISON_MAX - 1u]; /* the unison oscillators beside phase; free-running */
 } MelloAudioLeadVoice;
 
 typedef struct {
     uint32_t phase;
     uint32_t inc;
     uint32_t target_inc;
-    int32_t pitch_q16;  /* as the lead's */
+    int32_t pitch_q16; /* as the lead's */
     uint32_t on_tag;
     int32_t slide_step; /* per sample, in pitch_q16 units */
     uint32_t slide_left;
@@ -167,6 +168,8 @@ typedef struct {
     uint32_t sample_decode_skips; /* diagnostics: sample frames muted because the budget ran out */
     uint32_t lfo_phase;
     uint32_t lfo_inc;
+    uint32_t noise_seed;    /* grit: the white noise generator (an LCG) */
+    int32_t nfm_lp;         /* grit: the noise that frequency-modulates the lead, lowpassed */
     int32_t mf_state[2][4]; /* main filter: two biquads, x1 x2 y1 y2 each */
     int32_t mf_coeff[5];    /* b0 b1 b2 a1 a2, Q28, for mf_cut/mf_res */
     uint16_t mf_cut;
@@ -190,8 +193,8 @@ typedef struct {
     uint32_t delay_samples;
     /* Knob changes ramp as the HTML's rampTo calls do (lines 989-1077); the delay time too (read between samples). */
     int32_t limiter_env_q4; /* limiter_step's peak follower */
-    MelloRamp rp_cut, rp_res, rp_master, rp_rev_send, rp_rev_level, rp_dly_send, rp_dly_level, rp_dly_fb, rp_dist_level,
-        rp_sub_level, rp_fsub_level, rp_delay;
+    MelloRamp rp_cut, rp_res, rp_master, rp_rev_send, rp_rev_level, rp_dly_send, rp_dly_level, rp_dly_fb,
+        rp_dist_level, rp_sub_level, rp_fsub_level, rp_delay;
     int32_t delay_tone_s[2][4]; /* dlyTone */
     int16_t *reverb_buffer;
     uint32_t reverb_capacity;
@@ -220,7 +223,8 @@ typedef struct {
     uint16_t reverb_mod_di[8];    /* their whole delays and allpass coefficients, updated every 16 samples */
     int16_t reverb_mod_eta[8];
     uint8_t reverb_mod_tick;
-    int32_t reverb_in_acc, reverb_prev_l, reverb_prev_r, reverb_cur_l, reverb_cur_r; /* the half-rate network's */
+    int32_t reverb_in_acc, reverb_prev_l, reverb_prev_r, reverb_cur_l,
+        reverb_cur_r; /* the half-rate network's */
     bool reverb_odd;
     uint16_t reverb_send_permille;
     int16_t sub_dist_curve[257];

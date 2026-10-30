@@ -293,11 +293,16 @@ static MelloSoundConfig sanitize_sound_config(MelloSoundConfig c)
     c.filter_res = clamp_amount(c.filter_res);
     c.lfo_rate_millihz = clamp_u16_range(c.lfo_rate_millihz, 8u, 20000u);
     c.lfo_depth = clamp_amount(c.lfo_depth);
-    if (c.lfo_target > MELLO_LFO_PWM) c.lfo_target = MELLO_LFO_FILTER;
+    if (c.lfo_target >= MELLO_LFO_TARGET_COUNT) c.lfo_target = MELLO_LFO_FILTER;
     c.follower_sub_level = clamp_amount(c.follower_sub_level);
     c.follower_sub_octave = clamp_i8(c.follower_sub_octave, -2, 0);
     if (c.follower_sub_wave > MELLO_WAVE_OFF) c.follower_sub_wave = MELLO_WAVE_SINE;
     c.master_level = clamp_amount(c.master_level);
+    c.noise_level = clamp_amount(c.noise_level);
+    c.noise_fm = clamp_amount(c.noise_fm);
+    if (c.unison < 1u) c.unison = 1u;
+    if (c.unison > MELLO_UNISON_MAX) c.unison = MELLO_UNISON_MAX;
+    c.detune = clamp_amount(c.detune);
     return c;
 }
 
@@ -659,6 +664,10 @@ void mello_sound_defaults(MelloSoundConfig *c)
     c->follower_sub_octave = -1;
     c->follower_sub_wave = MELLO_WAVE_SINE;
     c->master_level = 750u;
+    c->noise_level = 0u;
+    c->noise_fm = 0u;
+    c->unison = 1u;
+    c->detune = 0u;
 }
 
 void mello_sample_defaults(MelloSampleConfig *c)

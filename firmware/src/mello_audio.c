@@ -161,8 +161,8 @@ static uint32_t pitch_inc(int32_t p_q16)
 }
 /* Tone.Monophonic.setNote: with portamento, and the voice still above 0.05, the frequency ramps exponentially (a
  * straight line in pitch) to the note over the portamento time; otherwise it jumps. */
-static void voice_glide_to(uint32_t *inc, uint32_t *target_inc, int32_t *pitch_q16, int32_t *step, uint32_t *left,
-                           uint8_t note, uint16_t glide_ms, int32_t env_q24)
+static void voice_glide_to(uint32_t *inc, uint32_t *target_inc, int32_t *pitch_q16, int32_t *step,
+                           uint32_t *left, uint8_t note, uint16_t glide_ms, int32_t env_q24)
 {
     int32_t to = (int32_t)note << 16;
     uint32_t n;
@@ -178,7 +178,8 @@ static void voice_glide_to(uint32_t *inc, uint32_t *target_inc, int32_t *pitch_q
         *left = 0u;
     }
 }
-static void voice_slide_tick(uint32_t *inc, uint32_t target_inc, int32_t *pitch_q16, int32_t step, uint32_t *left)
+static void voice_slide_tick(uint32_t *inc, uint32_t target_inc, int32_t *pitch_q16, int32_t step,
+                             uint32_t *left)
 {
     if (--*left == 0u) {
         *inc = target_inc;
@@ -269,6 +270,19 @@ static int32_t q15mul_wide(int32_t a, int32_t b)
 {
     return ((a >> 1) * b) >> 14;
 }
+/* Grit (DECISIONS.md "Grit"): a LFO target that moves a grit amount swings it around its base, as PWM. */
+static int32_t lfo_around(uint16_t base, int32_t lfo, uint16_t depth, MelloLfoTarget target,
+                          const MelloAudio *a)
+{
+    if (!a->config.lfo_on || a->config.lfo_target != target) return base;
+    return clamp32((int32_t)base + lfo * (int32_t)depth / 32767, 0, 1000);
+}
+/* The unison gain, 1/sqrt(n): detuned oscillators add up in power, not in amplitude. */
+static const int16_t UNISON_GAIN_Q15[MELLO_UNISON_MAX] = {32767, 23170, 18919, 16384};
+/* Each unison oscillator's place in the spread, in thirds: n = 2 is +-1, 3 is -1 0 +1, 4 is -1 -1/3 +1/3 +1. */
+static const int8_t UNISON_SPREAD_THIRDS[MELLO_UNISON_MAX][MELLO_UNISON_MAX] = {
+    {0, 0, 0, 0}, {-3, 3, 0, 0}, {-3, 0, 3, 0}, {-3, -1, 1, 3}};
+
 static int32_t permille_q24(uint16_t p)
 {
     uint32_t q = (uint32_t)Q24_ONE / 1000u;
@@ -371,8 +385,8 @@ static void lead_attack(MelloAudio *a, uint8_t note, uint8_t vel, bool slide)
     a->lead.velocity = vel;
     a->lead.gate = true;
     /* HTML: portamento is set per step, slideTime on SLIDE steps and 0 otherwise. */
-    voice_glide_to(&a->lead.inc, &a->lead.target_inc, &a->lead.pitch_q16, &a->lead.slide_step, &a->lead.slide_left,
-                   note, slide ? a->config.slide_ms : 0u, a->lead.env_q24);
+    voice_glide_to(&a->lead.inc, &a->lead.target_inc, &a->lead.pitch_q16, &a->lead.slide_step,
+                   &a->lead.slide_left, note, slide ? a->config.slide_ms : 0u, a->lead.env_q24);
     /* HTML: the follower sub (subOsc) never glides; only the lead's portamento is set per step. */
     a->lead.sub_target_inc = shifted_note_inc(note, a->config.follower_sub_octave);
     a->lead.sub_inc = a->lead.sub_target_inc;
@@ -403,8 +417,8 @@ static void sub_attack(MelloAudio *a, uint8_t note, uint8_t vel)
     a->sub.note = note;
     a->sub.velocity = vel;
     a->sub.gate = true;
-    voice_glide_to(&a->sub.inc, &a->sub.target_inc, &a->sub.pitch_q16, &a->sub.slide_step, &a->sub.slide_left, note,
-                   a->sub_config.glide_ms, a->sub.env_q24);
+    voice_glide_to(&a->sub.inc, &a->sub.target_inc, &a->sub.pitch_q16, &a->sub.slide_step, &a->sub.slide_left,
+                   note, a->sub_config.glide_ms, a->sub.env_q24);
     /* Tone.Envelope shortens a retrigger attack by the already-reached level. */
     attack_n = ms_samples(3u);
     if (a->sub.env_q24 > 0 && a->sub.env_q24 < Q24_ONE)
@@ -938,22 +952,24 @@ static uint16_t reverb_feedback_q15(uint32_t loop_samples, uint16_t decay_ms)
 #define RV3_MOD_DEPTH_Q8 (20 * 256 / RV3_RATE_DIV)
 /* Thiran's first-order allpass coefficient for a fractional delay of 0.5 + k / 256 samples: (1 - d) / (1 + d), Q15. */
 static const int16_t RV3_ETA_Q15[256] = {
-    10923, 10809, 10696, 10584, 10472, 10361, 10251, 10140, 10031, 9922, 9814, 9706, 9599, 9492, 9386, 9280,
-    9175, 9070, 8966, 8863, 8760, 8657, 8555, 8454, 8353, 8252, 8152, 8052, 7953, 7855, 7757, 7659,
-    7562, 7465, 7369, 7273, 7178, 7083, 6988, 6894, 6801, 6708, 6615, 6523, 6431, 6340, 6249, 6158,
-    6068, 5978, 5889, 5800, 5712, 5624, 5536, 5449, 5362, 5276, 5190, 5104, 5019, 4934, 4849, 4765,
-    4681, 4598, 4515, 4432, 4350, 4268, 4186, 4105, 4024, 3944, 3863, 3784, 3704, 3625, 3546, 3468,
-    3390, 3312, 3235, 3158, 3081, 3004, 2928, 2852, 2777, 2702, 2627, 2552, 2478, 2404, 2331, 2258,
-    2185, 2112, 2040, 1967, 1896, 1824, 1753, 1682, 1612, 1541, 1471, 1401, 1332, 1263, 1194, 1125,
-    1057, 989, 921, 854, 786, 719, 653, 586, 520, 454, 389, 323, 258, 193, 129, 64,
-    0, -64, -128, -191, -254, -317, -380, -442, -504, -566, -628, -689, -750, -811, -872, -933,
-    -993, -1053, -1113, -1172, -1232, -1291, -1350, -1409, -1467, -1526, -1584, -1641, -1699, -1757, -1814, -1871,
-    -1928, -1984, -2040, -2097, -2153, -2208, -2264, -2319, -2374, -2429, -2484, -2539, -2593, -2647, -2701, -2755,
-    -2809, -2862, -2915, -2968, -3021, -3074, -3126, -3179, -3231, -3283, -3334, -3386, -3437, -3488, -3539, -3590,
-    -3641, -3691, -3742, -3792, -3842, -3892, -3941, -3991, -4040, -4089, -4138, -4187, -4235, -4284, -4332, -4380,
-    -4428, -4476, -4524, -4571, -4618, -4665, -4712, -4759, -4806, -4852, -4899, -4945, -4991, -5037, -5083, -5128,
-    -5174, -5219, -5264, -5309, -5354, -5399, -5444, -5488, -5532, -5576, -5620, -5664, -5708, -5752, -5795, -5838,
-    -5881, -5924, -5967, -6010, -6053, -6095, -6137, -6180, -6222, -6264, -6306, -6347, -6389, -6430, -6471, -6513,
+    10923, 10809, 10696, 10584, 10472, 10361, 10251, 10140, 10031, 9922,  9814,  9706,  9599,  9492,  9386,
+    9280,  9175,  9070,  8966,  8863,  8760,  8657,  8555,  8454,  8353,  8252,  8152,  8052,  7953,  7855,
+    7757,  7659,  7562,  7465,  7369,  7273,  7178,  7083,  6988,  6894,  6801,  6708,  6615,  6523,  6431,
+    6340,  6249,  6158,  6068,  5978,  5889,  5800,  5712,  5624,  5536,  5449,  5362,  5276,  5190,  5104,
+    5019,  4934,  4849,  4765,  4681,  4598,  4515,  4432,  4350,  4268,  4186,  4105,  4024,  3944,  3863,
+    3784,  3704,  3625,  3546,  3468,  3390,  3312,  3235,  3158,  3081,  3004,  2928,  2852,  2777,  2702,
+    2627,  2552,  2478,  2404,  2331,  2258,  2185,  2112,  2040,  1967,  1896,  1824,  1753,  1682,  1612,
+    1541,  1471,  1401,  1332,  1263,  1194,  1125,  1057,  989,   921,   854,   786,   719,   653,   586,
+    520,   454,   389,   323,   258,   193,   129,   64,    0,     -64,   -128,  -191,  -254,  -317,  -380,
+    -442,  -504,  -566,  -628,  -689,  -750,  -811,  -872,  -933,  -993,  -1053, -1113, -1172, -1232, -1291,
+    -1350, -1409, -1467, -1526, -1584, -1641, -1699, -1757, -1814, -1871, -1928, -1984, -2040, -2097, -2153,
+    -2208, -2264, -2319, -2374, -2429, -2484, -2539, -2593, -2647, -2701, -2755, -2809, -2862, -2915, -2968,
+    -3021, -3074, -3126, -3179, -3231, -3283, -3334, -3386, -3437, -3488, -3539, -3590, -3641, -3691, -3742,
+    -3792, -3842, -3892, -3941, -3991, -4040, -4089, -4138, -4187, -4235, -4284, -4332, -4380, -4428, -4476,
+    -4524, -4571, -4618, -4665, -4712, -4759, -4806, -4852, -4899, -4945, -4991, -5037, -5083, -5128, -5174,
+    -5219, -5264, -5309, -5354, -5399, -5444, -5488, -5532, -5576, -5620, -5664, -5708, -5752, -5795, -5838,
+    -5881, -5924, -5967, -6010, -6053, -6095, -6137, -6180, -6222, -6264, -6306, -6347, -6389, -6430, -6471,
+    -6513,
 };
 #define RV3_MOD_EVERY 16u
 static const uint32_t RV3_MOD_INC[8] = {30190u, 40904u, 50643u, 60383u, 71096u, 83758u, 98367u, 123690u};
@@ -1096,7 +1112,8 @@ static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int3
             a->reverb_mod_phase[i] = ph + RV3_MOD_INC[i] * RV3_MOD_EVERY * RV3_RATE_DIV;
             sn = s0 + (((s1 - s0) * (int32_t)((ph >> 16) & 0xFFu)) >> 8);
             cap = a->reverb_line_cap[i];
-            dq8 = (uint32_t)((int32_t)((uint32_t)a->reverb_line_delay[i] << 8) + ((sn * RV3_MOD_DEPTH_Q8) >> 15)) -
+            dq8 = (uint32_t)((int32_t)((uint32_t)a->reverb_line_delay[i] << 8) +
+                             ((sn * RV3_MOD_DEPTH_Q8) >> 15)) -
                   128u;
             if (dq8 < 256u) dq8 = 256u;
             if (cap > 3u && dq8 > ((uint32_t)cap - 2u) << 8) dq8 = ((uint32_t)cap - 2u) << 8;
@@ -1181,7 +1198,7 @@ void mello_audio_reverb_stereo_probe(MelloAudio *a, int32_t send, int32_t *left,
 /* Tone.Limiter(-1): a compressor at -1 dBFS (29204), ratio 20, attack 3 ms, release 10 ms, on the stereo peak. Above
  * the threshold the gain is threshold / envelope (ratio 20 is within 0.3 dB of that at 6 dB over). Unity below it,
  * so it only acts when the returns pile up; it replaces a hard clip at -1 dBFS. */
-#define LIMITER_THRESHOLD 29204
+#define LIMITER_THRESHOLD   29204
 #define LIMITER_ATTACK_Q15  247 /* 1 - exp(-1 / (0.003 * 44100)) */
 #define LIMITER_RELEASE_Q15 74  /* 1 - exp(-1 / (0.010 * 44100)) */
 static void limiter_step(MelloAudio *a, int32_t *l, int32_t *r)
@@ -1297,6 +1314,11 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
 {
     if (!a) return;
     memset(a, 0, sizeof(*a));
+    a->noise_seed = 0x2545F491u;
+    /* Unison oscillators start spread over the cycle, so that they never begin in phase (a flanged attack). */
+    a->lead.uni_phase[0] = 0x55555555u;
+    a->lead.uni_phase[1] = 0xAAAAAAAAu;
+    a->lead.uni_phase[2] = 0x2AAAAAAAu;
     mello_sound_defaults(&a->pending_config);
     mello_fx_defaults(&a->pending_fx);
     mello_sub_defaults(&a->pending_sub_config);
@@ -1549,8 +1571,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             else if (a->config.lfo_target == MELLO_LFO_FILTER) {
                 /* HTML: f = base * (1 + sin * (0.08 + 0.92 * depth)), linear in Hz: on the log cutoff that is
                  * + 1000 * log200(r), r = 0..2. */
-                int32_t span = 80 + (int32_t)a->config.lfo_depth * 920 / 1000; /* permille */
-                int32_t m = lfo * span / 1000;                                 /* (r - 1) in Q15 */
+                int32_t span = 80 + (int32_t)a->config.lfo_depth * 920 / 1000;       /* permille */
+                int32_t m = lfo * span / 1000;                                       /* (r - 1) in Q15 */
                 int32_t r64 = clamp32(64 + (m >> 9), 0, 127), rem = m & 511, lo, hi; /* r in 1/64 + rem/512 */
                 lo = LFO_LOG200_PERMILLE[r64];
                 hi = LFO_LOG200_PERMILLE[r64 + 1];
@@ -1590,7 +1612,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 uint32_t k = (uint32_t)(c + 700 * 16), idx = k / 400u, rem = k % 400u, r;
                 if (idx > 55u) idx = 55u, rem = 400u;
                 r = LFO_CENTS_RATIO_Q16[idx] +
-                    (uint32_t)(((int32_t)(LFO_CENTS_RATIO_Q16[idx + 1u] - LFO_CENTS_RATIO_Q16[idx]) * (int32_t)rem) /
+                    (uint32_t)(((int32_t)(LFO_CENTS_RATIO_Q16[idx + 1u] - LFO_CENTS_RATIO_Q16[idx]) *
+                                (int32_t)rem) /
                                400);
                 inc = (uint32_t)(((uint64_t)inc * r) >> 16);
             }
@@ -1601,17 +1624,57 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 if (sw > 950 - pb) sw = 950 - pb;
                 pwm = (uint16_t)(pb + (lfo * sw) / 32767);
             }
-            a->lead.phase += inc;
-            lead = tone_osc_sample(a->config.osc_wave, a->lead.phase, inc, pwm);
+            {
+                /* Grit. Each part costs nothing while it is off, and the defaults are off: the HTML's plain saw. */
+                int32_t noise_amt =
+                    lfo_around(a->config.noise_level, lfo, a->config.lfo_depth, MELLO_LFO_NOISE, a);
+                int32_t nfm_amt =
+                    lfo_around(a->config.noise_fm, lfo, a->config.lfo_depth, MELLO_LFO_NOISE_FM, a);
+                uint8_t uni = a->config.unison, k;
+                int32_t white = 0;
+                if (noise_amt || nfm_amt) {
+                    a->noise_seed = a->noise_seed * 1664525u + 1013904223u;
+                    white = (int32_t)a->noise_seed >> 16; /* +-32768, uniform */
+                }
+                if (nfm_amt) {
+                    /* Noise FM: the frequency jitters with lowpassed noise (~5 kHz, so it roughens rather than
+                     * hisses), up to +-100% at full; squared, so the low half of the knob is fine-grained. */
+                    int32_t dev;
+                    a->nfm_lp += (white - a->nfm_lp) >> 2;
+                    dev = q15mul(a->nfm_lp, nfm_amt * nfm_amt / 1000 * 32767 / 1000);
+                    inc = inc + (uint32_t)((int32_t)(inc >> 16) * dev * 2);
+                }
+                if (uni > 1u) {
+                    /* Unison: detune spreads the oscillators up to +-60 cents (squared). Near 1 the ratio is
+                     * 1 + c * ln2 / 1200 to within a cent, so no table: 2^-18 per unit, c * 151.4. */
+                    int32_t det = lfo_around(a->config.detune, lfo, a->config.lfo_depth, MELLO_LFO_DETUNE, a);
+                    int32_t d_q18 = det * det / 1000 * 60 * 1514 / 10000; /* cents * 151.4 */
+                    int32_t step =
+                        (int32_t)(((inc >> 14) * (uint32_t)d_q18) >> 4) / 3; /* one third of the spread */
+                    int32_t sum = 0;
+                    for (k = 0u; k < uni; ++k) {
+                        uint32_t vi = (uint32_t)((int32_t)inc + step * UNISON_SPREAD_THIRDS[uni - 1u][k]);
+                        uint32_t *ph = k ? &a->lead.uni_phase[k - 1u] : &a->lead.phase;
+                        *ph += vi;
+                        sum += tone_osc_sample(a->config.osc_wave, *ph, vi, pwm);
+                    }
+                    lead = q15mul(clamp32(sum, -65535, 65535), UNISON_GAIN_Q15[uni - 1u]);
+                } else {
+                    a->lead.phase += inc;
+                    lead = tone_osc_sample(a->config.osc_wave, a->lead.phase, inc, pwm);
+                }
+                if (noise_amt) /* white noise into the filter, squared level; at full its RMS is the saw's */
+                    lead += q15mul(white, noise_amt * noise_amt / 1000 * 27805 / 1000);
+            }
             if (fsub_level) {
                 a->lead.sub_phase += a->lead.sub_inc;
                 /* HTML: subOsc is triggered at vel * level and then passes Gain(level): level squared. */
                 int32_t lv = fsub_level;
-                lead +=
-                    q15mul(tone_osc_sample(a->config.follower_sub_wave, a->lead.sub_phase, a->lead.sub_inc, 500u),
-                           lv * lv / 1000 * 32767 / 1000);
+                lead += q15mul(
+                    tone_osc_sample(a->config.follower_sub_wave, a->lead.sub_phase, a->lead.sub_inc, 500u),
+                    lv * lv / 1000 * 32767 / 1000);
             }
-            lead = q15mul(lead, (a->lead.env_q24 >> 8));
+            lead = q15mul(clamp32(lead, -65535, 65535), (a->lead.env_q24 >> 8));
             lead = q15mul(lead, (int32_t)a->lead.velocity * 258);
         }
         if (a->sub.env_q24 > 0 && a->sub_config.on && a->sub_config.wave != MELLO_WAVE_OFF) {

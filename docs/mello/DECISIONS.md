@@ -137,6 +137,22 @@ A splash/boot identity screen is required before final product-polish acceptance
   set width as `applyLfoRouting`'s comments intend. The FM-1 does what the comments say; the reference renderer
   (tools/tone-ref/chain.js) does the same, so `make parity` measures against the intent.
 
+## Beyond the HTML (Phase 5)
+
+- **Grit (2026-10-30).** The lead gets optional grit, after the Access Virus: noise, noise FM and unison. The HTML has
+  none of it; all of it is off by default, and then the lead is sample for sample the HTML's plain saw
+  (`audio_grit_smoke`, `make parity` unchanged). SOUND / GRIT, the layer after OSC / FILTER:
+  - **NOISE**: white noise mixed with the oscillator before the filter, so cutoff and resonance shape it. Squared
+    knob; at 100% its RMS is the saw's.
+  - **NOISE FM**: lowpassed noise (~5 kHz) modulates the oscillator's frequency, up to +-100% at full (squared): a
+    little roughens the tone, a lot turns it to pitched noise.
+  - **UNISON** 1-4 oscillators, **DETUNE** spreads them up to +-60 cents (squared). The level is 1/sqrt(n), so more
+    voices are wider, not louder. The extra oscillators run free from spread phases (never a flanged attack). Mono:
+    the FM-1's lead path is mono up to the reverb.
+  - All three are LFO targets (NOISE, NOISE FM, DETUNE), swinging around the knob's value as PWM does.
+  - Saved in their own section (SEC_GRIT, only when some sound has grit), for the working sound and each slot; an
+    older build skips it and plays a plain saw.
+
 ## Sequence overview
 
 HOME, STEP, SEGMENT and RANDOM keep a compact 4..32-step visual overview. Do not reintroduce visual paging. At 16 steps the overview must be comfortably readable, while 17..32 must still remain visible and retain meaningful pulse/event information.

@@ -147,7 +147,18 @@ typedef enum {
     MELLO_WAVE_OFF
 } MelloWaveform;
 
-typedef enum { MELLO_LFO_FILTER = 0, MELLO_LFO_PITCH, MELLO_LFO_AMP, MELLO_LFO_PWM } MelloLfoTarget;
+/* The first four are the HTML's; NOISE, NOISE FM and DETUNE move the grit (Phase 5, DECISIONS.md "Grit"). */
+typedef enum {
+    MELLO_LFO_FILTER = 0,
+    MELLO_LFO_PITCH,
+    MELLO_LFO_AMP,
+    MELLO_LFO_PWM,
+    MELLO_LFO_NOISE,
+    MELLO_LFO_NOISE_FM,
+    MELLO_LFO_DETUNE
+} MelloLfoTarget;
+#define MELLO_LFO_TARGET_COUNT 7u
+#define MELLO_UNISON_MAX       4u
 
 typedef struct {
     MelloWaveform osc_wave;
@@ -168,6 +179,11 @@ typedef struct {
     int8_t follower_sub_octave;  /* -2..0 */
     MelloWaveform follower_sub_wave;
     uint16_t master_level; /* source masterVol 0..1 => 0..1000 */
+    /* Grit, beyond the HTML (DECISIONS.md "Grit"); all off by default, so the default is the HTML's plain saw. */
+    uint16_t noise_level; /* 0..1000: white noise mixed with the oscillator, before the filter */
+    uint16_t noise_fm;    /* 0..1000: noise frequency-modulating the oscillator */
+    uint8_t unison;       /* 1..MELLO_UNISON_MAX oscillators */
+    uint16_t detune;      /* 0..1000: the unison spread, up to +-60 cents */
 } MelloSoundConfig;
 
 typedef struct {
