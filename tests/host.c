@@ -28,7 +28,8 @@ static volatile uint32_t fm1_ms;
 static struct { uint32_t notes, buttons; } fm1_in;
 static uint32_t host_edges;
 static uint32_t fm1_input_edges(uint32_t *released) { uint32_t b = host_edges; host_edges = 0; *released = 0; return b; }
-static uint32_t fm1_input_note_edges(void) { return 0; }   /* (the script sets fm1_in.notes) */
+static uint32_t host_note_edges;
+static uint32_t fm1_input_note_edges(void) { uint32_t n = host_note_edges; host_note_edges = 0; return n; } /* keys going down */
 static int32_t host_enc[8];
 static int32_t fm1_enc_take(uint32_t e) { int32_t d = host_enc[e & 7u]; host_enc[e & 7u] = 0; return d; }
 static void fm1_led_key(uint32_t id, int on) { (void)id; (void)on; }
@@ -193,8 +194,10 @@ static void platform_poll(void)                 /* one call = one millisecond */
             mq_w++;
         } else if (script[step].btn >= 0)
             host_edges |= 1u << script[step].btn;
-        else
+        else {
+            host_note_edges |= script[step].keys & ~fm1_in.notes;
             fm1_in.notes = script[step].keys;
+        }
         step++;
     }
     owed += FS;                                 /* the frames this millisecond is worth, in blocks as the ISR renders */
