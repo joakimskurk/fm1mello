@@ -161,9 +161,9 @@ static void verify_context_actions(void)
     if (!memcmp(&before, &t.engine, sizeof before) || !st.dirty) fail("RANDOM B5", "RNDMZR did not reroll");
     t.engine.project.steps[0].pitch = 9;
     st.dirty = false;
-    black(&u, 200u, 3u);
-    if (!u.reset_armed || t.engine.project.steps[0].pitch != 9) fail("RANDOM B3", "CLEAR did not arm safely");
-    black(&u, 500u, 3u);
+    black(&u, 200u, 2u);
+    if (!u.reset_armed || t.engine.project.steps[0].pitch != 9) fail("RANDOM B2", "CLEAR did not arm safely");
+    black(&u, 500u, 2u);
     if (u.reset_armed || t.engine.project.steps[0].pitch == 9 || !st.dirty)
         fail("RANDOM B3", "confirmed CLEAR failed");
 
@@ -175,8 +175,8 @@ static void verify_context_actions(void)
     setup(&p, &t, &st, &u, MELLO_UI_SEQ_LOOP);
     t.engine.loop_cycle_pos = 5u;
     t.engine.loop_cycle_tick = 9u;
-    black(&u, 100u, 2u);
-    if (t.engine.loop_cycle_pos || t.engine.loop_cycle_tick) fail("LOOP B2", "reset not migrated");
+    black(&u, 100u, 1u);
+    if (t.engine.loop_cycle_pos || t.engine.loop_cycle_tick) fail("LOOP B1", "reset not migrated");
 
     setup(&p, &t, &st, &u, MELLO_UI_DOT);
     before = t.engine;
@@ -247,8 +247,8 @@ static void verify_selected_position_actions(void)
     white_with_held(&u, 100u, 3u, bit_u32(MELLO_UI_BTN_EDIT));
     if (u.selected_step != 3u || t.engine.project.steps[3].skip != b)
         fail("STEP", "EDIT+white still performs hidden SKIP");
-    black(&u, 200u, 4u);
-    if (t.engine.project.steps[3].skip == b) fail("STEP B4", "selected-step SKIP toggle missing");
+    black(&u, 200u, 1u);
+    if (t.engine.project.steps[3].skip == b) fail("STEP B1", "selected-step SKIP toggle missing");
 
     setup(&p, &t, &st, &u, MELLO_UI_SUB);
     b = t.engine.bass.steps[2]
@@ -256,8 +256,8 @@ static void verify_selected_position_actions(void)
     white_with_held(&u, 100u, 2u, 0u);
     if (u.selected_sub_x_step != 2u || t.engine.bass.steps[2].on == b)
         fail("SUB", "a white key did not toggle its step");
-    black(&u, 200u, 4u);
-    if (t.engine.bass.steps[2].on != b) fail("SUB B4", "selected SUB-step toggle missing");
+    black(&u, 200u, 1u);
+    if (t.engine.bass.steps[2].on != b) fail("SUB B1", "selected SUB-step toggle missing");
 }
 
 static void verify_dot_reset_migration(void)

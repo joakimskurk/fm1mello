@@ -59,7 +59,7 @@ static int ui_part(void)
     static MelloStorage st;
     static MelloUi u;
     int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
-    uint32_t fill = 1u << black_note(3u), subm = 1u << black_note(4u), rep = 1u << black_note(6u),
+    uint32_t fill = 1u << black_note(5u), subm = 1u << black_note(6u), rep = 1u << black_note(8u),
              w2 = 1u << white_note(1u);
     MelloStep before;
     mello_project_defaults(&p);
@@ -87,10 +87,12 @@ static int ui_part(void)
           "the white key under REPEAT edited a step");
 
     mello_ui_set_held_notes(&u, 0u);
-    mello_ui_set_page(&u, MELLO_UI_SOUND_RESERVED); /* off HOME the black keys are not performance keys */
+    mello_ui_set_page(&u, MELLO_UI_SOUND_RESERVED); /* R3: B5-B8 are the performance keys on every page */
     mello_ui_set_held_notes(&u, fill);
     mello_ui_input(&u, 5000u, 5u, 0u, 0u, 0u, fill, enc);
-    CHECK(!t.engine.perf.fill && !t.engine.perf.repeat, "a performance key acted off HOME");
+    CHECK(t.engine.perf.fill && !t.engine.perf.repeat, "FILL did not act off HOME");
+    mello_ui_set_held_notes(&u, 0u);
+    mello_ui_input(&u, 6000u, 6u, 0u, 0u, 0u, 0u, enc);
     return 0;
 }
 

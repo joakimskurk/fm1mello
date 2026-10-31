@@ -36,7 +36,7 @@ header always shows `PAGE / LAYER`, and the readout (done) shows what you turn.
 | SELECT | **TEMPO** |
 | ALGORITHM | **RANDOM INTENSITY** (low / mid / high) |
 | PRESETS | **PATTERN**: picks a slot, switches on the next bar (`→04` in the header) |
-| Black keys | **Performance strip**: transpose −/+ · MUTATE · FILL (held) · SUB MUTE (held) · REVERSE (held) · REPEAT (held; + white key = length) · RESTART · CLEAR · UNDO · RNDMZR (last, on every page) |
+| Black keys | **Fixed places on every page** (R3): B0 ON (the page's part) · B1-B4 the page's own (HOME: transpose −/+, MUTATE, RESTART, CLEAR) · B5-B8 FILL · BASS MUTE · REVERSE · REPEAT (held; + white key = length), on every page · B9 UNDO · B10 RNDMZR |
 | PLAY | Start/stop; the LED blinks on the beat |
 | SAVE | Saves the project, with "SAVED" on screen. Hold = pattern slots |
 | EDIT | **KEYS**: the 27 keys become a keyboard. Tap = transpose the sequence; while stopped, play the lead |

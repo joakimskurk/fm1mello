@@ -613,7 +613,11 @@ typedef enum {
     MELLO_CTX_PERF_SUB_MUTE,
     MELLO_CTX_PERF_REVERSE,
     MELLO_CTX_PERF_REPEAT,
-    MELLO_CTX_PERF_RESTART
+    MELLO_CTX_PERF_RESTART,
+    MELLO_CTX_DRUM_VOICE,     /* DRUMS: the next voice (KICK, SNARE, HAT, GLITCH) */
+    MELLO_CTX_LOOP_TOGGLE,    /* LOOP CYCLE on / off */
+    MELLO_CTX_SLOTSEQ_TOGGLE, /* SLOT SEQ on / off */
+    MELLO_CTX_COUNT
 } MelloContextVerb;
 
 typedef struct {
@@ -623,95 +627,174 @@ typedef struct {
 
 /* WP-C5 authoritative contextual-action mapping. The physical B0-B10 slot,
  * rendered label and handler verb are defined together here. */
+/* R3 (DECISIONS.md "One thread"): the black keys have fixed places on every page. B0 is ON for the page's part
+ * where there is one, B1-B4 are the page's own, B5-B8 the performance keys (FILL, BASS MUTE, REVERSE, REPEAT,
+ * held) on every page, B9 UNDO and B10 RNDMZR. The strip shows a held key's full name (draw_control_hint). */
 static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
-    /* HOME (UI_ICEBERG.md): transpose and MUTATE; FILL, SUB MUTE; REVERSE, REPEAT, RESTART; CLR2, UNDO; RNDMZR.
-     * Short labels so all eleven fit; the strip says a held key's full name (draw_control_hint). */
     [MELLO_UI_HOME] = {[0] = {MELLO_CTX_TRANSPOSE_DOWN, "-"},
                        [1] = {MELLO_CTX_TRANSPOSE_UP, "+"},
                        [2] = {MELLO_CTX_MUTATE, "MUT"},
-                       [3] = {MELLO_CTX_PERF_FILL, "FL"},
-                       [4] = {MELLO_CTX_PERF_SUB_MUTE, "SB"},
-                       [5] = {MELLO_CTX_PERF_REVERSE, "<<"},
-                       [6] = {MELLO_CTX_PERF_REPEAT, "RP"},
-                       [7] = {MELLO_CTX_PERF_RESTART, "|<"},
-                       [8] = {MELLO_CTX_RANDOM_CLEAR, "CL"},
+                       [3] = {MELLO_CTX_PERF_RESTART, "RST"},
+                       [4] = {MELLO_CTX_RANDOM_CLEAR, "CLR"},
+                       [5] = {MELLO_CTX_PERF_FILL, "F"},
+                       [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                       [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                       [8] = {MELLO_CTX_PERF_REPEAT, "R"},
                        [9] = {MELLO_CTX_UNDO, "UNDO"},
                        [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
-    [MELLO_UI_SEQ_STEP] = {[4] = {MELLO_CTX_STEP_SKIP, "SKIP"},
-                           [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                           [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_SEQ_SEGMENT] = {[0] = {MELLO_CTX_SEG_A, "A"},
-                              [1] = {MELLO_CTX_SEG_B, "B"},
-                              [2] = {MELLO_CTX_SEG_C, "C"},
-                              [3] = {MELLO_CTX_SEG_D, "D"},
-                              [4] = {MELLO_CTX_SEG_E, "E"},
-                              [5] = {MELLO_CTX_SEG_F, "F"},
-                              [7] = {MELLO_CTX_SEG_EVEN, "EVEN"},
-                              [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                              [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_SEQ_LOOP] = {[2] = {MELLO_CTX_LOOP_RESET, "RST"},
-                           [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                           [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_SEQ_SLOTSEQ] = {[10] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_RANDOM] = {[1] = {MELLO_CTX_RANDOM_NONE, "NONE"},
-                         [2] = {MELLO_CTX_RANDOM_ALL, "ALL"},
-                         [3] = {MELLO_CTX_RANDOM_CLEAR, "CLR2"},
-                         [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                         [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_KEY_SCALE] = {[10] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_SLOTS] = {[10] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [9] = {MELLO_CTX_UNDO, "UNDO"}},
+    [MELLO_UI_SEQ_STEP] = {[1] = {MELLO_CTX_STEP_SKIP, "SKIP"},
+                           [5] = {MELLO_CTX_PERF_FILL, "F"},
+                           [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                           [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                           [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                           [9] = {MELLO_CTX_UNDO, "UNDO"},
+                           [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
+    [MELLO_UI_SEQ_SEGMENT] = {[0] = {MELLO_CTX_SEG_EVEN, "EVEN"},
+                              [1] = {MELLO_CTX_SEG_A, "A"},
+                              [2] = {MELLO_CTX_SEG_B, "B"},
+                              [3] = {MELLO_CTX_SEG_C, "C"},
+                              [4] = {MELLO_CTX_SEG_D, "D"},
+                              [5] = {MELLO_CTX_PERF_FILL, "F"},
+                              [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                              [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                              [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                              [9] = {MELLO_CTX_UNDO, "UNDO"},
+                              [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
+    [MELLO_UI_SEQ_LOOP] = {[0] = {MELLO_CTX_LOOP_TOGGLE, "ON"},
+                           [1] = {MELLO_CTX_LOOP_RESET, "RST"},
+                           [5] = {MELLO_CTX_PERF_FILL, "F"},
+                           [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                           [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                           [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                           [9] = {MELLO_CTX_UNDO, "UNDO"},
+                           [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
+    [MELLO_UI_SEQ_SLOTSEQ] = {[0] = {MELLO_CTX_SLOTSEQ_TOGGLE, "ON"},
+                              [5] = {MELLO_CTX_PERF_FILL, "F"},
+                              [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                              [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                              [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                              [9] = {MELLO_CTX_UNDO, "UNDO"},
+                              [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
+    [MELLO_UI_RANDOM] = {[0] = {MELLO_CTX_RANDOM_NONE, "NONE"},
+                         [1] = {MELLO_CTX_RANDOM_ALL, "ALL"},
+                         [2] = {MELLO_CTX_RANDOM_CLEAR, "CLR"},
+                         [5] = {MELLO_CTX_PERF_FILL, "F"},
+                         [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                         [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                         [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                         [9] = {MELLO_CTX_UNDO, "UNDO"},
+                         [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
+    [MELLO_UI_KEY_SCALE] = {[5] = {MELLO_CTX_PERF_FILL, "F"},
+                            [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                            [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                            [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                            [9] = {MELLO_CTX_UNDO, "UNDO"},
+                            [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
+    [MELLO_UI_SLOTS] = {[5] = {MELLO_CTX_PERF_FILL, "F"},
+                        [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                        [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                        [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                        [9] = {MELLO_CTX_UNDO, "UNDO"},
+                        [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_DOT] = {[1] = {MELLO_CTX_DOT_REROLL, "RND"},
                       [2] = {MELLO_CTX_DOT_RESET, "RST"},
                       [3] = {MELLO_CTX_DOT_FOLLOW, "FLW"},
                       [4] = {MELLO_CTX_DOT_REVERSE, "REV"},
-                      [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                      [9] = {MELLO_CTX_UNDO, "UNDO"}},
+                      [5] = {MELLO_CTX_PERF_FILL, "F"},
+                      [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                      [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                      [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                      [9] = {MELLO_CTX_UNDO, "UNDO"},
+                      [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_TURING] = {[0] = {MELLO_CTX_TURING_TOGGLE, "ON"},
                          [1] = {MELLO_CTX_TURING_REROLL, "RND"},
                          [2] = {MELLO_CTX_TURING_LOOP, "LOOP"},
-                         [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                         [9] = {MELLO_CTX_UNDO, "UNDO"}},
+                         [5] = {MELLO_CTX_PERF_FILL, "F"},
+                         [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                         [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                         [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                         [9] = {MELLO_CTX_UNDO, "UNDO"},
+                         [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_SUB] = {[0] = {MELLO_CTX_SUB_TOGGLE, "ON"},
-                      [4] = {MELLO_CTX_SUB_STEP, "STEP"},
-                      [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                      [9] = {MELLO_CTX_UNDO, "UNDO"}},
+                      [1] = {MELLO_CTX_SUB_STEP, "STEP"},
+                      [5] = {MELLO_CTX_PERF_FILL, "F"},
+                      [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                      [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                      [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                      [9] = {MELLO_CTX_UNDO, "UNDO"},
+                      [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
 #if MELLO_FEATURE_CHORD_MACHINE
     [MELLO_UI_CHORD] = {[0] = {MELLO_CTX_CHORD_TOGGLE, "ON"},
                         [1] = {MELLO_CTX_CHORD_SUB_ROOT, "BASS"},
-                        [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                        [9] = {MELLO_CTX_UNDO, "UNDO"}},
+                        [5] = {MELLO_CTX_PERF_FILL, "F"},
+                        [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                        [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                        [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                        [9] = {MELLO_CTX_UNDO, "UNDO"},
+                        [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
 #endif
     [MELLO_UI_GLOBAL] = {[1] = {MELLO_CTX_GLOBAL_TAP, "TAP"},
-                         [3] = {MELLO_CTX_GLOBAL_RESET, "RST2"},
-                         [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                         [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_SOUND_RESERVED] = {[0] = {MELLO_CTX_SOUND_INIT, "INIT"},
-                                 [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                                 [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_AUDIO_FX] = {[0] = {MELLO_CTX_DELAY_PRE, "PRE-DIST"},
-                           [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                           [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_DRUMS] = {[0] = {MELLO_CTX_DRUM_KICK, "K"},
-                        [1] = {MELLO_CTX_DRUM_SNARE, "S"},
-                        [2] = {MELLO_CTX_DRUM_HAT, "H"},
-                        [3] = {MELLO_CTX_DRUM_GLITCH, "G"},
-                        [4] = {MELLO_CTX_DRUM_ON, "ON"},
-                        [5] = {MELLO_CTX_DRUM_ACCENT, "ACC"},
-                        [6] = {MELLO_CTX_DRUM_ROLL, "ROLL"},
-                        [7] = {MELLO_CTX_DRUM_FEED, "FEED"},
-                        [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                        [9] = {MELLO_CTX_UNDO, "UNDO"}},
+                         [2] = {MELLO_CTX_GLOBAL_RESET, "RST2"},
+                         [5] = {MELLO_CTX_PERF_FILL, "F"},
+                         [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                         [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                         [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                         [9] = {MELLO_CTX_UNDO, "UNDO"},
+                         [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
+    [MELLO_UI_SOUND_RESERVED] = {[1] = {MELLO_CTX_SOUND_INIT, "INIT"},
+                                 [5] = {MELLO_CTX_PERF_FILL, "F"},
+                                 [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                                 [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                                 [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                                 [9] = {MELLO_CTX_UNDO, "UNDO"},
+                                 [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
+    [MELLO_UI_AUDIO_FX] = {[1] = {MELLO_CTX_DELAY_PRE, "PRE-DIST"},
+                           [5] = {MELLO_CTX_PERF_FILL, "F"},
+                           [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                           [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                           [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                           [9] = {MELLO_CTX_UNDO, "UNDO"},
+                           [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_SAMPLE_RESERVED] = {[0] = {MELLO_CTX_SAMPLE_TOGGLE, "ON"},
-                                  [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                                  [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_MIX] = {[0] = {MELLO_CTX_MIX_LEAD, "LEAD"},
-                      [1] = {MELLO_CTX_MIX_SUB, "BASS"},
+                                  [5] = {MELLO_CTX_PERF_FILL, "F"},
+                                  [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                                  [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                                  [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                                  [9] = {MELLO_CTX_UNDO, "UNDO"},
+                                  [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
+    [MELLO_UI_DRUMS] = {[0] = {MELLO_CTX_DRUM_ON, "ON"},
+                        [1] = {MELLO_CTX_DRUM_VOICE, "VOX"},
+                        [2] = {MELLO_CTX_DRUM_ACCENT, "ACC"},
+                        [3] = {MELLO_CTX_DRUM_ROLL, "ROLL"},
+                        [5] = {MELLO_CTX_PERF_FILL, "F"},
+                        [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                        [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                        [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                        [9] = {MELLO_CTX_UNDO, "UNDO"},
+                        [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
 #if MELLO_FEATURE_CHORD_MACHINE
-                      [2] = {MELLO_CTX_MIX_CHORD, "CHRD"}, /* the strip's width: 27 letters is one too many */
+    [MELLO_UI_MIX] = {[0] = {MELLO_CTX_MIX_LEAD, "LD"},
+                      [1] = {MELLO_CTX_MIX_SUB, "BS"},
+                      [2] = {MELLO_CTX_MIX_CHORD, "CH"},
+                      [3] = {MELLO_CTX_MIX_PERC, "DR"},
+                      [5] = {MELLO_CTX_PERF_FILL, "F"},
+                      [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                      [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                      [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                      [9] = {MELLO_CTX_UNDO, "UNDO"},
+                      [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
+#else
+    [MELLO_UI_MIX] = {[0] = {MELLO_CTX_MIX_LEAD, "LD"},
+                      [1] = {MELLO_CTX_MIX_SUB, "BS"},
+                      [3] = {MELLO_CTX_MIX_PERC, "DR"},
+                      [5] = {MELLO_CTX_PERF_FILL, "F"},
+                      [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
+                      [7] = {MELLO_CTX_PERF_REVERSE, "<"},
+                      [8] = {MELLO_CTX_PERF_REPEAT, "R"},
+                      [9] = {MELLO_CTX_UNDO, "UNDO"},
+                      [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
 #endif
-                      [3] = {MELLO_CTX_MIX_PERC, "PERC"},
-                      [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
-                      [9] = {MELLO_CTX_UNDO, "UNDO"}}};
+};
 
 static const MelloContextAction *context_action(MelloUiPage page, uint8_t slot)
 {
@@ -841,7 +924,7 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
     w = mello_ui_white_key_position(note_index);
     if (w < 0) return;
     if (ui->page == MELLO_UI_HOME &&
-        (ui->held_black & (1u << 6))) { /* REPEAT held: a white key is its length */
+        (ui->held_black & (1u << 8))) { /* REPEAT held: a white key is its length */
         ui->perf_repeat_len = (uint8_t)(w + 1);
         ui->dirty |= MELLO_UI_DIRTY_FOOTER;
         return;
@@ -1582,7 +1665,12 @@ static void adjust_drums(MelloUi *ui, uint8_t knob, int16_t delta)
     case 7: l->ratchet = (uint8_t)clamp_i32((int32_t)l->ratchet + delta, 1, 4); break;
     case 8: v->chance = (uint16_t)clamp_i32((int32_t)v->chance + delta * 10, 0, 1000); break;
     case 9: v->crush = (uint16_t)clamp_i32((int32_t)v->crush + delta * 10, 0, 1000); break;
-    case 10: d.swing = (uint16_t)clamp_i32((int32_t)d.swing + delta * 10, 0, 1000); break;
+    case 10: { /* FEED: OFF, FEED (RNDMZR rolls the pattern), FEED+ (and the sound) */
+        int32_t f = (d.feed ? 1 : 0) + (d.feed_sound ? 1 : 0);
+        f = clamp_i32(f + (delta > 0 ? 1 : -1), 0, 2);
+        d.feed = f > 0, d.feed_sound = f > 1;
+        break;
+    }
     case 11: d.roll = (uint16_t)clamp_i32((int32_t)d.roll + delta * 10, 0, 1000); break;
     case 12: d.length = (uint8_t)clamp_i32((int32_t)d.length + delta, 1, MELLO_DRUM_STEPS); break;
     case 13: d.follow = delta > 0; break;
@@ -2263,6 +2351,19 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         ui->selected_drum_voice = (uint8_t)(a->verb - MELLO_CTX_DRUM_KICK);
         mark_edit(ui);
         break;
+    case MELLO_CTX_DRUM_VOICE: /* VOX: the next voice */
+        ui->selected_drum_voice = (uint8_t)((ui->selected_drum_voice + 1u) % MELLO_DRUM_VOICES);
+        mark_edit(ui);
+        break;
+    case MELLO_CTX_LOOP_TOGGLE:
+        mello_engine_loop_cycle_set_active(e, !e->loop_cycle.active);
+        rebuild(ui);
+        mark_edit(ui);
+        break;
+    case MELLO_CTX_SLOTSEQ_TOGGLE:
+        mello_engine_slot_seq_set_active(e, !e->slot_seq.active);
+        mark_edit(ui);
+        break;
     case MELLO_CTX_DRUM_ON:
     case MELLO_CTX_DRUM_ACCENT:
     case MELLO_CTX_DRUM_FEED: {
@@ -2618,17 +2719,19 @@ static void perf_poll(MelloUi *ui)
     uint16_t held = 0u;
     uint8_t b;
     if (!e) return;
-    if (ui->page == MELLO_UI_HOME && !ui->keys_mode && ui->held_step == MELLO_UI_NO_STEP && ui->held_notes)
+    /* R3: the performance keys are B5-B8 on every page (not while HOME's keys are a keyboard or a step is held) */
+    if (!(ui->page == MELLO_UI_HOME && (ui->keys_mode || ui->held_step != MELLO_UI_NO_STEP)) &&
+        ui->held_notes)
         for (b = 0u; b < 11u; ++b)
             if (ui->held_notes & bit_u32(BLACK_KEY_NOTES[b])) held |= (uint16_t)(1u << b);
     if (!held && !ui->held_black) return; /* nothing held, nothing was: the engine's perf is already off */
     if (held != ui->held_black) ui->dirty |= MELLO_UI_DIRTY_FOOTER;
     ui->held_black = held;
     memset(&p, 0, sizeof p);
-    p.fill = (held & (1u << 3)) != 0u;
-    p.sub_mute = (held & (1u << 4)) != 0u;
-    p.reverse = (held & (1u << 5)) != 0u;
-    p.repeat = (held & (1u << 6)) != 0u;
+    p.fill = (held & (1u << 5)) != 0u;
+    p.sub_mute = (held & (1u << 6)) != 0u;
+    p.reverse = (held & (1u << 7)) != 0u;
+    p.repeat = (held & (1u << 8)) != 0u;
     p.repeat_len = ui->perf_repeat_len ? ui->perf_repeat_len : 4u;
     mello_engine_set_perf(e, &p);
 }
@@ -4008,7 +4111,7 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
 #endif
     case MELLO_UI_GLOBAL: draw_param_panel(ui, o); break;
     case MELLO_UI_MIX: { /* four faders, each in its part's colour, a part that is off dimmed */
-        static const char *name[4] = {"LEAD", "BASS", "CHORD", "PERC"};
+        static const char *name[4] = {"LEAD", "BASS", "CHORD", "DRUMS"};
         static const uint16_t col[4] = {UI_ACC, UI_GOLD, UI_CHORD, UI_CORAL};
         uint16_t lv[4];
         bool on[4];
@@ -4168,6 +4271,9 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_DRUM_HAT:
     case MELLO_CTX_DRUM_GLITCH: return (uint8_t)(v - MELLO_CTX_DRUM_KICK) == ui->selected_drum_voice ? 1 : -1;
     case MELLO_CTX_DRUM_ON: return e->drums.on ? 1 : 0;
+    case MELLO_CTX_DRUM_VOICE: return 1; /* lit in the voice's colour (strip_colour) */
+    case MELLO_CTX_LOOP_TOGGLE: return e->loop_cycle.active ? 1 : 0;
+    case MELLO_CTX_SLOTSEQ_TOGGLE: return e->slot_seq.active ? 1 : 0;
     case MELLO_CTX_MIX_LEAD:
     case MELLO_CTX_MIX_SUB:
     case MELLO_CTX_MIX_CHORD:
@@ -4198,9 +4304,19 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
 }
 
 /* A label's colour when the strip has no room for pills (HOME): by what the key does. */
+/* The verbs whose cell keeps its own colour on every page: the performance keys, and DRUMS' voice. */
+static bool strip_own_colour(MelloContextVerb v)
+{
+    return v == MELLO_CTX_PERF_FILL || v == MELLO_CTX_PERF_SUB_MUTE || v == MELLO_CTX_PERF_REVERSE ||
+           v == MELLO_CTX_PERF_REPEAT || v == MELLO_CTX_DRUM_VOICE;
+}
 static uint16_t strip_colour(const MelloUi *ui, MelloContextVerb v)
 {
     switch (v) {
+    case MELLO_CTX_DRUM_VOICE: {
+        static const uint16_t vc[4] = {UI_CORAL, UI_GOLD, UI_CYAN, UI_PURPLE};
+        return vc[ui->selected_drum_voice % 4u];
+    }
     case MELLO_CTX_PERF_FILL: return UI_CORAL;
     case MELLO_CTX_PERF_SUB_MUTE: return UI_GOLD;
     case MELLO_CTX_PERF_REVERSE: return UI_BLUE;
@@ -4243,18 +4359,17 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
         ui_spaced(o, (int16_t)(px + 6), 172, (int16_t)(236 - px - 6), "STEP", UI_DIM, 2);
         return;
     }
-    if (ui->page == MELLO_UI_HOME && ui->held_black) { /* HOME's keys held: their full names, lit */
-        static const char *full[11] = {"TRANSPOSE -1", "TRANSPOSE +1", "MUTATE", "FILL",
-                                       "SUB MUTE",     "REVERSE",      "REPEAT", "RESTART",
-                                       "CLEAR",        "UNDO",         "RNDMZR"};
+    if (ui->held_black) { /* performance keys held (any page; HOME's others too): their full names, lit */
+        static const char *full[11] = {"TRANSPOSE -1", "TRANSPOSE +1", "MUTATE", "RESTART", "CLEAR", "FILL",
+                                       "BASS MUTE",    "REVERSE",      "REPEAT", "UNDO",    "RNDMZR"};
         char b[48], *q = b;
         uint8_t k;
         *q = 0;
         for (k = 0u; k < 11u; ++k)
-            if (ui->held_black & (1u << k)) {
+            if ((ui->held_black & (1u << k)) && (ui->page == MELLO_UI_HOME || (k >= 5u && k <= 8u))) {
                 if (q != b) q = copy_s(q, " + ");
                 q = copy_s(q, full[k]);
-                if (k == 6u) { /* REPEAT: its length, and how to set it */
+                if (k == 8u) { /* REPEAT: its length, and how to set it */
                     q = copy_s(q, " ");
                     q = put_u32(q, ui->perf_repeat_len ? ui->perf_repeat_len : 4u);
                     q = copy_s(q, "  WHITE KEY = LEN");
@@ -4287,8 +4402,6 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
             if (lab[i] && a->verb == MELLO_CTX_UNDO && eng(ui) &&
                 mello_engine_undo_state(eng(ui)) == MELLO_UNDO_REDO)
                 lab[i] = "REDO";
-            if (lab[i] && a->verb == MELLO_CTX_DRUM_FEED && eng(ui) && eng(ui)->drums.feed_sound)
-                lab[i] = "FED+"; /* FEED+, in FEED's width: the strip has no more room */
             w[i] = lab[i] ? (int16_t)(ui_text_len(lab[i]) * 8u + 4u) : 6;
             need = (int16_t)(need + w[i]);
             if (lab[i]) ++labelled;
@@ -4322,8 +4435,9 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
             } else if (compact) {                         /* RNDMZR filled purple, as on every page */
                 int8_t lit = a->verb == MELLO_CTX_RNDMZR ? -1 : ctx_lit(ui, a->verb);
                 uint16_t c = a->verb == MELLO_CTX_RNDMZR ? UI_WHITE
-                             : ui->page == MELLO_UI_HOME ? strip_colour(ui, a->verb)
-                                                         : (lit == 0 ? UI_DIM : accent);
+                             : ui->page == MELLO_UI_HOME || strip_own_colour(a->verb)
+                                 ? strip_colour(ui, a->verb)
+                                 : (lit == 0 ? UI_DIM : accent);
                 o->fill(o->ctx, x, 172, (int16_t)(cw - 1), 16,
                         a->verb == MELLO_CTX_RNDMZR ? ui_mix(UI_PURPLE, UI_BLACK, 110)
                         : lit > 0                   ? ui_mix(c, UI_BLACK, 130)
@@ -4335,7 +4449,8 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
                 o->text(o->ctx, (int16_t)(x + 1), 172, (int16_t)(cw - 2), 0, lab[i], UI_WHITE, 1);
             } else {
                 int8_t lit = ctx_lit(ui, a->verb);
-                uint16_t c = ui->page == MELLO_UI_HOME ? strip_colour(ui, a->verb)
+                uint16_t c = ui->page == MELLO_UI_HOME || strip_own_colour(a->verb)
+                                 ? strip_colour(ui, a->verb)
                              : a->verb == MELLO_CTX_RANDOM_CLEAR || a->verb == MELLO_CTX_GLOBAL_RESET ||
                                      a->verb == MELLO_CTX_SOUND_INIT
                                  ? (ui->reset_armed ? UI_RED : UI_DIM)
@@ -4565,7 +4680,7 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 7: v = dl->ratchet - 1u, m = 3u; break;
         case 8: v = dv->chance; break;
         case 9: v = dv->crush; break;
-        case 10: v = d->swing; break;
+        case 10: v = (uint32_t)((d->feed ? 1u : 0u) + (d->feed_sound ? 1u : 0u)), m = 2u; break;
         case 11: v = d->roll; break;
         case 12: v = d->length - 1u, m = 15u; break;
         case 14: v = d->space; break;
@@ -5018,7 +5133,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         value_u(v[3], "", e->project.pitch_span_oct);
         break;
     case MELLO_UI_MIX: {
-        static const char *mx[4] = {"LEAD", "BASS", "CHORD", "PERC"};
+        static const char *mx[4] = {"LEAD", "BASS", "CHORD", "DRUMS"};
         uint16_t lv[4];
         mix_levels(e, lv);
         for (k = 0u; k < 4u; ++k) l[k] = mx[k], value_pct(v[k], lv[k]);
@@ -5204,7 +5319,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
     case MELLO_UI_DRUMS: {
         static const char *lab[DRUM_LAYERS][4] = {{"TUNE", "DECAY", "TONE", "LEVEL"},
                                                   {"PITCH", "DECAY", "CRUSH", "RATCH"},
-                                                  {"CHANCE", "CRUSH", "SWING", "ROLL"},
+                                                  {"CHANCE", "CRUSH", "FEED", "ROLL"},
                                                   {"LENGTH", "FOLLOW", "SPACE", "LEVEL"},
                                                   {"DRIVE", "FOLD", "", ""}};
         const MelloDrumConfig *d = &e->drums;
@@ -5236,7 +5351,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         } else if (L == 2u) {
             value_pct(v[0], dv->chance);
             value_pct(v[1], dv->crush);
-            value_pct(v[2], d->swing);
+            copy_s(v[2], d->feed ? (d->feed_sound ? "FEED+" : "ON") : "OFF");
             value_pct(v[3], d->roll);
         } else if (L == 3u) {
             value_u(v[0], "", d->length);

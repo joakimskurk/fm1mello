@@ -328,6 +328,14 @@ same bevegelse meaning different things from page to page. The rules, decided 20
   OFF when they are not in use, so SELECT's count is the same every time. OCT- / OCT+ stay what they were (the step
   bank on HOME and STEP, the keyboard's octave in KEYS): that is established on the panel and the proposal to make
   them the octave gave way to it.
+- **R3, the black keys have fixed places** (done). On every page: B0 is ON for the page's part where there is one
+  (BASS, CHORD, DRUMS, SAMPLE, EVOLVE, LOOP CYCLE, SLOT SEQ); B1-B4 are the page's own, in the order pick, toggles,
+  actions; B5-B8 are the four performance keys, FILL, BASS MUTE, REVERSE and REPEAT, held, on every page (they were
+  HOME's alone), drawn as one-letter cells in their own colours, F B < R, with the full name on the strip while held;
+  B9 UNDO, B10 RNDMZR. The strip has room for about 13 letters of page labels beside these, so: HOME - + MUT RST
+  CLR; SEGMENT EVEN A B C D (E and F by SEL + white key, R6); RANDOM NONE ALL CLR; DRUMS ON VOX (the next voice,
+  in its colour) ACC ROLL, with FEED moved to a knob on VARY (where SWING was; SWING is GLOBAL's GROOVE); MIX LD BS
+  CH DR. INIT (SOUND) and PRE-DIST (FX) moved from B0 to B1, since B0 is ON. MIX's fourth part is DRUMS, as the page.
 
 ## The splash (2026-10-31)
 

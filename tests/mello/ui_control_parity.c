@@ -106,9 +106,9 @@ int main(void)
     if (!mello_engine_save_slot(&transport.engine, 2u, "KEEP")) return 1;
 
     mello_ui_set_page(&ui, MELLO_UI_RANDOM);
-    black_input(&ui, 100u, 3u);
+    black_input(&ui, 100u, 2u); /* CLR: RANDOM's B2 since R3 */
     if (!ui.reset_armed || transport.engine.project.steps[0].pitch != 9) return 2;
-    black_input(&ui, 200u, 3u);
+    black_input(&ui, 200u, 2u);
     for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
         if (!canonical_step(&transport.engine.project.steps[i], i)) {
             fprintf(stderr, "CLEAR step %u failed\n", (unsigned)i);
@@ -154,7 +154,7 @@ int main(void)
     black_input(&ui, 6600u, 1u);
     if (transport.engine.project.bpm != 100u) return 15;
 
-    /* RESET ALL moved to contextual B3 with the same two-press confirmation. */
+    /* RESET ALL is contextual B2 (R3; B3 before) with the same two-press confirmation. */
     transport.engine.project.seq_len = 24u;
     transport.engine.project.bpm = 199u;
     transport.engine.project.root_note = 72u;
@@ -170,9 +170,9 @@ int main(void)
     storage.manual_pending = false;
     mello_ui_set_page(&ui, MELLO_UI_GLOBAL);
 
-    black_input(&ui, 7100u, 3u);
+    black_input(&ui, 7100u, 2u);
     if (!ui.reset_armed || transport.engine.project.seq_len != 24u || !transport.running) return 16;
-    black_input(&ui, 8000u, 3u);
+    black_input(&ui, 8000u, 2u);
     if (transport.running || ui.page != MELLO_UI_HOME || ui.reset_armed) return 17;
     if (transport.engine.project.seq_len != 16u || transport.engine.project.bpm != 80u ||
         transport.engine.project.root_note != 60u || transport.engine.project.scale != MELLO_SCALE_MINOR)
@@ -191,9 +191,9 @@ int main(void)
     /* An expired B3 confirmation re-arms instead of resetting. */
     transport.engine.project.bpm = 111u;
     mello_ui_set_page(&ui, MELLO_UI_GLOBAL);
-    black_input(&ui, 10000u, 3u);
+    black_input(&ui, 10000u, 2u);
     if (!ui.reset_armed) return 23;
-    black_input(&ui, 13101u, 3u);
+    black_input(&ui, 13101u, 2u);
     if (!ui.reset_armed || transport.engine.project.bpm != 111u) return 24;
 
     puts("PASS: CLEAR/TAP/RESET ALL semantics survive contextual migration without hidden OCT reset grammar");

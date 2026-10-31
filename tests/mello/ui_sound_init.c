@@ -53,10 +53,10 @@ int main(void)
     s.osc_wave = MELLO_WAVE_SQUARE, s.noise_level = 600u, s.unison = 4u, s.filter_cut = 120u;
     mello_engine_sound_set_config(&t.engine, &s);
     mello_ui_set_page(&u, MELLO_UI_SOUND_RESERVED);
-    mello_ui_input(&u, 1000000u, 1000u, 0u, 0u, 0u, 1u << black_note(0u), 0);
+    mello_ui_input(&u, 1000000u, 1000u, 0u, 0u, 0u, 1u << black_note(1u), 0); /* INIT is B1 (R3: B0 is ON) */
     CHECK(t.engine.sound.osc_wave == MELLO_WAVE_SQUARE && u.reset_armed,
           "one press of INIT changed the sound");
-    mello_ui_input(&u, 2000000u, 2000u, 0u, 0u, 0u, 1u << black_note(0u), 0);
+    mello_ui_input(&u, 2000000u, 2000u, 0u, 0u, 0u, 1u << black_note(1u), 0); /* INIT is B1 (R3: B0 is ON) */
     CHECK(t.engine.sound.osc_wave == MELLO_WAVE_SAW && !t.engine.sound.noise_level &&
               t.engine.sound.unison == 1u && t.engine.sound.filter_cut == d.filter_cut,
           "INIT twice did not restore the default sound");

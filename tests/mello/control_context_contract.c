@@ -15,29 +15,29 @@ typedef struct {
 } HintCase;
 
 static const HintCase hints[] = {
-    {"HOME", MELLO_UI_HOME, "B0:- B1:+ B2:MUT B3:FL B4:SB B5:<< B6:RP B7:|< B8:CL B9:UNDO B10:RNDMZR"},
-    {"STEP", MELLO_UI_SEQ_STEP, "B4:SKIP B9:UNDO B10:RNDMZR"},
-    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B0:A B1:B B2:C B3:D B4:E B5:F B7:EVEN B9:UNDO B10:RNDMZR"},
-    {"LOOP", MELLO_UI_SEQ_LOOP, "B2:RST B9:UNDO B10:RNDMZR"},
-    {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B9:UNDO B10:RNDMZR"},
-    {"RANDOM", MELLO_UI_RANDOM, "B1:NONE B2:ALL B3:CLR2 B9:UNDO B10:RNDMZR"},
-    {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B9:UNDO B10:RNDMZR"},
-    {"SLOTS", MELLO_UI_SLOTS, "B9:UNDO B10:RNDMZR"},
-    {"DOT", MELLO_UI_DOT, "B1:RND B2:RST B3:FLW B4:REV B9:UNDO B10:RNDMZR"},
-    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B2:LOOP B9:UNDO B10:RNDMZR"},
-    {"SUB", MELLO_UI_SUB, "B0:ON B4:STEP B9:UNDO B10:RNDMZR"},
+    {"HOME", MELLO_UI_HOME, "B0:- B1:+ B2:MUT B3:RST B4:CLR B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"STEP", MELLO_UI_SEQ_STEP, "B1:SKIP B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B0:EVEN B1:A B2:B B3:C B4:D B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"LOOP", MELLO_UI_SEQ_LOOP, "B0:ON B1:RST B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B0:ON B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"RANDOM", MELLO_UI_RANDOM, "B0:NONE B1:ALL B2:CLR B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"SLOTS", MELLO_UI_SLOTS, "B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"DOT", MELLO_UI_DOT, "B1:RND B2:RST B3:FLW B4:REV B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B2:LOOP B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"SUB", MELLO_UI_SUB, "B0:ON B1:STEP B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
 #if MELLO_FEATURE_CHORD_MACHINE
-    {"CHORD", MELLO_UI_CHORD, "B0:ON B1:BASS B9:UNDO B10:RNDMZR"},
+    {"CHORD", MELLO_UI_CHORD, "B0:ON B1:BASS B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
 #endif
-    {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B3:RST2 B9:UNDO B10:RNDMZR"},
-    {"SOUND", MELLO_UI_SOUND_RESERVED, "B0:INIT B9:UNDO B10:RNDMZR"},
-    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B0:PRE-DIST B9:UNDO B10:RNDMZR"},
-    {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B9:UNDO B10:RNDMZR"},
-    {"DRUMS", MELLO_UI_DRUMS, "B0:K B1:S B2:H B3:G B4:ON B5:ACC B6:ROLL B7:FEED B9:UNDO B10:RNDMZR"},
+    {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B2:RST2 B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"SOUND", MELLO_UI_SOUND_RESERVED, "B1:INIT B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B1:PRE-DIST B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"DRUMS", MELLO_UI_DRUMS, "B0:ON B1:VOX B2:ACC B3:ROLL B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
 #if MELLO_FEATURE_CHORD_MACHINE
-    {"MIX", MELLO_UI_MIX, "B0:LEAD B1:BASS B2:CHRD B3:PERC B9:UNDO B10:RNDMZR"},
+    {"MIX", MELLO_UI_MIX, "B0:LD B1:BS B2:CH B3:DR B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
 #else
-    {"MIX", MELLO_UI_MIX, "B0:LEAD B1:BASS B3:PERC B9:UNDO B10:RNDMZR"},
+    {"MIX", MELLO_UI_MIX, "B0:LD B1:BS B3:DR B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
 #endif
 };
 
@@ -193,10 +193,10 @@ static void verify_random_mask_and_oct(void)
     if (t.engine.randomize.mask != mask || u.dirty) die("RANDOM OCT-", "still changes RANDOM state");
     press(&u, 200u, bit_u32(MELLO_UI_BTN_OCT_UP), 0u);
     if (t.engine.randomize.mask != mask || u.dirty) die("RANDOM OCT+", "still changes RANDOM state");
-    black(&u, 300u, 1u); /* NONE and ALL lead the RANDOM page's strip; B10/B9 are RNDMZR/UNDO everywhere */
-    if (t.engine.randomize.mask != 0u) die("RANDOM B1", "mask NONE missing");
-    black(&u, 400u, 2u);
-    if (t.engine.randomize.mask != MELLO_RAND_ALL) die("RANDOM B2", "mask ALL missing");
+    black(&u, 300u, 0u); /* NONE and ALL lead the RANDOM page's strip; B10/B9 are RNDMZR/UNDO everywhere */
+    if (t.engine.randomize.mask != 0u) die("RANDOM B0", "mask NONE missing");
+    black(&u, 400u, 1u);
+    if (t.engine.randomize.mask != MELLO_RAND_ALL) die("RANDOM B1", "mask ALL missing");
 }
 
 static void verify_global_reset(void)
@@ -213,9 +213,9 @@ static void verify_global_reset(void)
     press(&u, 100u, both, both);
     if (u.reset_armed || t.engine.project.bpm != 199u || t.engine.project.seq_len != 24u)
         die("GLOBAL OCT chord", "hidden RESET ALL survived");
-    black(&u, 200u, 3u);
-    if (!u.reset_armed || t.engine.project.bpm != 199u) die("GLOBAL B3", "first press did not arm only");
-    black(&u, 500u, 3u);
+    black(&u, 200u, 2u);
+    if (!u.reset_armed || t.engine.project.bpm != 199u) die("GLOBAL B2", "first press did not arm only");
+    black(&u, 500u, 2u);
     if (u.reset_armed || u.page != MELLO_UI_HOME || t.engine.project.bpm != 80u ||
         t.engine.project.seq_len != 16u)
         die("GLOBAL B3", "confirmed factory reset failed");
@@ -235,8 +235,8 @@ static void verify_loop_reset(void)
     turn_k4(&u);
     if (t.engine.loop_cycle_pos != 5u || t.engine.loop_cycle_tick != 9u || u.dirty)
         die("LOOP K4", "still acts as RESET");
-    black(&u, 200u, 2u);
-    if (t.engine.loop_cycle_pos || t.engine.loop_cycle_tick) die("LOOP B2", "context reset missing");
+    black(&u, 200u, 1u);
+    if (t.engine.loop_cycle_pos || t.engine.loop_cycle_tick) die("LOOP B1", "context reset missing");
 }
 
 static void verify_mod_navigation(void)
@@ -320,9 +320,9 @@ static void verify_inactive_and_chord(void)
     before = t.engine;
     u.dirty = 0u;
     black(&u, 100u,
-          4u); /* SUB MUTE acts while held (perf_poll, ui_perf_keys): a bare press changes nothing */
+          6u); /* BASS MUTE acts while held (perf_poll, ui_perf_keys): a bare press changes nothing */
     if (u.page != MELLO_UI_HOME || memcmp(&before, &t.engine, sizeof before) || u.dirty)
-        die("HOME B4", "SUB MUTE acted without being held");
+        die("HOME B6", "BASS MUTE acted without being held");
     black(&u, 200u, 10u); /* RNDMZR, tapped: rolls, stays on HOME (held, it opens RANDOM) */
     if (u.page != MELLO_UI_HOME ||
         !memcmp(&before.project.steps, &t.engine.project.steps, sizeof before.project.steps))

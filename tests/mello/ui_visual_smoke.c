@@ -185,8 +185,8 @@ int main(void)
         uint8_t note, black_pos = 0u, b6 = 0xFFu, b7 = 0xFFu;
         for (note = 0u; note < 27u; ++note) {
             if (mello_ui_white_key_position(note) >= 0) continue;
-            if (black_pos == 1u) b6 = note; /* NONE (was B6) */
-            if (black_pos == 2u) b7 = note; /* ALL (was B7) */
+            if (black_pos == 0u) b6 = note; /* NONE: B0 since R3 (was B6, then B1) */
+            if (black_pos == 1u) b7 = note; /* ALL: B1 */
             ++black_pos;
         }
         if (b6 == 0xFFu || b7 == 0xFFu) return 31;
