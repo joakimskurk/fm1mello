@@ -253,6 +253,12 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
   At the default kit a hit is within 1 dB of its old level (the kick +1.9 dB RMS from its hold). Cost: up to +31% audio
   render with all four voices ringing all the time, against +16%, so about 4% more of the chip. The kick's click and
   the snare's body stop computing once they are down 60 dB.
+- The default beat is BROKEN (2026-10-31, chosen from five: rolled, electro, broken, halftime, techno). It has a
+  syncopated kick (steps 1, 4, 8, 11, 14), a snare on the backbeat with a ghost at step 10, sixteenths of hat with gaps
+  and a roll of four at step 16, and three glitches that jump in pitch. It is straight: SWING 0, because the sequence
+  has no swing. At 200, the drums' odd steps came 10% of a step late (12.5 ms at 120 BPM, 19 ms at 80), and a lead or
+  sub note on the same odd step flammed against them. A MUSICAL roll plays about a third of its odd steps. SWING stays
+  on the drums' VARY layer for drums alone.
 - Saved in SEC_DRUMS (9). Not yet: MIDI out, LFO / DOT / EVOLVE routes to the drums.
 
 ## The chord voice (2026-10-30)

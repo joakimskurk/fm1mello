@@ -671,87 +671,33 @@ void mello_sub_defaults(MelloSubConfig *c)
 
 void mello_drum_defaults(MelloDrumConfig *c)
 {
-    /* The default beat (feedback 2026-10-30: "that one, it sounded very good"): a full ROLL of the first kit with
-     * SWING 30% and CRUSH 40%, kept as it came out (listen-drums/4_rolled_crushed.wav). GLITCH has no hits in it.
-     * The kick tightened since (2026-10-31: "it eats the bass's room; more percussive than tonal"): 6 hits, not 10,
-     * ~190 ms, not ~580, half the drive, and no PITCH or longer DECAY on its steps. */
+    /* The default beat, BROKEN (feedback 2026-10-31: "I like 3"): a syncopated kick, the snare on the backbeat with a
+     * ghost before the second, sixteenths of hat that leave gaps, a few glitches that jump in pitch. Straight: SWING 0,
+     * as the sequence, which has none (DECISIONS.md "Drums"). The kit as redesigned the same day: a short kick with no
+     * PITCH on its steps, CRUSH 0. */
     static const MelloDrumVoice v[MELLO_DRUM_VOICES] = {
         {400u, 100u, 150u, 900u, 1000u, 0u}, /* KICK ~57 Hz, short, a little drive */
         {450u, 400u, 550u, 700u, 1000u, 0u}, /* SNARE */
-        {600u, 150u, 400u, 500u, 1000u, 0u}, /* HAT, closed */
+        {600u, 150u, 650u, 500u, 1000u, 0u}, /* HAT, closed, more metal than noise */
         {500u, 200u, 600u, 450u, 1000u, 0u}  /* GLITCH */
     };
-    static const uint16_t hits[MELLO_DRUM_VOICES] = {0x5851u, 0x8090u, 0x8CF0u, 0x0000u},
-                          accents[MELLO_DRUM_VOICES] = {0x1080u, 0x5031u, 0x0100u, 0x0AE7u};
-    static const MelloDrumLock lock[MELLO_DRUM_VOICES][MELLO_DRUM_STEPS] = {{{0, 0, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, 0, 0, 3},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, -9, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, -9, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, -71, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, 0, 0, 3},
-                                                                             {0, -45, 0, 1}},
-                                                                            {{0, -7, 0, 1},
-                                                                             {0, -54, 0, 1},
-                                                                             {-1, 0, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, -76, 0, 1},
-                                                                             {1, 31, 0, 4},
-                                                                             {1, 0, 0, 1},
-                                                                             {-3, 72, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, 0, 0, 2},
-                                                                             {-6, -48, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, 60, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, 0, 0, 4},
-                                                                             {0, -23, 0, 1}},
-                                                                            {{-4, -60, 0, 1},
-                                                                             {4, 0, 0, 1},
-                                                                             {-1, -28, 0, 3},
-                                                                             {0, 44, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {-1, 0, 0, 1},
-                                                                             {-2, 0, 0, 1},
-                                                                             {1, 0, 0, 1},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, 2, 0, 2},
-                                                                             {0, -18, 0, 1},
-                                                                             {0, -59, 0, 1},
-                                                                             {10, 0, 0, 1},
-                                                                             {0, 0, 0, 4},
-                                                                             {0, 0, 0, 1},
-                                                                             {0, 0, 0, 1}},
-                                                                            {{0, 0, 0, 1},
-                                                                             {-2, 0, 0, 3},
-                                                                             {-10, 0, 0, 2},
-                                                                             {9, -15, 0, 1},
-                                                                             {9, 68, 0, 1},
-                                                                             {-3, 0, 0, 1},
-                                                                             {0, -14, 0, 1},
-                                                                             {-9, 0, 0, 1},
-                                                                             {10, -63, 0, 1},
-                                                                             {0, 0, 0, 3},
-                                                                             {12, 14, 0, 1},
-                                                                             {4, 54, 0, 1},
-                                                                             {-1, 0, 0, 1},
-                                                                             {0, -10, 0, 1},
-                                                                             {-10, 0, 0, 1},
-                                                                             {0, 0, 0, 1}}};
-    uint8_t i;
+    /* Bit k is step k + 1:  KICK x..x...x..x..x..  SNARE ....x....x..x...  HAT x.xxx.x.x.xxx.xx  GLITCH .....x.....x..x. */
+    static const uint16_t hits[MELLO_DRUM_VOICES] = {0x2489u, 0x1210u, 0xDD5Du, 0x4820u},
+                          accents[MELLO_DRUM_VOICES] = {0x0081u, 0x1010u, 0x1010u, 0x4020u};
+    /* The locks that differ from none: voice, step, PITCH, DECAY, RATCH. */
+    static const struct {
+        uint8_t v, k;
+        int8_t pitch, decay;
+        uint8_t ratchet;
+    } locks[] = {{MELLO_DRUM_KICK, 13u, 0, -50, 1u}, {MELLO_DRUM_SNARE, 9u, -2, -60, 1u}, /* the ghost */
+                 {MELLO_DRUM_HAT, 3u, 3, 0, 1u},     {MELLO_DRUM_HAT, 11u, 5, 0, 1u},
+                 {MELLO_DRUM_HAT, 15u, 7, 0, 4u},    {MELLO_DRUM_GLITCH, 5u, -5, 0, 1u},
+                 {MELLO_DRUM_GLITCH, 11u, 7, 0, 1u}, {MELLO_DRUM_GLITCH, 14u, 12, 0, 2u}};
+    uint8_t i, k;
     if (!c) return;
     memset(c, 0, sizeof(*c));
     c->length = 16u;
-    c->swing = 300u;
+    c->swing = 0u;
     c->level = 700u;
     c->space = 250u;
     c->roll = 500u;
@@ -759,8 +705,14 @@ void mello_drum_defaults(MelloDrumConfig *c)
         c->voice[i] = v[i];
         c->hits[i] = hits[i];
         c->accents[i] = accents[i];
+        for (k = 0u; k < MELLO_DRUM_STEPS; ++k) c->lock[i][k].ratchet = 1u;
     }
-    memcpy(c->lock, lock, sizeof c->lock);
+    for (i = 0u; i < sizeof locks / sizeof locks[0]; ++i) {
+        MelloDrumLock *l = &c->lock[locks[i].v][locks[i].k];
+        l->pitch = locks[i].pitch;
+        l->decay = locks[i].decay;
+        l->ratchet = locks[i].ratchet;
+    }
 }
 
 static MelloDrumConfig sanitize_drum_config(MelloDrumConfig c)
