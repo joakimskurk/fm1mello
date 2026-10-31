@@ -67,6 +67,10 @@ static uint32_t ticks_to_us_small(uint32_t ticks, uint16_t bpm)
     return q * quarter_us + r * base + (r * rem) / MELLO_PPQN;
 }
 
+/* MIDI out's drums: General MIDI's kick, snare, closed hat and clap, on channel 10. */
+#define MELLO_MIDI_DRUM_CHANNEL 9u
+static const uint8_t DRUM_NOTE[MELLO_DRUM_VOICES] = {36u, 38u, 42u, 39u};
+
 static void remove_scheduled(MelloTransport *t, uint8_t idx)
 {
     uint8_t i;
@@ -103,7 +107,8 @@ static void dispatch_scheduled(MelloTransport *t, uint32_t now_us)
             continue;
         }
         send_now(t, ev.status, ev.data1, ev.data2);
-        if ((ev.status & 0xF0u) == 0x90u && ev.data2) {
+        if (ev.voice == MELLO_VOICE_DRUM) { /* drum notes always have their OFF scheduled: not counted */
+        } else if ((ev.status & 0xF0u) == 0x90u && ev.data2) {
             uint8_t *cnt = &t->active_note_count[ev.voice == MELLO_VOICE_SUB ? 1u : 0u][ev.data1 & 0x7Fu];
             if (*cnt != 255u) (*cnt)++;
         } else if ((ev.status & 0xF0u) == 0x80u || ((ev.status & 0xF0u) == 0x90u && !ev.data2)) {
@@ -127,6 +132,11 @@ static void all_notes_off(MelloTransport *t)
         t->active_note_count[0][n] = 0u;
         t->active_note_count[1][n] = 0u;
     }
+    if (t->midi_note_out_enabled) { /* the drums' notes, whose scheduled OFFs are dropped below */
+        uint8_t v;
+        for (v = 0u; v < MELLO_DRUM_VOICES; ++v)
+            send_now(t, (uint8_t)(0x80u | MELLO_MIDI_DRUM_CHANNEL), DRUM_NOTE[v], 0u);
+    }
     t->scheduled_count = 0u;
     t->chord_seen = t->chord_off = t->display_chord_lit = 0u;
 }
@@ -148,6 +158,17 @@ static void consume_engine_events(MelloTransport *t, uint32_t pulse_tick, uint32
             uint32_t delta_ticks = ev.tick - pulse_tick;
             uint32_t due = pulse_due_us + ticks_to_us_small(delta_ticks, t->engine.project.bpm);
             if (t->event_sink) t->event_sink(t->event_sink_ctx, &ev, due);
+            /* The drums on MIDI out (2026-10-31), as the notes: NOTE OUT on, MIDI MASTER. GM's notes on channel 10,
+             * each hit's velocity, a fixed 50 ms long (or LEN FIXED's). */
+            if (ev.type == MELLO_EVENT_DRUM_HIT && ev.sample_slot < MELLO_DRUM_VOICES &&
+                t->midi_note_out_enabled && t->sync_mode == MELLO_SYNC_MASTER) {
+                uint8_t n = DRUM_NOTE[ev.sample_slot];
+                schedule_midi(t, due, (uint8_t)(0x90u | MELLO_MIDI_DRUM_CHANNEL), n, ev.velocity,
+                              MELLO_VOICE_DRUM);
+                schedule_midi(t,
+                              due + (t->midi_fixed_length ? (uint32_t)t->midi_fixed_len_ms * 1000u : 50000u),
+                              (uint8_t)(0x80u | MELLO_MIDI_DRUM_CHANNEL), n, 0u, MELLO_VOICE_DRUM);
+            }
         } else if (ev.type == MELLO_EVENT_NOTE_ON || ev.type == MELLO_EVENT_NOTE_OFF ||
                    ev.type == MELLO_EVENT_SUB_NOTE_ON || ev.type == MELLO_EVENT_SUB_NOTE_OFF
 #if MELLO_FEATURE_CHORD_MACHINE

@@ -386,7 +386,18 @@ part is off.
   tests/mello/mix_mute.c checks them.
 - SWING has a home on GLOBAL too: a third layer, GROOVE, has it on K1. It is the same value as DRUMS VARY's, since it
   swings everything.
-- Saved in SEC_DRUMS (9). Not yet: MIDI out, LFO / DOT / EVOLVE routes to the drums.
+- Saved in SEC_DRUMS (9).
+- MIDI out and modulation (2026-10-31).
+  - **MIDI out.** With NOTE OUT on in MIDI MASTER, as for the lead, each hit is a General MIDI note on channel 10:
+    kick 36, snare 38, closed hat 42, GLITCH as a clap, 39. It carries the hit's velocity and is 50 ms long (or LEN
+    FIXED's MS). Its OFF is always scheduled, so drum notes are not counted with the lead's and the sub's. STOP sends
+    an OFF for the four notes. The channel is fixed at 10, as drum machines expect: GLOBAL MIDI has no room for a
+    knob.
+  - **Modulation.** Four destinations for DOT's MOD lanes and EVOLVE's sound routes, and the same four as LFO
+    targets: D.TUNE (every voice's pitch, +-12 semitones), D.DECAY (up to 4x shorter or longer), D.CRUSH (up to 100
+    on the CRUSH a hit gets) and D.DRIVE (the kit's DRIVE). TUNE, DECAY and CRUSH are read when a hit starts, and
+    DRIVE all the time. They are summed with the LFO into MelloAudio.drum_mod (8 bytes), and only while the drums are
+    on. tests/mello/drum_routes.c checks them.
 
 ## The chord voice (2026-10-30)
 

@@ -69,7 +69,8 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
       differences come from per-step modulation and the randomizer. Its own clock as the bass's.
       Done (DECISIONS.md "Drums"): DRUMS after SUB and CHORD on BASS; KICK, SNARE, HAT, GLITCH; per step PITCH, DECAY,
       CRUSH, RATCH and accent; CHANCE, SWING, ROLL, FEED (RNDMZR rolls them too); a step every pulse, or with FOLLOW
-      the sequence's steps (drum_machine). Not yet: MIDI out for the drums, LFO / DOT / EVOLVE routes to them.
+      the sequence's steps (drum_machine). Since then: MIDI out for the drums (GM notes on channel 10) and the LFO,
+      DOT and EVOLVE routes to them (D.TUNE, D.DECAY, D.CRUSH, D.DRIVE; drum_routes).
 
 ## Phase 0: clean ground (done in this repo)
 

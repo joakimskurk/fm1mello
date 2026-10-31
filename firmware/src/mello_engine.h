@@ -161,8 +161,9 @@ typedef enum {
     MELLO_VOICE_LEAD = 0,
     MELLO_VOICE_SUB = 1,
 #if MELLO_FEATURE_CHORD_MACHINE
-    MELLO_VOICE_CHORD = 2
+    MELLO_VOICE_CHORD = 2,
 #endif
+    MELLO_VOICE_DRUM = 3 /* MIDI out's drum notes (channel 10) */
 } MelloVoice;
 
 /* Phase 9 sound model. Integer units mirror the browser controls without
@@ -188,9 +189,13 @@ typedef enum {
     MELLO_LFO_RES,
     MELLO_LFO_OSC2,
     MELLO_LFO_FM,
-    MELLO_LFO_SAT
+    MELLO_LFO_SAT,
+    MELLO_LFO_DRUM_TUNE, /* the drums (2026-10-31): every voice's pitch, its DECAY, CRUSH, and the kit's DRIVE */
+    MELLO_LFO_DRUM_DECAY,
+    MELLO_LFO_DRUM_CRUSH,
+    MELLO_LFO_DRUM_DRIVE
 } MelloLfoTarget;
-#define MELLO_LFO_TARGET_COUNT 11u
+#define MELLO_LFO_TARGET_COUNT 15u
 /* The MOD envelope's destinations. */
 typedef enum {
     MELLO_MENV_CUTOFF = 0,
@@ -214,9 +219,13 @@ typedef enum {
     MELLO_DEST_NOISE_FM,
     MELLO_DEST_SAT,
     MELLO_DEST_DETUNE,
-    MELLO_DEST_PWM
+    MELLO_DEST_PWM,
+    MELLO_DEST_DRUM_TUNE, /* the drums (2026-10-31): as the LFO's four drum targets */
+    MELLO_DEST_DRUM_DECAY,
+    MELLO_DEST_DRUM_CRUSH,
+    MELLO_DEST_DRUM_DRIVE
 } MelloModDest;
-#define MELLO_DEST_COUNT 12u
+#define MELLO_DEST_COUNT 16u
 typedef enum { MELLO_FILTER_LP = 0, MELLO_FILTER_HP, MELLO_FILTER_BP, MELLO_FILTER_NOTCH } MelloFilterMode;
 #define MELLO_FILTER_MODE_COUNT 4u
 #define MELLO_UNISON_MAX        4u

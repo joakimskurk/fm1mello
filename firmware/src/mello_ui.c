@@ -361,14 +361,19 @@ static const char *lfo_target_name(MelloLfoTarget t)
     case MELLO_LFO_OSC2: return "OSC 2";
     case MELLO_LFO_FM: return "FM";
     case MELLO_LFO_SAT: return "SAT";
+    case MELLO_LFO_DRUM_TUNE: return "D.TUNE";
+    case MELLO_LFO_DRUM_DECAY: return "D.DECAY";
+    case MELLO_LFO_DRUM_CRUSH: return "D.CRUSH";
+    case MELLO_LFO_DRUM_DRIVE: return "D.DRIVE";
     default: return "?";
     }
 }
 
 static const char *mod_dest_name(uint8_t d)
 {
-    static const char *n[MELLO_DEST_COUNT] = {"OFF", "CUTOFF", "RES",  "DECAY", "PITCH",  "OSC 2",
-                                              "FM",  "NOISE",  "N.FM", "SAT",   "DETUNE", "PWM"};
+    static const char *n[MELLO_DEST_COUNT] = {"OFF",    "CUTOFF",  "RES",     "DECAY",  "PITCH",  "OSC 2",
+                                              "FM",     "NOISE",   "N.FM",    "SAT",    "DETUNE", "PWM",
+                                              "D.TUNE", "D.DECAY", "D.CRUSH", "D.DRIVE"};
     return d < MELLO_DEST_COUNT ? n[d] : "?";
 }
 

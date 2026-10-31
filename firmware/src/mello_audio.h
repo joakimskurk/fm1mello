@@ -259,10 +259,12 @@ typedef struct {
     bool mf_coeff_valid;
     int32_t dist_tone_s[2][4]; /* distTone: lowpass -24 = two biquads */
     MelloDotLane dot_lane[MELLO_DOT_MOD_LANES];
-    int16_t tm_value;    /* EVOLVE's register value at the last pulse, centred */
-    bool sub_mute;       /* SUB MUTE (HOME's performance key), held */
-    int32_t sub_gain;    /* the bass's gain, Q15, sliding to 0 or 1 in ~10 ms so muting never clicks */
-    uint8_t mix_mute;    /* MIX's mutes: bit 0 LEAD, 1 SUB, 2 CHORD, 3 PERC */
+    int16_t tm_value; /* EVOLVE's register value at the last pulse, centred */
+    bool sub_mute;    /* SUB MUTE (HOME's performance key), held */
+    int32_t sub_gain; /* the bass's gain, Q15, sliding to 0 or 1 in ~10 ms so muting never clicks */
+    uint8_t mix_mute; /* MIX's mutes: bit 0 LEAD, 1 SUB, 2 CHORD, 3 PERC */
+    int16_t
+        drum_mod[4]; /* the drums' modulation (DOT, EVOLVE, LFO), -1000..1000: TUNE, DECAY, CRUSH, DRIVE */
     int32_t mix_gain[4]; /* each part's, Q15, sliding as sub_gain does */
     uint16_t effective_decay_ms;
     int16_t last_lfo;

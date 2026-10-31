@@ -570,8 +570,12 @@ static void drum_hit(MelloAudio *a, const MelloEvent *e)
     d = &a->drum[v];
     c = &a->drum_config.voice[v];
     ms = base_ms[v] + (uint32_t)c->decay * span_ms[v] / 1000u;
-    if (e->drum_decay) ms = inc_times(ms << 8, semi_ratio_q16((int32_t)e->drum_decay * 24 * 256 / 100)) >> 8;
-    ratio = semi_ratio_q16(((int32_t)e->note - 64) * 256); /* PITCH */
+    if (e->drum_decay || a->drum_mod[1]) /* the step's DECAY, and the modulation's (up to 4x either way) */
+        ms = inc_times(ms << 8, semi_ratio_q16((int32_t)e->drum_decay * 24 * 256 / 100 +
+                                               (int32_t)a->drum_mod[1] * 6144 / 1000)) >>
+             8;
+    ratio = semi_ratio_q16(((int32_t)e->note - 64) * 256 +
+                           (int32_t)a->drum_mod[0] * 3072 / 1000); /* PITCH, +-12 */
     d->env = 1 << 24;
     d->penv = d->cenv = 1 << 24;
     d->pk = d->ck = 0;
@@ -647,7 +651,8 @@ static void drum_hit(MelloAudio *a, const MelloEvent *e)
     }
     d->k = drum_rate(ms > hold_ms + 2u ? ms - hold_ms : 2u);
     d->hold_s = (uint16_t)(hold_ms * 44u);
-    crush = (uint32_t)c->crush / 10u + e->drum_crush;
+    crush =
+        (uint32_t)c->crush / 10u + e->drum_crush + (a->drum_mod[2] > 0 ? (uint32_t)a->drum_mod[2] / 10u : 0u);
     if (crush > 100u) crush = 100u;
     d->hold_n = (uint8_t)(1u + crush * 15u / 100u);
     d->mask = ~((1 << (crush * 11u / 100u)) - 1);
@@ -796,9 +801,12 @@ static void drum_render(MelloAudio *a, int32_t music, int32_t *out_l, int32_t *o
     a->drum_buf[a->drum_buf_pos] = (int16_t)heard;
     a->drum_buf_pos = (uint16_t)((a->drum_buf_pos + 1u) & (MELLO_DRUM_BUF - 1u));
     l += mid, r += mid;
-    if (a->drum_config.drive | a->drum_config.fold) { /* the kit's own DRIVE and FOLD */
-        l = drum_drive(l, a->drum_config.drive, a->drum_config.fold);
-        r = drum_drive(r, a->drum_config.drive, a->drum_config.fold);
+    {
+        uint16_t drive = (uint16_t)clamp32((int32_t)a->drum_config.drive + a->drum_mod[3], 0, 1000);
+        if (drive | a->drum_config.fold) { /* the kit's own DRIVE (modulated) and FOLD */
+            l = drum_drive(l, drive, a->drum_config.fold);
+            r = drum_drive(r, drive, a->drum_config.fold);
+        }
     }
     *out_l = clamp32(l, -65535, 65535);
     *out_r = clamp32(r, -65535, 65535);
@@ -2329,6 +2337,15 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             mods = true;
             if (dmod[MELLO_DEST_CUTOFF])
                 cut = (uint16_t)clamp32((int32_t)cut + dmod[MELLO_DEST_CUTOFF], 0, 1000);
+        }
+        if (a->drum_config.on) { /* the drums' share: read at each hit (TUNE, DECAY, CRUSH) and by DRIVE */
+            uint8_t k;
+            int32_t lt = (int32_t)a->config.lfo_target - (int32_t)MELLO_LFO_DRUM_TUNE;
+            for (k = 0u; k < 4u; ++k) {
+                int32_t m = mods ? dmod[MELLO_DEST_DRUM_TUNE + k] : 0;
+                if (a->config.lfo_on && lt == (int32_t)k) m += lfo * (int32_t)a->config.lfo_depth / 32767;
+                a->drum_mod[k] = (int16_t)clamp32(m, -1000, 1000);
+            }
         }
         if (a->menv_stage == 1u) {
             a->menv_q24 += a->menv_step;
