@@ -13,8 +13,8 @@ static void count_fill(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, ui
     ++fills;
     if (y == 36 && h == 10 && x >= 8 && x < 232) ++step_cells;
     /* The SEGMENT strip sits in its panel under the title and the A-F letter row (Phase 3's HTML look): the same
-       32-cell/bounds contract at y=70. */
-    if (y == 70 && h == 12 && x >= 8 && x < 232) ++segment_cells;
+       32-cell/bounds contract at y=67 (one body: the four value rows below it). */
+    if (y == 67 && h == 12 && x >= 8 && x < 232) ++segment_cells;
 }
 static void count_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, const char *text,
                        uint16_t colour, uint8_t align)

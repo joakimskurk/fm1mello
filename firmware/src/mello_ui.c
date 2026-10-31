@@ -3589,27 +3589,27 @@ static void ui_pill(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, co
 /* K1-K4 as the HTML's controls, two by two under the page's picture (rows at y and y + 26): the label left and the
  * value right, a slider under it where the value has a range, the value in a pill where it is a word. The same texts
  * as the footer and the readout (footer_texts). */
-static void draw_knob_grid(MelloUi *ui, const MelloUiDrawOps *o, int16_t y)
+/* The four knobs as rows, one body on every page (C2): from y, 17 pixels each: the knob's label (the footer's) in
+ * the dim, its slider, its value in its colour at the right; a list's or a switch's value in a pill instead. */
+static void draw_value_rows(MelloUi *ui, const MelloUiDrawOps *o, int16_t y)
 {
     char v[4][24];
     const char *l[4];
     uint8_t k;
     footer_texts(ui, l, v);
     for (k = 0u; k < 4u; ++k) {
-        int16_t x = (int16_t)(10 + (k & 1u) * 114u), cy = (int16_t)(y + (k >> 1) * 26), w = 106,
-                vw = (int16_t)(ui_text_len(v[k]) * 8u);
+        int16_t ry = (int16_t)(y + k * 17), vw = (int16_t)(ui_text_len(v[k]) * 8u);
         uint16_t c = knob_colour(ui, k), nv, nm;
-        if (!v[k][0] || (v[k][0] == '-' && !v[k][1])) continue; /* an empty knob */
+        if (!v[k][0] || (v[k][0] == '-' && !v[k][1])) continue; /* an empty knob: no row */
+        ui_spaced(o, 10, ry, 64, l[k], UI_DIM, 0);
         if (knob_norm(ui, k, &nv, &nm)) {
-            ui_spaced(o, x, cy, (int16_t)(w - vw - 4), l[k], UI_DIM, 0);
-            o->text(o->ctx, (int16_t)(x + w - vw), cy, vw, 0, v[k], c, 2);
-            ui_slider(o, x, (int16_t)(cy + 17), w, nv, nm, c);
+            ui_slider(o, 78, (int16_t)(ry + 5), 92, nv, nm, c);
+            o->text(o->ctx, 174, ry, 56, 0, v[k], c, 2);
         } else {
             int16_t pw = (int16_t)(vw + 8);
-            if (pw > w - 30) pw = (int16_t)(w - 30);
-            ui_spaced(o, x, cy, (int16_t)(w - pw - 2), l[k], UI_DIM, 0);
-            ui_round_frame(o, (int16_t)(x + w - pw), (int16_t)(cy - 1), pw, 18, ui_mix(c, UI_BLACK, 90));
-            o->text(o->ctx, (int16_t)(x + w - pw + 4), cy, (int16_t)(pw - 8), 0, v[k], c, 1);
+            if (pw > 96) pw = 96;
+            ui_round_frame(o, (int16_t)(230 - pw), (int16_t)(ry - 1), pw, 18, ui_mix(c, UI_BLACK, 90));
+            o->text(o->ctx, (int16_t)(234 - pw), ry, (int16_t)(pw - 8), 0, v[k], c, 1);
         }
     }
 }
@@ -3619,6 +3619,7 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
     MelloEngine *e = eng(ui);
     char a[48], b[48];
     if (!e) return;
+    (void)b; /* the chord layer's names (compiled out with it) */
     o->fill(o->ctx, 0, 30, 240, 142, UI_BLACK);
     switch (ui->page) {
     case MELLO_UI_HOME: draw_home(ui, o); break;
@@ -3635,25 +3636,25 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         q = put_u32(q, (uint32_t)ui->selected_step + 1u);
         q = copy_s(q, "  ");
         midi_note_name(q, mello_resolve_step_midi(&e->project, s));
+        while (*q) ++q;
+        q = copy_s(q, s->sample_slot ? "  SMP " : "  SMP -"); /* the step's sample, in the title */
+        if (s->sample_slot) *q++ = (char)('A' + s->sample_slot - 1u), *q = 0;
         ui_section(ui, o, 50, a, sc);
         {
             static const char *fl[4] = {"SLIDE", "ACC", "SUB", "SKIP"};
             static const uint16_t fc[4] = {UI_BLUE, UI_CORAL, UI_GOLD, UI_RED};
             bool on[4];
             on[0] = s->slide, on[1] = s->accent, on[2] = s->sub, on[3] = s->skip;
-            for (i = 0u; i < 4u; ++i) ui_pill(o, (int16_t)(10 + i * 56u), 71, 52, fl[i], on[i], fc[i]);
+            for (i = 0u; i < 4u; ++i) ui_pill(o, (int16_t)(10 + i * 56u), 70, 52, fl[i], on[i], fc[i]);
         }
         {
             /* pulses and ratchets as the HTML's 1-8 rows, in small: lit up to the value */
             for (i = 0u; i < 8u; ++i) {
-                ui_round_fill(o, (int16_t)(10 + i * 9u), 93, 7, 12, i < s->pulses ? UI_ACC : UI_TRACK);
-                ui_round_fill(o, (int16_t)(88 + i * 9u), 93, 7, 12, i < s->ratchet ? UI_MAGENTA : UI_TRACK);
+                ui_round_fill(o, (int16_t)(10 + i * 9u), 88, 7, 9, i < s->pulses ? UI_ACC : UI_TRACK);
+                ui_round_fill(o, (int16_t)(88 + i * 9u), 88, 7, 9, i < s->ratchet ? UI_MAGENTA : UI_TRACK);
             }
-            q = copy_s(b, s->sample_slot ? "SMP " : "SMP -");
-            if (s->sample_slot) *q++ = (char)('A' + s->sample_slot - 1u), *q = 0;
-            o->text(o->ctx, 164, 91, 66, 0, b, s->sample_slot ? UI_BLUE : UI_DIM, 2);
         }
-        draw_knob_grid(ui, o, 118);
+        draw_value_rows(ui, o, 100);
         break;
     }
     case MELLO_UI_SEQ_SEGMENT: {
@@ -3679,14 +3680,14 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             for (j = 0u; j < sc; ++j)
                 if (i >= bounds[j] && i < bounds[j + 1u]) seg = j;
             if (i >= e->project.seq_len || seg == 0xFFu) continue;
-            o->fill(o->ctx, x, 70, (int16_t)(cw - 1), 12,
+            o->fill(o->ctx, x, 67, (int16_t)(cw - 1), 12,
                     e->project.seg_skip[seg] ? UI_PANEL2
                     : seg == s               ? ui_mix(ui_segment_colour(seg), UI_PANEL, 120)
                                              : ui_segment_colour_dim(seg));
-            if (e->project.seg_skip[seg]) o->fill(o->ctx, x, 75, (int16_t)(cw - 1), 2, UI_RED);
+            if (e->project.seg_skip[seg]) o->fill(o->ctx, x, 72, (int16_t)(cw - 1), 2, UI_RED);
             if (seg > 0u && i == bounds[seg])
-                o->fill(o->ctx, (int16_t)(x - 1), 66, 1, 20, UI_BRIGHT); /* a cut */
-            if (ui->transport->display_step == i) ui_frame(o, x, 70, (int16_t)(cw - 1), 12, UI_WHITE);
+                o->fill(o->ctx, (int16_t)(x - 1), 63, 1, 20, UI_BRIGHT); /* a cut */
+            if (ui->transport->display_step == i) ui_frame(o, x, 67, (int16_t)(cw - 1), 12, UI_WHITE);
         }
         for (i = 0u; i < sc; ++i) {
             int16_t bx = (int16_t)(8 + ((uint32_t)bounds[i] * 224u) / vis),
@@ -3695,7 +3696,7 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             if (bounds[i] >= vis) continue;
             a[0] = (char)('A' + i), a[1] = 0;
             (void)copy_s(a + 1, mark[segment_order(&e->project, i)]);
-            o->text(o->ctx, bx, 52, (int16_t)(bx2 - bx), 0, a, i == s ? UI_BRIGHT : ui_segment_colour(i), 1);
+            o->text(o->ctx, bx, 51, (int16_t)(bx2 - bx), 0, a, i == s ? UI_BRIGHT : ui_segment_colour(i), 1);
         }
         for (i = 0u; i < sc; ++i) {
             a[0] = (char)('A' + i);
@@ -3704,9 +3705,9 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                 *q++ = 'x';
                 (void)put_u32(q, e->project.seg_repeats[i]);
             }
-            ui_pill(o, (int16_t)(4 + i * 39u), 88, 36, a, i == s, ui_segment_colour(i));
+            ui_pill(o, (int16_t)(4 + i * 39u), 82, 36, a, i == s, ui_segment_colour(i));
         }
-        draw_knob_grid(ui, o, 118);
+        draw_value_rows(ui, o, 100);
         break;
     }
     case MELLO_UI_SEQ_LOOP: {
@@ -3720,24 +3721,24 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         for (i = 0u; i < MELLO_MAX_LOOP_CYCLE_STEPS; ++i) {
             MelloLoopCycleStep *ls = &e->loop_cycle.steps[i];
             int16_t x = (int16_t)(10 + i * 28u),
-                    hold_h = (int16_t)(3 + ((uint32_t)(ls->hold > 128u ? 128u : ls->hold) * 28u) / 128u),
-                    root_y = (int16_t)(70 - ls->root_offset);
+                    hold_h = (int16_t)(3 + ((uint32_t)(ls->hold > 128u ? 128u : ls->hold) * 24u) / 128u),
+                    root_y = (int16_t)(64 - ls->root_offset);
             bool in_len = i < len, active = i == e->loop_cycle_pos, selected = i == ui->selected_loop_step;
-            ui_round_fill(o, x, 52, 24, 38, in_len ? UI_PANEL2 : UI_PANEL);
-            ui_round_frame(o, x, 52, 24, 38,
+            ui_round_fill(o, x, 51, 24, 31, in_len ? UI_PANEL2 : UI_PANEL);
+            ui_round_frame(o, x, 51, 24, 31,
                            active ? lc : (selected ? UI_BRIGHT : (in_len ? UI_LINE : UI_TRACK)));
             if (in_len) {
-                ui_vgrad(o, (int16_t)(x + 3), (int16_t)(87 - hold_h), 18, hold_h, active ? lc : UI_MID,
+                ui_vgrad(o, (int16_t)(x + 3), (int16_t)(79 - hold_h), 18, hold_h, active ? lc : UI_MID,
                          ui_mix(active ? lc : UI_MID, UI_PANEL2, 160));
-                if (root_y < 54) root_y = 54;
-                if (root_y > 86) root_y = 86;
+                if (root_y < 53) root_y = 53;
+                if (root_y > 78) root_y = 78;
                 o->fill(o->ctx, (int16_t)(x + 3), root_y, 18, 2, UI_GOLD);
-                if (ls->octave) o->fill(o->ctx, (int16_t)(x + 3), ls->octave > 0 ? 54 : 86, 18, 2, UI_BLUE);
+                if (ls->octave) o->fill(o->ctx, (int16_t)(x + 3), ls->octave > 0 ? 53 : 78, 18, 2, UI_BLUE);
             }
             a[0] = (char)('1' + i), a[1] = 0;
-            o->text(o->ctx, x, 91, 24, 0, a, active ? lc : (selected ? UI_BRIGHT : UI_DIM), 1);
+            o->text(o->ctx, x, 83, 24, 0, a, active ? lc : (selected ? UI_BRIGHT : UI_DIM), 1);
         }
-        draw_knob_grid(ui, o, 118);
+        draw_value_rows(ui, o, 100);
         break;
     }
     case MELLO_UI_SEQ_SLOTSEQ: {
@@ -3749,25 +3750,25 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         for (i = 0u; i < 16u; ++i) {
             uint8_t idx = (uint8_t)(start + i);
             MelloSlotSeqStep *ss = &e->slot_seq.steps[idx];
-            int16_t x = (int16_t)(10 + (i % 8u) * 28u), y = (int16_t)(52 + (i / 8u) * 27u);
+            int16_t x = (int16_t)(10 + (i % 8u) * 28u), y = (int16_t)(51 + (i / 8u) * 23u);
             bool in_len = idx < len, active = e->slot_seq.active && idx == e->slot_seq_pos,
                  selected = idx == ui->selected_slot_seq_step;
             static const uint16_t shade[4] = {UI_ACC, UI_BLUE, UI_PURPLE, UI_GOLD};
             uint16_t c = ss->slot >= 0 ? shade[(uint8_t)ss->slot % 4u] : UI_LINE;
-            ui_round_fill(o, x, y, 24, 25,
+            ui_round_fill(o, x, y, 24, 21,
                           in_len && ss->slot >= 0 ? ui_mix(c, UI_PANEL, 150)
                                                   : (in_len ? UI_PANEL2 : UI_PANEL));
-            ui_round_frame(o, x, y, 24, 25,
+            ui_round_frame(o, x, y, 24, 21,
                            active ? UI_WHITE : (selected ? UI_BRIGHT : (in_len ? UI_LINE : UI_TRACK)));
             if (in_len && ss->slot >= 0) {
                 value_u(a, "", (uint32_t)ss->slot + 1u);
                 o->text(o->ctx, x, (int16_t)(y + 3), 24, 0, a, UI_BRIGHT, 1);
             }
             if (in_len)
-                o->fill(o->ctx, (int16_t)(x + 3), (int16_t)(y + 20),
+                o->fill(o->ctx, (int16_t)(x + 3), (int16_t)(y + 18),
                         (int16_t)(2 + ((uint32_t)(ss->hold > 256u ? 256u : ss->hold) * 16u) / 256u), 2, c);
         }
-        draw_knob_grid(ui, o, 118);
+        draw_value_rows(ui, o, 100);
         break;
     }
     case MELLO_UI_RANDOM: {
@@ -3828,23 +3829,17 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         break;
     }
     case MELLO_UI_KEY_SCALE: {
+        /* The keyboard with the root lit (black and white key geometry, no scale table), the values as rows. */
         uint8_t i, rootpc = (uint8_t)(e->project.root_note % 12u);
-        o->text(o->ctx, 8, 33, 104, 0, mello_scale_name(e->project.scale), UI_PURPLE, 0);
-        value_u(a, "ROOT", e->project.root_note);
-        o->text(o->ctx, 116, 33, 56, 0, a, UI_ACC, 1);
-        value_i(a, "OCT", e->project.global_octave);
-        o->text(o->ctx, 176, 33, 56, 0, a, UI_GOLD, 2);
-        /* Chromatic root locator: black/white key geometry without duplicating engine scale tables. */
         for (i = 0u; i < 12u; ++i) {
             static const uint8_t black[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
             int16_t x = (int16_t)(8 + i * 18u);
-            int16_t h = black[i] ? 40 : 62;
+            int16_t h = black[i] ? 38 : 60;
             uint8_t root = i == rootpc;
-            o->fill(o->ctx, x, 58, 15, h, root ? UI_ACC : (black[i] ? UI_PANEL2 : UI_MID));
-            ui_frame(o, x, 58, 15, h, root ? UI_WHITE : (black[i] ? UI_DIM : UI_PANEL2));
+            o->fill(o->ctx, x, 36, 15, h, root ? UI_ACC : (black[i] ? UI_PANEL2 : UI_MID));
+            ui_frame(o, x, 36, 15, h, root ? UI_WHITE : (black[i] ? UI_DIM : UI_PANEL2));
         }
-        value_u(a, "SPAN", e->project.pitch_span_oct);
-        o->text(o->ctx, 8, 132, 58, 0, a, UI_BLUE, 0);
+        draw_value_rows(ui, o, 100);
         break;
     }
     case MELLO_UI_SLOTS: {
@@ -3861,20 +3856,20 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         for (i = 0u; i < 16u; ++i) {
             uint8_t idx = (uint8_t)(start + i);
             MelloPatternSlot *ps = &e->slots[idx];
-            int16_t x = (int16_t)(10 + (i % 8u) * 28u), y = (int16_t)(54 + (i / 8u) * 26u);
+            int16_t x = (int16_t)(10 + (i % 8u) * 28u), y = (int16_t)(52 + (i / 8u) * 23u);
             bool selected = idx == ui->selected_slot, active = e->active_slot == (int8_t)idx,
                  queued = e->queued_slot == (int8_t)idx, visible = idx < e->visible_slot_count;
             uint16_t c = active ? UI_ACC : (queued ? UI_BLUE : UI_MID);
-            ui_round_fill(o, x, y, 24, 23,
+            ui_round_fill(o, x, y, 24, 21,
                           ps->valid ? ui_mix(c, UI_PANEL, active || queued ? 110 : 170)
                                     : (visible ? UI_PANEL2 : UI_PANEL));
-            ui_round_frame(o, x, y, 24, 23,
+            ui_round_frame(o, x, y, 24, 21,
                            selected ? UI_BRIGHT : (ps->valid ? c : (visible ? UI_LINE : UI_TRACK)));
             value_u(a, "", idx + 1u);
             o->text(o->ctx, x, (int16_t)(y + 3), 24, 0, a,
                     ps->valid ? UI_BRIGHT : (visible ? UI_DIM : UI_TRACK), 1);
         }
-        draw_knob_grid(ui, o, 118);
+        draw_value_rows(ui, o, 100);
         break;
     }
     case MELLO_UI_DOT: {
@@ -4027,32 +4022,29 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
          * framed gold, the picked one white; then K1-K4. */
         const MelloBassConfig *b = &e->bass;
         uint8_t i;
-        (void)copy_s(copy_s(a, e->sub.on ? "BASS  " : "BASS OFF  "),
-                     b->on ? "BASS SEQ" : sub_mode_name(e->sub.mode));
+        value_u(copy_s(copy_s(a, e->sub.on ? "BASS  " : "BASS OFF  "),
+                       b->on ? "BASS SEQ" : sub_mode_name(e->sub.mode)),
+                "  LEN ", b->length);
         ui_section(ui, o, 32, a, e->sub.on ? UI_GOLD : UI_DIM);
-        o->text(o->ctx, 10, 52, 110, 0, b->on ? (b->follow ? "FOLLOW" : "OWN CLOCK") : "SEQ OFF",
-                b->on ? UI_GOLD : UI_DIM, 0);
-        value_u(a, "LEN ", b->length);
-        o->text(o->ctx, 150, 52, 80, 0, a, b->on ? UI_GOLD : UI_DIM, 2);
         for (i = 0u; i < MELLO_BASS_STEPS; ++i) {
             const MelloBassStep *s = &b->steps[i];
             int16_t x = (int16_t)(8 + i * 14u), h = (int16_t)(6 + s->tone * 4u);
             bool in_len = i < b->length, playing = b->on && e->bass_step == (int8_t)i,
                  picked = i == ui->selected_sub_x_step % MELLO_BASS_STEPS;
             uint16_t c = !in_len ? UI_TRACK : (s->accent ? UI_WHITE : (b->on ? UI_GOLD : UI_MID));
-            o->fill(o->ctx, x, 68, 12, 44, in_len ? UI_PANEL2 : UI_PANEL);
+            o->fill(o->ctx, x, 52, 12, 44, in_len ? UI_PANEL2 : UI_PANEL);
             if (s->on && in_len) {
-                o->fill(o->ctx, (int16_t)(x + 2), (int16_t)(108 - h), 8, h,
+                o->fill(o->ctx, (int16_t)(x + 2), (int16_t)(92 - h), 8, h,
                         ui_mix(c, UI_PANEL2, s->accent ? 40 : 90));
-                if (s->octave > 0) o->fill(o->ctx, (int16_t)(x + 2), 70, 8, 2, UI_BLUE);
-                if (s->octave < 0) o->fill(o->ctx, (int16_t)(x + 2), 109, 8, 2, UI_BLUE);
+                if (s->octave > 0) o->fill(o->ctx, (int16_t)(x + 2), 54, 8, 2, UI_BLUE);
+                if (s->octave < 0) o->fill(o->ctx, (int16_t)(x + 2), 93, 8, 2, UI_BLUE);
                 if (s->glide && i + 1u < b->length)
-                    o->fill(o->ctx, (int16_t)(x + 10), (int16_t)(106 - h), 6, 2, c);
+                    o->fill(o->ctx, (int16_t)(x + 10), (int16_t)(90 - h), 6, 2, c);
             } else if (in_len)
-                o->fill(o->ctx, (int16_t)(x + 2), 106, 8, 2, UI_LINE);
-            if (playing || picked) ui_frame(o, x, 68, 12, 44, playing ? UI_GOLD : UI_BRIGHT);
+                o->fill(o->ctx, (int16_t)(x + 2), 90, 8, 2, UI_LINE);
+            if (playing || picked) ui_frame(o, x, 52, 12, 44, playing ? UI_GOLD : UI_BRIGHT);
         }
-        draw_knob_grid(ui, o, 118);
+        draw_value_rows(ui, o, 100);
         break;
     }
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -4071,11 +4063,11 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         ui_section(ui, o, 32, a, c->on ? col : UI_DIM);
         if (ui->chord_subpage == 3u) {
             for (i = 0u; i < 16u; ++i) {
-                int16_t x = (int16_t)(10 + (i % 4u) * 56u), y = (int16_t)(52 + (i / 4u) * 13u);
+                int16_t x = (int16_t)(10 + (i % 4u) * 56u), y = (int16_t)(51 + (i / 4u) * 12u);
                 bool on = (c->grid_cells & (uint16_t)(1u << i)) != 0u,
                      here = e->chord_grid_active_cell == (int8_t)i;
-                ui_round_fill(o, x, y, 52, 11, on ? ui_mix(col, UI_PANEL, here ? 40 : 130) : UI_PANEL2);
-                ui_round_frame(o, x, y, 52, 11, here ? UI_BRIGHT : (on ? col : UI_LINE));
+                ui_round_fill(o, x, y, 52, 10, on ? ui_mix(col, UI_PANEL, here ? 40 : 130) : UI_PANEL2);
+                ui_round_frame(o, x, y, 52, 10, here ? UI_BRIGHT : (on ? col : UI_LINE));
             }
         } else if (ui->chord_subpage == 4u) {
             /* the voice masks, the one playing framed and its voices lit as they sound */
@@ -4085,13 +4077,13 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             for (i = 0u; i < pl; ++i) {
                 int16_t x = (int16_t)(10 + i * 28u);
                 uint8_t j, m = c->pattern_masks[i];
-                ui_round_frame(o, x, 52, 24, 52,
+                ui_round_frame(o, x, 52, 24, 46,
                                i == at                           ? UI_BRIGHT
                                : i == ui->selected_chord_pattern ? col
                                                                  : UI_LINE);
                 for (j = 0u; j < 4u; ++j) {
                     bool on = (m & (1u << j)) != 0u;
-                    ui_round_fill(o, (int16_t)(x + 4), (int16_t)(91 - j * 12u), 16, 9,
+                    ui_round_fill(o, (int16_t)(x + 4), (int16_t)(85 - j * 11u), 16, 8,
                                   !on                          ? UI_TRACK
                                   : i == at && (lit >> j) & 1u ? UI_BRIGHT
                                                                : col);
@@ -4111,9 +4103,9 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                     o->fill(o->ctx, (int16_t)(14 + i * w), 71, (int16_t)(w - 11), 2, UI_BRIGHT);
             }
             if (ui->chord_subpage == 8u)
-                ui_env_graph(o, 10, 78, 220, 32, c->attack_ms, c->decay_ms, c->sustain, c->release_ms, col);
+                ui_env_graph(o, 10, 74, 220, 22, c->attack_ms, c->decay_ms, c->sustain, c->release_ms, col);
             else if (ui->chord_subpage == 7u)
-                ui_env_graph(o, 10, 78, 220, 32, c->fenv_attack_ms, c->fenv_decay_ms, 0u, 0u, col);
+                ui_env_graph(o, 10, 74, 220, 22, c->fenv_attack_ms, c->fenv_decay_ms, 0u, 0u, col);
             else {
                 if (sounding != 0xFFu && e->chord_voiced_n) {
                     n = e->chord_voiced_n;
@@ -4124,14 +4116,14 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                     int16_t x = (int16_t)(10 + i * 56u);
                     bool on = (lit >> i) & 1u;
                     midi_note_name(b, notes[i]);
-                    ui_round_fill(o, x, 77, 52, 34,
+                    ui_round_fill(o, x, 74, 52, 22,
                                   on ? ui_mix(col, UI_WHITE, 200) : ui_mix(col, UI_PANEL, 170));
-                    ui_round_frame(o, x, 77, 52, 34, on ? UI_WHITE : col);
-                    o->text(o->ctx, (int16_t)(x + 1), 78, 50, 1, b, on ? UI_BLACK : UI_BRIGHT, 1);
+                    ui_round_frame(o, x, 74, 52, 22, on ? UI_WHITE : col);
+                    o->text(o->ctx, (int16_t)(x + 1), 77, 50, 0, b, on ? UI_BLACK : UI_BRIGHT, 1);
                 }
             }
         }
-        draw_knob_grid(ui, o, 118);
+        draw_value_rows(ui, o, 100);
         break;
     }
 #endif
@@ -4184,25 +4176,25 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         ui_section(ui, o, 32, a, d->on ? col[vsel] : UI_DIM);
         for (v = 0u; v < MELLO_DRUM_VOICES; ++v)
             for (i = 0u; i < MELLO_DRUM_STEPS; ++i) {
-                int16_t x = (int16_t)(8 + i * 14u), y = (int16_t)(52 + v * 14u);
+                int16_t x = (int16_t)(8 + i * 14u), y = (int16_t)(51 + v * 11u);
                 const MelloDrumLock *lk = &d->lock[v][i];
                 bool hit = (d->hits[v] >> i) & 1u, acc = (d->accents[v] >> i) & 1u, in = i < d->length;
                 uint16_t c = !in   ? UI_PANEL
                              : hit ? (acc ? ui_mix(col[v], UI_WHITE, 150)
                                           : (v == vsel ? col[v] : ui_mix(col[v], UI_PANEL, 110)))
                                    : (v == vsel ? UI_TRACK : ui_mix(col[v], UI_PANEL, 225));
-                o->fill(o->ctx, x, y, 12, 12, c);
+                o->fill(o->ctx, x, y, 12, 10, c);
                 if (hit && lk->ratchet > 1u) {
                     uint8_t r;
                     for (r = 0u; r < lk->ratchet; ++r)
                         o->fill(o->ctx, (int16_t)(x + 1 + r * 3), (int16_t)(y + 1), 2, 2, UI_BLACK);
                 }
                 if (hit && (lk->pitch || lk->decay || lk->crush))
-                    o->fill(o->ctx, (int16_t)(x + 3), (int16_t)(y + 9), 6, 2, UI_BLACK);
-                if (v == vsel && i == ui->selected_drum_step) ui_frame(o, x, y, 12, 12, UI_BRIGHT);
+                    o->fill(o->ctx, (int16_t)(x + 3), (int16_t)(y + 7), 6, 2, UI_BLACK);
+                if (v == vsel && i == ui->selected_drum_step) ui_frame(o, x, y, 12, 10, UI_BRIGHT);
             }
-        if (at >= 0) ui_frame(o, (int16_t)(7 + at * 14), 51, 14, 58, UI_WHITE);
-        draw_knob_grid(ui, o, 118);
+        if (at >= 0) ui_frame(o, (int16_t)(7 + at * 14), 50, 14, 45, UI_WHITE);
+        draw_value_rows(ui, o, 100);
         break;
     }
     case MELLO_UI_SAMPLE_RESERVED: {
@@ -4221,26 +4213,26 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         }
         o->text(o->ctx, 146, 53, 84, 0, loaded ? sm->name : "EMPTY", loaded ? UI_ACC : UI_DIM, 2);
         if (ui->sample_subpage == 3u)
-            ui_env_graph(o, 10, 76, 220, 32, sl->attack_ms, sl->decay_ms, sl->sustain_permille,
+            ui_env_graph(o, 10, 74, 220, 22, sl->attack_ms, sl->decay_ms, sl->sustain_permille,
                          sl->release_ms, UI_BLUE);
         else {
             int16_t tx0 = (int16_t)(10 + ((uint32_t)220u * sl->trim_start) / 1000u),
                     tx1 = (int16_t)(10 + ((uint32_t)220u * sl->trim_end) / 1000u);
-            ui_round_fill(o, 10, 76, 220, 30, UI_PANEL2);
+            ui_round_fill(o, 10, 74, 220, 22, UI_PANEL2);
             if (tx1 < tx0 + 2) tx1 = (int16_t)(tx0 + 2);
             if (tx1 > 228) tx1 = 228;
-            ui_vgrad(o, tx0, 81, (int16_t)(tx1 - tx0), 20, loaded ? UI_ACC : UI_MID,
+            ui_vgrad(o, tx0, 78, (int16_t)(tx1 - tx0), 14, loaded ? UI_ACC : UI_MID,
                      ui_mix(loaded ? UI_ACC : UI_MID, UI_PANEL2, 160));
-            o->fill(o->ctx, tx0, 76, 2, 30, UI_GOLD);
-            o->fill(o->ctx, tx1, 76, 2, 30, UI_GOLD);
+            o->fill(o->ctx, tx0, 74, 2, 22, UI_GOLD);
+            o->fill(o->ctx, tx1, 74, 2, 22, UI_GOLD);
             if (ui->sample_subpage == 1u) {
                 int16_t center = (int16_t)(120 + sl->coarse_semitones * 4);
                 if (center < 12) center = 12;
                 if (center > 226) center = 226;
-                o->fill(o->ctx, center, 74, 2, 34, UI_BLUE);
+                o->fill(o->ctx, center, 72, 2, 26, UI_BLUE);
             }
         }
-        draw_knob_grid(ui, o, 118);
+        draw_value_rows(ui, o, 100);
         break;
     }
     }
@@ -5521,23 +5513,12 @@ static void draw_env_curve(const MelloUiDrawOps *o, const MelloSoundConfig *c, i
 /* AMP ENVELOPE as the HTML's: the curve, then A D S R rows of letter, slider and value. */
 static void draw_env_panel(MelloUi *ui, const MelloUiDrawOps *o)
 {
-    static const char *letter[4] = {"A", "D", "S", "R"};
     MelloEngine *e = eng(ui);
-    char v[4][24];
-    const char *l[4];
-    uint8_t k;
     if (!e) return;
-    footer_texts(ui, l, v);
     ui_round_fill(o, 4, 31, 232, 138, UI_PANEL);
     ui_round_frame(o, 4, 31, 232, 138, ui_mix(UI_GOLD, UI_BLACK, 150));
-    draw_env_curve(o, &e->sound, 12, 34, 216, 40); /* the same body as every layer: the picture, four rows */
-    for (k = 0u; k < 4u; ++k) {
-        int16_t y = (int16_t)(80 + k * 22);
-        uint16_t c = knob_colour(ui, k), nv, nm;
-        o->text(o->ctx, 10, y, 10, 0, letter[k], c, 0);
-        if (knob_norm(ui, k, &nv, &nm)) ui_slider(o, 24, (int16_t)(y + 5), 146, nv, nm, c);
-        o->text(o->ctx, 174, y, 56, 0, v[k], c, 2);
-    }
+    draw_env_curve(o, &e->sound, 12, 35, 216, 58); /* the same body as every layer: the picture, four rows */
+    draw_value_rows(ui, o, 100);
 }
 
 /* ---- The part's picture (C2: "one body grammar: the part's picture on top, its four values below"). Each layer's
@@ -5798,33 +5779,15 @@ static void draw_layer_picture(MelloUi *ui, const MelloUiDrawOps *o, int16_t x, 
  * the footer's (footer_texts), the colours knob_colour's (the envelope's A D S R as the HTML's letters). */
 static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o)
 {
-    char v[4][24];
-    const char *l[4], *title = layer_name(ui);
     uint16_t accent = ui_page_accent(ui);
-    uint8_t k;
     if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage == 1u) {
         draw_env_panel(ui, o);
         return;
     }
-    footer_texts(ui, l, v);
     ui_round_fill(o, 4, 31, 232, 138, UI_PANEL);
     ui_round_frame(o, 4, 31, 232, 138, ui_mix(accent, UI_BLACK, 150));
-    (void)title; /* the layer's name is in the header (R2) */
-    draw_layer_picture(ui, o, 10, 34, 220, 40, accent);
-    for (k = 0u; k < 4u; ++k) {
-        int16_t y = (int16_t)(80 + k * 22);
-        uint16_t c = knob_colour(ui, k), nv, nm;
-        if (!v[k][0] || (v[k][0] == '-' && !v[k][1])) continue; /* an empty knob: no row */
-        ui_spaced(o, 10, y, 128, full_label(l[k]), c == accent ? UI_DIM : c, 0);
-        if (knob_norm(ui, k, &nv, &nm)) {
-            o->text(o->ctx, 138, y, 92, 0, v[k], c, 2);
-            ui_slider(o, 10, (int16_t)(y + 16), 220, nv, nm, c);
-        } else {
-            int16_t w = (int16_t)(ui_text_len(v[k]) * 8u + 8u);
-            ui_round_frame(o, (int16_t)(230 - w), (int16_t)(y - 1), w, 18, c);
-            o->text(o->ctx, (int16_t)(234 - w), y, (int16_t)(w - 8), 0, v[k], c, 1);
-        }
-    }
+    draw_layer_picture(ui, o, 10, 35, 220, 58, accent);
+    draw_value_rows(ui, o, 100);
 }
 
 static void draw_footer(MelloUi *ui, const MelloUiDrawOps *o)

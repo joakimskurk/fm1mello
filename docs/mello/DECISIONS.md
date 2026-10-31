@@ -638,9 +638,15 @@ echoes a TIME apart and FEEDBACK of each other, the reverb's tail after PRE as l
 with the beats lit (and the chip's measured audio load beside, B5), GROOVE's odd ticks late by SWING. The ENV
 panel's "ENVELOPE" title went the way of the others (R2: the layer's name is in the header).
 
-Not yet one body: the pages with their own pictures (STEP, SEGMENT, CHORD, KEY, MIX, SUB, DRUMS, DOT, EVOLVE) keep
-a picture over a 2 x 2 of values (draw_knob_grid). Rows under the picture there too is the last step, when the
-pictures have been lived with.
+The same evening, the rest: every page draws its four knobs with draw_value_rows, one line each from y = 100
+(the knob's label as the footer has it, its slider, its value; a list's value in a pill), 17 pixels apart, and the
+page's own picture lives in the 66 pixels above: STEP's strip, title (with the step's sample), flags and pulses;
+SEGMENT's letters, strip and pills; LOOP's eight cards; SLOT SEQ's and SLOTS' sixteen; KEY's keyboard alone (the
+root, scale, octave and span were texts over it, now its rows); BASS SEQ's sixteen columns (LEN in the title);
+the chord chain's names and notes, grid or masks; the drums' four rows; the sample's slots and trim. The
+parameter layers' rows are the same rows, so their pictures grew to 58 pixels. Not rows: HOME (the sequence is the
+page), MIX (its faders are its values), DOT and EVOLVE (the matrix and the register fill the body; their knobs are
+in the footer), RANDOM (its targets and skyline). draw_knob_grid, the 2 x 2 of values, is gone.
 
 ## Room to run (2026-10-31)
 

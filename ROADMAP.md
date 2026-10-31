@@ -69,9 +69,9 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       values, and its four values as rows below; the pictures: the wave and its filter, the LFO's swing, the
       follower's wave under the lead's, master and lead, grit's grains, OSC 2 over OSC 1, the filter's mode and the
       saturation, the MOD envelope, key tracking, the distortion's curve, the echoes, the tail, the clock's ticks
-      (with the measured CPU load), the groove. Left: the pages with their own bodies (STEP, SEGMENT, CHORD, KEY,
-      MIX, SUB, DRUMS, DOT, EVOLVE) keep a picture and a 2 x 2 of values; rows under the picture there too would be
-      the last step of one body.
+      (with the measured CPU load), the groove. Then the rest: every page's four knobs as the same one-line rows
+      under its own picture (STEP, SEGMENT, LOOP, SLOT SEQ, SLOTS, KEY, BASS SEQ, CHORD, DRUMS, SAMPLE); the 2 x 2
+      of values is gone. HOME, MIX, DOT, EVOLVE and RANDOM keep their own bodies (DECISIONS.md "One body").
 - [ ] C4. A short hand checklist on the FM-1 (with the first flash, below).
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, first flash and C4.
