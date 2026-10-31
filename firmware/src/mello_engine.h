@@ -395,6 +395,7 @@ typedef struct {
     bool reverse;       /* what was heard, backwards */
     bool repeat;        /* the last repeat_len pulses, round and round */
     uint8_t repeat_len; /* 1..16 pulses */
+    uint8_t mix_mute;   /* MIX's B0-B3: bit 0 LEAD, 1 SUB, 2 CHORD, 3 PERC muted (not saved) */
 } MelloPerf;
 
 /* DOT's MOD lanes, DOT's evolve and EVOLVE's sound routes and timing. Saved in SEC_MOD (not in the snapshot's own

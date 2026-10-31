@@ -501,6 +501,10 @@ typedef enum {
     MELLO_CTX_SUB_STEP,
     MELLO_CTX_CHORD_TOGGLE,
     MELLO_CTX_CHORD_SUB_ROOT, /* CHORD: the sub (and BASS SEQ) on the chord's root */
+    MELLO_CTX_MIX_LEAD,       /* MIX: B0-B3 mute a part (lit while it plays) */
+    MELLO_CTX_MIX_SUB,
+    MELLO_CTX_MIX_CHORD,
+    MELLO_CTX_MIX_PERC,
     MELLO_CTX_GLOBAL_TAP,
     MELLO_CTX_GLOBAL_RESET,
     MELLO_CTX_SOUND_INIT, /* the sound back to the defaults (press twice; UNDO undoes it) */
@@ -622,7 +626,14 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
     [MELLO_UI_SAMPLE_RESERVED] = {[0] = {MELLO_CTX_SAMPLE_TOGGLE, "ON"},
                                   [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                                   [9] = {MELLO_CTX_UNDO, "UNDO"}},
-    [MELLO_UI_MIX] = {[10] = {MELLO_CTX_RNDMZR, "RNDMZR"}, [9] = {MELLO_CTX_UNDO, "UNDO"}}};
+    [MELLO_UI_MIX] = {[0] = {MELLO_CTX_MIX_LEAD, "LEAD"},
+                      [1] = {MELLO_CTX_MIX_SUB, "SUB"},
+#if MELLO_FEATURE_CHORD_MACHINE
+                      [2] = {MELLO_CTX_MIX_CHORD, "CHORD"},
+#endif
+                      [3] = {MELLO_CTX_MIX_PERC, "PERC"},
+                      [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
+                      [9] = {MELLO_CTX_UNDO, "UNDO"}}};
 
 static const MelloContextAction *context_action(MelloUiPage page, uint8_t slot)
 {
@@ -1802,6 +1813,12 @@ static void adjust_global(MelloUi *ui, uint8_t knob, int16_t delta, uint32_t now
                 t, (MelloSyncMode)wrap_u8((int32_t)t->sync_mode + (delta > 0 ? 1 : -1), 3u), now_us);
         else if (knob == 3u)
             mello_transport_set_midi_note_out(t, delta > 0);
+    } else if (ui->global_subpage == 2u) { /* GROOVE: SWING, for everything (the same as DRUMS VARY's) */
+        if (knob == 0u) {
+            MelloDrumConfig d = t->engine.drums;
+            d.swing = (uint16_t)clamp_i32((int32_t)d.swing + delta * 10, 0, 1000);
+            mello_engine_drums_set_config(&t->engine, &d);
+        }
     } else {
         if (knob == 0u)
             mello_transport_set_midi_channel(t,
@@ -1856,7 +1873,7 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
     }
 #endif
     case MELLO_UI_GLOBAL:
-        ui->global_subpage = wrap_u8((int32_t)ui->global_subpage + (delta > 0 ? 1 : -1), 2u);
+        ui->global_subpage = wrap_u8((int32_t)ui->global_subpage + (delta > 0 ? 1 : -1), 3u);
         break;
     case MELLO_UI_DRUMS:
         ui->drum_subpage = wrap_u8((int32_t)ui->drum_subpage + (delta > 0 ? 1 : -1), DRUM_LAYERS);
@@ -2326,6 +2343,13 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         break;
     }
 #if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_CTX_MIX_LEAD:
+    case MELLO_CTX_MIX_SUB:
+    case MELLO_CTX_MIX_CHORD:
+    case MELLO_CTX_MIX_PERC: /* a part muted or back, as SUB MUTE does (not saved) */
+        e->perf.mix_mute ^= (uint8_t)(1u << (a->verb - MELLO_CTX_MIX_LEAD));
+        mark_edit(ui);
+        break;
     case MELLO_CTX_CHORD_TOGGLE:
     case MELLO_CTX_CHORD_SUB_ROOT: {
         MelloChordConfig c = e->chord;
@@ -3926,6 +3950,8 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         on[2] = false;
 #endif
         on[3] = e->drums.on;
+        for (i = 0u; i < 4u; ++i)
+            if ((e->perf.mix_mute >> i) & 1u) on[i] = false;
         ui_round_fill(o, 6, 40, 228, 124, UI_PANEL);
         for (i = 0u; i < 4u; ++i) {
             int16_t x = (int16_t)(12 + i * 56), h = (int16_t)(lv[i] * 76u / 1000u);
@@ -3934,7 +3960,10 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             o->text(o->ctx, x, 46, 48, 0, name[i], c, 1);
             o->fill(o->ctx, (int16_t)(x + 14), 64, 20, 76, UI_TRACK);
             o->fill(o->ctx, (int16_t)(x + 14), (int16_t)(140 - h), 20, h, c);
-            value_pct(b, lv[i]);
+            if ((e->perf.mix_mute >> i) & 1u)
+                copy_s(b, "MUTE");
+            else
+                value_pct(b, lv[i]);
             o->text(o->ctx, x, 146, 48, 0, b, on[i] ? UI_BRIGHT : UI_DIM, 1);
         }
         break;
@@ -4067,6 +4096,10 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_DRUM_HAT:
     case MELLO_CTX_DRUM_GLITCH: return (uint8_t)(v - MELLO_CTX_DRUM_KICK) == ui->selected_drum_voice ? 1 : -1;
     case MELLO_CTX_DRUM_ON: return e->drums.on ? 1 : 0;
+    case MELLO_CTX_MIX_LEAD:
+    case MELLO_CTX_MIX_SUB:
+    case MELLO_CTX_MIX_CHORD:
+    case MELLO_CTX_MIX_PERC: return (e->perf.mix_mute >> (v - MELLO_CTX_MIX_LEAD)) & 1u ? 0 : 1;
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_CTX_CHORD_SUB_ROOT: return e->chord.sub_root ? 1 : 0;
 #endif
@@ -4495,6 +4528,8 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
 #endif
     } else if (ui->page == MELLO_UI_RANDOM && ui->random_edit && k == 0u) {
         v = e->modr.rnd_amount[random_target_bitno(ui->random_sel)], m = 100u;
+    } else if (ui->page == MELLO_UI_GLOBAL && ui->global_subpage == 2u && k == 0u) {
+        v = e->drums.swing;
     } else if (ui->page == MELLO_UI_GLOBAL && ui->global_subpage == 0u && k == 0u) {
         v = e->project.bpm > 20u ? e->project.bpm - 20u : 0u, m = 230u; /* 20..250 BPM */
     } else
@@ -4930,6 +4965,12 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[2], sync_name(ui->transport->sync_mode));
             l[3] = "NOTEOUT";
             copy_s(v[3], ui->transport->midi_note_out_enabled ? "ON" : "OFF");
+        } else if (ui->global_subpage == 2u) {
+            l[0] = "SWING";
+            value_pct(v[0], e->drums.swing);
+            copy_s(v[1], "-");
+            copy_s(v[2], "-");
+            copy_s(v[3], "-");
         } else {
             l[0] = "LEAD";
             value_u(v[0], "", (uint32_t)ui->transport->midi_channel + 1u);
@@ -5423,7 +5464,7 @@ static const char *layer_name(const MelloUi *ui)
                       *dot[5] = {"ACCENT", "MOD 1", "RATCHET", "SUB", "MOD 2"},
                       *dsh[2] = {"MOD 1 SHAPE", "MOD 2 SHAPE"}, *tm[4] = {"MAIN", "ROUTES", "DEPTH", "SOUND"},
                       *sub[6] = {"TRIG", "SEQ", "STEP", "VOICE", "TONE", "FILTER"},
-                      *glo[2] = {"CLOCK", "MIDI"},
+                      *glo[3] = {"CLOCK", "MIDI", "GROOVE"},
                       *snd[10] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO", "FOLLOWER SUB", "PLAY / LEVEL",
                                   "GRIT",         "OSC 2",        "CHARACTER", "MOD ENV",      "TRACKING"},
                       *fx[5] = {"DISTORTION", "DELAY", "DELAY CONFIG", "REVERB", "RETURNS"},
@@ -5439,7 +5480,7 @@ static const char *layer_name(const MelloUi *ui)
                    : dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT];
     case MELLO_UI_TURING: return tm[ui->tm_subpage % 4u];
     case MELLO_UI_SUB: return sub[ui->sub_subpage % 6u];
-    case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 2u];
+    case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 3u];
     case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 10u];
     case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 5u];
     case MELLO_UI_SAMPLE_RESERVED: return smp[ui->sample_subpage % 4u];

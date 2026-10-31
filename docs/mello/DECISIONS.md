@@ -380,6 +380,12 @@ part is off.
 - K2 SUB is the dedicated sub's LEVEL, K3 CHORD the chord voice's, K4 PERC the drums': each is the same value as on its
   own page.
 - The name: CHORD, the same as the page. The arpeggio is the chord's PATTERN mode, so "chords/arp" is one part.
+- Mutes (2026-10-31): B0-B3 mute LEAD, SUB, CHORD and PERC. A key is lit while its part plays, and a muted fader is
+  dimmed and reads MUTE. The audio glides each part to 0 or back in ~10 ms, as SUB MUTE does, so a mute never
+  clicks; delay and reverb tails ring on. Like the performance keys, mutes are not saved (MelloPerf.mix_mute).
+  tests/mello/mix_mute.c checks them.
+- SWING has a home on GLOBAL too: a third layer, GROOVE, has it on K1. It is the same value as DRUMS VARY's, since it
+  swings everything.
 - Saved in SEC_DRUMS (9). Not yet: MIDI out, LFO / DOT / EVOLVE routes to the drums.
 
 ## The chord voice (2026-10-30)

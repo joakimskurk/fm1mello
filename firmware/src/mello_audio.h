@@ -259,9 +259,11 @@ typedef struct {
     bool mf_coeff_valid;
     int32_t dist_tone_s[2][4]; /* distTone: lowpass -24 = two biquads */
     MelloDotLane dot_lane[MELLO_DOT_MOD_LANES];
-    int16_t tm_value; /* EVOLVE's register value at the last pulse, centred */
-    bool sub_mute;    /* SUB MUTE (HOME's performance key), held */
-    int32_t sub_gain; /* the bass's gain, Q15, sliding to 0 or 1 in ~10 ms so muting never clicks */
+    int16_t tm_value;    /* EVOLVE's register value at the last pulse, centred */
+    bool sub_mute;       /* SUB MUTE (HOME's performance key), held */
+    int32_t sub_gain;    /* the bass's gain, Q15, sliding to 0 or 1 in ~10 ms so muting never clicks */
+    uint8_t mix_mute;    /* MIX's mutes: bit 0 LEAD, 1 SUB, 2 CHORD, 3 PERC */
+    int32_t mix_gain[4]; /* each part's, Q15, sliding as sub_gain does */
     uint16_t effective_decay_ms;
     int16_t last_lfo;
     int16_t tm_filter_mod_q15;
@@ -341,6 +343,7 @@ void mello_audio_init(MelloAudio *a, int16_t *delay_buffer, uint32_t delay_capac
                       uint32_t reverb_capacity);
 /* SUB MUTE as held now: the dedicated and the follower sub fade out in ~10 ms, and back in when let go. */
 void mello_audio_set_sub_mute(MelloAudio *a, bool mute);
+void mello_audio_set_mix_mute(MelloAudio *a, uint8_t mute_bits);
 /* DOT's MOD lanes and EVOLVE's sound routes (the engine's modr). */
 void mello_audio_set_mod_routing(MelloAudio *a, const MelloModRouting *modr);
 void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *sound, const MelloFxConfig *fx,

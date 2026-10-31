@@ -32,7 +32,11 @@ static const MapCase cases[] = {
     {"AUDIO FX", MELLO_UI_AUDIO_FX, "B0:PRE-DIST B9:UNDO B10:RNDMZR"},
     {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B9:UNDO B10:RNDMZR"},
     {"DRUMS", MELLO_UI_DRUMS, "B0:K B1:S B2:H B3:G B4:ON B5:ACC B6:ROLL B7:FEED B9:UNDO B10:RNDMZR"},
-    {"MIX", MELLO_UI_MIX, "B9:UNDO B10:RNDMZR"},
+#if MELLO_FEATURE_CHORD_MACHINE
+    {"MIX", MELLO_UI_MIX, "B0:LEAD B1:SUB B2:CHORD B3:PERC B9:UNDO B10:RNDMZR"},
+#else
+    {"MIX", MELLO_UI_MIX, "B0:LEAD B1:SUB B3:PERC B9:UNDO B10:RNDMZR"},
+#endif
 };
 
 /* The strip shows labels only, in key order: "B0:RND B1:UNDO" is drawn as "RND UNDO". */
@@ -182,9 +186,9 @@ static void verify_every_page_and_inactive_slot(void)
         }
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if (active != 81u) die("MAP", "active slot count != 81 with Chord");
+    if (active != 85u) die("MAP", "active slot count != 85 with Chord");
 #else
-    if (active != 77u) die("MAP", "active slot count != 77 without Chord");
+    if (active != 80u) die("MAP", "active slot count != 80 without Chord");
 #endif
     printf("C5 MAP COVERAGE: pages=%u active=%u inactive=%u\n", (unsigned)(sizeof(cases) / sizeof(cases[0])),
            active, inactive);

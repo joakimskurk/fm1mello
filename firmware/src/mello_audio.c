@@ -1978,6 +1978,7 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
     memset(a, 0, sizeof(*a));
     a->noise_seed = 0x2545F491u;
     a->sub_gain = 32767;
+    a->mix_gain[0] = a->mix_gain[1] = a->mix_gain[2] = a->mix_gain[3] = 32767;
     /* Unison oscillators start spread over the cycle, so that they never begin in phase (a flanged attack). */
     a->lead.uni_phase[0] = 0x55555555u;
     a->lead.uni_phase[1] = 0xAAAAAAAAu;
@@ -2037,6 +2038,10 @@ void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *s, const Mell
 void mello_audio_set_sub_mute(MelloAudio *a, bool mute)
 {
     if (a) a->sub_mute = mute;
+}
+void mello_audio_set_mix_mute(MelloAudio *a, uint8_t mute_bits)
+{
+    if (a) a->mix_mute = mute_bits;
 }
 void mello_audio_set_mod_routing(MelloAudio *a, const MelloModRouting *m)
 {
@@ -2303,6 +2308,14 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         }
         if (a->sub_mute ? a->sub_gain > 0 : a->sub_gain < 32767) /* SUB MUTE: ~10 ms either way */
             a->sub_gain = clamp32(a->sub_gain + (a->sub_mute ? -75 : 75), 0, 32767);
+        {
+            uint8_t m;
+            for (m = 0u; m < 4u; ++m) { /* MIX's mutes, ~10 ms either way as SUB MUTE */
+                bool off = (a->mix_mute >> m) & 1u;
+                if (off ? a->mix_gain[m] > 0 : a->mix_gain[m] < 32767)
+                    a->mix_gain[m] = clamp32(a->mix_gain[m] + (off ? -75 : 75), 0, 32767);
+            }
+        }
         if (a->dot_lane[0].stage || a->dot_lane[1].stage || a->tm_value) {
             /* DOT's MOD lanes and EVOLVE's sound routes, summed per destination in permille of its range. */
             uint8_t l;
@@ -2525,6 +2538,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (duck < 24500) duck = 24500;
             chord_l = q15mul(chord_l, duck) * (int32_t)a->chord_config.level / 1000;
             chord_r = q15mul(chord_r, duck) * (int32_t)a->chord_config.level / 1000;
+            if (a->mix_gain[2] != 32767) /* MIX's CHORD mute */
+                chord_l = q15mul(clamp32(chord_l, -65535, 65535), a->mix_gain[2]),
+                chord_r = q15mul(clamp32(chord_r, -65535, 65535), a->mix_gain[2]);
             chord_mix = (chord_l + chord_r) / 2;
         }
 #endif
@@ -2534,6 +2550,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 sample_mix += sample_render_voice(a, &a->sample_voice[sv]);
         }
         if (lead_level < 1000) lead = lead * lead_level / 1000; /* MIX's LEAD */
+        if (a->mix_gain[0] != 32767)
+            lead = q15mul(clamp32(lead, -65535, 65535), a->mix_gain[0]);                        /* its mute */
+        if (a->mix_gain[1] != 32767) sub = q15mul(clamp32(sub, -65535, 65535), a->mix_gain[1]); /* SUB's */
         mix = (lead + sub + sample_mix) * 580 / 1000;
         if (ampmod != 32767) mix = q15mul_wide(clamp32(mix, -65535, 65535), ampmod); /* reaches 65534: x2 */
         {
@@ -2549,6 +2568,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             drum_render(a, mix, &drums_l, &drums_r);
             drums_l = drums_l * (int32_t)a->drum_config.level / 3000; /* LEVEL 70%: a little over the lead */
             drums_r = drums_r * (int32_t)a->drum_config.level / 3000;
+            if (a->mix_gain[3] != 32767) /* MIX's PERC mute */
+                drums_l = q15mul(clamp32(drums_l, -65535, 65535), a->mix_gain[3]),
+                drums_r = q15mul(clamp32(drums_r, -65535, 65535), a->mix_gain[3]);
             drums = (drums_l + drums_r) / 2; /* what SPACE sends */
         }
         if (a->fx.delay_pre_dist) {
