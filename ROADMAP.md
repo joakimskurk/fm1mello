@@ -59,8 +59,8 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
       clock, not stopped by the main sequence's skipped or held steps unless asked to follow them.
 - [x] **More delay times**: DIV is now 16T, 16N, 8T, 8N, 4T, 8D, 4N, 4D, 2N (shortest first; the stored numbers keep
       the HTML's four).
-- [ ] **A MUSICAL randomizer**: as now, and a setting to roll musically instead of at random (rhythmic, in phrase),
-      so fewer rolls are needed before tweaking.
+- [x] **A MUSICAL randomizer**: as now, and a setting to roll musically instead of at random (rhythmic, in phrase),
+      so fewer rolls are needed before tweaking. INT's fourth step, MUSICAL (DECISIONS.md "RANDOM: MUSICAL").
 - [ ] **More parameters for the bass synth**, if there are any under the hood.
 - [x] **A simple 16-step drum machine**: minimal, classic voices, "Aphex Twin meets Richard Divine": the sonic
       differences come from per-step modulation and the randomizer. Its own clock as the bass's.

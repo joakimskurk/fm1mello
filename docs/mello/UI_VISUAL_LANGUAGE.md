@@ -81,7 +81,7 @@ Required for WP-A:
 - pitch height remains legible after compression;
 - pulse count and ratchet/activity cues still distinguish rhythmic structures;
 - playhead remains unambiguous;
-- LOW/MED/HIGH intensity state must not consume enough vertical space to weaken skyline;
+- LOW/MED/HIGH/MUSICAL intensity state must not consume enough vertical space to weaken skyline;
 - no visual banks/pages to solve density.
 
 ## MOD visual family - APPROVED

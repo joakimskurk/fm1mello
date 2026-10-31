@@ -563,7 +563,8 @@ typedef struct {
 typedef enum {
     MELLO_RANDOMIZE_LOW = 0,
     MELLO_RANDOMIZE_MED = 1,
-    MELLO_RANDOMIZE_HIGH = 2
+    MELLO_RANDOMIZE_HIGH = 2,
+    MELLO_RANDOMIZE_MUSICAL = 3 /* a phrase, not a roll: DECISIONS.md "RANDOM: MUSICAL" */
 } MelloRandomizeIntensity;
 
 typedef struct {

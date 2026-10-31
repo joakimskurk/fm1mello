@@ -53,7 +53,8 @@ static void text_cb(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, c
     (void)align;
     texts++;
     if (text && strcmp(text, "WAVE") == 0) wave_label = 1;
-    if (text && (strcmp(text, "LOW") == 0 || strcmp(text, "MED") == 0 || strcmp(text, "HIGH") == 0))
+    if (text && (strcmp(text, "LOW") == 0 || strcmp(text, "MED") == 0 || strcmp(text, "HIGH") == 0 ||
+                 strcmp(text, "MUSICAL") == 0))
         intensity_label = 1;
 }
 

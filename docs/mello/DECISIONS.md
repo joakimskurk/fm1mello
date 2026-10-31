@@ -324,6 +324,30 @@ inverted"), so a roll comes out as one musical gesture rather than unrelated noi
 - Saved in SEC_MOD version 2 (44 bytes an entry); version 1 is still read.
 - The skyline already takes the sequence's length (bars as wide as 224 px / steps).
 
+## RANDOM: MUSICAL (2026-10-31)
+
+Feedback: "a setting to roll musically instead of at random; I often press RANDOM many times and then tweak". INT (K1
+on the RANDOM page) now goes LOW, MED, HIGH, MUSICAL. LOW, MED and HIGH are untouched (MED keeps its RNG order).
+MUSICAL writes a phrase, not a roll:
+
+- **Form.** The sequence is four cells in a form: A A' A B, A B A B', A A A B or A B A C (35/30/15/20%). At 16 and 32
+  steps it is two half-length cells (A A' or A B) 40% of the time. Each cell is drawn once and repeated, so the loop
+  has a motif and an answer. A length that is not 8, 12 .. 32 is one cell.
+- **Rhythm.** In a cell, the first step and every fourth are strong (they play 85%, A's first step always), even steps
+  medium (60%), odd steps weak (35%); a roll is sparse, as is or busy (-15 / 0 / +15%). Accents go mostly on strong
+  steps, staccato (MULTI) and the occasional ratchet, ghost note (70%) and octave jump on weak ones. A note before a
+  rest may be held, and a weak note after one may slide. Pulses stay 1 and nothing is skipped, so a bar stays a bar.
+- **Pitch.** It walks by scale steps (mostly one, sometimes two, a repeat or a leap to a chord tone) around the root's
+  octave. Strong steps land on a chord tone (root, third, fifth). A' and a middle B end on the fifth, and the last
+  cell ends on the root, so the loop resolves where it starts. SUB goes mostly on roots.
+- **Mask.** The mask and EDIT's amounts still decide what changes. PITCH alone keeps the rhythm, for example. Steps
+  past the length repeat the phrase, so a longer sequence later still plays it. WAVE rolls as MED does. CHORD rolls a
+  progression in the scale (i VI iv v, i iv v i, i VI III VII, i VII VI VII, i iv i v, I V vi IV), all triads or all
+  sevenths, each chord as long as the first was.
+
+INT is not saved, as before: it starts at MED after a power cycle. tests/mello/random_musical.c checks 300 rolls. On
+average a MUSICAL melody moves 1.8 scale steps per note, against MED's 4.7.
+
 ## Velocity and key tracking (2026-10-30)
 
 SOUND / TRACKING, after MOD ENV. The FM-1's velocities are the HTML's: a plain step 91 (0.72), an accent 121 (0.95);
