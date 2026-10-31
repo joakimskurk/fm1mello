@@ -472,9 +472,16 @@ static MelloSubConfig sanitize_sub_config(MelloSubConfig c)
     return c;
 }
 
-static bool queue_push(MelloEngine *e, const MelloEvent *ev)
+static bool queue_push(MelloEngine *e, const MelloEvent *in)
 {
+    MelloEvent late;
+    const MelloEvent *ev = in;
     uint8_t pos, prev;
+    if (e->swing_off) { /* SWING: this pulse's sounds, late together */
+        late = *in;
+        late.tick += e->swing_off;
+        ev = &late;
+    }
     if (e->q_count >= MELLO_EVENT_QUEUE_CAP) {
         e->queue_overflow = true;
         return false;
@@ -792,17 +799,15 @@ void mello_engine_drums_roll(MelloEngine *e)
     d->hits[MELLO_DRUM_KICK] |= 1u; /* the one */
 }
 
-/* One drum step: its hits (each with CHANCE), RATCH spread over the step, odd steps late by SWING. */
+/* One drum step: its hits (each with CHANCE), RATCH spread over the step; SWING moves them with the rest (queue_push). */
 static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
 {
     MelloDrumConfig *d = &e->drums;
     uint8_t st, v, r;
-    uint32_t off;
     if (!d->on) return;
     st = (uint8_t)(e->drum_pos % d->length);
     e->drum_step = (int8_t)st;
     e->drum_pos = (uint8_t)((st + 1u) % d->length);
-    off = (st & 1u) ? pulse_ticks * d->swing / 2000u : 0u;
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
         const MelloDrumLock *l = &d->lock[v][st];
         uint8_t n = l->ratchet < 1u ? 1u : l->ratchet > 4u ? 4u : l->ratchet;
@@ -812,7 +817,7 @@ static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
             MelloEvent ev;
             memset(&ev, 0, sizeof(ev));
             ev.type = MELLO_EVENT_DRUM_HIT;
-            ev.tick = e->now_tick + off + (pulse_ticks - off) * r / n;
+            ev.tick = e->now_tick + pulse_ticks * r / n;
             ev.step_index = st;
             ev.sample_slot = v;
             ev.note = (uint8_t)(64 + l->pitch);
@@ -3491,6 +3496,8 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     }
     set_current_entry(e);
     if (!e->has_active_step) return false;
+    /* SWING (DECISIONS.md "Drums"): everything this pulse sounds, on an odd sixteenth, comes this much late. */
+    e->swing_off = (e->absolute_pulse & 1u) ? mello_pulse_ticks(&e->project) * e->drums.swing / 2000u : 0u;
     seg = &e->runtime_segments[e->active_runtime_segment];
     pe = e->runtime_pulses[seg->offset + e->segment_pulse_pos];
     /* The performance keys: the sequence's own pulse goes into the history, and REVERSE / REPEAT play theirs. The
@@ -3664,6 +3671,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
      * it), or with FOLLOW at each of the sequence's steps. */
     pulse_ticks = mello_pulse_ticks(&e->project);
     if (!e->drums.follow || pe.pulse_index == 0u) drums_tick(e, pulse_ticks);
+    e->swing_off = 0u; /* the loop's and the slots' events stay on the grid */
     next_tick = e->now_tick + pulse_ticks;
     e->absolute_pulse++;
     did_wrap = old_loop_ticks > 0u && (e->absolute_pulse % old_loop_ticks) == 0u;

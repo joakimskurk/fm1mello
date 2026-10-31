@@ -483,7 +483,7 @@ typedef struct {
     bool follow; /* step with the main sequence's steps (its skips and long steps stop it), not every pulse */
     bool feed;   /* RNDMZR rolls the drums too */
     uint8_t length; /* 1..16 */
-    uint16_t swing; /* 0..1000: the off steps up to half a step late */
+    uint16_t swing; /* 0..1000: SWING, for everything: each odd sixteenth up to half a step late */
     uint16_t level; /* 0..1000 */
     uint16_t space; /* 0..1000: the send to the delay and reverb */
     uint16_t roll;  /* 0..1000: how much a roll changes */
@@ -832,6 +832,7 @@ typedef struct {
     MelloPrng drum_rng; /* chance and rolls: the other streams stay as they were */
     uint8_t drum_pos;   /* the drum step playing next */
     int8_t drum_step;   /* the one playing, -1 stopped (the DRUMS page) */
+    uint32_t swing_off; /* SWING: ticks added to what this pulse queues (queue_push) */
     bool drone_open;
     uint8_t drone_note;
     uint8_t drone_step;

@@ -257,8 +257,13 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
   syncopated kick (steps 1, 4, 8, 11, 14), a snare on the backbeat with a ghost at step 10, sixteenths of hat with gaps
   and a roll of four at step 16, and three glitches that jump in pitch. It is straight: SWING 0, because the sequence
   has no swing. At 200, the drums' odd steps came 10% of a step late (12.5 ms at 120 BPM, 19 ms at 80), and a lead or
-  sub note on the same odd step flammed against them. A MUSICAL roll plays about a third of its odd steps. SWING stays
-  on the drums' VARY layer for drums alone.
+  sub note on the same odd step flammed against them. A MUSICAL roll plays about a third of its odd steps.
+- SWING is global (2026-10-31, "let's try"). It is the same control, on the drums' VARY layer, but it now moves
+  everything an odd sixteenth plays: the lead, the sub, the chords, the samples and the drums all come equally late,
+  so nothing flams. It works on the engine's pulse grid. Everything a pulse queues is shifted together
+  (`queue_push`), so a note keeps its length, and a NOTE_OFF that lands in the next pulse is still its own note's
+  (`mello_audio` releases only on a note's own OFF). The loop's wrap and the slots' changes stay on the grid. At 0 it
+  renders sample for sample as before (the HTML has no swing). tests/mello/swing_global.c checks it.
 - Saved in SEC_DRUMS (9). Not yet: MIDI out, LFO / DOT / EVOLVE routes to the drums.
 
 ## The chord voice (2026-10-30)
