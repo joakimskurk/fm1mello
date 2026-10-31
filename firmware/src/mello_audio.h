@@ -10,8 +10,9 @@
 extern "C" {
 #endif
 
-#define MELLO_AUDIO_FS             44100u
-#define MELLO_AUDIO_EVENT_CAP      128u
+#define MELLO_AUDIO_FS 44100u
+#define MELLO_AUDIO_EVENT_CAP                                                                                \
+    64u /* 16 a lane: 300 BPM with 8 ratchets, chords, sub and samples keeps order (audio_timing_stress) */
 #define MELLO_AUDIO_EVENT_LANES    4u
 #define MELLO_AUDIO_EVENT_LANE_CAP (MELLO_AUDIO_EVENT_CAP / MELLO_AUDIO_EVENT_LANES)
 #define MELLO_AUDIO_DELAY_SAMPLES  65536u
@@ -119,7 +120,8 @@ typedef struct {
 #if MELLO_FEATURE_CHORD_MACHINE
 /* Voices to play from: a chord's four, and two more so a new chord does not cut the last one's release. */
 #define MELLO_CHORD_AUDIO_VOICES 6u
-#define MELLO_CHORD_CHORUS_LEN   1024u /* 23 ms: the chorus's delay line */
+#define MELLO_CHORD_CHORUS_LEN                                                                               \
+    256u /* the chorus's delay line: it reads back 3.5 ms +- 1.8 (234 samples) at most */
 typedef struct {
     uint32_t phase[MELLO_CHORD_AUDIO_VOICES];
     uint32_t inc[MELLO_CHORD_AUDIO_VOICES];
