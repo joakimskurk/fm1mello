@@ -550,6 +550,9 @@ typedef enum {
 } MelloChordMode;
 
 typedef enum { MELLO_CHORD_TRIGGER_STEP = 0, MELLO_CHORD_TRIGGER_GRID } MelloChordTrigger;
+/* How the chain moves on (2026-10-31): TRIG, after HOLD triggers (the HTML's); STEPS, after HOLD sixteenths on its own
+ * clock, whatever the sequence skips or holds; SEG, chord k for segment k. */
+typedef enum { MELLO_CHORD_CHAIN_TRIG = 0, MELLO_CHORD_CHAIN_STEPS, MELLO_CHORD_CHAIN_SEG } MelloChordChain;
 
 typedef struct {
     uint8_t degree; /* scale degree 0..11; wrapped to current scale */
@@ -557,7 +560,7 @@ typedef struct {
     uint8_t inversion; /* 0..3 */
     int8_t octave;     /* -2..2 */
     uint8_t spread;    /* 0=close, 1..3 progressively wider */
-    uint8_t hold;      /* number of chord triggers before chain advances */
+    uint8_t hold; /* 1..64: chord triggers (CHAIN TRIG) or sixteenths (STEPS) before the chain moves on */
 } MelloChordStep;
 
 typedef struct {
@@ -594,6 +597,8 @@ typedef struct {
     uint8_t strum_ms;        /* 0..60: each voice of a chord this much after the one under it */
     bool link;               /* HOME's CUTOFF (the lead's) moves the chord filter as far */
     bool voice_lead;         /* a new chord in the inversion nearest the last one */
+    uint8_t chain;           /* MelloChordChain */
+    bool sub_root;           /* SUB ROOT: the sub (and BASS SEQ) moves by the chord's root, the nearest way */
 } MelloChordConfig;
 #endif
 
@@ -816,6 +821,7 @@ typedef struct {
     int8_t chord_grid_active_cell;
     uint8_t chord_chain_pos;
     uint8_t chord_chain_hold;
+    uint8_t chord_step_count; /* CHAIN STEPS: sixteenths of this chord so far */
     uint8_t chord_arp_pos;
     int8_t chord_arp_dir;
     uint8_t chord_pattern_pos;
@@ -930,6 +936,8 @@ void mello_engine_start(MelloEngine *engine);
 void mello_engine_stop(MelloEngine *engine);
 void mello_engine_reset_transport(MelloEngine *engine);
 bool mello_engine_rebuild_sequence(MelloEngine *engine);
+/* The project segment playing now (0..). */
+uint8_t mello_engine_current_segment(const MelloEngine *engine);
 
 /* Process exactly one current-source processed pulse entry. */
 bool mello_engine_advance_pulse(MelloEngine *engine);

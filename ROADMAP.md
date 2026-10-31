@@ -182,13 +182,14 @@ simple (Phase 3's iceberg).
       another inverted.
       Done as links to the pitch, + or - per target (RANDOM / LINKS; DECISIONS.md "Randomizer links").
 - [x] DOT orders: P-PONG, SPIRAL, DIAG, BOUNCE, WALK, and REV for any of them (DECISIONS.md "DOT orders").
-- [ ] Chord mode: unusable as it is. Redesign it, both the sound and how it is played, so it is usable and makes
+- [x] Chord mode: unusable as it is. Redesign it, both the sound and how it is played, so it is usable and makes
       musical sense (see DECISIONS.md "Harmonic layer" for the earlier candidates).
       Done, the sound and the sight (DECISIONS.md "The chord voice"): ADSR per voice, a resonant filter with its own
       envelope, a Juno-style stereo chorus, SPACE, LINK to HOME's CUTOFF, voice leading (VLEAD), STRUM; the chain as
       chord names, the voices lit as they sound, PATTERN's playhead, the chord on HOME (chord_voice).
-      Next, the playing: HOLD in steps rather than triggers; chords that follow the segments; the sub on the chord's
-      root.
+      Then the playing (DECISIONS.md "The chord chain"): MOTION's NEXT moves the chain by TRIG (as before), STEPS
+      (HOLD in sixteenths, on its own clock) or SEG (chord k for segment k); B1 SUB puts the sub on the chord's root
+      (chord_chain).
 
 ## Phase 4: validate, then grow
 

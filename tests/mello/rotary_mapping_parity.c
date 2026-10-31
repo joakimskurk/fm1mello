@@ -170,7 +170,7 @@ static const Case cases[] = {
     C("CHORD PATTERN", MELLO_UI_CHORD, 4, 3, 0, "MASK", "LEN", "K3", "K4"),
     C("CHORD TONE", MELLO_UI_CHORD, 5, 15, 0, "WAVE", "CHORUS", "SPACE", "LEVEL"),
     C("CHORD FILTER", MELLO_UI_CHORD, 6, 15, 0, "CUT", "RES", "ENV", "LINK"),
-    C("CHORD MOTION", MELLO_UI_CHORD, 7, 7, 0, "F ATK", "F DEC", "STRUM", "K4"),
+    C("CHORD MOTION", MELLO_UI_CHORD, 7, 15, 0, "F ATK", "F DEC", "STRUM", "NEXT"),
     C("CHORD AMP", MELLO_UI_CHORD, 8, 15, 0, "ATTACK", "DECAY", "SUSTAIN", "RELEASE"),
 #endif
     C("KEY SCALE", MELLO_UI_KEY_SCALE, 0, 15, 0, "ROOT", "SCALE", "OCT", "SPAN"),

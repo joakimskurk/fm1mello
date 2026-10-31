@@ -199,9 +199,10 @@ static MelloChordConfig sanitize_chord_config(MelloChordConfig c)
         s->octave = clamp_i8(s->octave, -2, 2);
         if (s->spread > 3u) s->spread = 3u;
         if (s->hold < 1u) s->hold = 1u;
-        if (s->hold > 16u) s->hold = 16u;
+        if (s->hold > 64u) s->hold = 64u;
     }
     for (i = 0u; i < MELLO_CHORD_PATTERN_STEPS; ++i) c.pattern_masks[i] &= 0x0Fu;
+    if (c.chain > MELLO_CHORD_CHAIN_SEG) c.chain = MELLO_CHORD_CHAIN_TRIG;
     if (c.cut > 1000u) c.cut = 1000u;
     if (c.res > 1000u) c.res = 1000u;
     if (c.fenv > 1000u) c.fenv = 1000u;
@@ -1576,6 +1577,7 @@ void mello_engine_start(MelloEngine *e)
     e->chord_grid_active_cell = -1;
     e->chord_chain_pos = 0u;
     e->chord_chain_hold = 0u;
+    e->chord_step_count = 0u;
     e->chord_arp_pos = 0u;
     e->chord_arp_dir = 1;
     e->chord_pattern_pos = 0u;
@@ -1702,6 +1704,9 @@ static int8_t sub_tone_offset(MelloScale scale, uint8_t tone)
     return sd->v[idx];
 }
 
+#if MELLO_FEATURE_CHORD_MACHINE
+static int32_t chord_root_shift(const MelloEngine *e, MelloScale scale);
+#endif
 static uint8_t resolve_sub_midi(const MelloEngine *e, uint8_t x_tone, int8_t x_octave)
 {
     int32_t root, midi;
@@ -1711,6 +1716,9 @@ static uint8_t resolve_sub_midi(const MelloEngine *e, uint8_t x_tone, int8_t x_o
     current_loop_context(e, &root, &scale, &lc_oct, &lc_pitch, &base_tone, &lc_sub_transpose);
     midi =
         root + (int32_t)sub_tone_offset(scale, base_tone) + (int32_t)sub_tone_offset(scale, x_tone) +
+#if MELLO_FEATURE_CHORD_MACHINE
+        (e->chord.on && e->chord.sub_root ? chord_root_shift(e, scale) : 0) +
+#endif
         ((int32_t)e->project.global_octave + (int32_t)lc_oct + (int32_t)e->sub.octave + (int32_t)x_octave) *
             12 +
         (int32_t)lc_pitch + (int32_t)lc_sub_transpose;
@@ -1722,6 +1730,10 @@ static uint8_t current_project_segment(const MelloEngine *e)
     if (!e || e->runtime_segment_count == 0u || e->active_runtime_segment >= e->runtime_segment_count)
         return 0u;
     return e->runtime_segments[e->active_runtime_segment].project_segment;
+}
+uint8_t mello_engine_current_segment(const MelloEngine *e)
+{
+    return current_project_segment(e);
 }
 
 static void emit_basic(MelloEngine *e, MelloEventType type, uint32_t tick, uint8_t step_idx,
@@ -2467,6 +2479,7 @@ void mello_engine_chord_reset(MelloEngine *e)
     e->chord_grid_active_cell = -1;
     e->chord_chain_pos = 0u;
     e->chord_chain_hold = 0u;
+    e->chord_step_count = 0u;
     e->chord_arp_pos = 0u;
     e->chord_arp_dir = 1;
     e->chord_pattern_pos = 0u;
@@ -3495,6 +3508,8 @@ static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advanc
     e->chord_voiced_n = n;
     strum = c->strum_ms ? ms_to_ticks(&e->project, c->strum_ms) : 0u;
     if (c->mode == MELLO_CHORD_HOLD) {
+        if (fresh && !advance_chain && c->chain != MELLO_CHORD_CHAIN_TRIG)
+            e->chord_chain_hold = 1u; /* STEPS / SEG: sounded; the clock says when the next one is */
         if (fresh) {
             for (i = 0u; i < e->chord_last_count; ++i)
                 emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_OFF, e->now_tick, pe->step_index, pe->pulse_index,
@@ -3565,6 +3580,39 @@ static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advanc
             e->chord_pattern_pos = 0u;
         }
     }
+}
+
+/* CHAIN STEPS and SEG, every pulse: the chain's place by the clock (HOLD sixteenths of each chord) or by the segment
+ * playing; a chord that has not sounded yet sounds now in HOLD (the other modes play it at their triggers). */
+static void chord_chain_clock(MelloEngine *e, const MelloPulseEntry *pe)
+{
+    MelloChordConfig *c = &e->chord;
+    uint8_t len = c->length ? c->length : 1u, slot = (uint8_t)(e->chord_chain_pos % len), next = slot;
+    if (c->chain == MELLO_CHORD_CHAIN_SEG)
+        next = (uint8_t)(current_project_segment(e) % len);
+    else if (e->chord_step_count >= c->steps[slot].hold)
+        next = (uint8_t)((slot + 1u) % len);
+    if (next != slot || e->chord_step_count == 0u) {
+        if (next != slot) e->chord_chain_hold = 0u;
+        e->chord_chain_pos = next;
+        e->chord_step_count = 0u;
+        e->chord_arp_pos = 0u;
+        e->chord_arp_dir = 1;
+        e->chord_pattern_pos = 0u;
+    }
+    if (e->chord_step_count < 255u) e->chord_step_count++;
+    if (c->mode == MELLO_CHORD_HOLD && e->chord_chain_hold == 0u) chord_trigger(e, pe, false);
+}
+
+/* SUB ROOT: the chord's root as semitones from the key's, the nearest way (-5 .. +6). */
+static int32_t chord_root_shift(const MelloEngine *e, MelloScale scale)
+{
+    const ScaleDef *sd = &SCALES[scale < MELLO_SCALE_COUNT ? scale : MELLO_SCALE_MINOR];
+    uint8_t len = e->chord.length ? e->chord.length : 1u,
+            slot = e->chord_voiced_n ? e->chord_voiced_slot : (uint8_t)(e->chord_chain_pos % len),
+            d = (uint8_t)(e->chord.steps[slot % MELLO_CHORD_MAX_STEPS].degree % sd->n);
+    int32_t s = sd->v[d] % 12;
+    return s > 6 ? s - 12 : s;
 }
 #endif
 
@@ -3680,8 +3728,13 @@ bool mello_engine_advance_pulse(MelloEngine *e)
             fire = true;
         else
             fire = step_start;
-        /* STEP-mode harmony advances only at logical step boundaries; its arp/pattern clock may tick inside the step. */
-        if (fire) chord_trigger(e, &pe, e->chord.trigger == MELLO_CHORD_TRIGGER_GRID ? true : step_start);
+        /* STEP-mode harmony advances only at logical step boundaries; its arp/pattern clock may tick inside the step.
+         * CHAIN STEPS and SEG move it by their clock instead (chord_chain_clock), before the step's triggers. */
+        if (e->chord.on && e->chord.chain != MELLO_CHORD_CHAIN_TRIG) {
+            chord_chain_clock(e, &pe);
+            if (fire && e->chord.mode != MELLO_CHORD_HOLD) chord_trigger(e, &pe, false);
+        } else if (fire)
+            chord_trigger(e, &pe, e->chord.trigger == MELLO_CHORD_TRIGGER_GRID ? true : step_start);
     }
 #endif
     eff_ratchet = clamp_1_8((uint8_t)(clamp_1_8(s->ratchet) + ratchet_add));

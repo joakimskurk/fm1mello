@@ -500,6 +500,7 @@ typedef enum {
     MELLO_CTX_SUB_TOGGLE,
     MELLO_CTX_SUB_STEP,
     MELLO_CTX_CHORD_TOGGLE,
+    MELLO_CTX_CHORD_SUB_ROOT, /* CHORD: the sub (and BASS SEQ) on the chord's root */
     MELLO_CTX_GLOBAL_TAP,
     MELLO_CTX_GLOBAL_RESET,
     MELLO_CTX_SOUND_INIT, /* the sound back to the defaults (press twice; UNDO undoes it) */
@@ -594,6 +595,7 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
                       [9] = {MELLO_CTX_UNDO, "UNDO"}},
 #if MELLO_FEATURE_CHORD_MACHINE
     [MELLO_UI_CHORD] = {[0] = {MELLO_CTX_CHORD_TOGGLE, "ON"},
+                        [1] = {MELLO_CTX_CHORD_SUB_ROOT, "SUB"},
                         [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                         [9] = {MELLO_CTX_UNDO, "UNDO"}},
 #endif
@@ -1414,7 +1416,7 @@ static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
         s->shape =
             (MelloChordShape)wrap_u8((int32_t)s->shape + (delta > 0 ? 1 : -1), MELLO_CHORD_SHAPE_COUNT);
         break;
-    case 6: s->hold = (uint8_t)clamp_i32((int32_t)s->hold + delta, 1, 16); break;
+    case 6: s->hold = (uint8_t)clamp_i32((int32_t)s->hold + delta, 1, 64); break;
     case 7: s->octave = (int8_t)clamp_i32((int32_t)s->octave + delta, -2, 2); break;
     case 8: s->inversion = (uint8_t)clamp_i32((int32_t)s->inversion + delta, 0, 3); break;
     case 9: s->spread = (uint8_t)clamp_i32((int32_t)s->spread + delta, 0, 3); break;
@@ -1447,6 +1449,14 @@ static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
     case 28: c.fenv_attack_ms = chord_ms(c.fenv_attack_ms, delta, 1u, 2000u); break;
     case 29: c.fenv_decay_ms = chord_ms(c.fenv_decay_ms, delta, 10u, 4000u); break;
     case 30: c.strum_ms = (uint8_t)clamp_i32((int32_t)c.strum_ms + delta, 0, 60); break;
+    case 31: { /* NEXT: how the chain moves on; STEPS starts each chord at a bar (HOLD 16) */
+        uint8_t was = c.chain, i;
+        c.chain = (uint8_t)clamp_i32((int32_t)c.chain + (delta > 0 ? 1 : -1), MELLO_CHORD_CHAIN_TRIG,
+                                     MELLO_CHORD_CHAIN_SEG);
+        if (c.chain == MELLO_CHORD_CHAIN_STEPS && was != MELLO_CHORD_CHAIN_STEPS)
+            for (i = 0u; i < MELLO_CHORD_MAX_STEPS; ++i) c.steps[i].hold = 16u;
+        break;
+    }
     case 32: c.attack_ms = chord_ms(c.attack_ms, delta, 1u, 2000u); break;
     case 33: c.decay_ms = chord_ms(c.decay_ms, delta, 10u, 4000u); break;
     case 34: c.sustain = (uint16_t)clamp_i32((int32_t)c.sustain + delta * 10, 0, 1000); break;
@@ -2316,9 +2326,13 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         break;
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    case MELLO_CTX_CHORD_TOGGLE: {
+    case MELLO_CTX_CHORD_TOGGLE:
+    case MELLO_CTX_CHORD_SUB_ROOT: {
         MelloChordConfig c = e->chord;
-        c.on = !c.on;
+        if (a->verb == MELLO_CTX_CHORD_TOGGLE)
+            c.on = !c.on;
+        else
+            c.sub_root = !c.sub_root; /* SUB ROOT: the sub moves with the chord's root */
         mello_engine_chord_set_config(e, &c);
         mark_edit(ui);
         break;
@@ -4053,6 +4067,9 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_DRUM_HAT:
     case MELLO_CTX_DRUM_GLITCH: return (uint8_t)(v - MELLO_CTX_DRUM_KICK) == ui->selected_drum_voice ? 1 : -1;
     case MELLO_CTX_DRUM_ON: return e->drums.on ? 1 : 0;
+#if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_CTX_CHORD_SUB_ROOT: return e->chord.sub_root ? 1 : 0;
+#endif
     case MELLO_CTX_DELAY_PRE: return e->fx.delay_pre_dist ? 1 : 0;
     case MELLO_CTX_DRUM_FEED: return e->drums.feed ? 1 : 0;
     case MELLO_CTX_DRUM_ACCENT:
@@ -4419,6 +4436,7 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 28: v = c->fenv_attack_ms, m = 2000u; break;
         case 29: v = c->fenv_decay_ms, m = 4000u; break;
         case 30: v = c->strum_ms, m = 60u; break;
+        case 6: v = c->steps[ui->selected_chord_step % c->length].hold, m = 64u; break;
         case 32: v = c->attack_ms, m = 2000u; break;
         case 33: v = c->decay_ms, m = 4000u; break;
         case 34: v = c->sustain; break;
@@ -4811,7 +4829,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
                                                    {"MASK", "LEN", "K3", "K4"},
                                                    {"WAVE", "CHORUS", "SPACE", "LEVEL"},
                                                    {"CUT", "RES", "ENV", "LINK"},
-                                                   {"F ATK", "F DEC", "STRUM", "K4"},
+                                                   {"F ATK", "F DEC", "STRUM", "NEXT"},
                                                    {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"}};
         MelloChordConfig *c = &e->chord;
         MelloChordStep *s = &c->steps[ui->selected_chord_step % c->length];
@@ -4830,7 +4848,10 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         case 1:
             value_u(v[0], "", s->degree + 1u);
             copy_s(v[1], chord_shape_name(s->shape));
-            value_u(v[2], "", s->hold);
+            if (c->chain == MELLO_CHORD_CHAIN_SEG)
+                copy_s(v[2], "SEG"); /* the segment decides */
+            else
+                value_u(v[2], "", s->hold); /* triggers, or with NEXT STEPS sixteenths */
             value_i(v[3], "", s->octave);
             break;
         case 2:
@@ -4865,6 +4886,9 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             value_ms(v[0], c->fenv_attack_ms);
             value_ms(v[1], c->fenv_decay_ms);
             value_ms(v[2], c->strum_ms);
+            copy_s(v[3], c->chain == MELLO_CHORD_CHAIN_STEPS
+                             ? "STEPS"
+                             : (c->chain == MELLO_CHORD_CHAIN_SEG ? "SEG" : "TRIG"));
             break;
         default:
             value_ms(v[0], c->attack_ms);

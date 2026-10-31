@@ -297,6 +297,24 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
     TUNE, DECAY and TONE, each with ROLL's chance, within what suits the voice. The kick stays a kick: TUNE 25-60%,
     DECAY up to 25%, TONE up to 35%. GLITCH's TONE can pick any kind. FEED+ is in SEC_DRUMS's flags (bit 3).
 
+## The chord chain (2026-10-31)
+
+ROADMAP: "HOLD in steps rather than triggers; chords that follow the segments; the sub on the chord's root".
+- **NEXT** (MOTION's K4) decides how the chain moves on:
+  - TRIG, as before: after HOLD triggers. A skipped step is no trigger, and a long step is one.
+  - STEPS: after HOLD sixteenths on its own clock, whatever the sequence skips, holds or plays backwards. Turning
+    STEPS on sets each chord's HOLD to 16 (a bar), since a count of triggers means nothing in sixteenths. HOLD now
+    goes to 64 (four bars).
+  - SEG: chord k plays for segment k (modulo the chain's length), in whatever order and with whatever repeats the
+    segments play. HOLD shows SEG and does nothing.
+  In STEPS and SEG, HOLD mode's chord sounds as soon as it is due (chord_chain_clock), not at the next step that
+  plays. STAB, the arpeggios and PATTERN play the current chord at their own triggers, as before.
+- **SUB ROOT** (CHORD's B1, lit when on) moves the sub by the chord's root, the nearest way (-5 .. +6 semitones):
+  in C minor, VI takes it down 4, iv up 5 and v down 5. It applies to every sub note: the sub's MODE, BASS SEQ and
+  DRONE. It follows the chord that sounds (or the chain's place before one has).
+- **Storage.** SEC_CHORD 3 adds NEXT and SUB ROOT (2 bytes). TRIG and off are the defaults, so a version 2 file plays
+  as before. tests/mello/chord_chain.c checks it.
+
 ## RANDOM: WAVE per step (2026-10-31)
 
 Feedback: "with WAVE on, the randomizer should give a wave PER STEP if possible; OFF is not one of them". Each step

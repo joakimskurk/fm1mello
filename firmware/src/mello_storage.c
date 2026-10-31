@@ -18,9 +18,10 @@ enum {
     SECVER_WORKING = 1,
     SECVER_SLOTS = 1,
     SECVER_SLOT_SEQ = 1,
-    SECVER_FX = 3,    /* 2: the delay's LO CUT; 3: PRE DIST */
-    SECVER_CHORD = 2, /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading) */
-    SECVER_GRIT = 4,  /* 4: MIX's LEAD */
+    SECVER_FX = 3, /* 2: the delay's LO CUT; 3: PRE DIST */
+    SECVER_CHORD =
+        3, /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading); 3: CHAIN, SUB ROOT */
+    SECVER_GRIT = 4, /* 4: MIX's LEAD */
     SECVER_MOD = 3,
     SECVER_DRUMS = 1,
     SECVER_BASS = 1
@@ -32,7 +33,8 @@ enum {
 #define FX_WIRE_SIZE_V2    36u
 #define FX_WIRE_SIZE       37u
 #define CHORD_WIRE_SIZE_V1 (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
-#define CHORD_WIRE_SIZE    (CHORD_WIRE_SIZE_V1 + 21u)
+#define CHORD_WIRE_SIZE_V2 (CHORD_WIRE_SIZE_V1 + 21u)
+#define CHORD_WIRE_SIZE    (CHORD_WIRE_SIZE_V2 + 2u)
 #define GRIT_ENTRY_SIZE_V1 8u
 #define GRIT_ENTRY_SIZE_V2 26u
 #define GRIT_ENTRY_SIZE_V3 34u
@@ -645,6 +647,8 @@ static void encode_chord(Writer *w, const MelloChordConfig *c)
     wr_u8(w, c->strum_ms);
     wr_u8(w, c->link ? 1u : 0u);
     wr_u8(w, c->voice_lead ? 1u : 0u);
+    wr_u8(w, c->chain);
+    wr_u8(w, c->sub_root ? 1u : 0u);
 }
 /* Out-of-range values are left to mello_engine_chord_set_config's sanitizer. Version 1 has no voice: c keeps the
  * defaults' (mello_chord_defaults), and its attack and release as saved. */
@@ -684,6 +688,11 @@ static bool decode_chord(Reader *r, MelloChordConfig *c, uint8_t ver)
             return false;
         c->link = link != 0u;
         c->voice_lead = lead != 0u;
+    }
+    if (ver >= 3u) {
+        uint8_t sub_root;
+        if (!rd_u8(r, &c->chain) || !rd_u8(r, &sub_root)) return false;
+        c->sub_root = sub_root != 0u;
     }
     return true;
 }
@@ -1020,7 +1029,9 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
         } else if (id == SEC_CHORD && ver >= 1u && ver <= SECVER_CHORD) {
             MelloChordConfig chord;
             mello_chord_defaults(&chord);
-            if (len != (ver == 1u ? CHORD_WIRE_SIZE_V1 : CHORD_WIRE_SIZE) || !decode_chord(&r, &chord, ver))
+            if (len !=
+                    (ver == 1u ? CHORD_WIRE_SIZE_V1 : (ver == 2u ? CHORD_WIRE_SIZE_V2 : CHORD_WIRE_SIZE)) ||
+                !decode_chord(&r, &chord, ver))
                 return false;
             if (apply && e) mello_engine_chord_set_config(e, &chord);
 #endif
