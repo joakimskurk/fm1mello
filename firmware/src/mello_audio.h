@@ -283,6 +283,11 @@ typedef struct {
     int32_t chord_level_q12, chord_send_q12;
 #endif
     int16_t last_lfo;
+    /* the control step's values (render: every 4 samples), read by the samples between */
+    uint8_t ctl_phase;
+    int32_t c_lfo, c_ampmod, c_cut_off, c_res_off, c_noise, c_nfm, c_sat, c_det, c_fm, c_osc2_q8;
+    uint32_t c_lead_ratio; /* Q16 on the lead's increment; 65536 = as it is */
+    uint16_t c_pwm;
     int16_t tm_filter_mod_q15;
     int16_t tm_decay_mod_q15;
 
@@ -345,6 +350,8 @@ typedef struct {
     volatile bool queue_overflow;
     volatile bool all_notes_off_pending;
     volatile bool silent;
+    bool ramps_moving; /* a ramp was started: the ramps are stepped each sample until all have arrived */
+    bool gains_moving; /* a mute changed: its gain slides until it sits */
     uint32_t tail_guard_frames;
     uint32_t reverb_live; /* frames the reverb still has to run after its last input (render: its own tail) */
     uint32_t rendered_frames;

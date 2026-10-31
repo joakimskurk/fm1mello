@@ -298,7 +298,8 @@ static void app_main(void)
         mello_transport_poll_ahead(&mt, now_us, MELLO_TRANSPORT_LOOKAHEAD_US);
         if (last_running && !mt.running) mello_audio_all_notes_off(&audio);
         last_running = mt.running;
-        sync_audio_config();
+        /* every 8 ms: the compare is ~600 bytes a pass (byte by byte on this libc), the ramps take 50 ms anyway */
+        if (!(fm1_ms & 7u)) sync_audio_config();
         mello_ui_tick(&ui);
 
 #ifndef DINGHY_HOST
