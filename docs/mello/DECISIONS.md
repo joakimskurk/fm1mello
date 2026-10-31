@@ -207,7 +207,7 @@ from +17.6, its tone 6.5 from 6.1, RT60 2.86 s from 2.88 against the HTML's 2.69
 A small drum machine, the FM-1's own (the HTML has none): "minimal, classic, Aphex Twin meets Richard Divine; the
 sonic differences come from modulation and the randomizer". Four synthesized voices on a 16-step pattern.
 
-- Voices, each with TUNE, DECAY, TONE, LEVEL: KICK (a sine falling from four times its pitch in ~40 ms; TONE drive),
+- Voices, each with TUNE, DECAY, TONE, LEVEL: KICK (a sine falling from four times its pitch in ~25 ms; TONE drive),
   SNARE (two body tones and high-passed noise; TONE the snap), HAT (noise and two ring-modulated squares, high-passed;
   TONE noise .. metal, DECAY closed .. open), GLITCH (FM at an inharmonic ratio, its index falling fast; TONE the ratio).
 - Per step, per voice: the hit, an accent (ACC), and locks: PITCH +-24, DECAY (up to 4x shorter or longer), CRUSH
@@ -228,6 +228,13 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
   audio render with all four voices on every step (about 5% of the chip).
 - The default beat (feedback: "that one sounded very good"): a full ROLL of the first kit with SWING 30% and CRUSH 40%,
   kept as it came out; GLITCH has no hits in it. The drums are off until ON.
+- The kick tightened (2026-10-31: "it eats the bass's room, a long release and pitch changes; more percussive than
+  tonal"). The default beat had ten kicks a bar, each ringing ~580 ms (one step at 120 BPM is 125 ms; a lock made one
+  1.7 s). Its steps' PITCH moved it -4..+4 semitones, outside the key, against the sub. Now the beat has six kicks
+  (steps 1, 5, 7, 12, 13, 15). DECAY is ~190 ms, the drive is halved, and the pitch falls in ~25 ms, not ~40. No
+  step's PITCH or DECAY makes the kick longer or retunes it. ROLL keeps it so: it never rolls the kick's PITCH, never
+  rolls a DECAY longer than the voice's, and lays a little fewer kicks (22%, not 28%). With a MUSICAL roll over it, the
+  mix has 7.5 dB less at 30-90 Hz and 4 dB less at 90-250 Hz, and the same above.
 - Saved in SEC_DRUMS (9). Not yet: MIDI out, LFO / DOT / EVOLVE routes to the drums.
 
 ## The chord voice (2026-10-30)

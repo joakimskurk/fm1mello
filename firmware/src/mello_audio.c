@@ -527,9 +527,9 @@ static void drum_hit(MelloAudio *a, const MelloEvent *e)
     d->penv = 1 << 24;
     d->gain = (int32_t)c->level * 32767 / 1000 * e->velocity / 127;
     switch (v) {
-    case MELLO_DRUM_KICK: /* a sine falling from four times its pitch in ~40 ms */
+    case MELLO_DRUM_KICK: /* a sine falling from four times its pitch in ~25 ms */
         d->inc = inc_times(hz_inc(35u + c->tune * 55u / 1000u), ratio);
-        d->pk = drum_rate(40u);
+        d->pk = drum_rate(25u);
         d->phase = 0u;
         break;
     case MELLO_DRUM_SNARE: /* two body tones that die in a third of the noise's time */

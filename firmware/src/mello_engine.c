@@ -672,31 +672,33 @@ void mello_sub_defaults(MelloSubConfig *c)
 void mello_drum_defaults(MelloDrumConfig *c)
 {
     /* The default beat (feedback 2026-10-30: "that one, it sounded very good"): a full ROLL of the first kit with
-     * SWING 30% and CRUSH 40%, kept as it came out (listen-drums/4_rolled_crushed.wav). GLITCH has no hits in it. */
+     * SWING 30% and CRUSH 40%, kept as it came out (listen-drums/4_rolled_crushed.wav). GLITCH has no hits in it.
+     * The kick tightened since (2026-10-31: "it eats the bass's room; more percussive than tonal"): 6 hits, not 10,
+     * ~190 ms, not ~580, half the drive, and no PITCH or longer DECAY on its steps. */
     static const MelloDrumVoice v[MELLO_DRUM_VOICES] = {
-        {400u, 450u, 300u, 900u, 1000u, 400u}, /* KICK ~55 Hz, a little drive */
+        {400u, 100u, 150u, 900u, 1000u, 400u}, /* KICK ~57 Hz, short, a little drive */
         {450u, 400u, 550u, 700u, 1000u, 400u}, /* SNARE */
         {600u, 150u, 400u, 500u, 1000u, 400u}, /* HAT, closed */
         {500u, 200u, 600u, 450u, 1000u, 400u}  /* GLITCH */
     };
-    static const uint16_t hits[MELLO_DRUM_VOICES] = {0xF953u, 0x8090u, 0x8CF0u, 0x0000u},
+    static const uint16_t hits[MELLO_DRUM_VOICES] = {0x5851u, 0x8090u, 0x8CF0u, 0x0000u},
                           accents[MELLO_DRUM_VOICES] = {0x1080u, 0x5031u, 0x0100u, 0x0AE7u};
-    static const MelloDrumLock lock[MELLO_DRUM_VOICES][MELLO_DRUM_STEPS] = {{{3, 16, 0, 1},
+    static const MelloDrumLock lock[MELLO_DRUM_VOICES][MELLO_DRUM_STEPS] = {{{0, 0, 0, 1},
                                                                              {0, 0, 0, 1},
-                                                                             {-1, 21, 23, 1},
+                                                                             {0, 0, 23, 1},
                                                                              {0, 0, 96, 1},
-                                                                             {2, 0, 31, 3},
-                                                                             {1, 17, 0, 1},
-                                                                             {2, 76, 0, 1},
-                                                                             {-2, 0, 0, 1},
+                                                                             {0, 0, 31, 3},
+                                                                             {0, 0, 0, 1},
+                                                                             {0, 0, 0, 1},
+                                                                             {0, 0, 0, 1},
                                                                              {0, -9, 0, 1},
                                                                              {0, 0, 0, 1},
                                                                              {0, -9, 52, 1},
                                                                              {0, 0, 0, 1},
                                                                              {0, -71, 0, 1},
-                                                                             {-4, 0, 21, 1},
-                                                                             {-2, 0, 0, 3},
-                                                                             {4, -45, 43, 1}},
+                                                                             {0, 0, 21, 1},
+                                                                             {0, 0, 0, 3},
+                                                                             {0, -45, 43, 1}},
                                                                             {{0, -7, 0, 1},
                                                                              {0, -54, 35, 1},
                                                                              {-1, 0, 0, 1},
@@ -800,8 +802,8 @@ void mello_engine_drums_set_config(MelloEngine *e, const MelloDrumConfig *config
 void mello_engine_drums_roll(MelloEngine *e)
 {
     /* How likely each voice is to hit a step when rolled (permille), and how far its pitch goes. */
-    static const uint16_t density[MELLO_DRUM_VOICES] = {280u, 180u, 550u, 170u};
-    static const int8_t pitch_span[MELLO_DRUM_VOICES] = {5, 7, 12, 12};
+    static const uint16_t density[MELLO_DRUM_VOICES] = {220u, 180u, 550u, 170u};
+    static const int8_t pitch_span[MELLO_DRUM_VOICES] = {0, 7, 12, 12}; /* the kick stays where it is tuned */
     MelloDrumConfig *d;
     uint8_t v, k;
     if (!e) return;
@@ -828,6 +830,8 @@ void mello_engine_drums_roll(MelloEngine *e)
             l->decay = chance_permille(&e->drum_rng, 500u)
                            ? 0
                            : (int8_t)((int32_t)rng_bounded(&e->drum_rng, 161u) - 80);
+            if (v == MELLO_DRUM_KICK && l->decay > 0)
+                l->decay = 0; /* shorter, never longer: it leaves the bass room */
             l->crush =
                 chance_permille(&e->drum_rng, 700u) ? 0u : (uint8_t)(10u + rng_bounded(&e->drum_rng, 91u));
             l->ratchet =
