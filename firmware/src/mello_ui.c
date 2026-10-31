@@ -1952,11 +1952,17 @@ static const char *domain_name(const MelloUi *ui);
 static uint8_t save_state(const MelloUi *ui);
 static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o);
 static const char *full_label(const char *l);
-/* The delay's LO CUT in Hz: 20 x 100^(x / 1000), 2^f taken as 1 + f (0.657 + 0.343 f) (within 0.3%). */
+/* lo x 2^(x / 1000 x octaves) Hz, octaves in thousandths: a permille's place on an exponential range, 2^f taken as
+ * 1 + f (0.657 + 0.343 f) (within 0.3%). Every CUT reads in Hz (R5): the sub's 40 x 55^x, the chord's 60 x 107^x,
+ * the delay's LO CUT 20 x 100^x. */
+static uint32_t exp_hz(uint16_t x, uint32_t lo, uint32_t octaves_milli)
+{
+    uint32_t e = (uint32_t)x * octaves_milli / 1000u, f = e % 1000u;
+    return (lo << (e / 1000u)) * (1000u + f * (657u + 343u * f / 1000u) / 1000u) / 1000u;
+}
 static uint32_t delay_lowcut_hz(uint16_t x)
 {
-    uint32_t e = (uint32_t)x * 6644u / 1000u, f = e % 1000u;
-    return (20u << (e / 1000u)) * (1000u + f * (657u + 343u * f / 1000u) / 1000u) / 1000u;
+    return exp_hz(x, 20u, 6644u);
 }
 static void value_millihz(char *b, uint32_t mhz);
 static void value_pct(char *b, uint32_t permille);
@@ -4550,7 +4556,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
     MelloEngine *e = eng(ui);
     uint8_t k;
     for (k = 0u; k < 4u; ++k) {
-        static const char *kn[4] = {"K1", "K2", "K3", "K4"};
+        static const char *kn[4] = {"", "", "", ""}; /* an unused knob: no label, "-" */
         l[k] = kn[k];
         v[k][0] = 0;
     }
@@ -4595,14 +4601,14 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             l[0] = "OCT";
             value_i(v[0], "", s->octave);
             l[1] = "PROB";
-            value_u(v[1], "", prob_pct(s->probability));
+            (void)copy_s(put_u32(v[1], prob_pct(s->probability)), "%");
             static const char *wn[6] = {"SND", "SAW", "SQR", "TRI", "SIN", "PLS"};
             l[2] = "SAMP";
             value_u(v[2], "", s->sample_slot);
             l[3] = "WAVE";
             copy_s(v[3], wn[s->wave % 6u]);
         } else if (ui->step_subpage == 2u) {
-            l[0] = "ACC";
+            l[0] = "ACCENT";
             copy_s(v[0], s->accent ? "ON" : "OFF");
             l[1] = "SUB";
             copy_s(v[1], s->sub ? "ON" : "OFF");
@@ -4611,7 +4617,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             l[3] = "SKIP";
             copy_s(v[3], s->skip ? "ON" : "OFF");
         } else {
-            l[0] = "LEN";
+            l[0] = "LENGTH";
             value_u(v[0], "", e->project.seq_len);
             l[1] = "RESET";
             main_reset_name(v[1], e->project.master_len);
@@ -4668,13 +4674,13 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             l[3] = "BASS TR";
             value_i(v[3], "", mello_loop_cycle_sub_transpose(ls));
         } else {
-            l[0] = "LEN";
+            l[0] = "LENGTH";
             value_u(v[0], "", e->loop_cycle.length);
             l[1] = "SYNC";
             copy_s(v[1], e->loop_cycle.sync ? "SYNC" : "FREE");
             l[2] = "ON";
             copy_s(v[2], e->loop_cycle.active ? "ON" : "OFF");
-            l[3] = "K4";
+            l[3] = "";
             copy_s(v[3], "-");
         }
         break;
@@ -4690,7 +4696,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         value_u(v[1], "", ss->hold);
         l[2] = "ON";
         copy_s(v[2], e->slot_seq.active ? "ON" : "OFF");
-        l[3] = "LEN";
+        l[3] = "LENGTH";
         value_u(v[3], "", e->slot_seq.length);
         break;
     }
@@ -4707,7 +4713,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[3], "-");
             break;
         }
-        l[0] = "INT";
+        l[0] = "INTENS";
         copy_s(v[0], random_intensity_name(ui->random_intensity));
         copy_s(v[1], "-");
         copy_s(v[2], "-");
@@ -4740,9 +4746,9 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         if (ui->dot_shape && lane >= 0) {
             l[0] = "TARGET";
             copy_s(v[0], mod_dest_name(e->modr.dot_target[lane]));
-            l[1] = "ATK";
+            l[1] = "ATTACK";
             value_ms(v[1], e->modr.dot_attack_ms[lane]);
-            l[2] = "REL";
+            l[2] = "RELEASE";
             value_ms(v[2], e->modr.dot_release_ms[lane]);
             l[3] = "HOLD";
             copy_s(v[3], e->modr.dot_gate[lane] ? "GATE" : "HIT");
@@ -4750,7 +4756,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         }
         l[0] = "MODE";
         copy_s(v[0], dot_mode_name(c->mode));
-        l[1] = "LEN";
+        l[1] = "LENGTH";
         value_u(v[1], "", c->length);
         l[2] = lane >= 0 ? "DEPTH"
                          : "CHANCE"; /* a MOD lane's amount moves its target; the others' is a chance */
@@ -4761,9 +4767,9 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
     }
     case MELLO_UI_TURING:
         if (ui->tm_subpage == 0u) {
-            l[0] = "MUT";
-            value_u(v[0], "", e->tm.mutation_prob / 10u);
-            l[1] = "LEN";
+            l[0] = "MUTATE";
+            value_pct(v[0], e->tm.mutation_prob);
+            l[1] = "LENGTH";
             value_u(v[1], "", e->tm.length);
             l[2] = "RATE";
             copy_s(v[2], e->tm.rate == MELLO_TM_RATE_HALF     ? "1/2X"
@@ -4792,13 +4798,13 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[3], e->tm.routes & MELLO_TM_ROUTE_DECAY ? "ON" : "OFF");
         } else {
             l[0] = "GATE";
-            value_u(v[0], "", e->tm.depth_gate / 10u);
+            value_pct(v[0], e->tm.depth_gate);
             l[1] = "FILTER";
-            value_u(v[1], "", e->tm.depth_filter / 10u);
+            value_pct(v[1], e->tm.depth_filter);
             l[2] = "OCT";
-            value_u(v[2], "", e->tm.depth_octave / 10u);
+            value_pct(v[2], e->tm.depth_octave);
             l[3] = "DECAY";
-            value_u(v[3], "", e->tm.depth_decay / 10u);
+            value_pct(v[3], e->tm.depth_decay);
         }
         break;
     case MELLO_UI_SUB:
@@ -4807,7 +4813,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[0], sub_mode_name(e->sub.mode));
             l[1] = "PULSES";
             value_u(v[1], "", e->sub.euclid_pulses);
-            l[2] = "ROT";
+            l[2] = "ROTATE";
             value_u(v[2], "", e->sub.euclid_rotate);
             l[3] = "OCT";
             value_i(v[3], "", e->sub.octave);
@@ -4819,7 +4825,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             l[2] = "FOLLOW";
             copy_s(v[2], e->bass.follow ? "ON" : "OFF");
             l[3] = "GATE";
-            value_u(v[3], "", e->sub.gate_amount / 10u);
+            value_pct(v[3], e->sub.gate_amount);
         } else if (ui->sub_subpage == 2u) {
             static const char *tn[8] = {"ROOT", "2ND", "3RD", "4TH", "5TH", "6TH", "7TH", "OCT"};
             const MelloBassStep *bs = &e->bass.steps[ui->selected_sub_x_step % MELLO_BASS_STEPS];
@@ -4833,43 +4839,43 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[3], bs->accent ? "ON" : "OFF");
         } else if (ui->sub_subpage == 5u) {
             l[0] = "RES";
-            value_u(v[0], "", e->bass.res / 10u);
+            value_pct(v[0], e->bass.res);
             l[1] = "ENV";
-            value_u(v[1], "", e->bass.env / 10u);
-            l[2] = "E.DEC";
+            value_pct(v[1], e->bass.env);
+            l[2] = "F.DEC";
             value_ms(v[2], e->bass.env_decay_ms);
             l[3] = "ACCENT";
-            value_u(v[3], "", e->bass.accent / 10u);
+            value_pct(v[3], e->bass.accent);
         } else if (ui->sub_subpage == 3u) {
             l[0] = "LEVEL";
-            value_u(v[0], "", e->sub.level / 10u);
+            value_pct(v[0], e->sub.level);
             l[1] = "WAVE";
             copy_s(v[1], wave_name(e->sub.wave));
-            l[2] = "DEC";
+            l[2] = "DECAY";
             value_ms(v[2], e->sub.decay_ms);
-            l[3] = "REL";
+            l[3] = "RELEASE";
             value_ms(v[3], e->sub.release_ms);
         } else {
             l[0] = "GLIDE";
             value_ms(v[0], e->sub.glide_ms);
             l[1] = "CUT";
-            value_u(v[1], "", e->sub.cut / 10u);
+            value_millihz(v[1], exp_hz(e->sub.cut, 40u, 5781u) * 1000u);
             l[2] = "DRIVE";
-            value_u(v[2], "", e->sub.drive / 10u);
+            value_pct(v[2], e->sub.drive);
             l[3] = "OCT";
             value_i(v[3], "", e->sub.octave);
         }
         break;
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD: {
-        static const char *lab[CHORD_LAYERS][4] = {{"MODE", "TRIG", "CHAIN", "GATE"},
+        static const char *lab[CHORD_LAYERS][4] = {{"MODE", "TRIG", "CHORDS", "GATE"},
                                                    {"DEG", "SHAPE", "HOLD", "OCT"},
                                                    {"INV", "SPREAD", "VOICES", "VLEAD"},
-                                                   {"MODE", "LEN", "DEPTH", "FOLLOW"},
-                                                   {"MASK", "LEN", "K3", "K4"},
+                                                   {"MODE", "LENGTH", "DEPTH", "FOLLOW"},
+                                                   {"MASK", "LENGTH", "", ""},
                                                    {"WAVE", "CHORUS", "SPACE", "LEVEL"},
                                                    {"CUT", "RES", "ENV", "LINK"},
-                                                   {"F ATK", "F DEC", "STRUM", "NEXT"},
+                                                   {"F.ATK", "F.DEC", "STRUM", "NEXT"},
                                                    {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"}};
         MelloChordConfig *c = &e->chord;
         MelloChordStep *s = &c->steps[ui->selected_chord_step % c->length];
@@ -4883,7 +4889,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[0], chord_mode_name(c->mode));
             copy_s(v[1], c->trigger == MELLO_CHORD_TRIGGER_GRID ? "GRID" : "STEP");
             value_u(v[2], "", c->length);
-            value_u(v[3], "", c->gate_amount / 10u);
+            value_pct(v[3], c->gate_amount);
             break;
         case 1:
             value_u(v[0], "", s->degree + 1u);
@@ -4903,7 +4909,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         case 3:
             copy_s(v[0], dot_mode_name(c->grid_mode));
             value_u(v[1], "", c->grid_length);
-            value_u(v[2], "", c->grid_amount / 10u);
+            value_pct(v[2], c->grid_amount);
             copy_s(v[3], c->grid_follow ? "ON" : "OFF");
             break;
         case 4:
@@ -4912,14 +4918,14 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             break;
         case 5:
             copy_s(v[0], wave_name(c->wave));
-            value_u(v[1], "", c->chorus / 10u);
-            value_u(v[2], "", c->space / 10u);
-            value_u(v[3], "", c->level / 10u);
+            value_pct(v[1], c->chorus);
+            value_pct(v[2], c->space);
+            value_pct(v[3], c->level);
             break;
         case 6:
-            value_u(v[0], "", c->cut / 10u);
-            value_u(v[1], "", c->res / 10u);
-            value_u(v[2], "", c->fenv / 10u);
+            value_millihz(v[0], exp_hz(c->cut, 60u, 6737u) * 1000u);
+            value_pct(v[1], c->res);
+            value_pct(v[2], c->fenv);
             copy_s(v[3], c->link ? "ON" : "OFF");
             break;
         case 7:
@@ -4933,7 +4939,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         default:
             value_ms(v[0], c->attack_ms);
             value_ms(v[1], c->decay_ms);
-            value_u(v[2], "", c->sustain / 10u);
+            value_pct(v[2], c->sustain);
             value_ms(v[3], c->release_ms);
             break;
         }
@@ -4981,10 +4987,10 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             value_u(v[0], "", (uint32_t)ui->transport->midi_channel + 1u);
             l[1] = "SUB";
             value_u(v[1], "", (uint32_t)ui->transport->midi_sub_channel + 1u);
-            l[2] = "LEN";
+            l[2] = "NOTE";
             copy_s(v[2], ui->transport->midi_fixed_length ? "FIXED" : "STEP");
-            l[3] = "MS";
-            value_u(v[3], "", ui->transport->midi_fixed_len_ms);
+            l[3] = "LENGTH";
+            value_ms(v[3], ui->transport->midi_fixed_len_ms);
         }
         break;
     case MELLO_UI_SOUND_RESERVED:
@@ -4998,13 +5004,13 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             l[3] = "RES";
             value_pct(v[3], e->sound.filter_res);
         } else if (ui->sound_subpage == 1u) {
-            l[0] = "ATK";
+            l[0] = "ATTACK";
             value_ms(v[0], e->sound.attack_ms);
-            l[1] = "DEC";
+            l[1] = "DECAY";
             value_ms(v[1], e->sound.decay_ms);
-            l[2] = "SUS";
+            l[2] = "SUSTAIN";
             value_pct(v[2], e->sound.sustain_permille);
-            l[3] = "REL";
+            l[3] = "RELEASE";
             value_ms(v[3], e->sound.release_ms);
         } else if (ui->sound_subpage == 2u) {
             l[0] = "LFO";
@@ -5048,9 +5054,9 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             const MelloSoundConfig *c = &e->sound;
             l[0] = "AMT";
             copy_s(put_i32(v[0], (c->menv_amount + (c->menv_amount < 0 ? -5 : 5)) / 10), "%");
-            l[1] = "ATK";
+            l[1] = "ATTACK";
             value_ms(v[1], c->menv_attack_ms);
-            l[2] = "DEC";
+            l[2] = "DECAY";
             value_ms(v[2], c->menv_decay_ms);
             l[3] = "TARGET";
             copy_s(v[3], menv_target_name(c->menv_target));
@@ -5139,7 +5145,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
                                                   {"PITCH", "DECAY", "CRUSH", "RATCH"},
                                                   {"CHANCE", "CRUSH", "SWING", "ROLL"},
                                                   {"LENGTH", "FOLLOW", "SPACE", "LEVEL"},
-                                                  {"DRIVE", "FOLD", "-", "-"}};
+                                                  {"DRIVE", "FOLD", "", ""}};
         const MelloDrumConfig *d = &e->drums;
         const MelloDrumVoice *dv = &d->voice[ui->selected_drum_voice % MELLO_DRUM_VOICES];
         const MelloDrumLock *dl =
@@ -5149,7 +5155,12 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         if (L == 0u) {
             static const char *kind[4] = {"BLEEP", "CHIRP", "CRACKLE", "STUTTER"};
             value_pct(v[0], dv->tune);
-            value_pct(v[1], dv->decay);
+            { /* the voice's decay as the time it is (mello_audio's base and span per voice) */
+                static const uint16_t base_ms[4] = {60u, 60u, 15u, 10u},
+                                      span_ms[4] = {1140u, 540u, 785u, 390u};
+                uint8_t dvi = ui->selected_drum_voice % MELLO_DRUM_VOICES;
+                value_ms(v[1], base_ms[dvi] + (uint32_t)dv->decay * span_ms[dvi] / 1000u);
+            }
             if (ui->selected_drum_voice % MELLO_DRUM_VOICES ==
                 MELLO_DRUM_GLITCH) /* TONE picks GLITCH's kind */
                 copy_s(v[2], kind[MELLO_GLITCH_KIND(dv->tone)]);
@@ -5157,9 +5168,9 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
                 value_pct(v[2], dv->tone);
             value_pct(v[3], dv->level);
         } else if (L == 1u) {
-            value_i(v[0], "", dl->pitch);
-            value_i(v[1], "", dl->decay);
-            value_u(v[2], "", dl->crush);
+            (void)copy_s(put_i32(v[0], dl->pitch), " ST"); /* the step's locks: relative, so signed */
+            (void)copy_s(put_i32(v[1], dl->decay), "%");
+            (void)copy_s(put_u32(v[2], dl->crush), "%");
             value_u(v[3], "", dl->ratchet);
         } else if (L == 2u) {
             value_pct(v[0], dv->chance);
@@ -5184,9 +5195,9 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             &e->sample.slots[e->sample.edit_slot < MELLO_SAMPLE_SLOT_COUNT ? e->sample.edit_slot : 0u];
         if (ui->sample_subpage == 0u) {
             l[0] = "LEVEL";
-            value_u(v[0], "", sl->level / 10u);
+            value_pct(v[0], sl->level);
             l[1] = "DIST";
-            value_u(v[1], "", sl->dist / 10u);
+            value_pct(v[1], sl->dist);
             l[2] = "TRACK";
             copy_s(v[2], sl->track ? "ON" : "OFF");
             l[3] = "LOOP";
@@ -5197,26 +5208,26 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             l[1] = "FINE";
             value_i(v[1], "", sl->fine_cents);
             l[2] = "LEVEL";
-            value_u(v[2], "", sl->level / 10u);
+            value_pct(v[2], sl->level);
             l[3] = "DIST";
-            value_u(v[3], "", sl->dist / 10u);
+            value_pct(v[3], sl->dist);
         } else if (ui->sample_subpage == 2u) {
             l[0] = "START";
-            value_u(v[0], "", sl->trim_start / 10u);
+            value_pct(v[0], sl->trim_start);
             l[1] = "END";
-            value_u(v[1], "", sl->trim_end / 10u);
+            value_pct(v[1], sl->trim_end);
             l[2] = "TRACK";
             copy_s(v[2], sl->track ? "ON" : "OFF");
             l[3] = "LOOP";
             copy_s(v[3], sl->loop ? "ON" : "OFF");
         } else {
-            l[0] = "ATK";
+            l[0] = "ATTACK";
             value_ms(v[0], sl->attack_ms);
-            l[1] = "DEC";
+            l[1] = "DECAY";
             value_ms(v[1], sl->decay_ms);
-            l[2] = "SUS";
-            value_u(v[2], "", sl->sustain_permille / 10u);
-            l[3] = "REL";
+            l[2] = "SUSTAIN";
+            value_pct(v[2], sl->sustain_permille);
+            l[3] = "RELEASE";
             value_ms(v[3], sl->release_ms);
         }
         break;
@@ -5468,7 +5479,7 @@ static const char *layer_name(const MelloUi *ui)
                       *slots[2] = {"LOAD", "RENAME"},
                       *dot[5] = {"ACCENT", "MOD 1", "RATCHET", "SUB", "MOD 2"},
                       *dsh[2] = {"MOD 1 SHAPE", "MOD 2 SHAPE"}, *tm[4] = {"MAIN", "ROUTES", "DEPTH", "SOUND"},
-                      *sub[6] = {"TRIG", "SEQ", "STEP", "VOICE", "TONE", "FILTER"},
+                      *sub[6] = {"PLAY", "SEQ", "STEP", "VOICE", "TONE", "FILTER"},
                       *glo[3] = {"CLOCK", "MIDI", "GROOVE"},
                       *snd[10] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO", "FOLLOWER SUB", "PLAY / LEVEL",
                                   "GRIT",         "OSC 2",        "CHARACTER", "MOD ENV",      "TRACKING"},

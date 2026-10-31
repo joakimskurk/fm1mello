@@ -297,6 +297,20 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
     TUNE, DECAY and TONE, each with ROLL's chance, within what suits the voice. The kick stays a kick: TUNE 25-60%,
     DECAY up to 25%, TONE up to 35%. GLITCH's TONE can pick any kind. FEED+ is in SEC_DRUMS's flags (bit 3).
 
+## One thread through the UI (2026-10-31)
+
+ROADMAP "Now: one thread, and room to run", C. The map of every page (docs/mello/UI_MAP.md, generated) showed the
+same bevegelse meaning different things from page to page. The rules, decided 2026-10-31, and how far each is:
+
+- **R5, one word per thing, fixed units** (done). The footer's and the panels' labels are full words: LENGTH,
+  DECAY, ATTACK, SUSTAIN, RELEASE, ACCENT, MUTATE, ROTATE, INTENS, CHORDS (the chain's count; NEXT is how it moves).
+  The filter envelope is the one abbreviation kept, F.ATK and F.DEC, since ATTACK and DECAY on the same page are the
+  amp's. A layer is never named as an installing (SUB's TRIG layer is PLAY). Units: every 0..1000 level or amount
+  reads in % (SUB, CHORD, SAMPLE and EVOLVE's depths were bare numbers); every time in ms, or s above a second (the
+  drums' DECAY shows the time it is, per voice; MIDI's fixed length too); every CUT in Hz (the sub's 40 x 55^x, the
+  chord's 60 x 107^x, as the lead's already was); pitch locks in ST; relative locks signed with their unit (+0%). An
+  unused knob has no label and "-". tests/mello/ui_glossary.c renders every page and layer and holds this.
+
 ## The splash (2026-10-31)
 
 The wordmark left the header for the key ("C MINOR"). It is now on a splash at boot: sixteen steps drawn as HOME
