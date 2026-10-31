@@ -37,8 +37,8 @@ static MelloSubConfig synced_sub;
 static MelloChordConfig synced_chord;
 #endif
 static MelloSampleConfig synced_sample;
-static MelloDrumConfig synced_drums;
-static MelloBassConfig synced_bass;
+static MelloAudioDrumKit synced_drums; /* what the audio has of them (mello_audio_drum_kit) */
+static MelloAudioBassVoice synced_bass;
 static MelloModRouting synced_modr;
 static MelloSampleBank sample_bank;
 #ifndef DINGHY_HOST
@@ -141,8 +141,12 @@ static MelloUiDrawOps ui_draw_ops(void)
 
 static void sync_audio_config(void)
 {
+    MelloAudioDrumKit kit_now;
+    MelloAudioBassVoice bass_now;
     if (!audio_ready) return;
     mello_audio_set_sub_mute(&audio, mt.engine.perf.sub_mute);
+    mello_audio_drum_kit(&mt.engine.drums, &kit_now);
+    mello_audio_bass_voice(&mt.engine.bass, &bass_now);
     if (memcmp(&synced_sound, &mt.engine.sound, sizeof synced_sound) ||
         memcmp(&synced_fx, &mt.engine.fx, sizeof synced_fx) ||
         memcmp(&synced_sub, &mt.engine.sub, sizeof synced_sub) ||
@@ -151,12 +155,11 @@ static void sync_audio_config(void)
 #endif
         memcmp(&synced_modr, &mt.engine.modr, sizeof synced_modr) ||
         memcmp(&synced_sample, &mt.engine.sample, sizeof synced_sample) ||
-        memcmp(&synced_drums, &mt.engine.drums, sizeof synced_drums) ||
-        memcmp(&synced_bass, &mt.engine.bass, sizeof synced_bass)) {
-        synced_drums = mt.engine.drums;
-        mello_audio_set_drum_config(&audio, &synced_drums);
-        synced_bass = mt.engine.bass;
-        mello_audio_set_bass_config(&audio, &synced_bass);
+        memcmp(&synced_drums, &kit_now, sizeof kit_now) || memcmp(&synced_bass, &bass_now, sizeof bass_now)) {
+        mello_audio_set_drum_config(&audio, &mt.engine.drums);
+        synced_drums = kit_now;
+        mello_audio_set_bass_config(&audio, &mt.engine.bass);
+        synced_bass = bass_now;
         synced_sound = mt.engine.sound;
         synced_fx = mt.engine.fx;
         synced_sub = mt.engine.sub;
@@ -235,10 +238,10 @@ static void app_main(void)
 #if MELLO_FEATURE_CHORD_MACHINE
     mello_audio_set_chord_config(&audio, &synced_chord);
 #endif
-    synced_drums = mt.engine.drums;
-    mello_audio_set_drum_config(&audio, &synced_drums);
-    synced_bass = mt.engine.bass;
-    mello_audio_set_bass_config(&audio, &synced_bass);
+    mello_audio_set_drum_config(&audio, &mt.engine.drums);
+    mello_audio_drum_kit(&mt.engine.drums, &synced_drums);
+    mello_audio_set_bass_config(&audio, &mt.engine.bass);
+    mello_audio_bass_voice(&mt.engine.bass, &synced_bass);
     mello_transport_set_event_sink(&mt, mello_audio_event_sink, &audio);
     audio_ready = true;
     last_running = mt.running;

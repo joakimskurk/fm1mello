@@ -1271,7 +1271,7 @@ static void apply_event(MelloAudio *a, const MelloEvent *e)
 static int32_t sub_svf(MelloAudio *a, int32_t x)
 {
     MelloAudioSubVoice *s = &a->sub;
-    const MelloBassConfig *b = &a->bass_config;
+    const MelloAudioBassVoice *b = &a->bass_config;
     int32_t h;
     s->fenv -= (int32_t)(((int64_t)s->fenv * s->fenv_k) >> 24);
     if (!s->svf_ctl--) {
@@ -1982,8 +1982,14 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
     a->lead.uni_phase[1] = 0xAAAAAAAAu;
     a->lead.uni_phase[2] = 0x2AAAAAAAu;
     mello_sound_defaults(&a->pending_config);
-    mello_drum_defaults(&a->pending_drum_config);
-    mello_bass_defaults(&a->pending_bass_config);
+    {
+        MelloDrumConfig d;
+        MelloBassConfig b;
+        mello_drum_defaults(&d);
+        mello_bass_defaults(&b);
+        mello_audio_drum_kit(&d, &a->pending_drum_config);
+        mello_audio_bass_voice(&b, &a->pending_bass_config);
+    }
     mello_mod_routing_defaults(&a->pending_modr);
     a->modr = a->pending_modr;
     mello_fx_defaults(&a->pending_fx);
@@ -2039,12 +2045,23 @@ void mello_audio_set_mod_routing(MelloAudio *a, const MelloModRouting *m)
     a->pending_modr = *m;
     config_update_end(a, update);
 }
+void mello_audio_drum_kit(const MelloDrumConfig *c, MelloAudioDrumKit *k)
+{
+    memset(k, 0, sizeof *k);
+    k->on = c->on;
+    k->level = c->level, k->space = c->space, k->drive = c->drive, k->fold = c->fold;
+    memcpy(k->voice, c->voice, sizeof k->voice);
+}
+void mello_audio_bass_voice(const MelloBassConfig *c, MelloAudioBassVoice *v)
+{
+    v->res = c->res, v->env = c->env, v->env_decay_ms = c->env_decay_ms, v->accent = c->accent;
+}
 void mello_audio_set_bass_config(MelloAudio *a, const MelloBassConfig *c)
 {
     uint32_t update;
     if (!a || !c) return;
     update = config_update_begin(a);
-    a->pending_bass_config = *c;
+    mello_audio_bass_voice(c, &a->pending_bass_config);
     config_update_end(a, update);
 }
 void mello_audio_set_drum_config(MelloAudio *a, const MelloDrumConfig *c)
@@ -2052,7 +2069,7 @@ void mello_audio_set_drum_config(MelloAudio *a, const MelloDrumConfig *c)
     uint32_t update;
     if (!a || !c) return;
     update = config_update_begin(a);
-    a->pending_drum_config = *c;
+    mello_audio_drum_kit(c, &a->pending_drum_config);
     config_update_end(a, update);
 }
 #if MELLO_FEATURE_CHORD_MACHINE

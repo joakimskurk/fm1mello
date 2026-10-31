@@ -143,6 +143,17 @@ typedef struct {
 } MelloAudioChordVoice;
 #endif
 
+/* What the audio keeps of the drums' and BASS SEQ's configs: their sound, not their patterns (each copy of a whole
+ * config cost RAM the FM-1 does not have: 2026-10-31, 288 bytes over). */
+typedef struct {
+    bool on;
+    uint16_t level, space, drive, fold;
+    MelloDrumVoice voice[MELLO_DRUM_VOICES];
+} MelloAudioDrumKit;
+typedef struct {
+    uint16_t res, env, env_decay_ms, accent;
+} MelloAudioBassVoice;
+
 /* A drum voice (DRUMS): one hit at a time, retriggered by the next. */
 typedef struct {
     uint8_t on;
@@ -207,10 +218,10 @@ typedef struct {
 #if MELLO_FEATURE_CHORD_MACHINE
     MelloChordConfig pending_chord_config;
 #endif
-    MelloDrumConfig drum_config;
-    MelloDrumConfig pending_drum_config;
-    MelloBassConfig bass_config;
-    MelloBassConfig pending_bass_config;
+    MelloAudioDrumKit drum_config;
+    MelloAudioDrumKit pending_drum_config;
+    MelloAudioBassVoice bass_config;
+    MelloAudioBassVoice pending_bass_config;
     MelloAudioDrumVoice drum[MELLO_DRUM_VOICES];
     uint32_t drum_noise;
     int16_t drum_buf[MELLO_DRUM_BUF]; /* the music and the drums, for STUTTER */
@@ -338,6 +349,9 @@ void mello_audio_set_chord_config(MelloAudio *a, const MelloChordConfig *chord);
 #endif
 void mello_audio_set_drum_config(MelloAudio *a, const MelloDrumConfig *drums);
 void mello_audio_set_bass_config(MelloAudio *a, const MelloBassConfig *bass);
+/* What of a config the audio takes (dinghy.c compares these to know when to send them). */
+void mello_audio_drum_kit(const MelloDrumConfig *drums, MelloAudioDrumKit *out);
+void mello_audio_bass_voice(const MelloBassConfig *bass, MelloAudioBassVoice *out);
 void mello_audio_attach_sample_bank(MelloAudio *a, MelloSampleBank *bank);
 bool mello_audio_push_engine_event(MelloAudio *a, const MelloEvent *event, uint32_t due_us);
 void mello_audio_event_sink(void *ctx, const MelloEvent *event, uint32_t due_us);

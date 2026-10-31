@@ -324,6 +324,10 @@ for the bass synth, if there are any under the hood".
   framed gold.
 - **The default line**, for when it is turned on: root (accented) on 1, root on 4, an octave on 7 sliding down to the
   fifth on 8, root (accented) on 11, third on 14, seventh on 15 sliding home on 16.
+- **RAM.** The first build of it did not link: .bss 288 bytes over the FM-1's 96 KiB. The audio and dinghy.c kept
+  whole copies of the drums' and BASS SEQ's configs, patterns and all, four of each, where the audio needs only their
+  sound. They now keep MelloAudioDrumKit and MelloAudioBassVoice, which saves about 1.1 KB. 832 bytes are left: the
+  next feature that needs RAM needs a saving first. The engine (61 KB, most of it the slots) is where one is.
 - **5-SEQ** stays in the engine and the snapshot (the HTML's, per slot). Turning SEQ on in a project whose 5-SEQ is on
   moves 5-SEQ's steps into BASS SEQ, FOLLOW on, so it plays as it did.
 
