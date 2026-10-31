@@ -31,9 +31,10 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       for each release.
 
 **C. One thread through navigation, keys and design**
-- [ ] C1. A map of all 18 pages: panel button, section, pages, layers (hidden ones marked); what B0-B10 and the white
+- [x] C1. A map of all 18 pages: panel button, section, pages, layers (hidden ones marked); what B0-B10 and the white
       keys do on each; the words and units each value uses. The deviations marked. Built from the code's own tables,
-      as a page to review.
+      as a page to review. docs/mello/UI_MAP.md (generated), the review page with the deviations (A-L) and the
+      proposal (R1-R7) handed over 2026-10-31.
 - [ ] C2. Rules, decided by the product owner from the map. Proposals:
       - a panel button is a section and pressing it again goes to the section's next page; SELECT is always the layer;
         no hidden layers (dimmed instead); the header shows where you are (section > page > layer).
