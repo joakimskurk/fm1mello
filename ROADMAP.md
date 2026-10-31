@@ -10,25 +10,38 @@ There is no common thread in navigation, keys and design. And the room is gone: 
 bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In this order:
 
 **A. What can lose work (first)**
-- [ ] A1. Storage: 64 full slots with their grit and MOD entries need 42.4 KB, more than the 40 KB bank. A save is then
-      refused (SAVE_TOO_LARGE) and nothing on the screen says so. Make 64 full slots fit (measure what the payload is
-      made of first: trim, pack, or a bigger bank if the flash map has room), and show a refused save on the status
-      line. Test: 64 slots, everything non-default, save, power cycle, all back.
+- [x] A1. Storage: 64 full slots with their grit and MOD entries need 42.4 KB, more than the 40 KB bank. A save is then
+      refused (SAVE_TOO_LARGE) and nothing on the screen says so. Done 2026-10-31: the flash map had 48 KB unused
+      between the banks and the sample staging area, so the banks are 64 KB (0x98000..0xB7FFF); a save that still
+      does not fit says FULL in red where SAVED stands; the old layout's record is read at boot and the first save
+      after an upgrade goes under it; a save erases only the sectors it needs. storage_full_slots: 64 slots back
+      after a power cycle. DECISIONS.md "Room to run".
 
 **B. Measure, then make room**
-- [ ] B1. CPU on the chip's model again (fm1-emu, as 0.5-f3's 70% idle): ISR instructions per second and the main
-      loop's idle share, for the default pattern and a worst case (drums' glitch kit on every step with rolls, chords,
-      BASS SEQ with RES and ENV, delay, reverb, DRIVE). Set a budget: worst case at most ~60% of the chip.
-- [ ] B2. Where the audio's time goes: per voice and per effect (host profile and fm1-emu counts). Likely candidates:
-      64-bit multiplies on a 32-bit core, the reverb's half-band filters, the drums' and the chords' voices, STUTTER's
-      memory written while GLITCH is not STUTTER.
-- [ ] B3. Optimize by what B2 shows, each change with its before/after count and the renders unchanged (parity, the
-      drum and chord tests).
-- [ ] B4. RAM: a symbol-by-symbol table of .bss. Where the room is: the engine (61 KB, mostly the slots), the audio's
-      full copies of the chord config, UNDO's four copies, queues sized for more than they hold. Goal: 4 KB free, and
-      the stack's high-water mark measured (painted stack, read in fm1-emu).
-- [ ] B5. Guards so it stays so: the build fails under 2 KB free RAM, and a scripted fm1-emu run reports the ISR load
-      for each release.
+- [x] B1. CPU on the chip's model again (fm1-emu): done 2026-10-31 with tools/emu_cpu.sh (two runs, silence then
+      PLAY, so the splash does not dilute it) and mello_engine_stress, the worst case (everything on at once).
+      0.5-f19, playing: the default pattern 77 M instructions/s = 32% of the chip, the worst case 179 M/s = 75%;
+      some 58 M/s more in interrupts whatever plays (the audio ISR's own passes, the 10 kHz timer: the key scan is
+      2.5 of them in silence, ~12 while playing with LEDs lit; the USB poll none without a host). The emulator
+      counts instructions, not cycles: a divide is one there. The 60% budget stands for the worst case; it is not
+      met on instruction count, and the chip's own cycles are read on GLOBAL now (CPU nn%, B5). The main loop spins
+      in the emulator (its idle instruction does not sleep there), so its share says nothing.
+- [x] B2. Where the audio's time goes: make bench (tests/bench/cpu_bench.c), the worst case with one part out at a
+      time, on this computer: the drums 21%, the lead's grit and OSC 2 13% (unison 6, OSC 2 5), the chords 13%
+      (chorus 2), the sub with BASS SEQ 5%, the MOD lanes 3%, the LFO 2%; reverb, delay and distortion cost
+      little here. On the chip: mello_audio_render had 233 hardware divides, some 70 a sample (a divide by a
+      constant is a divide for this toolchain); its 64-bit multiply is one instruction, no libcall.
+- [x] B3. Done 2026-10-31 for what B2 showed: the per-sample path has no divide (Q12 gains, Q15 depths, worked out
+      when the config or the note changes), the reverb runs on its own tail only, the drums' modulation is read
+      every 16 samples. Renders: the parity table within 0.1 dB. Left, in order of worth: the modulation block at
+      a control rate (every 4 samples: the LFO, the cutoff's sum, the main filter's coefficients under the LFO),
+      the key scan's LED pulses (fm1_input_tick, a HAL file: ~12 M/s while playing).
+- [x] B4. RAM, 2026-10-31: 800 B free -> 7456 B. The table (tests/bench, sizes): the engine 60 KB, of it the 64
+      slots 49.7 KB, its event queue 3.8 KB, UNDO's copies 1.2 KB; the audio 21.9 KB -> 16.3 (its event queue 8 KB
+      -> 4, the chorus line 2 KB -> 0.5); dinghy.c's synced copies and default project 1.2 KB -> 0. Left: the stack's
+      high-water mark (painted stack, read in fm1-emu); the 60 B MelloEvent (both queues); UNDO as one packed slot.
+- [x] B5. Guards, 2026-10-31: the build fails under 2 KiB of free RAM (tools/build.py); tools/emu_cpu.sh reports a
+      package's load; GLOBAL shows the chip's measured audio load (CPU nn%: the worst block of each second).
 
 **C. One thread through navigation, keys and design**
 - [x] C1. A map of all 18 pages: panel button, section, pages, layers (hidden ones marked); what B0-B10 and the white

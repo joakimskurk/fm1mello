@@ -623,6 +623,47 @@ HOME, STEP, SEGMENT and RANDOM keep a compact 4..32-step visual overview. Do not
 
 Finish and verify Step 4 before implementing later product expansion. A P0 reliability defect may be fixed earlier only if it blocks meaningful Step 4 testing. Undo Last Random stays separate from Step 4.
 
+## Room to run (2026-10-31)
+
+The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopped saving, and a CPU figure from
+0.5-f3. Measured first, then made room (ROADMAP A1, B1-B5).
+
+- **How the chip is measured.** fm1-emu runs the package (tools/emu_cpu.sh): 1.6 s of the splash and silence,
+  then 5.6 s with PLAY at 1.6 s; the difference is four seconds of playing, in audio-interrupt instructions per
+  second against the chip's 240 M. A -DMELLO_STRESS build plays mello_engine_stress at boot: every part on and busy
+  at once (ratchets, unison 4 with OSC 2, FM, noise and SAT, the LFO on the filter, BASS SEQ with RES and ENV, four
+  held chord voices with chorus, the drums on every step with rolls, ratchets, STUTTER and DRIVE, delay, reverb,
+  distortion, both MOD lanes). 0.5-f19: the default pattern 32% of the chip, the worst case 75%. The emulator
+  counts instructions and not cycles (its ISA notes say so: cycle counts unverified), so a divide is one
+  instruction there and a widening multiply one: it cannot see what the next decision gains. The chip can:
+  dinghy.c times every render block and GLOBAL shows the worst block of each second as CPU nn% (B5).
+- **No divide in the per-sample path.** The toolchain emits a hardware divide for a divide by a constant too, and
+  mello_audio_render had 233 of them, some 70 a sample (levels and sends in permille, modulation depths over
+  32767). No core divides in a cycle. The levels' gains are Q12 now (4096 = 1: the ramps, LEVEL and SPACE of the
+  drums and the chords, the fixed 0.58 / 0.84 / 0.672), the modulation depths Q15 (the LFO's, KEY TRACK, OSC 2's
+  mix), each worked out once when the config changes (apply_pending) or at the note (lead_tracking: VEL > CUTOFF,
+  VEL > MOD ENV); the LO CUT coefficient and OSC 2's pitch ratio are cached. mul_q12 truncates towards zero as a
+  divide does: a floor held a -1 LSB in every tail for ever (audio_silence_regression). The parity table moved by
+  0.1 dB at most; on the emulator the default pattern costs 2.5% more instructions, as expected (one became three).
+- **The reverb keeps its own tail.** Its network ran whenever the delay's tail guard was armed, WET 0 or not; it
+  runs while WET is up or its own tail (reverb_live, the decay time after the last input) is alive.
+- **Where the time goes** (make bench, the worst case on this computer, one part out at a time): drums 21%, the
+  lead's grit and OSC 2 13%, the chords 13%, the sub with BASS SEQ 5%, the MOD lanes 3%, the LFO 2%. The reverb,
+  delay and distortion cost little here. Not done, in order of worth: the modulation block at a control rate (every
+  4 samples; the main filter's coefficients are recomputed every sample under the LFO), the key scan's LED pulses
+  (the HAL's fm1_input_tick, ~12 M instructions/s while playing with LEDs lit, 2.5 in silence).
+- **RAM** 800 B free -> 7456 B: the audio's event queue 128 -> 64 entries (16 a lane keep 300 BPM with 8 ratchets,
+  chords, sub and samples in order), the chorus line 1024 -> 256 samples (it reads back 234 at most), dinghy.c's
+  second copies of the configs (the audio's pending_* are the same thing) and its static default project gone. The
+  table: the engine 60 KB (the 64 slots 49.7, the event queue 3.8 with 60-byte events, UNDO 1.2), the audio 16.3
+  KB. The build fails under 2 KiB free (tools/build.py).
+- **Storage: 64 KiB banks.** 64 full slots with their grit and MOD entries are 42.4 KiB; the banks were 40 and the
+  save was refused with nothing on the screen. The flash map had 48 KiB unused between the banks and the sample
+  staging area, so the banks are 64 KiB (0x98000..0xB7FFF). A project that still does not fit says FULL in red
+  where SAVED stands. The old layout's second bank (0xA2000) lies across the new banks: boot still reads a record
+  there (as bank 0's), the first save after an upgrade goes under it in bank 0 when it fits, and a save erases only
+  the sectors its record needs (fewer erases, less wear), so the old record outlives it.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.
