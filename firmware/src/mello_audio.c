@@ -1242,6 +1242,7 @@ static void apply_event(MelloAudio *a, const MelloEvent *e)
         a->tm_decay_mod_q15 = e->tm_decay_mod_q15;
         a->lead.on_tag = event_tag(e);
         lead_attack(a, e->note, e->velocity, e->slide);
+        a->lead.wave = e->wave;
     } else if (e->type == MELLO_EVENT_NOTE_OFF) {
         if (event_tag(e) == a->lead.on_tag) lead_release(a);
     } else if (e->type == MELLO_EVENT_SUB_NOTE_ON) {
@@ -2350,6 +2351,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         if (a->lead.env_q24 > 0 && a->config.osc_wave != MELLO_WAVE_OFF) {
             uint32_t inc = a->lead.inc;
             uint16_t pwm = a->config.pwm_permille;
+            /* the step's own wave (RANDOM's WAVE), else the sound's */
+            MelloWaveform w1 = a->lead.wave ? (MelloWaveform)(a->lead.wave - 1u) : a->config.osc_wave;
             if (a->config.lfo_on && a->config.lfo_target == MELLO_LFO_PITCH) {
                 /* HTML: Tone.LFO into synth.detune, +-(80 + 620 * depth) cents (the follower sub is not detuned).
                  * c is in 1/16 cent; the table steps 25 cents (400). */
@@ -2421,7 +2424,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                         uint32_t *ph = k ? &a->lead.uni_phase[k - 1u] : &a->lead.phase;
                         int32_t y;
                         *ph += vi;
-                        y = tone_osc_sample(c->osc_wave, *ph, inc_size(vi), pwm);
+                        y = tone_osc_sample(w1, *ph, inc_size(vi), pwm);
                         if (!k) o1 = y;
                         sum += y;
                     }
@@ -2429,7 +2432,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 } else {
                     uint32_t vi = inc + (uint32_t)dev;
                     a->lead.phase += vi;
-                    lead = o1 = tone_osc_sample(c->osc_wave, a->lead.phase, inc_size(vi), pwm);
+                    lead = o1 = tone_osc_sample(w1, a->lead.phase, inc_size(vi), pwm);
                 }
                 if (c->osc2_mix && c->osc2_wave != MELLO_WAVE_OFF) {
                     /* OSC 2: SEMI and FINE from OSC 1, hard sync (it restarts where OSC 1 wraps, at the same

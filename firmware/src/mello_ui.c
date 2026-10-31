@@ -993,8 +993,9 @@ static void adjust_step(MelloUi *ui, uint8_t knob, int16_t delta)
             s->probability = pct_prob((uint8_t)p);
         } else if (knob == 2u)
             s->sample_slot = (uint8_t)clamp_i32((int32_t)s->sample_slot + (delta > 0 ? 1 : -1), 0, 4);
-        else if (knob == 3u)
-            s->accent = delta > 0;
+        else if (knob == 3u) /* the step's own wave (RANDOM's WAVE rolls it); SND: the sound's */
+            s->wave =
+                (uint8_t)clamp_i32((int32_t)s->wave + (delta > 0 ? 1 : -1), 0, (int32_t)MELLO_WAVE_PULSE + 1);
         break;
     case 2u: /* FLAGS */
         if (knob == 0u)
@@ -4363,6 +4364,7 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 1: v = (uint32_t)s->pulses - 1u, m = 7u; break;
         case 2: v = (uint32_t)s->ratchet - 1u, m = 7u; break;
         case 5: v = prob_pct(s->probability), m = 100u; break;
+        case 7: v = s->wave, m = 5u; break;
         case 12: v = e->project.seq_len, m = MELLO_MAX_STEPS; break;
         default: return false;
         }
@@ -4536,10 +4538,11 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             value_i(v[0], "", s->octave);
             l[1] = "PROB";
             value_u(v[1], "", prob_pct(s->probability));
+            static const char *wn[6] = {"SND", "SAW", "SQR", "TRI", "SIN", "PLS"};
             l[2] = "SAMP";
             value_u(v[2], "", s->sample_slot);
-            l[3] = "ACC";
-            copy_s(v[3], s->accent ? "ON" : "OFF");
+            l[3] = "WAVE";
+            copy_s(v[3], wn[s->wave % 6u]);
         } else if (ui->step_subpage == 2u) {
             l[0] = "ACC";
             copy_s(v[0], s->accent ? "ON" : "OFF");

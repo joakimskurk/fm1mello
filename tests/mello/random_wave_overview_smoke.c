@@ -81,6 +81,7 @@ static unsigned long long step_distance(const MelloEngine *a, const MelloEngine 
                                                                   : y->probability - x->probability) /
              1024u;
         d += (unsigned long long)abs((int)x->sample_slot - (int)y->sample_slot) * 4u;
+        d += (x->wave != y->wave) * 5u;
     }
     d += (a->sound.osc_wave != b->sound.osc_wave) * 20u;
     d += (unsigned long long)(a->sound.pwm_permille > b->sound.pwm_permille
@@ -100,11 +101,6 @@ static unsigned long long step_distance(const MelloEngine *a, const MelloEngine 
     return d;
 }
 
-static int steps_equal(const MelloProject *a, const MelloProject *b)
-{
-    return memcmp(a->steps, b->steps, sizeof a->steps) == 0;
-}
-
 static int unrelated_step_fields_equal(const MelloStep *a, const MelloStep *b, uint16_t target)
 {
     if (target != MELLO_RAND_PITCH && a->pitch != b->pitch) return 0;
@@ -118,6 +114,7 @@ static int unrelated_step_fields_equal(const MelloStep *a, const MelloStep *b, u
     if (target != MELLO_RAND_SUB && a->sub != b->sub) return 0;
     if (target != MELLO_RAND_SAMPLE && a->sample_slot != b->sample_slot) return 0;
     if (target != MELLO_RAND_PROB && a->probability != b->probability) return 0;
+    if (target != MELLO_RAND_WAVE && a->wave != b->wave) return 0;
     return 1;
 }
 
@@ -161,19 +158,17 @@ static void check_single_target_isolation(void)
 #endif
         }
     }
-    for (intensity = 0; intensity < 3; ++intensity) {
+    for (intensity = 0; intensity < 4;
+         ++intensity) { /* WAVE: each step's wave, nothing else, never the sound */
         MelloEngine e, b;
-        MelloSoundConfig before, after;
         mello_engine_init(&e, 0, 0x520000u + intensity);
         b = e;
-        before = e.sound;
         mello_engine_set_randomize_mask(&e, MELLO_RAND_WAVE);
         mello_engine_randomize_steps_intensity(&e, (MelloRandomizeIntensity)intensity);
-        if (!steps_equal(&e.project, &b.project)) die("WAVE target modified steps");
-        after = e.sound;
-        before.osc_wave = after.osc_wave;
-        before.pwm_permille = after.pwm_permille;
-        if (memcmp(&before, &after, sizeof before)) die("WAVE target leaked into unrelated sound field");
+        for (i = 0; i < MELLO_MAX_STEPS; ++i)
+            if (!unrelated_step_fields_equal(&b.project.steps[i], &e.project.steps[i], MELLO_RAND_WAVE))
+                die("WAVE target leaked into another step field");
+        if (memcmp(&b.sound, &e.sound, sizeof b.sound)) die("WAVE target changed the sound");
     }
 #if MELLO_FEATURE_CHORD_MACHINE
     for (intensity = 0; intensity < 3; ++intensity) {
@@ -198,20 +193,24 @@ static void check_legacy_wave_isolation(void)
     mello_engine_init(&e, 0, 1234u);
     before = e.project;
     snd_before = e.sound;
-    mello_engine_set_randomize_mask(&e, MELLO_RAND_WAVE);
-    for (i = 0; i < 24u; ++i) {
-        MelloWaveform w = e.sound.osc_wave;
-        mello_engine_randomize_steps(&e);
-        if (e.sound.osc_wave != w) changed = 1;
+    mello_engine_set_randomize_mask(&e, MELLO_RAND_WAVE); /* since 2026-10-31: a wave per step, never OFF */
+    for (i = 0; i < 4u; ++i) mello_engine_randomize_steps(&e);
+    {
+        unsigned kinds = 0u, k;
+        for (k = 0; k < MELLO_MAX_STEPS; ++k) {
+            if (e.project.steps[k].wave < 1u || e.project.steps[k].wave > 5u)
+                die("MED WAVE left a step OFF or none");
+            kinds |= 1u << e.project.steps[k].wave;
+            e.project.steps[k].wave = before.steps[k].wave;
+        }
+        changed = kinds != (1u << e.project.steps[0].wave);
+        for (k = 1u; k < 6u; ++k)
+            if (!(kinds & (1u << k))) changed = 0;
     }
-    if (!changed) die("legacy MED WAVE never changed waveform");
-    if (memcmp(&before, &e.project, sizeof before) != 0) die("legacy MED WAVE modified project");
+    if (!changed) die("MED WAVE did not give the steps all five waves");
+    if (memcmp(&before, &e.project, sizeof before) != 0) die("MED WAVE modified more than the steps' waves");
     snd_after = e.sound;
-    snd_before.osc_wave = snd_after.osc_wave;
-    snd_before.pwm_permille = snd_after.pwm_permille;
-    if (memcmp(&snd_before, &snd_after, sizeof snd_before) != 0)
-        die("legacy MED WAVE changed unrelated synth parameter");
-    if (e.sound.osc_wave == MELLO_WAVE_OFF) die("legacy MED WAVE selected OFF");
+    if (memcmp(&snd_before, &snd_after, sizeof snd_before) != 0) die("MED WAVE changed the sound");
 }
 
 static void check_intensity_semantics(void)

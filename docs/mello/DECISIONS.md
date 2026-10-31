@@ -297,6 +297,27 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
     TUNE, DECAY and TONE, each with ROLL's chance, within what suits the voice. The kick stays a kick: TUNE 25-60%,
     DECAY up to 25%, TONE up to 35%. GLITCH's TONE can pick any kind. FEED+ is in SEC_DRUMS's flags (bit 3).
 
+## RANDOM: WAVE per step (2026-10-31)
+
+Feedback: "with WAVE on, the randomizer should give a wave PER STEP if possible; OFF is not one of them". Each step
+now has a wave (MelloStep.wave). 0 means the sound's WAVE, as before, and 1-5 are SAW, SQUARE, TRIANGLE, SINE and
+PULSE.
+- **The NOTE_ON carries it, and the lead plays it** in place of the sound's WAVE for that note. Unison, OSC 2, FM and
+  the rest are as they were. PULSE uses the sound's PWM. The sound's WAVE OFF still silences the lead.
+- **WAVE rolls the steps' waves, never the sound's.** Each step is rolled with WAVE's EDIT amount:
+  - MED uses the old distribution (saw 35%, square 25%, triangle 20%, sine 12%, pulse 8%).
+  - LOW moves a step one wave up or down from its own (or from the sound's).
+  - HIGH picks any other wave.
+  - MUSICAL gives each cell one wave, so the timbre repeats with the phrase.
+  The sound's WAVE and PWM stay as they are.
+- **MED's compatibility.** With WAVE in the mask, MED's RNG order differs from before (the wave is drawn in each step,
+  not once at the end). The default mask has no WAVE, so a default roll is drawn exactly as before.
+  random_wave_overview_smoke now checks the new rule.
+- **It costs nothing.** The field sits in MelloStep's padding (still 16 bytes) and in the slot format's spare bits
+  (extras 4-6), so neither RAM nor the snapshot grew.
+- **On the page.** STEP's NOTE layer had ACC twice (FLAGS has it too). Its K4 is now WAVE: SND, SAW, SQR, TRI, SIN,
+  PLS.
+
 ## BASS SEQ (2026-10-31)
 
 Feedback: "a 16-step bass sequencer instead of 5-SEQ: length 1-16, per step tone, octave, glide and more; its own

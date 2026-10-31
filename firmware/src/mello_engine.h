@@ -317,6 +317,7 @@ typedef struct {
     int8_t pitch;
     uint8_t pulses;
     uint8_t ratchet;
+    uint8_t wave; /* 0: the sound's WAVE; 1..5: SAW .. PULSE for this step (RANDOM's WAVE; not in the HTML) */
     MelloGateMode gate;
     int8_t octave;
     bool slide;
@@ -612,7 +613,7 @@ typedef struct {
     int8_t pitch;
     uint8_t pulse_ratchet; /* bits 0..2 pulses-1, bits 3..5 ratchet-1 */
     uint8_t flags;         /* gate[1:0], octave+2[4:2], slide bit5, skip bit6, accent bit7 */
-    uint8_t extras;        /* sub bit0, sample slot bits1..3 */
+    uint8_t extras;        /* sub bit0, sample slot bits1..3, the step's wave bits4..6 */
     uint8_t probability_lo;
     uint8_t probability_hi;
 } MelloStoredStep;
@@ -707,6 +708,7 @@ typedef struct {
     int8_t dot_cell[MELLO_DOT_MATRIX_COUNT];
     int8_t drum_decay;  /* DRUM_HIT: the step's DECAY lock */
     uint8_t drum_crush; /* DRUM_HIT: the step's CRUSH lock */
+    uint8_t wave;       /* NOTE_ON: the step's wave (MelloStep.wave), 0 the sound's */
 } MelloEvent;
 #define MELLO_DOT_NOT_READ 0xFFFFu
 

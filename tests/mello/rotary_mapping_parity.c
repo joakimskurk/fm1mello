@@ -140,7 +140,7 @@ static const Case cases[] = {
     C("HOME", MELLO_UI_HOME, 0, 15, 0, "CUTOFF", "DECAY", "SPACE",
       "DRIVE"), /* macros; a held step: see ui_home_perform */
     C("STEP TRIG", MELLO_UI_SEQ_STEP, 0, 15, 0, "PITCH", "PULSE", "RATCH", "GATE"),
-    C("STEP NOTE", MELLO_UI_SEQ_STEP, 1, 15, 0, "OCT", "PROB", "SAMP", "ACC"),
+    C("STEP NOTE", MELLO_UI_SEQ_STEP, 1, 15, 0, "OCT", "PROB", "SAMP", "WAVE"),
     C("STEP FLAGS", MELLO_UI_SEQ_STEP, 2, 15, 0, "ACC", "SUB", "SLIDE", "SKIP"),
     C("STEP SEQ", MELLO_UI_SEQ_STEP, 3, 15, 0, "LEN", "RESET", "DIV", "SPAN"),
     C("SEGMENT", MELLO_UI_SEQ_SEGMENT, 0, 15, 0, "REPEAT", "ORDER", "SKIP", "LENGTH"),

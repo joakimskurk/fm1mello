@@ -54,7 +54,8 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
       Done: eleven cells across the width in the keys' order, the keyboard's groups apart, a free key a short dim cell,
       the room left shared out; where there is no room for frames (HOME, SEGMENT, DRUMS), plain tinted cells a pixel
       apart; on = filled.
-- [ ] **RANDOMIZE WAVE per step**: with WAVE in the mask a roll gives each step its own wave (never OFF).
+- [x] **RANDOMIZE WAVE per step**: with WAVE in the mask a roll gives each step its own wave (never OFF).
+      STEP's NOTE layer shows and sets it (K4 WAVE; DECISIONS.md "RANDOM: WAVE per step").
 - [x] **The bass sequencer: 16 steps** instead of 5-SEQ: length 1-16, per step tone, octave, glide and more; its own
       clock, not stopped by the main sequence's skipped or held steps unless asked to follow them. BASS SEQ on the SUB
       page (DECISIONS.md "BASS SEQ").

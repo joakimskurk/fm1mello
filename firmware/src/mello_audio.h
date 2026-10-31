@@ -65,6 +65,7 @@ typedef struct {
     int32_t env_target_q24;
     MelloEnvStage env_stage;
     uint8_t note;
+    uint8_t wave; /* the playing step's wave (MelloStep.wave), 0 the sound's */
     uint8_t velocity;
     bool gate;
     uint32_t env_curve_left; /* Tone.Envelope decay/release: exponential part, then a linear tail */
