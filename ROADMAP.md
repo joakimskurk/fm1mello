@@ -3,7 +3,53 @@
 From the October 2026 review ([docs/review-2026-10/REVIEW.md](docs/review-2026-10/REVIEW.md)): keep the model,
 sequencer and storage; rewrite the sound to match the HTML, rebuild HOME as an instrument. One phase at a time.
 
-## Now: feedback from playing 0.5 (2026-10-30)
+## Now: one thread, and room to run (2026-10-31)
+
+The 0.5 feedback round added a lot fast: drums, BASS SEQ, MIX, chords' NEXT, glitch, swing. Two weaknesses came with it.
+There is no common thread in navigation, keys and design. And the room is gone: RAM 800 bytes free, a full storage
+bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In this order:
+
+**A. What can lose work (first)**
+- [ ] A1. Storage: 64 full slots with their grit and MOD entries need 42.4 KB, more than the 40 KB bank. A save is then
+      refused (SAVE_TOO_LARGE) and nothing on the screen says so. Make 64 full slots fit (measure what the payload is
+      made of first: trim, pack, or a bigger bank if the flash map has room), and show a refused save on the status
+      line. Test: 64 slots, everything non-default, save, power cycle, all back.
+
+**B. Measure, then make room**
+- [ ] B1. CPU on the chip's model again (fm1-emu, as 0.5-f3's 70% idle): ISR instructions per second and the main
+      loop's idle share, for the default pattern and a worst case (drums' glitch kit on every step with rolls, chords,
+      BASS SEQ with RES and ENV, delay, reverb, DRIVE). Set a budget: worst case at most ~60% of the chip.
+- [ ] B2. Where the audio's time goes: per voice and per effect (host profile and fm1-emu counts). Likely candidates:
+      64-bit multiplies on a 32-bit core, the reverb's half-band filters, the drums' and the chords' voices, STUTTER's
+      memory written while GLITCH is not STUTTER.
+- [ ] B3. Optimize by what B2 shows, each change with its before/after count and the renders unchanged (parity, the
+      drum and chord tests).
+- [ ] B4. RAM: a symbol-by-symbol table of .bss. Where the room is: the engine (61 KB, mostly the slots), the audio's
+      full copies of the chord config, UNDO's four copies, queues sized for more than they hold. Goal: 4 KB free, and
+      the stack's high-water mark measured (painted stack, read in fm1-emu).
+- [ ] B5. Guards so it stays so: the build fails under 2 KB free RAM, and a scripted fm1-emu run reports the ISR load
+      for each release.
+
+**C. One thread through navigation, keys and design**
+- [ ] C1. A map of all 18 pages: panel button, section, pages, layers (hidden ones marked); what B0-B10 and the white
+      keys do on each; the words and units each value uses. The deviations marked. Built from the code's own tables,
+      as a page to review.
+- [ ] C2. Rules, decided by the product owner from the map. Proposals:
+      - a panel button is a section and pressing it again goes to the section's next page; SELECT is always the layer;
+        no hidden layers (dimmed instead); the header shows where you are (section > page > layer).
+      - B0 is ON for the page's part wherever there is one; B9 UNDO and B10 RNDMZR stay; the keys between in a fixed
+        order (pick, then toggles, then actions).
+      - white keys: one meaning on every page (for example: tap toggles a step, EDIT + tap picks it).
+      - one word per thing (LENGTH, DECAY, ACCENT ..., a glossary), levels in %, times in ms or s, pitch in semitones,
+        unused knobs blank; one strip style.
+      - one body grammar: the part's picture on top, its four values below as sliders, the section's colour.
+- [ ] C3. Apply page by page, small commits; the rules locked in the contract tests (a glossary test, a B0 = ON test,
+      a units test), so they cannot drift again.
+- [ ] C4. A short hand checklist on the FM-1 (with the first flash, below).
+
+Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, first flash and C4.
+
+## Earlier: feedback from playing 0.5 (2026-10-30)
 
 In the order to do them; each is the next work before Phase 3 / 5's open items.
 - [x] **Playback stops by itself and the last note hangs for ever**: a HOLD step over several pulses sent its
