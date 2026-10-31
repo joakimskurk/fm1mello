@@ -28,21 +28,10 @@ static uint32_t fm1_micros(void)
 #endif
 
 static MelloTransport mt;
-static MelloProject project;
 static MelloUi ui;
 static MelloAudio audio;
 static bool audio_ready;
 static bool last_running;
-static MelloSoundConfig synced_sound;
-static MelloFxConfig synced_fx;
-static MelloSubConfig synced_sub;
-#if MELLO_FEATURE_CHORD_MACHINE
-static MelloChordConfig synced_chord;
-#endif
-static MelloSampleConfig synced_sample;
-static MelloAudioDrumKit synced_drums; /* what the audio has of them (mello_audio_drum_kit) */
-static MelloAudioBassVoice synced_bass;
-static MelloModRouting synced_modr;
 static MelloSampleBank sample_bank;
 #ifndef DINGHY_HOST
 static int16_t audio_delay_pool[MELLO_AUDIO_DELAY_SAMPLES] __attribute__((section(".pool")));
@@ -142,6 +131,8 @@ static MelloUiDrawOps ui_draw_ops(void)
     return o;
 }
 
+/* The engine's configs into the audio when they change. What the audio was last given is its own pending_*
+ * copies (the main loop alone writes them), so there is no second set here to compare against (B4: ~560 B). */
 static void sync_audio_config(void)
 {
     MelloAudioDrumKit kit_now;
@@ -151,31 +142,22 @@ static void sync_audio_config(void)
     mello_audio_set_mix_mute(&audio, mt.engine.perf.mix_mute);
     mello_audio_drum_kit(&mt.engine.drums, &kit_now);
     mello_audio_bass_voice(&mt.engine.bass, &bass_now);
-    if (memcmp(&synced_sound, &mt.engine.sound, sizeof synced_sound) ||
-        memcmp(&synced_fx, &mt.engine.fx, sizeof synced_fx) ||
-        memcmp(&synced_sub, &mt.engine.sub, sizeof synced_sub) ||
+    if (memcmp(&audio.pending_config, &mt.engine.sound, sizeof audio.pending_config) ||
+        memcmp(&audio.pending_fx, &mt.engine.fx, sizeof audio.pending_fx) ||
+        memcmp(&audio.pending_sub_config, &mt.engine.sub, sizeof audio.pending_sub_config) ||
 #if MELLO_FEATURE_CHORD_MACHINE
-        memcmp(&synced_chord, &mt.engine.chord, sizeof synced_chord) ||
+        memcmp(&audio.pending_chord_config, &mt.engine.chord, sizeof audio.pending_chord_config) ||
 #endif
-        memcmp(&synced_modr, &mt.engine.modr, sizeof synced_modr) ||
-        memcmp(&synced_sample, &mt.engine.sample, sizeof synced_sample) ||
-        memcmp(&synced_drums, &kit_now, sizeof kit_now) || memcmp(&synced_bass, &bass_now, sizeof bass_now)) {
+        memcmp(&audio.pending_modr, &mt.engine.modr, sizeof audio.pending_modr) ||
+        memcmp(&audio.pending_sample_config, &mt.engine.sample, sizeof audio.pending_sample_config) ||
+        memcmp(&audio.pending_drum_config, &kit_now, sizeof kit_now) ||
+        memcmp(&audio.pending_bass_config, &bass_now, sizeof bass_now)) {
         mello_audio_set_drum_config(&audio, &mt.engine.drums);
-        synced_drums = kit_now;
         mello_audio_set_bass_config(&audio, &mt.engine.bass);
-        synced_bass = bass_now;
-        synced_sound = mt.engine.sound;
-        synced_fx = mt.engine.fx;
-        synced_sub = mt.engine.sub;
+        mello_audio_set_config(&audio, &mt.engine.sound, &mt.engine.fx, &mt.engine.sub, &mt.engine.sample);
+        mello_audio_set_mod_routing(&audio, &mt.engine.modr);
 #if MELLO_FEATURE_CHORD_MACHINE
-        synced_chord = mt.engine.chord;
-#endif
-        synced_sample = mt.engine.sample;
-        mello_audio_set_config(&audio, &synced_sound, &synced_fx, &synced_sub, &synced_sample);
-        synced_modr = mt.engine.modr;
-        mello_audio_set_mod_routing(&audio, &synced_modr);
-#if MELLO_FEATURE_CHORD_MACHINE
-        mello_audio_set_chord_config(&audio, &synced_chord);
+        mello_audio_set_chord_config(&audio, &mt.engine.chord);
 #endif
     }
 }
@@ -184,6 +166,7 @@ static void app_main(void)
 {
     uint32_t last_render_ms = 0u, last_service_ms = 0xFFFFFFFFu, splash_us;
     MelloUiDrawOps draw = ui_draw_ops();
+    MelloProject project; /* the defaults to start the transport from; the engine keeps its own (B4: 596 B) */
 
     mello_ui_draw_splash(&draw, APP_VER); /* while storage and the samples load */
     splash_us = fm1_micros();
@@ -238,21 +221,13 @@ static void app_main(void)
     mello_audio_init(&audio, 0, 0u, 0, 0u);
 #endif
     mello_audio_attach_sample_bank(&audio, &sample_bank);
-    synced_sound = mt.engine.sound;
-    synced_fx = mt.engine.fx;
-    synced_sub = mt.engine.sub;
+    mello_audio_set_config(&audio, &mt.engine.sound, &mt.engine.fx, &mt.engine.sub, &mt.engine.sample);
+    mello_audio_set_mod_routing(&audio, &mt.engine.modr);
 #if MELLO_FEATURE_CHORD_MACHINE
-    synced_chord = mt.engine.chord;
-#endif
-    synced_sample = mt.engine.sample;
-    mello_audio_set_config(&audio, &synced_sound, &synced_fx, &synced_sub, &synced_sample);
-#if MELLO_FEATURE_CHORD_MACHINE
-    mello_audio_set_chord_config(&audio, &synced_chord);
+    mello_audio_set_chord_config(&audio, &mt.engine.chord);
 #endif
     mello_audio_set_drum_config(&audio, &mt.engine.drums);
-    mello_audio_drum_kit(&mt.engine.drums, &synced_drums);
     mello_audio_set_bass_config(&audio, &mt.engine.bass);
-    mello_audio_bass_voice(&mt.engine.bass, &synced_bass);
     mello_transport_set_event_sink(&mt, mello_audio_event_sink, &audio);
     audio_ready = true;
     last_running = mt.running;
