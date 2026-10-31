@@ -281,6 +281,7 @@ void mello_ui_set_page(MelloUi *ui, MelloUiPage page)
     if (ui->page == page) return;
     ui->page = page;
     ui->readout = 0u; /* it belonged to the old page */
+    ui->step_pitch_mode = false;
     ui->held_step = MELLO_UI_NO_STEP;
     ui->keys_mode = ui->keys_rec = false;
     mark_full(ui);
@@ -886,9 +887,10 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
 {
     MelloEngine *e = eng(ui);
     int8_t w;
+    bool pick_only;
     if (!e) return;
 
-    if (ui->page == MELLO_UI_SEQ_STEP && (held_buttons & bit_u32(MELLO_UI_BTN_SEL))) {
+    if (ui->page == MELLO_UI_SEQ_STEP && ui->step_pitch_mode) { /* EDIT on STEP: the keys set the pitch */
         set_pitch_from_key(ui, note_index);
         return;
     }
@@ -923,6 +925,8 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
 
     w = mello_ui_white_key_position(note_index);
     if (w < 0) return;
+    /* R4 / R6: a white key's tap toggles what sits on it and picks it; with SEL held it only picks. */
+    pick_only = (held_buttons & bit_u32(MELLO_UI_BTN_SEL)) != 0u;
     if (ui->page == MELLO_UI_HOME &&
         (ui->held_black & (1u << 8))) { /* REPEAT held: a white key is its length */
         ui->perf_repeat_len = (uint8_t)(w + 1);
@@ -950,14 +954,23 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         ui->dirty |= MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_LEDS | MELLO_UI_DIRTY_BODY;
         break;
     }
-    case MELLO_UI_SEQ_STEP: set_selected_step_from_note(ui, note_index); break;
+    case MELLO_UI_SEQ_STEP: { /* a tap: the step on / off, and picked; SEL held: picked */
+        uint8_t idx = (uint8_t)(ui->step_bank * 16u + (uint8_t)w);
+        set_selected_step_from_note(ui, note_index);
+        if (!pick_only && idx < e->project.seq_len) {
+            e->project.steps[idx].skip = !e->project.steps[idx].skip;
+            rebuild(ui);
+            mark_edit(ui);
+        }
+        break;
+    }
     case MELLO_UI_SEQ_SEGMENT: {
         /* A step key cuts: a segment starts at that step, or, where one starts already, it joins the one before.
          * Step 1, and a seventh segment, only pick the segment the step is in. */
         uint8_t step = (uint8_t)(ui->step_bank * 16u + (uint8_t)w), b[MELLO_MAX_SEGMENTS + 1u], sc, j;
         int8_t r;
         if (step >= e->project.seq_len) break;
-        r = mello_segment_toggle_start(&e->project, step);
+        r = pick_only ? -1 : mello_segment_toggle_start(&e->project, step); /* SEL held: pick its segment */
         if (r < 0) {
             sc = mello_segment_bounds(&e->project, b);
             for (j = 0u; j + 1u < sc && b[j + 1u] <= step; ++j) {
@@ -986,7 +999,8 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         break;
     }
     case MELLO_UI_RANDOM:
-        if ((uint8_t)w < random_target_count() && ui->random_edit) { /* EDIT: pick the target K1 sets */
+        if ((uint8_t)w < random_target_count() &&
+            (ui->random_edit || pick_only)) { /* pick the target K1 sets */
             ui->random_sel = (uint8_t)w;
             mark_edit(ui);
         } else if ((uint8_t)w < random_target_count()) {
@@ -1022,14 +1036,14 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         if ((uint8_t)w < MELLO_DOT_CELL_COUNT) {
             MelloDotTarget t = (MelloDotTarget)ui->selected_dot_target;
             uint16_t cells = e->dot[t].cells ^ (uint16_t)(1u << (uint8_t)w);
-            mello_engine_dot_set_cells(e, t, cells);
+            if (!pick_only) mello_engine_dot_set_cells(e, t, cells);
             mark_edit(ui);
         }
         break;
     case MELLO_UI_TURING: {
         uint8_t idx = (uint8_t)(ui->tm_bank * 16u + (uint8_t)w);
         if (idx < MELLO_TM_MAX_STEPS) {
-            e->tm_bool_reg[idx] = e->tm_bool_reg[idx] ? 0u : 1u;
+            if (!pick_only) e->tm_bool_reg[idx] = e->tm_bool_reg[idx] ? 0u : 1u;
             if (idx >= e->tm_bool_len) e->tm_bool_len = (uint8_t)(idx + 1u);
             ui->selected_tm_bit = idx;
             mark_edit(ui);
@@ -1040,7 +1054,7 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         if ((uint8_t)w <
             MELLO_BASS_STEPS) { /* a step key: BASS SEQ's step there on or off, and that step picked */
             MelloBassConfig b = e->bass;
-            b.steps[(uint8_t)w].on = !b.steps[(uint8_t)w].on;
+            if (!pick_only) b.steps[(uint8_t)w].on = !b.steps[(uint8_t)w].on;
             ui->selected_sub_x_step = (uint8_t)w;
             mello_engine_bass_set_config(e, &b);
             mark_edit(ui);
@@ -1066,7 +1080,8 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         if ((uint8_t)w <
             MELLO_DRUM_STEPS) { /* a step key: the voice's hit there on or off, and that step picked */
             MelloDrumConfig d = e->drums;
-            d.hits[ui->selected_drum_voice % MELLO_DRUM_VOICES] ^= (uint16_t)(1u << (uint8_t)w);
+            if (!pick_only)
+                d.hits[ui->selected_drum_voice % MELLO_DRUM_VOICES] ^= (uint16_t)(1u << (uint8_t)w);
             ui->selected_drum_step = (uint8_t)w;
             mello_engine_drums_set_config(e, &d);
             mark_edit(ui);
@@ -2636,6 +2651,10 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
         } else if (ui->page == MELLO_UI_RANDOM) {
             ui->random_edit = !ui->random_edit; /* EDIT: how much each target is rolled */
             mark_full(ui);
+        } else if (ui->page == MELLO_UI_SEQ_STEP) {
+            ui->step_pitch_mode = !ui->step_pitch_mode; /* EDIT on STEP: the white keys set the pitch (R6) */
+            mark_edit(ui);
+            ui->dirty |= MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_LEDS;
         } else if (ui->page == MELLO_UI_HOME) {
             ui->keys_mode = !ui->keys_mode; /* KEYS: the keys are a keyboard */
             ui->keys_rec = false;
@@ -4379,6 +4398,10 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
         o->text(o->ctx, 4, 172, 232, 0, b, UI_BRIGHT, 1);
         return;
     }
+    if (ui->page == MELLO_UI_SEQ_STEP && ui->step_pitch_mode) { /* EDIT: the keys set the step's pitch */
+        o->text(o->ctx, 4, 172, 232, 0, "EDIT: A KEY SETS THE PITCH", UI_GOLD, 1);
+        return;
+    }
     if (ui->page == MELLO_UI_HOME && ui->keys_mode) { /* every key is a note now: say what a key does */
         char b[40], *q;
         q = copy_s(b, ui->keys_rec ? "REC: STEP " : ui->transport->running ? "KEYS: ROOT " : "KEYS: PLAY ");
@@ -5963,6 +5986,7 @@ static uint32_t calc_button_leds(MelloUi *ui)
     MelloEngine *e = eng(ui);
     if (ui->transport && ui->transport->running) m |= bit_u32(MELLO_UI_BTN_PLAY);
     if (ui->page == MELLO_UI_HOME && ui->keys_mode) m |= bit_u32(MELLO_UI_BTN_EDIT);
+    if (ui->page == MELLO_UI_SEQ_STEP && ui->step_pitch_mode) m |= bit_u32(MELLO_UI_BTN_EDIT);
     if (ui->page == MELLO_UI_RANDOM && ui->random_edit) m |= bit_u32(MELLO_UI_BTN_EDIT);
     if (ui->page == MELLO_UI_HOME && ui->keys_rec) m |= bit_u32(MELLO_UI_BTN_REC);
     if (ui->page == MELLO_UI_SUB && e && e->sub.on) m |= bit_u32(MELLO_UI_BTN_ARP);

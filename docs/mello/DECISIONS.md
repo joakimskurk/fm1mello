@@ -336,6 +336,14 @@ same bevegelse meaning different things from page to page. The rules, decided 20
   CLR; SEGMENT EVEN A B C D (E and F by SEL + white key, R6); RANDOM NONE ALL CLR; DRUMS ON VOX (the next voice,
   in its colour) ACC ROLL, with FEED moved to a knob on VARY (where SWING was; SWING is GLOBAL's GROOVE); MIX LD BS
   CH DR. INIT (SOUND) and PRE-DIST (FX) moved from B0 to B1, since B0 is ON. MIX's fourth part is DRUMS, as the page.
+- **R4 and R6, the white keys, SEL and EDIT** (done). A white key's tap toggles what sits on it and picks it: a step
+  on or off (HOME, and now STEP too), a segment cut or joined (SEGMENT), a target (RANDOM), a cell (DOT), a bit
+  (EVOLVE), a BASS SEQ step (BASS), the voice's hit (DRUMS). Where there is nothing to toggle it picks (LOOP, SLOT
+  SEQ, SLOTS, CHORD, SAMPLE). **SEL held + a white key only picks**, on every page: a step without changing it, the
+  segment the step is in (so E and F are reached again), a RANDOM target to EDIT. **EDIT is the page's edit mode**,
+  one per page, with the EDIT LED lit while it is on: HOME, KEYS (the keyboard); STEP, the keys set the picked step's
+  pitch (this was SEL + key); RANDOM, the amounts; EVOLVE, the lock; SAMPLE, per step. The strip says what the mode
+  does ("EDIT: A KEY SETS THE PITCH"). Leaving a page ends its mode.
 
 ## The splash (2026-10-31)
 

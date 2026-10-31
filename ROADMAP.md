@@ -48,8 +48,10 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       - one word per thing (LENGTH, DECAY, ACCENT ..., a glossary), levels in %, times in ms or s, pitch in semitones,
         unused knobs blank; one strip style.
       - one body grammar: the part's picture on top, its four values below as sliders, the section's colour.
-- [ ] C3. Apply page by page, small commits; the rules locked in the contract tests (a glossary test, a B0 = ON test,
-      a units test), so they cannot drift again.
+- [x] C3. Applied 2026-10-31 in six commits (R5 words and units, R2 the header, R1 the sections, R3 the black keys,
+      R4 / R6 the white keys, SEL and EDIT); locked in ui_glossary (words, units) and the control contracts (every
+      page's strip, the sections' order, the encoders' roles). Still to do here: the body grammar design pass (R5's
+      "one body"), and the hand checklist (C4).
 - [ ] C4. A short hand checklist on the FM-1 (with the first flash, below).
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, first flash and C4.

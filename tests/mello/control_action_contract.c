@@ -242,13 +242,15 @@ static void verify_selected_position_actions(void)
     MelloUi u;
     bool b;
 
-    setup(&p, &t, &st, &u, MELLO_UI_SEQ_STEP);
+    setup(&p, &t, &st, &u, MELLO_UI_SEQ_STEP); /* R4 / R6: a tap toggles and picks, SEL + tap only picks */
     b = t.engine.project.steps[3].skip;
-    white_with_held(&u, 100u, 3u, bit_u32(MELLO_UI_BTN_EDIT));
+    white_with_held(&u, 100u, 3u, bit_u32(MELLO_UI_BTN_SEL));
     if (u.selected_step != 3u || t.engine.project.steps[3].skip != b)
-        fail("STEP", "EDIT+white still performs hidden SKIP");
+        fail("STEP", "SEL+white did not just pick");
+    white_with_held(&u, 150u, 3u, 0u);
+    if (t.engine.project.steps[3].skip == b) fail("STEP", "a tap did not toggle the step");
     black(&u, 200u, 1u);
-    if (t.engine.project.steps[3].skip == b) fail("STEP B1", "selected-step SKIP toggle missing");
+    if (t.engine.project.steps[3].skip != b) fail("STEP B1", "selected-step SKIP toggle missing");
 
     setup(&p, &t, &st, &u, MELLO_UI_SUB);
     b = t.engine.bass.steps[2]
@@ -306,11 +308,13 @@ static void verify_manual_black_note_exception(void)
     u.selected_step = 0u;
     t.engine.project.steps[0].pitch = 9;
     if (note == 0xFFu) fail("STEP manual", "B5 black key missing");
-    mello_ui_input(&u, 100000u, 100u, 0u, 0u, bit_u32(MELLO_UI_BTN_SEL), bit_u32(note), enc);
-    if (u.page != MELLO_UI_SEQ_STEP)
-        fail("STEP manual", "context navigation beat SEL+black manual note entry");
+    /* R6: EDIT on STEP makes every key set the picked step's pitch (SEL + key picks, as on every page) */
+    mello_ui_input(&u, 90000u, 90u, bit_u32(MELLO_UI_BTN_EDIT), 0u, 0u, 0u, enc);
+    if (!u.step_pitch_mode) fail("STEP manual", "EDIT did not turn the pitch mode on");
+    mello_ui_input(&u, 100000u, 100u, 0u, 0u, 0u, bit_u32(note), enc);
+    if (u.page != MELLO_UI_SEQ_STEP) fail("STEP manual", "context navigation beat EDIT's manual note entry");
     if (t.engine.project.steps[0].pitch == 9)
-        fail("STEP manual", "black key stopped being musical under SEL");
+        fail("STEP manual", "black key stopped being musical under EDIT");
 }
 
 int main(void)

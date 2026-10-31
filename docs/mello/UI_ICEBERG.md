@@ -64,6 +64,11 @@ turned) it goes to the section's next page, SELECT is the layer, and the header 
 CHORD opens first under ARP because the arpeggiator is its ARP UP / DOWN / PATTERN modes. No layer is hidden: GRID
 and PATTERN are always there, and the title says GRID OFF / PTN OFF when they are not in use.
 
+The keys (R3, R4, R6): a white key's tap toggles what sits on it and picks it; SEL held + a white key only picks;
+EDIT turns the page's edit mode on (KEYS on HOME, pitch entry on STEP, amounts on RANDOM, the lock on EVOLVE, per
+step on SAMPLE). The black keys: B0 ON, B1-B4 the page's own, B5-B8 FILL / BASS MUTE / REVERSE / REPEAT held on every
+page, B9 UNDO, B10 RNDMZR.
+
 ## The look: the HTML's
 
 From screenshots of the HTML (`node tools/tone-ref/shoot.mjs OUT`, full page, stopped and playing). The FM-1's palette

@@ -143,6 +143,7 @@ typedef struct {
     /* KEYS (EDIT on HOME): the 27 keys are a keyboard. Playing: a key is the new root. Stopped: it plays the lead
      * while held; with REC on, it writes the next step (keys_rec_pos) and moves on. */
     bool keys_mode;
+    bool step_pitch_mode; /* STEP's EDIT: the white keys set the picked step's pitch (R6) */
     bool keys_rec;
     uint8_t keys_rec_pos;
     uint8_t audition_key; /* the key playing the lead, 0xFF none */

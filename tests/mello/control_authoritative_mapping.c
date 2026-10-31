@@ -240,8 +240,9 @@ static void verify_manual_note_priority(void)
     setup(&p, &t, &st, &u, MELLO_UI_SEQ_STEP);
     u.selected_step = 0u;
     before = t.engine.project.steps[0].pitch;
-    mello_ui_input(&u, 100000u, 100u, 0u, 0u, bit_u32(MELLO_UI_BTN_SEL), bit_u32(note), enc);
-    if (t.engine.project.steps[0].pitch == before) die("STEP SEL+black", "manual note priority lost");
+    mello_ui_input(&u, 90000u, 90u, bit_u32(MELLO_UI_BTN_EDIT), 0u, 0u, 0u, enc); /* R6: EDIT = pitch mode */
+    mello_ui_input(&u, 100000u, 100u, 0u, 0u, 0u, bit_u32(note), enc);
+    if (t.engine.project.steps[0].pitch == before) die("STEP EDIT+black", "manual note priority lost");
     if (u.page != MELLO_UI_SEQ_STEP) die("STEP SEL+black", "context navigation stole musical key");
 }
 
