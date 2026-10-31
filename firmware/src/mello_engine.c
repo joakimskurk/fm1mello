@@ -311,6 +311,7 @@ static MelloSoundConfig sanitize_sound_config(MelloSoundConfig c)
     c.follower_sub_octave = clamp_i8(c.follower_sub_octave, -2, 0);
     if (c.follower_sub_wave > MELLO_WAVE_OFF) c.follower_sub_wave = MELLO_WAVE_SINE;
     c.master_level = clamp_amount(c.master_level);
+    c.lead_level = clamp_amount(c.lead_level);
     c.noise_level = clamp_amount(c.noise_level);
     c.noise_fm = clamp_amount(c.noise_fm);
     if (c.unison < 1u) c.unison = 1u;
@@ -731,6 +732,8 @@ static MelloDrumConfig sanitize_drum_config(MelloDrumConfig c)
     if (c.level > 1000u) c.level = 1000u;
     if (c.space > 1000u) c.space = 1000u;
     if (c.roll > 1000u) c.roll = 1000u;
+    if (c.drive > 1000u) c.drive = 1000u;
+    if (c.fold > 1000u) c.fold = 1000u;
     for (i = 0u; i < MELLO_DRUM_VOICES; ++i) {
         MelloDrumVoice *v = &c.voice[i];
         if (v->tune > 1000u) v->tune = 1000u;
@@ -797,6 +800,23 @@ void mello_engine_drums_roll(MelloEngine *e)
                 chance_permille(&e->drum_rng, 850u) ? 1u : (uint8_t)(2u + rng_bounded(&e->drum_rng, 3u));
         }
     d->hits[MELLO_DRUM_KICK] |= 1u; /* the one */
+    if (d->feed_sound) { /* FEED+: each voice's TUNE, DECAY and TONE, within what suits the voice */
+        static const uint16_t lo[MELLO_DRUM_VOICES][3] = {{250u, 40u, 0u},
+                                                          {150u, 120u, 0u},
+                                                          {0u, 20u, 0u},
+                                                          {0u, 100u, 0u}},
+                              hi[MELLO_DRUM_VOICES][3] = {{600u, 250u, 350u},
+                                                          {900u, 500u, 1000u},
+                                                          {1000u, 350u, 800u},
+                                                          {1000u, 700u, 999u}};
+        for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
+            uint16_t *p[3] = {&d->voice[v].tune, &d->voice[v].decay, &d->voice[v].tone};
+            for (k = 0u; k < 3u; ++k)
+                if (chance_permille(&e->drum_rng, d->roll))
+                    *p[k] = (uint16_t)(lo[v][k] +
+                                       rng_bounded(&e->drum_rng, (uint32_t)(hi[v][k] - lo[v][k]) + 1u));
+        }
+    }
 }
 
 /* One drum step: its hits (each with CHANCE), RATCH spread over the step, rising; SWING moves them with the rest
@@ -916,6 +936,7 @@ void mello_sound_defaults(MelloSoundConfig *c)
     c->follower_sub_octave = -1;
     c->follower_sub_wave = MELLO_WAVE_SINE;
     c->master_level = 750u;
+    c->lead_level = 1000u;
     c->noise_level = 0u;
     c->noise_fm = 0u;
     c->unison = 1u;

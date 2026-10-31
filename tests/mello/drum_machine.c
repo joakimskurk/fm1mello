@@ -2,7 +2,8 @@
  * stops unless asked"). Checked: the drums step every pulse whatever the sequence skips, and with FOLLOW only with
  * its steps; RATCH and CHANCE, a roll rising; a ROLL keeps the kick on the one and UNDO takes it back; each voice and
  * each GLITCH kind sounds, stays in range at its extremes (UBSan) and CRUSH changes it; STUTTER loops what was just
- * heard; the kit and pattern survive a power cycle. */
+ * heard; FEED+ rolls the voices' sound within their ranges and FEED alone does not; DRIVE and FOLD at full stay in
+ * range; the kit, its DRIVE, FOLD and FEED+ and the pattern survive a power cycle. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -134,6 +135,72 @@ int main(void)
         printf("ROLL changed %u voices' hits, the kick on the one; UNDO restored them\n", changed);
     }
 
+    { /* FEED+: a full roll moves TUNE, DECAY and TONE within each voice's range; FEED alone leaves them */
+        MelloDrumVoice was[MELLO_DRUM_VOICES];
+        unsigned moved = 0u;
+        start(false);
+        memcpy(was, e.drums.voice, sizeof was);
+        e.drums.roll = 1000u;
+        mello_engine_drums_roll(&e);
+        CHECK(!memcmp(was, e.drums.voice, sizeof was), "a roll without FEED+ changed the voices");
+        e.drums.feed_sound = true;
+        mello_engine_drums_roll(&e);
+        for (v = 0u; v < MELLO_DRUM_VOICES; ++v)
+            moved += (was[v].tune != e.drums.voice[v].tune) + (was[v].decay != e.drums.voice[v].decay) +
+                     (was[v].tone != e.drums.voice[v].tone);
+        CHECK(moved >= 8u, "FEED+ moved only %u of 12 values", moved);
+        CHECK(e.drums.voice[MELLO_DRUM_KICK].tune >= 250u && e.drums.voice[MELLO_DRUM_KICK].tune <= 600u &&
+                  e.drums.voice[MELLO_DRUM_KICK].decay <= 250u,
+              "FEED+ took the kick out of its range");
+        printf("FEED+: a full roll moved %u of the voices' 12 values\n", moved);
+    }
+
+    { /* DRIVE and FOLD at full: in range */
+        MelloSoundConfig s;
+        MelloFxConfig fx;
+        MelloSubConfig sub;
+        MelloSampleConfig sm;
+        MelloDrumConfig d;
+        MelloEvent ev;
+        int32_t out[2 * 441], peak = 0, clean = 0;
+        unsigned blk, k, pass;
+        for (pass = 0u; pass < 2u; ++pass) {
+            mello_sound_defaults(&s);
+            mello_fx_defaults(&fx);
+            fx.delay_wet = fx.reverb_wet = 0u;
+            mello_sub_defaults(&sub);
+            mello_sample_defaults(&sm);
+            mello_drum_defaults(&d);
+            d.on = true;
+            d.level = 1000u;
+            d.drive = d.fold = pass ? 1000u : 0u;
+            mello_audio_init(&a, db, 4096u, rb, 24576u);
+            mello_audio_set_config(&a, &s, &fx, &sub, &sm);
+            mello_audio_set_drum_config(&a, &d);
+            memset(&ev, 0, sizeof ev);
+            ev.type = MELLO_EVENT_DRUM_HIT;
+            ev.velocity = 127u;
+            ev.note = 64u;
+            for (v = 0u; v < 3u; ++v) {
+                ev.sample_slot = (uint8_t)v;
+                (void)mello_audio_push_engine_event(&a, &ev, 0u);
+            }
+            for (blk = 0u; blk < 10u; ++blk) {
+                memset(out, 0, sizeof out);
+                mello_audio_render(&a, out, 441u, blk * 10000u, 120u);
+                for (k = 0u; k < 882u; ++k) {
+                    int32_t x = abs(out[k]);
+                    if (pass)
+                        peak = x > peak ? x : peak;
+                    else
+                        clean = x > clean ? x : clean;
+                }
+            }
+        }
+        printf("DRIVE and FOLD at full: peak %d (clean %d)\n", (int)peak, (int)clean);
+        CHECK(peak > clean / 2 && peak <= 32767, "DRIVE and FOLD: peak %d, clean %d", (int)peak, (int)clean);
+    }
+
     for (v = 0u; v < 7u; ++v) { /* each voice and GLITCH kind, plain and crushed, at its extremes */
         static const char *names[7] = {"KICK", "SNARE", "HAT", "BLEEP", "CHIRP", "CRACKLE", "STUTTER"};
         static const uint16_t tone[7] = {1000u, 1000u, 500u, 0u, 400u, 600u, 999u};
@@ -207,7 +274,9 @@ int main(void)
         (void)mello_storage_load(&st, &b);
         (void)mello_storage_poll(&st, &b, 0u, true);
         d = b.drums;
-        d.on = d.feed = d.follow = true;
+        d.on = d.feed = d.follow = d.feed_sound = true;
+        d.drive = 370u;
+        d.fold = 820u;
         d.length = 11u;
         d.swing = 333u;
         d.voice[MELLO_DRUM_GLITCH].tone = 777u;
@@ -228,7 +297,8 @@ int main(void)
                   b.drums.hits[MELLO_DRUM_SNARE] == 0x1234u && b.drums.accents[MELLO_DRUM_HAT] == 0x8001u &&
                   b.drums.lock[MELLO_DRUM_KICK][5].pitch == -7 &&
                   b.drums.lock[MELLO_DRUM_HAT][15].ratchet == 3u &&
-                  b.drums.lock[MELLO_DRUM_SNARE][2].crush == 55u,
+                  b.drums.lock[MELLO_DRUM_SNARE][2].crush == 55u && b.drums.feed_sound &&
+                  b.drums.drive == 370u && b.drums.fold == 820u,
               "the drums differ after a reload");
         puts("the kit and pattern survive a power cycle");
     }

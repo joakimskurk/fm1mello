@@ -653,6 +653,22 @@ static int32_t drum_glue(int32_t s)
     int32_t x = clamp32(s * 3 / 2, -65535, 65535), q = (int32_t)(((int64_t)x * x) >> 16);
     return (x - (int32_t)(((int64_t)q * x) >> 16) / 3) * 2 / 3;
 }
+/* The kit's DRIVE (up to 8x, and FOLD's 4x more) into a soft clip, crossed by FOLD with a fold: past full scale the
+ * wave turns back (a triangle, no loop). The level brought down as the drive rises; the tails come up, as in any
+ * distortion: at 40% the kit ~6 dB louder (RMS), the mix with the default lead ~4 (MIX's PERC takes it back). */
+static int32_t drum_drive(int32_t x, uint16_t drive, uint16_t fold)
+{
+    int32_t y = (int32_t)(((int64_t)x * (1024 + (int32_t)drive * 7 + (int32_t)fold * 4)) >> 10), c, q, u, out;
+    c = clamp32(y, -65535, 65535);
+    q = (int32_t)(((int64_t)c * c) >> 16);
+    out = c - (int32_t)(((int64_t)q * c) >> 16) / 3; /* the soft clip, to +-43690 */
+    if (fold) {
+        u = (y + 32768) & 0x1FFFF; /* 0 .. 131071: up, then back down */
+        if (u >= 65536) u = 131071 - u;
+        out += ((u - 32768) * 4 / 3 - out) * (int32_t)fold / 1000; /* |..| < 131072: in int32 */
+    }
+    return out * (1000 - (int32_t)drive / 2) / 1000; /* down 1.9 dB at 40%, 6 dB at full */
+}
 /* One sample of the drums, in stereo (before LEVEL). music: the lead and sub as they are now, for STUTTER's memory. */
 static void drum_render(MelloAudio *a, int32_t music, int32_t *out_l, int32_t *out_r)
 {
@@ -771,8 +787,13 @@ static void drum_render(MelloAudio *a, int32_t music, int32_t *out_l, int32_t *o
     heard = clamp32((music * 4 + mid + (l + r) / 2) >> 2, -32767, 32767);
     a->drum_buf[a->drum_buf_pos] = (int16_t)heard;
     a->drum_buf_pos = (uint16_t)((a->drum_buf_pos + 1u) & (MELLO_DRUM_BUF - 1u));
-    *out_l = clamp32(mid + l, -65535, 65535);
-    *out_r = clamp32(mid + r, -65535, 65535);
+    l += mid, r += mid;
+    if (a->drum_config.drive | a->drum_config.fold) { /* the kit's own DRIVE and FOLD */
+        l = drum_drive(l, a->drum_config.drive, a->drum_config.fold);
+        r = drum_drive(r, a->drum_config.drive, a->drum_config.fold);
+    }
+    *out_l = clamp32(l, -65535, 65535);
+    *out_r = clamp32(r, -65535, 65535);
 }
 static uint32_t sample_rate_q16(const MelloSampleSlotConfig *c, uint8_t note)
 {
@@ -1898,6 +1919,7 @@ static void apply_pending(MelloAudio *a)
         ramp_to(&a->rp_dly_fb, a->fx.delay_feedback, 50u, j);
         ramp_to(&a->rp_dist_level, a->fx.dist_level, 80u, j);
         ramp_to(&a->rp_sub_level, a->sub_config.level, 50u, j);
+        ramp_to(&a->rp_lead_level, a->config.lead_level, 50u, j);
         ramp_to(&a->rp_fsub_level, a->config.follower_sub_on ? a->config.follower_sub_level : 0u, 50u, j);
         ramp_to(&a->rp_delay, (int32_t)a->delay_samples, 50u, j);
     }
@@ -2154,7 +2176,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 rev_level = ramp_q8(&a->rp_rev_level) >> 8, dly_send = ramp_q8(&a->rp_dly_send) >> 8,
                 dly_level = ramp_q8(&a->rp_dly_level) >> 8, dly_fb = ramp_q8(&a->rp_dly_fb) >> 8,
                 dist_level = ramp_q8(&a->rp_dist_level) >> 8, sub_level = ramp_q8(&a->rp_sub_level) >> 8,
-                fsub_level = ramp_q8(&a->rp_fsub_level) >> 8, delay_q8 = ramp_q8(&a->rp_delay);
+                fsub_level = ramp_q8(&a->rp_fsub_level) >> 8, delay_q8 = ramp_q8(&a->rp_delay),
+                lead_level = ramp_q8(&a->rp_lead_level) >> 8;
         while (1) {
             MelloAudioQueuedEvent q;
             if (!audio_pop_due(a, t, &q)) break;
@@ -2433,6 +2456,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             for (sv = 0u; sv < MELLO_SAMPLE_SLOT_COUNT; ++sv)
                 sample_mix += sample_render_voice(a, &a->sample_voice[sv]);
         }
+        if (lead_level < 1000) lead = lead * lead_level / 1000; /* MIX's LEAD */
         mix = (lead + sub + sample_mix) * 580 / 1000;
         if (ampmod != 32767) mix = q15mul_wide(clamp32(mix, -65535, 65535), ampmod); /* reaches 65534: x2 */
         {

@@ -65,7 +65,8 @@ typedef enum {
     MELLO_UI_SOUND_RESERVED,
     MELLO_UI_AUDIO_FX,
     MELLO_UI_SAMPLE_RESERVED,
-    MELLO_UI_DRUMS /* the last page */
+    MELLO_UI_DRUMS,
+    MELLO_UI_MIX /* the last page */
 } MelloUiPage;
 
 #define MELLO_UI_NO_STEP           0xFFu

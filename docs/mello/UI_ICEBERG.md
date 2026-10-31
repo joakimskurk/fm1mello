@@ -54,7 +54,7 @@ From HOME: start, randomize, undo, shape the sound, set the tempo, mute steps an
 | SEQ | **SEQ** | STEP (detail) · STRUCTURE (segments, loop, chain) |
 | ARP | **BASS** | SUB · CHORD · DRUMS |
 | SEL | **KEY / SCALE** | Root by pressing a key, scale on a knob |
-| GLO | **GLOBAL** | CLOCK · MIDI · SAMPLES |
+| GLO | **GLOBAL** | MIX · CLOCK · MIDI · SAMPLES |
 
 Today's cross-page chains go: ENV→SAMPLE, LFO→DOT→TURING. The ENV button no longer ends up on the LFO (fixed),
 the sample layer moves to GLOBAL, and DOT and EVOLVE become layers of MOD.

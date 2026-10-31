@@ -101,6 +101,7 @@ int main(void)
     c.vel_level = 1750u;
     c.key_track = 660u;
     c.vel_menv = 880;
+    c.lead_level = 640u; /* MIX's LEAD (SEC_GRIT 4) */
     mello_engine_sound_set_config(&e, &c);
     CHECK(mello_storage_measure_payload(&e, &grit_size, &crc), "measure");
     CHECK(save(&s, &e, &t) == MELLO_STORAGE_SAVE_WRITTEN, "grit edit never saved");
@@ -118,7 +119,7 @@ int main(void)
               e.sound.menv_decay_ms == 1800u && e.sound.menv_target == MELLO_MENV_OSC2,
           "working Virus layer lost");
     CHECK(e.sound.vel_cutoff == -420 && e.sound.vel_level == 1750u && e.sound.key_track == 660u &&
-              e.sound.vel_menv == 880,
+              e.sound.vel_menv == 880 && e.sound.lead_level == 640u,
           "working tracking lost");
     CHECK(e.slots[2].valid && e.slots[2].sound.noise_level == 310u && e.slots[2].sound.unison == 3u &&
               e.slots[2].sound.detune == 420u && e.slots[2].sound.noise_fm == 0u,
@@ -139,11 +140,11 @@ int main(void)
         c.filter_mode = d.filter_mode, c.menv_amount = d.menv_amount, c.menv_attack_ms = d.menv_attack_ms;
         c.menv_decay_ms = d.menv_decay_ms, c.menv_target = d.menv_target;
         c.vel_cutoff = d.vel_cutoff, c.vel_level = d.vel_level, c.key_track = d.key_track,
-        c.vel_menv = d.vel_menv;
+        c.vel_menv = d.vel_menv, c.lead_level = d.lead_level;
         mello_engine_sound_set_config(&e, &c);
         e.slots[2].sound = e.sound;
         CHECK(mello_storage_measure_payload(&e, &clean, &crc), "measure");
-        CHECK(both == clean + 8u + 1u + 2u * 34u, "grit section %u bytes, expected 77", both - clean);
+        CHECK(both == clean + 8u + 1u + 2u * 36u, "grit section %u bytes, expected 81", both - clean);
     }
     printf(
         "PASS: grit and the Virus layer survive a power cycle, working and slot (payload %u -> %u bytes)\n",

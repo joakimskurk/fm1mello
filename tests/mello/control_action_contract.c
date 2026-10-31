@@ -26,6 +26,7 @@ static const PageCase pages[] = {
     {"SOUND", MELLO_UI_SOUND_RESERVED},
     {"AUDIO FX", MELLO_UI_AUDIO_FX},
     {"SAMPLE", MELLO_UI_SAMPLE_RESERVED},
+    {"MIX", MELLO_UI_MIX},
 };
 
 static uint32_t bit_u32(unsigned n)
@@ -121,7 +122,10 @@ static void verify_sample_navigation(void)
         fail("ENV", "SOUND did not go to AMP ENV");
     buttons(&u, 300u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 3u) fail("ENV", "SOUND did not skip the LFO");
-    buttons(&u, 400u, bit_u32(MELLO_UI_BTN_GLO), 0u);
+    buttons(&u, 400u, bit_u32(MELLO_UI_BTN_GLO), 0u); /* GLO: MIX -> GLOBAL -> SAMPLE */
+    if (u.page != MELLO_UI_MIX) fail("GLO", "did not open MIX");
+    buttons(&u, 450u, bit_u32(MELLO_UI_BTN_GLO), 0u);
+    if (u.page != MELLO_UI_GLOBAL) fail("GLO", "MIX did not go on to GLOBAL");
     buttons(&u, 500u, bit_u32(MELLO_UI_BTN_GLO), 0u);
     if (u.page != MELLO_UI_SAMPLE_RESERVED) fail("GLO", "GLOBAL did not go on to SAMPLE");
     buttons(&u, 600u, bit_u32(MELLO_UI_BTN_ENV), 0u);

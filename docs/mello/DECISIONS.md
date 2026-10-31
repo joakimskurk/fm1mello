@@ -285,6 +285,28 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
     don't rise.
   The drums now render every sample while ON (STUTTER keeps listening, a 2048-sample memory, 4 KB). Cost: +36% audio
   render with all voices ringing all the time, against +32% for the kit before.
+- DIST and FEED+ (2026-10-31: "some optional dist on this would be good, and RNDMZR playing into the parameters").
+  - DIST: a fifth layer with DRIVE and FOLD on the whole kit, after the glue. DRIVE is up to 8x into a soft clip.
+    FOLD adds up to 4x more and crosses it with a fold, where the wave turns back past full scale (a triangle, worked
+    out without a loop). Both are 0 by default: off, and nothing computed. The level comes down as the drive rises,
+    but the tails come up, as in any distortion: at 40% the kit is ~6 dB louder (RMS) and the mix with the default
+    lead ~4 dB (MIX's PERC takes it back). They are saved in SEC_DRUMS's spare word, in percent, so the version stays 1
+    and older files read as 0.
+  - FEED+: B7 now goes OFF, FEED (RNDMZR rolls the pattern), FEED+ (and the sound), OFF. FEED+ shows as "FED+",
+    because the strip has no room for one more letter. With FEED+, a roll (ROLL's or RNDMZR's) also draws each voice's
+    TUNE, DECAY and TONE, each with ROLL's chance, within what suits the voice. The kick stays a kick: TUNE 25-60%,
+    DECAY up to 25%, TONE up to 35%. GLITCH's TONE can pick any kind. FEED+ is in SEC_DRUMS's flags (bit 3).
+
+## MIX (2026-10-31)
+
+Feedback: "we need a mixer now; K1-4 lead, sub bass, chords/arp, perc". GLO opens it first, then GLOBAL, then
+SAMPLE. It has four faders in their parts' colours (LEAD green, SUB gold, CHORD violet, PERC coral), dimmed when the
+part is off.
+- K1 LEAD is new: the lead and its follower sub alone, before the filter (MelloSoundConfig.lead_level, 100% by
+  default, ramped). It is saved with the sound in SEC_GRIT 4, so it belongs to the slot as the rest of the sound does.
+- K2 SUB is the 5-SEQ bass's LEVEL, K3 CHORD the chord voice's, K4 PERC the drums': each is the same value as on its
+  own page.
+- The name: CHORD, the same as the page. The arpeggio is the chord's PATTERN mode, so "chords/arp" is one part.
 - Saved in SEC_DRUMS (9). Not yet: MIDI out, LFO / DOT / EVOLVE routes to the drums.
 
 ## The chord voice (2026-10-30)

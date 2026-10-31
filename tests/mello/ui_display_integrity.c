@@ -126,7 +126,7 @@ static int subcount(MelloUiPage p)
     case MELLO_UI_SOUND_RESERVED: return 10;
     case MELLO_UI_AUDIO_FX: return 5;
     case MELLO_UI_SAMPLE_RESERVED: return 4;
-    case MELLO_UI_DRUMS: return 4;
+    case MELLO_UI_DRUMS: return 5;
     default: return 1;
     }
 }
@@ -298,7 +298,7 @@ int main(void)
     int page, sub, dir, variant, variants;
     memset(&audit, 0, sizeof(audit));
 
-    for (page = MELLO_UI_HOME; page <= MELLO_UI_DRUMS; ++page) {
+    for (page = MELLO_UI_HOME; page <= MELLO_UI_MIX; ++page) {
         for (sub = 0; sub < subcount((MelloUiPage)page); ++sub) {
             variants = page == MELLO_UI_DOT ? 4 : page == MELLO_UI_RANDOM ? 3 : 1;
             for (variant = 0; variant < variants; ++variant)

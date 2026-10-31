@@ -19,7 +19,7 @@ enum {
     SECVER_SLOT_SEQ = 1,
     SECVER_FX = 3,    /* 2: the delay's LO CUT; 3: PRE DIST */
     SECVER_CHORD = 2, /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading) */
-    SECVER_GRIT = 3,
+    SECVER_GRIT = 4,  /* 4: MIX's LEAD */
     SECVER_MOD = 3,
     SECVER_DRUMS = 1
 };
@@ -33,7 +33,8 @@ enum {
 #define CHORD_WIRE_SIZE    (CHORD_WIRE_SIZE_V1 + 21u)
 #define GRIT_ENTRY_SIZE_V1 8u
 #define GRIT_ENTRY_SIZE_V2 26u
-#define GRIT_ENTRY_SIZE    34u
+#define GRIT_ENTRY_SIZE_V3 34u
+#define GRIT_ENTRY_SIZE    36u
 #define MOD_ENTRY_SIZE_V1  40u
 #define MOD_ENTRY_SIZE_V2  44u
 #define MOD_ENTRY_SIZE     57u
@@ -507,13 +508,15 @@ static bool decode_fx(Reader *r, MelloFxConfig *c, uint8_t ver)
 static void encode_drums(Writer *w, const MelloDrumConfig *d)
 {
     uint8_t v, k;
-    wr_u8(w, (uint8_t)((d->on ? 1u : 0u) | (d->follow ? 2u : 0u) | (d->feed ? 4u : 0u)));
+    wr_u8(w, (uint8_t)((d->on ? 1u : 0u) | (d->follow ? 2u : 0u) | (d->feed ? 4u : 0u) |
+                       (d->feed_sound ? 8u : 0u)));
     wr_u8(w, d->length);
     wr_u16(w, d->swing);
     wr_u16(w, d->level);
     wr_u16(w, d->space);
     wr_u16(w, d->roll);
-    wr_u16(w, 0u); /* spare */
+    wr_u16(w,
+           (uint16_t)(d->drive / 10u | (d->fold / 10u) << 8)); /* was spare (0): DRIVE and FOLD in percent */
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
         const MelloDrumVoice *dv = &d->voice[v];
         wr_u16(w, dv->tune);
@@ -535,10 +538,13 @@ static void encode_drums(Writer *w, const MelloDrumConfig *d)
 static bool decode_drums(Reader *r, MelloDrumConfig *d)
 {
     uint8_t v, k, flags;
-    uint16_t spare;
+    uint16_t df;
     if (!rd_u8(r, &flags) || !rd_u8(r, &d->length) || !rd_u16(r, &d->swing) || !rd_u16(r, &d->level) ||
-        !rd_u16(r, &d->space) || !rd_u16(r, &d->roll) || !rd_u16(r, &spare))
+        !rd_u16(r, &d->space) || !rd_u16(r, &d->roll) || !rd_u16(r, &df))
         return false;
+    d->drive = (uint16_t)((df & 0xFFu) * 10u);
+    d->fold = (uint16_t)((df >> 8) * 10u);
+    d->feed_sound = (flags & 8u) != 0u;
     d->on = (flags & 1u) != 0u;
     d->follow = (flags & 2u) != 0u;
     d->feed = (flags & 4u) != 0u;
@@ -717,7 +723,7 @@ static bool has_grit(const MelloSoundConfig *c)
            c->menv_amount != d.menv_amount || c->menv_attack_ms != d.menv_attack_ms ||
            c->menv_decay_ms != d.menv_decay_ms || c->menv_target != d.menv_target ||
            c->vel_cutoff != d.vel_cutoff || c->vel_level != d.vel_level || c->key_track != d.key_track ||
-           c->vel_menv != d.vel_menv;
+           c->vel_menv != d.vel_menv || c->lead_level != d.lead_level;
 }
 static void encode_grit(Writer *w, uint8_t index, const MelloSoundConfig *c)
 {
@@ -742,6 +748,7 @@ static void encode_grit(Writer *w, uint8_t index, const MelloSoundConfig *c)
     wr_u16(w, c->vel_level);
     wr_u16(w, c->key_track);
     wr_u16(w, (uint16_t)c->vel_menv);
+    wr_u16(w, c->lead_level);
 }
 /* Reads one entry's fields over c (not its index); a version 1 entry has the grit only. */
 static bool decode_grit(Reader *r, uint16_t ver, MelloSoundConfig *c)
@@ -767,7 +774,7 @@ static bool decode_grit(Reader *r, uint16_t ver, MelloSoundConfig *c)
     c->vel_cutoff = (int16_t)amount;
     if (!rd_u16(r, &c->vel_level) || !rd_u16(r, &c->key_track) || !rd_u16(r, &amount)) return false;
     c->vel_menv = (int16_t)amount;
-    return true;
+    return ver < 4u || rd_u16(r, &c->lead_level);
 }
 
 /* DOT's MOD 2, its routing and EVOLVE's sound routes (SEC_MOD): written only for a working sound or slot that differs
@@ -1005,8 +1012,9 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             }
         } else if (id == SEC_GRIT && ver >= 1u && ver <= SECVER_GRIT) {
             uint8_t count, i;
-            uint32_t size =
-                ver == 1u ? GRIT_ENTRY_SIZE_V1 : (ver == 2u ? GRIT_ENTRY_SIZE_V2 : GRIT_ENTRY_SIZE);
+            uint32_t size = ver == 1u ? GRIT_ENTRY_SIZE_V1
+                                      : (ver == 2u ? GRIT_ENTRY_SIZE_V2
+                                                   : (ver == 3u ? GRIT_ENTRY_SIZE_V3 : GRIT_ENTRY_SIZE));
             if (len < 1u || !rd_u8(&r, &count) || len != 1u + (uint32_t)count * size) return false;
             for (i = 0u; i < count; ++i) {
                 uint8_t idx;

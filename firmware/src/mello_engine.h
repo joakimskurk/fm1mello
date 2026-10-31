@@ -240,6 +240,7 @@ typedef struct {
     int8_t follower_sub_octave;  /* -2..0 */
     MelloWaveform follower_sub_wave;
     uint16_t master_level; /* source masterVol 0..1 => 0..1000 */
+    uint16_t lead_level;   /* 0..1000: MIX's LEAD, the lead (and its follower sub) alone; not in the HTML */
     /* Grit, beyond the HTML (DECISIONS.md "Grit"); all off by default, so the default is the HTML's plain saw. */
     uint16_t noise_level; /* 0..1000: white noise mixed with the oscillator, before the filter */
     uint16_t noise_fm;    /* 0..1000: noise frequency-modulating the oscillator */
@@ -490,11 +491,14 @@ typedef struct {
     bool on;
     bool follow; /* step with the main sequence's steps (its skips and long steps stop it), not every pulse */
     bool feed;   /* RNDMZR rolls the drums too */
-    uint8_t length; /* 1..16 */
-    uint16_t swing; /* 0..1000: SWING, for everything: each odd sixteenth up to half a step late */
-    uint16_t level; /* 0..1000 */
-    uint16_t space; /* 0..1000: the send to the delay and reverb */
-    uint16_t roll;  /* 0..1000: how much a roll changes */
+    bool feed_sound; /* FEED+: and a roll (ROLL, RNDMZR's) changes the voices' TUNE, DECAY and TONE as well */
+    uint8_t length;  /* 1..16 */
+    uint16_t swing;  /* 0..1000: SWING, for everything: each odd sixteenth up to half a step late */
+    uint16_t level;  /* 0..1000 */
+    uint16_t space;  /* 0..1000: the send to the delay and reverb */
+    uint16_t roll;   /* 0..1000: how much a roll changes */
+    uint16_t drive;  /* 0..1000: the kit's own distortion, after the glue (0: none) */
+    uint16_t fold;   /* 0..1000: past full scale the drive folds back instead of clipping */
     MelloDrumVoice voice[MELLO_DRUM_VOICES];
     uint16_t hits[MELLO_DRUM_VOICES];    /* bit = step */
     uint16_t accents[MELLO_DRUM_VOICES]; /* bit = step */

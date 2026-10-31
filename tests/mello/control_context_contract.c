@@ -34,6 +34,7 @@ static const HintCase hints[] = {
     {"AUDIO FX", MELLO_UI_AUDIO_FX, "B0:PRE-DIST B9:UNDO B10:RNDMZR"},
     {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B9:UNDO B10:RNDMZR"},
     {"DRUMS", MELLO_UI_DRUMS, "B0:K B1:S B2:H B3:G B4:ON B5:ACC B6:ROLL B7:FEED B9:UNDO B10:RNDMZR"},
+    {"MIX", MELLO_UI_MIX, "B9:UNDO B10:RNDMZR"},
 };
 
 /* The strip shows labels only, in key order: "B0:RND B1:UNDO" is drawn as "RND UNDO". */
