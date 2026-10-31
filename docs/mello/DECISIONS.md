@@ -679,9 +679,17 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   nothing sounds and no MOD lane is still moving; the mutes' gains settle on that path too.
 - **Where the time goes** (make bench, the worst case on this computer, one part out at a time): drums 21%, the
   lead's grit and OSC 2 13%, the chords 13%, the sub with BASS SEQ 5%, the MOD lanes 3%, the LFO 2%. The reverb,
-  delay and distortion cost little here. Not done, in order of worth: the modulation block at a control rate (every
-  4 samples; the main filter's coefficients are recomputed every sample under the LFO), the key scan's LED pulses
-  (the HAL's fm1_input_tick, ~12 M instructions/s while playing with LEDs lit, 2.5 in silence).
+  delay and distortion cost little here. In the default pattern (a sampling profile): the reverb 21%, the ten
+  biquads (main filter, the three tone filters) 16%, the per-sample control and mixing 21%.
+- **The control step** (later the same day). The LFO and every offset the modulators put on the cutoff, the
+  resonance, the lead's pitch and pulse width, the grit's amounts, OSC 2's pitch and FM are worked out every 4
+  samples (11 kHz) and read ready-made by the samples between; the main filter's coefficients, recomputed on
+  every change of cutoff, now change at most every 4 samples under the LFO. What moves a sample at a time stays per
+  sample: the envelopes, the slides, the MOD lanes, the MOD envelope. The parity table is unchanged (the LFO
+  stimuli within 0.1 dB). With it: the thirteen ramps and the mutes' gains are stepped only while one moves, the
+  sample voices are called only when on, and the LFO runs on through silent blocks as the HTML's free-running
+  one does. Not done: the key scan's LED pulses (the HAL's fm1_input_tick, ~12 M instructions/s while playing
+  with LEDs lit, 2.5 in silence).
 - **RAM** 800 B free -> 7456 B: the audio's event queue 128 -> 64 entries (16 a lane keep 300 BPM with 8 ratchets,
   chords, sub and samples in order), the chorus line 1024 -> 256 samples (it reads back 234 at most), dinghy.c's
   second copies of the configs (the audio's pending_* are the same thing) and its static default project gone. The

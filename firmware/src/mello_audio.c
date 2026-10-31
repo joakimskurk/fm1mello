@@ -2421,8 +2421,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 if (c->lfo_target == MELLO_LFO_FILTER) {
                     /* HTML: f = base * (1 + sin * (0.08 + 0.92 * depth)), linear in Hz: on the log cutoff that is
                      * + 1000 * log200(r), r = 0..2. */
-                    int32_t m = (lfo * a->lfo_filter_span_q15) >> 15;                    /* (r - 1) in Q15 */
-                    int32_t r64 = clamp32(64 + (m >> 9), 0, 127), rem = m & 511, lo, hi; /* r in 1/64 + rem/512 */
+                    int32_t m = (lfo * a->lfo_filter_span_q15) >> 15; /* (r - 1) in Q15 */
+                    int32_t r64 = clamp32(64 + (m >> 9), 0, 127), rem = m & 511, lo,
+                            hi; /* r in 1/64 + rem/512 */
                     lo = LFO_LOG200_PERMILLE[r64];
                     hi = LFO_LOG200_PERMILLE[r64 + 1];
                     cut_off += lo + (((hi - lo) * rem) >> 9);
@@ -2446,15 +2447,17 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             }
             a->c_lfo = lfo;
             /* HTML: mix.gain = 0.58 + 0.58 * depth * sin, on the whole mix (applied below). */
-            a->c_ampmod = c->lfo_on && c->lfo_target == MELLO_LFO_AMP ? 32767 + ((lfo * a->lfo_depth_q15) >> 15)
-                                                                       : 32767;
+            a->c_ampmod = c->lfo_on && c->lfo_target == MELLO_LFO_AMP
+                              ? 32767 + ((lfo * a->lfo_depth_q15) >> 15)
+                              : 32767;
             if (a->tm_filter_mod_q15) {
                 int32_t tv = clamp32(a->tm_filter_mod_q15, -8192, 8192);
                 uint32_t ti = (uint32_t)(tv + 8192) * 100u / 16384u;
                 cut_off += TM_FILTER_OFFSET_PERMILLE[ti > 100u ? 100u : ti];
             }
             if (mods) cut_off += dmod[MELLO_DEST_CUTOFF];
-            if (c->vel_cutoff) cut_off += a->lead.vel_cut; /* VEL > CUTOFF: up to 30% of the range for an accent */
+            if (c->vel_cutoff)
+                cut_off += a->lead.vel_cut; /* VEL > CUTOFF: up to 30% of the range for an accent */
             if (c->key_track) {
                 /* KEY TRACK from C4: 1000 * log200(2) / 12 = 10.9 permille of the cutoff a semitone, at 1000 */
                 int32_t semis_q8 = (a->lead.pitch_q16 >> 8) - 60 * 256;
@@ -2471,9 +2474,11 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 ratio = (uint32_t)(((uint64_t)ratio * semi_ratio_q16((mod_env * 6144) >> 15)) >> 16);
             if (mods && dmod[MELLO_DEST_PITCH]) /* +-12 semitones */
                 ratio = (uint32_t)(((uint64_t)ratio *
-                                    semi_ratio_q16((clamp32(dmod[MELLO_DEST_PITCH], -1000, 1000) * 3146) >> 10)) >>
+                                    semi_ratio_q16((clamp32(dmod[MELLO_DEST_PITCH], -1000, 1000) * 3146) >>
+                                                   10)) >>
                                    16);
-            if (mods && dmod[MELLO_DEST_PWM]) pwm = clamp32(pwm + ((dmod[MELLO_DEST_PWM] * 461) >> 10), 50, 950);
+            if (mods && dmod[MELLO_DEST_PWM])
+                pwm = clamp32(pwm + ((dmod[MELLO_DEST_PWM] * 461) >> 10), 50, 950);
             a->c_lead_ratio = ratio;
             a->c_pwm = (uint16_t)pwm;
             /* grit and the Virus layer's amounts */
@@ -2499,7 +2504,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             /* OSC 2's pitch offset */
             q8 = a->osc2_q8_base;
             if (c->lfo_on && c->lfo_target == MELLO_LFO_OSC2)
-                q8 += (int32_t)(((int64_t)lfo * c->lfo_depth * 393) >> 22); /* +-12 */
+                q8 += (int32_t)(((int64_t)lfo * c->lfo_depth * 393) >> 22);                  /* +-12 */
             if (mod_env && c->menv_target == MELLO_MENV_OSC2) q8 += (mod_env * 12288) >> 15; /* +-48 */
             if (mods) q8 += (clamp32(dmod[MELLO_DEST_OSC2], -1000, 1000) * 6291) >> 10;      /* +-24 */
             a->c_osc2_q8 = q8;
@@ -2574,7 +2579,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                      * squared). The Virus's oscillator pair. */
                     int32_t q8 = a->c_osc2_q8, fm, o2;
                     uint32_t r2, v2;
-                    if (q8 != a->lead.osc2_q8_last || !a->lead.osc2_r2) { /* the ratio, when the offset moves */
+                    if (q8 != a->lead.osc2_q8_last ||
+                        !a->lead.osc2_r2) { /* the ratio, when the offset moves */
                         a->lead.osc2_r2 = semi_ratio_q16(q8);
                         a->lead.osc2_q8_last = q8;
                     }
