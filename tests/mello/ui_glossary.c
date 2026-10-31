@@ -102,11 +102,10 @@ int main(void)
                                          "F DEC", "F ATK", "INT", "MUT", "ROT", "CHAIN", "K1",
                                          "K2",    "K3",    "K4",  "-",   0};
     static const char *const percent[] = {
-        "LEVEL",  "CUTOFF", "RES",    "GATE",    "PROB", "CHORUS", "SPACE", "DEPTH", "AMOUNT",
-        "DRIVE",  "FOLD",   "CRUSH",  "SUSTAIN", "WET",  "FDBK",   "MIX",   "SWING", "ROLL",
-        "CHANCE", "TUNE",   "TONE",   "ENV",     "FENV", "MUTATE", "DIST",  "START", "END",
-        "ACCENT", "MASTER", "SUBOSC", "NOISE",   "N.FM", "FM",     "SAT",   "PWM",   "LEAD",
-        "SUB",    "CHORD",  "PERC",   "D.LEVEL", 0};
+        "LEVEL", "CUTOFF",  "RES",  "GATE",  "PROB", "CHORUS", "SPACE",  "DEPTH",   "AMOUNT", "DRIVE", "FOLD",
+        "CRUSH", "SUSTAIN", "WET",  "FDBK",  "MIX",  "SWING",  "ROLL",   "CHANCE",  "TUNE",   "TONE",  "ENV",
+        "FENV",  "MUTATE",  "DIST", "START", "END",  "ACCENT", "MASTER", "SUBOSC",  "NOISE",  "N.FM",  "FM",
+        "SAT",   "PWM",     "LEAD", "SUB",   "BASS", "CHORD",  "PERC",   "D.LEVEL", 0};
     static const char *const no_percent[] = {"ON", "OFF", "SND", "-", 0}; /* words a percent knob may show */
     static const char *const ms_labels[] = {"DECAY", "ATTACK", "RELEASE", "F.ATK", "F.DEC", "GLIDE",
                                             "STRUM", "SLIDE",  "TIME",    "PRE",   "MS",    0};

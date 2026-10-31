@@ -185,7 +185,7 @@ static uint8_t page_button(const MelloUi *ui)
     case MELLO_UI_GLOBAL: return MELLO_UI_BTN_GLO;
     case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? MELLO_UI_BTN_LFO : MELLO_UI_BTN_ENV;
     case MELLO_UI_AUDIO_FX: return MELLO_UI_BTN_FX;
-    case MELLO_UI_SAMPLE_RESERVED: return MELLO_UI_BTN_GLO;
+    case MELLO_UI_SAMPLE_RESERVED: return MELLO_UI_BTN_ENV;
     case MELLO_UI_DRUMS: return MELLO_UI_BTN_ARP;
     case MELLO_UI_MIX: return MELLO_UI_BTN_GLO;
     case MELLO_UI_HOME:
@@ -206,7 +206,7 @@ const char *mello_ui_page_name(MelloUiPage page)
     case MELLO_UI_SLOTS: return "SLOTS";
     case MELLO_UI_DOT: return "DOT MATRIX";
     case MELLO_UI_TURING: return "EVOLVE";
-    case MELLO_UI_SUB: return "SUB";
+    case MELLO_UI_SUB: return "BASS";
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD: return "CHORD";
 #endif
@@ -314,15 +314,87 @@ static void open_page(MelloUi *ui, MelloUiPage page)
     mark_full(ui);
 }
 
+/* The FX page's layers in three groups, the section's pages: DISTORTION (0), DELAY (1 send, 2 config), REVERB (3 room,
+ * 4 returns). */
+static uint8_t fx_group(uint8_t sub)
+{
+    return sub == 0u ? 0u : sub <= 2u ? 1u : 2u;
+}
+
+/* The page of list[] after (dir > 0) or before the one open, or the first when the page open is not in the list. */
+static MelloUiPage cycle_page(const MelloUi *ui, const MelloUiPage *list, uint8_t n, int dir)
+{
+    uint8_t i;
+    for (i = 0u; i < n; ++i)
+        if (list[i] == ui->page) return list[(i + n + (dir > 0 ? 1u : n - 1u)) % n];
+    return list[0];
+}
+
+/* R1 (DECISIONS.md "One thread"): the printed button is the section. From elsewhere it opens the section's first
+ * page; on one of its pages it goes to the next (or, from ALGORITHM, the one before). The sections:
+ *   SEQ  STEP, SEGMENT, LOOP CYCLE, SLOT SEQ        ENV  SOUND, SAMPLE          LFO  LFO, DOT, EVOLVE
+ *   FX   DISTORTION, DELAY, REVERB                  ARP  CHORD, BASS, DRUMS     GLO  MIX, GLOBAL */
+static void section_next(MelloUi *ui, uint8_t button, int dir)
+{
+    switch (button) {
+    case MELLO_UI_BTN_SEQ: {
+        static const MelloUiPage c[4] = {MELLO_UI_SEQ_STEP, MELLO_UI_SEQ_SEGMENT, MELLO_UI_SEQ_LOOP,
+                                         MELLO_UI_SEQ_SLOTSEQ};
+        open_page(ui, cycle_page(ui, c, 4u, dir));
+        break;
+    }
+    case MELLO_UI_BTN_ENV: /* the LFO layer of SOUND is LFO's page, not ENV's */
+        if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage != 2u)
+            open_page(ui, MELLO_UI_SAMPLE_RESERVED);
+        else
+            open_page(ui, MELLO_UI_SOUND_RESERVED);
+        break;
+    case MELLO_UI_BTN_LFO: {
+        uint8_t at = ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage == 2u ? 0u
+                     : ui->page == MELLO_UI_DOT                                     ? 1u
+                     : ui->page == MELLO_UI_TURING                                  ? 2u
+                                                                                    : 3u,
+                to = at == 3u ? 0u : (uint8_t)((at + (dir > 0 ? 1u : 2u)) % 3u);
+        if (to == 0u) {
+            open_page(ui, MELLO_UI_SOUND_RESERVED);
+            ui->sound_subpage = 2u;
+        } else
+            open_page(ui, to == 1u ? MELLO_UI_DOT : MELLO_UI_TURING);
+        break;
+    }
+    case MELLO_UI_BTN_FX: {
+        static const uint8_t first[3] = {0u, 1u, 3u};
+        if (ui->page != MELLO_UI_AUDIO_FX)
+            open_page(ui, MELLO_UI_AUDIO_FX);
+        else {
+            ui->fx_subpage = first[(fx_group(ui->fx_subpage) + (dir > 0 ? 1u : 2u)) % 3u];
+            mark_edit(ui);
+            ui->dirty |= MELLO_UI_DIRTY_HEADER;
+        }
+        break;
+    }
+    case MELLO_UI_BTN_ARP: {
+#if MELLO_FEATURE_CHORD_MACHINE
+        static const MelloUiPage c[3] = {MELLO_UI_CHORD, MELLO_UI_SUB, MELLO_UI_DRUMS};
+        open_page(ui, cycle_page(ui, c, 3u, dir));
+#else
+        static const MelloUiPage c[2] = {MELLO_UI_SUB, MELLO_UI_DRUMS};
+        open_page(ui, cycle_page(ui, c, 2u, dir));
+#endif
+        break;
+    }
+    case MELLO_UI_BTN_GLO: {
+        static const MelloUiPage c[2] = {MELLO_UI_MIX, MELLO_UI_GLOBAL};
+        open_page(ui, cycle_page(ui, c, 2u, dir));
+        break;
+    }
+    default: break;
+    }
+}
+
 static void seq_button(MelloUi *ui)
 {
-    switch (ui->page) {
-    case MELLO_UI_SEQ_STEP: mello_ui_set_page(ui, MELLO_UI_SEQ_SEGMENT); break;
-    case MELLO_UI_SEQ_SEGMENT: mello_ui_set_page(ui, MELLO_UI_SEQ_LOOP); break;
-    case MELLO_UI_SEQ_LOOP: mello_ui_set_page(ui, MELLO_UI_SEQ_SLOTSEQ); break;
-    case MELLO_UI_SEQ_SLOTSEQ: mello_ui_set_page(ui, MELLO_UI_SEQ_STEP); break;
-    default: open_page(ui, MELLO_UI_SEQ_STEP); break;
-    }
+    section_next(ui, MELLO_UI_BTN_SEQ, 1);
 }
 
 static uint8_t prob_pct(uint16_t p)
@@ -605,7 +677,7 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
                       [9] = {MELLO_CTX_UNDO, "UNDO"}},
 #if MELLO_FEATURE_CHORD_MACHINE
     [MELLO_UI_CHORD] = {[0] = {MELLO_CTX_CHORD_TOGGLE, "ON"},
-                        [1] = {MELLO_CTX_CHORD_SUB_ROOT, "SUB"},
+                        [1] = {MELLO_CTX_CHORD_SUB_ROOT, "BASS"},
                         [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                         [9] = {MELLO_CTX_UNDO, "UNDO"}},
 #endif
@@ -633,9 +705,9 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
                                   [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
                                   [9] = {MELLO_CTX_UNDO, "UNDO"}},
     [MELLO_UI_MIX] = {[0] = {MELLO_CTX_MIX_LEAD, "LEAD"},
-                      [1] = {MELLO_CTX_MIX_SUB, "SUB"},
+                      [1] = {MELLO_CTX_MIX_SUB, "BASS"},
 #if MELLO_FEATURE_CHORD_MACHINE
-                      [2] = {MELLO_CTX_MIX_CHORD, "CHORD"},
+                      [2] = {MELLO_CTX_MIX_CHORD, "CHRD"}, /* the strip's width: 27 letters is one too many */
 #endif
                       [3] = {MELLO_CTX_MIX_PERC, "PERC"},
                       [10] = {MELLO_CTX_RNDMZR, "RNDMZR"},
@@ -1406,7 +1478,9 @@ static const char *chord_mode_name(MelloChordMode m)
 #define CHORD_LAYERS 9u
 static bool chord_layer_shown(const MelloChordConfig *c, uint8_t l)
 {
-    return l == 3u ? c->trigger == MELLO_CHORD_TRIGGER_GRID : l == 4u ? c->mode == MELLO_CHORD_PATTERN : true;
+    (void)c;
+    (void)l;
+    return true; /* R1: no hidden layers; the body says when GRID or PATTERN is not in use */
 }
 static uint16_t chord_ms(uint16_t v, int16_t delta, uint16_t lo, uint16_t hi)
 {
@@ -1896,9 +1970,12 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
             ui->sound_subpage = order[wrap_u8((int32_t)(i % 9u) + (delta > 0 ? 1 : -1), 9u)];
         }
         break;
-    case MELLO_UI_AUDIO_FX:
-        ui->fx_subpage = wrap_u8((int32_t)ui->fx_subpage + (delta > 0 ? 1 : -1), 5u);
-        break;
+    case MELLO_UI_AUDIO_FX: { /* the layer within the FX page open (DELAY: send / config, REVERB: room / returns; DISTORTION has one) */
+        static const uint8_t lo[3] = {0u, 1u, 3u}, hi[3] = {0u, 2u, 4u};
+        uint8_t g = fx_group(ui->fx_subpage);
+        if (lo[g] == hi[g]) return;
+        ui->fx_subpage = ui->fx_subpage == lo[g] ? hi[g] : lo[g];
+    } break;
     case MELLO_UI_SAMPLE_RESERVED:
         ui->sample_subpage = wrap_u8((int32_t)ui->sample_subpage + (delta > 0 ? 1 : -1), 4u);
         break;
@@ -2040,7 +2117,8 @@ static void adjust_knobs(MelloUi *ui, const int16_t enc_in[MELLO_UI_ENCODER_COUN
     ui->dirty = 0u;
     if (ui->page != MELLO_UI_HOME) {
         adjust_select(ui, enc[MELLO_UI_ENC_SELECT]);
-        adjust_algorithm(ui, enc[MELLO_UI_ENC_ALGORITHM]);
+        if (enc[MELLO_UI_ENC_ALGORITHM]) /* R1: ALGORITHM turns the section's pages */
+            section_next(ui, page_button(ui), enc[MELLO_UI_ENC_ALGORITHM] > 0 ? 1 : -1);
         if (ui->dirty && layer_name(ui)) show_readout(ui, MELLO_UI_READOUT_LAYER, now_ms);
         ui->dirty |= before;
         adjust_presets(ui, enc[MELLO_UI_ENC_PRESETS]);
@@ -2471,49 +2549,14 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
     }
     /* Page buttons (UI_ICEBERG.md): from elsewhere a button opens its page on the first layer, so the screen never
      * depends on history; pressed again on its own page it goes to the next layer. */
+    /* R1: the printed button is the section; from elsewhere it opens the section's first page, pressed again it
+     * goes to the next (section_next). SELECT is the layer, ALGORITHM the page. */
     if (pressed & bit_u32(MELLO_UI_BTN_SEL)) open_page(ui, MELLO_UI_KEY_SCALE);
-    if (pressed & bit_u32(MELLO_UI_BTN_FX)) {
-        if (ui->page == MELLO_UI_AUDIO_FX)
-            adjust_algorithm(ui, 1);
-        else
-            open_page(ui, MELLO_UI_AUDIO_FX);
-    }
-    if (pressed & bit_u32(MELLO_UI_BTN_LFO)) { /* MOD: LFO -> DOT -> EVOLVE -> LFO */
-        if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage == 2u)
-            open_page(ui, MELLO_UI_DOT);
-        else if (ui->page == MELLO_UI_DOT)
-            open_page(ui, MELLO_UI_TURING);
-        else {
-            open_page(ui, MELLO_UI_SOUND_RESERVED);
-            ui->sound_subpage = 2u;
-        }
-    }
-    if (pressed & bit_u32(MELLO_UI_BTN_ARP)) { /* BASS: SUB -> CHORD -> DRUMS -> SUB */
-#if MELLO_FEATURE_CHORD_MACHINE
-        open_page(ui, ui->page == MELLO_UI_SUB     ? MELLO_UI_CHORD
-                      : ui->page == MELLO_UI_CHORD ? MELLO_UI_DRUMS
-                                                   : MELLO_UI_SUB);
-#else
-        if (ui->page == MELLO_UI_SUB) {
-            MelloSubConfig c = e->sub;
-            c.on = !c.on;
-            mello_engine_sub_set_config(e, &c);
-            mark_edit(ui);
-        } else
-            open_page(ui, MELLO_UI_SUB);
-#endif
-    }
-    if (pressed & bit_u32(MELLO_UI_BTN_GLO)) /* MIX -> GLOBAL -> SAMPLE -> MIX */
-        open_page(ui, ui->page == MELLO_UI_MIX      ? MELLO_UI_GLOBAL
-                      : ui->page == MELLO_UI_GLOBAL ? MELLO_UI_SAMPLE_RESERVED
-                                                    : MELLO_UI_MIX);
-    if (pressed &
-        bit_u32(MELLO_UI_BTN_ENV)) { /* SOUND: its layers in adjust_algorithm's order (the LFO is MOD's) */
-        if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage != 2u)
-            adjust_algorithm(ui, 1);
-        else
-            open_page(ui, MELLO_UI_SOUND_RESERVED);
-    }
+    if (pressed & bit_u32(MELLO_UI_BTN_FX)) section_next(ui, MELLO_UI_BTN_FX, 1);
+    if (pressed & bit_u32(MELLO_UI_BTN_LFO)) section_next(ui, MELLO_UI_BTN_LFO, 1);
+    if (pressed & bit_u32(MELLO_UI_BTN_ARP)) section_next(ui, MELLO_UI_BTN_ARP, 1);
+    if (pressed & bit_u32(MELLO_UI_BTN_GLO)) section_next(ui, MELLO_UI_BTN_GLO, 1);
+    if (pressed & bit_u32(MELLO_UI_BTN_ENV)) section_next(ui, MELLO_UI_BTN_ENV, 1);
     if (pressed & bit_u32(MELLO_UI_BTN_SAVE)) {
         if (ui->page == MELLO_UI_SLOTS)
             save_selected_slot(ui, now_ms);
@@ -3855,7 +3898,7 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
          * framed gold, the picked one white; then K1-K4. */
         const MelloBassConfig *b = &e->bass;
         uint8_t i;
-        (void)copy_s(copy_s(a, e->sub.on ? "SUB  " : "SUB OFF  "),
+        (void)copy_s(copy_s(a, e->sub.on ? "BASS  " : "BASS OFF  "),
                      b->on ? "BASS SEQ" : sub_mode_name(e->sub.mode));
         ui_section(ui, o, 32, a, e->sub.on ? UI_GOLD : UI_DIM);
         o->text(o->ctx, 10, 52, 110, 0, b->on ? (b->follow ? "FOLLOW" : "OWN CLOCK") : "SEQ OFF",
@@ -3890,7 +3933,12 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         MelloChordConfig *c = &e->chord;
         uint8_t i;
         uint16_t col = UI_CHORD;
-        (void)copy_s(copy_s(a, c->on ? "CHORD  " : "CHORD OFF  "), chord_mode_name(c->mode));
+        {
+            char *q = copy_s(copy_s(a, c->on ? "CHORD  " : "CHORD OFF  "), chord_mode_name(c->mode));
+            if (ui->chord_subpage == 3u && c->trigger != MELLO_CHORD_TRIGGER_GRID)
+                (void)copy_s(q, "  GRID OFF");
+            if (ui->chord_subpage == 4u && c->mode != MELLO_CHORD_PATTERN) (void)copy_s(q, "  PTN OFF");
+        }
         ui_section(ui, o, 32, a, c->on ? col : UI_DIM);
         if (ui->chord_subpage == 3u) {
             for (i = 0u; i < 16u; ++i) {
@@ -3960,7 +4008,7 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
 #endif
     case MELLO_UI_GLOBAL: draw_param_panel(ui, o); break;
     case MELLO_UI_MIX: { /* four faders, each in its part's colour, a part that is off dimmed */
-        static const char *name[4] = {"LEAD", "SUB", "CHORD", "PERC"};
+        static const char *name[4] = {"LEAD", "BASS", "CHORD", "PERC"};
         static const uint16_t col[4] = {UI_ACC, UI_GOLD, UI_CHORD, UI_CORAL};
         uint16_t lv[4];
         bool on[4];
@@ -4970,7 +5018,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         value_u(v[3], "", e->project.pitch_span_oct);
         break;
     case MELLO_UI_MIX: {
-        static const char *mx[4] = {"LEAD", "SUB", "CHORD", "PERC"};
+        static const char *mx[4] = {"LEAD", "BASS", "CHORD", "PERC"};
         uint16_t lv[4];
         mix_levels(e, lv);
         for (k = 0u; k < 4u; ++k) l[k] = mx[k], value_pct(v[k], lv[k]);
@@ -5492,7 +5540,10 @@ static const char *domain_name(const MelloUi *ui)
     if (ui->page == MELLO_UI_TURING) return "EVOLVE";
     if (ui->page == MELLO_UI_SEQ_LOOP) return "LOOP";
     if (ui->page == MELLO_UI_KEY_SCALE) return "KEY";
-    if (ui->page == MELLO_UI_AUDIO_FX) return "FX";
+    if (ui->page == MELLO_UI_AUDIO_FX) {
+        static const char *g[3] = {"DISTORTION", "DELAY", "REVERB"};
+        return g[fx_group(ui->fx_subpage)];
+    }
     return mello_ui_page_name(ui->page);
 }
 
@@ -5524,8 +5575,8 @@ static const char *layer_name(const MelloUi *ui)
                       *glo[3] = {"CLOCK", "MIDI", "GROOVE"},
                       *snd[10] = {"OSC/FILT", "AMP ENV", "LFO",       "FOLLOWER", "LEVEL",
                                   "GRIT",     "OSC 2",   "CHARACTER", "MOD ENV",  "TRACKING"},
-                      *fx[5] = {"DISTORTION", "DELAY", "DLY CONF", "REVERB", "RETURNS"},
-                      *smp[4] = {"MAIN", "PITCH", "TRIM", "ENVELOPE"};
+                      *fx[5] = {0, "SEND", "CONFIG", "ROOM", "RETURNS"}, /* within the FX pages */
+        *smp[4] = {"MAIN", "PITCH", "TRIM", "ENVELOPE"};
     switch (ui->page) {
     case MELLO_UI_SEQ_STEP: return step[ui->step_subpage % 4u];
     case MELLO_UI_SEQ_LOOP: return loop[ui->loop_subpage % 3u];

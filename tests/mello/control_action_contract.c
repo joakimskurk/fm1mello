@@ -103,33 +103,46 @@ static void verify_sample_navigation(void)
     MelloStorage st;
     MelloUi u;
     setup(&p, &t, &st, &u, MELLO_UI_HOME);
+    /* R1: a button is a section, pressed again it goes to the section's next page. ENV: SOUND, SAMPLE. */
     buttons(&u, 100u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED) fail("ENV", "HOME did not open SOUND");
-    /* ENV again: SOUND's next layer (OSC -> OSC 2 -> CHARACTER -> GRIT -> MOD ENV -> AMP ENV -> FOLLOWER);
-     * SAMPLE is GLOBAL's (GLO again). */
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u)
+        fail("ENV", "HOME did not open SOUND on OSC");
     buttons(&u, 200u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 6u) fail("ENV", "SOUND did not go to OSC 2");
-    {
-        static const uint8_t next[4] = {7u, 5u, 8u, 9u}; /* CHARACTER, GRIT, MOD ENV, TRACKING */
-        uint8_t i;
-        for (i = 0u; i < 4u; ++i) {
-            buttons(&u, 210u + i * 10u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-            if (u.sound_subpage != next[i]) fail("ENV", "SOUND's Phase 5 layers out of order");
-        }
-    }
+    if (u.page != MELLO_UI_SAMPLE_RESERVED) fail("ENV", "SOUND did not go on to SAMPLE");
     buttons(&u, 250u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 1u)
-        fail("ENV", "SOUND did not go to AMP ENV");
-    buttons(&u, 300u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 3u) fail("ENV", "SOUND did not skip the LFO");
-    buttons(&u, 400u, bit_u32(MELLO_UI_BTN_GLO), 0u); /* GLO: MIX -> GLOBAL -> SAMPLE */
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u)
+        fail("ENV", "SAMPLE did not go back to SOUND");
+    buttons(&u, 300u, bit_u32(MELLO_UI_BTN_LFO), 0u); /* LFO: LFO (SOUND's layer 2), DOT, EVOLVE */
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 2u) fail("LFO", "did not open the LFO");
+    buttons(&u, 310u, bit_u32(MELLO_UI_BTN_LFO), 0u);
+    if (u.page != MELLO_UI_DOT) fail("LFO", "LFO did not go on to DOT");
+    buttons(&u, 320u, bit_u32(MELLO_UI_BTN_LFO), 0u);
+    if (u.page != MELLO_UI_TURING) fail("LFO", "DOT did not go on to EVOLVE");
+    buttons(&u, 330u, bit_u32(MELLO_UI_BTN_ENV), 0u);
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u)
+        fail("ENV", "did not open SOUND from EVOLVE");
+    buttons(&u, 400u, bit_u32(MELLO_UI_BTN_GLO), 0u); /* GLO: MIX, GLOBAL */
     if (u.page != MELLO_UI_MIX) fail("GLO", "did not open MIX");
     buttons(&u, 450u, bit_u32(MELLO_UI_BTN_GLO), 0u);
     if (u.page != MELLO_UI_GLOBAL) fail("GLO", "MIX did not go on to GLOBAL");
     buttons(&u, 500u, bit_u32(MELLO_UI_BTN_GLO), 0u);
-    if (u.page != MELLO_UI_SAMPLE_RESERVED) fail("GLO", "GLOBAL did not go on to SAMPLE");
-    buttons(&u, 600u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u) fail("ENV", "did not open SOUND on OSC");
+    if (u.page != MELLO_UI_MIX) fail("GLO", "GLOBAL did not go back to MIX");
+    buttons(&u, 520u, bit_u32(MELLO_UI_BTN_ARP), 0u); /* ARP: CHORD, BASS, DRUMS */
+#if MELLO_FEATURE_CHORD_MACHINE
+    if (u.page != MELLO_UI_CHORD) fail("ARP", "did not open CHORD");
+    buttons(&u, 530u, bit_u32(MELLO_UI_BTN_ARP), 0u);
+#endif
+    if (u.page != MELLO_UI_SUB) fail("ARP", "did not go on to BASS");
+    buttons(&u, 540u, bit_u32(MELLO_UI_BTN_ARP), 0u);
+    if (u.page != MELLO_UI_DRUMS) fail("ARP", "BASS did not go on to DRUMS");
+    buttons(&u, 550u, bit_u32(MELLO_UI_BTN_FX), 0u); /* FX: DISTORTION, DELAY, REVERB */
+    if (u.page != MELLO_UI_AUDIO_FX || u.fx_subpage != 0u) fail("FX", "did not open DISTORTION");
+    buttons(&u, 560u, bit_u32(MELLO_UI_BTN_FX), 0u);
+    if (u.fx_subpage != 1u) fail("FX", "DISTORTION did not go on to DELAY");
+    buttons(&u, 570u, bit_u32(MELLO_UI_BTN_FX), 0u);
+    if (u.fx_subpage != 3u) fail("FX", "DELAY did not go on to REVERB");
+    buttons(&u, 580u, bit_u32(MELLO_UI_BTN_FX), 0u);
+    if (u.fx_subpage != 0u) fail("FX", "REVERB did not go back to DISTORTION");
 }
 
 static void verify_context_actions(void)

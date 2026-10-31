@@ -316,8 +316,18 @@ same bevegelse meaning different things from page to page. The rules, decided 20
   readout's "where" line is the same path. The layer's name left the body (ui_section's right side, the parameter
   panels' title line), so it stands in one place. The key ("C MINOR") moved from the header to the status line, with
   the step of the length (12/16, or "16 ST" stopped), the slot and the save state (SAVED / EDITED / NOSAVE). Layer
-  names were shortened to fit 24 characters (OSC/FILT, AMP ENV, LFO, FOLLOWER, LEVEL, DLY CONF, MAIN, PITCH, TRIM,
-  SHAPE 1).
+  names were shortened to fit 24 characters (OSC/FILT, AMP ENV, LFO, FOLLOWER, LEVEL, MAIN, PITCH, TRIM, SHAPE 1).
+- **R1, the printed button is the section** (done). The FM-1's panel cannot be renamed, so the section is the button
+  and pressing it again goes to the section's next page, from anywhere else to its first; ALGORITHM turns the same
+  pages (it duplicated SELECT before), SELECT is the layer everywhere. The sections (UI_ICEBERG.md): SEQ (STEP,
+  SEGMENT, LOOP CYCLE, SLOT SEQ), ENV (SOUND, SAMPLE: a sound source, not a global), LFO (LFO, DOT, EVOLVE: the LFO is
+  a page of its own now, not a layer ENV steps over), FX (DISTORTION, DELAY, REVERB: the five layers in three pages,
+  DELAY with SEND and CONFIG, REVERB with ROOM and RETURNS), ARP (CHORD first, since the arpeggiator is its modes,
+  then BASS, then DRUMS), SEL (KEY / SCALE), GLO (MIX, GLOBAL). The SUB page is BASS, and so are MIX's fader and the
+  keys that name it. No layer is hidden: CHORD's GRID and PATTERN are always there, their title says GRID OFF / PTN
+  OFF when they are not in use, so SELECT's count is the same every time. OCT- / OCT+ stay what they were (the step
+  bank on HOME and STEP, the keyboard's octave in KEYS): that is established on the panel and the proposal to make
+  them the octave gave way to it.
 
 ## The splash (2026-10-31)
 

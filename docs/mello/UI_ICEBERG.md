@@ -46,18 +46,23 @@ From HOME: start, randomize, undo, shape the sound, set the tempo, mute steps an
 
 ## One down: the pages (one button each)
 
-| Button | Page | Layers (SELECT or press again) |
-|---|---|---|
-| ENV | **SOUND** | OSC / FILTER · OSC 2 · CHARACTER · GRIT · MOD ENV · TRACKING · AMP ENVELOPE · FOLLOWER SUB · LEVEL |
-| LFO | **MOD** | LFO · DOT MATRIX · EVOLVE (Turing) |
-| FX | **FX** | DISTORTION · DELAY · REVERB |
-| SEQ | **SEQ** | STEP (detail) · STRUCTURE (segments, loop, chain) |
-| ARP | **BASS** | SUB · CHORD · DRUMS |
-| SEL | **KEY / SCALE** | Root by pressing a key, scale on a knob |
-| GLO | **GLOBAL** | MIX · CLOCK · MIDI · SAMPLES |
+Since 2026-10-31 (DECISIONS.md "One thread", R1) the printed button *is* the section: pressed again (or ALGORITHM
+turned) it goes to the section's next page, SELECT is the layer, and the header reads BUTTON > PAGE > LAYER.
 
-Today's cross-page chains go: ENV→SAMPLE, LFO→DOT→TURING. The ENV button no longer ends up on the LFO (fixed),
-the sample layer moves to GLOBAL, and DOT and EVOLVE become layers of MOD.
+| Button | Pages (press again, or ALGORITHM) | Layers (SELECT) |
+|---|---|---|
+| SEQ | **STEP** · SEGMENT · LOOP CYCLE · SLOT SEQ | STEP: TRIG · NOTE · FLAGS · SEQ; LOOP: STEP · HARM · LOOP |
+| ENV | **SOUND** · SAMPLE | SOUND: OSC/FILT · OSC 2 · CHARACTER · GRIT · MOD ENV · TRACKING · AMP ENV · FOLLOWER · LEVEL; SAMPLE: MAIN · PITCH · TRIM · ENVELOPE |
+| LFO | **LFO** · DOT · EVOLVE | DOT: the five matrices (and a MOD lane's SHAPE); EVOLVE: MAIN · ROUTES · DEPTH · SOUND |
+| FX | **DISTORTION** · DELAY · REVERB | DELAY: SEND · CONFIG; REVERB: ROOM · RETURNS |
+| ARP | **CHORD** · BASS · DRUMS | CHORD: PLAY · CHORD · VOICING · GRID · PATTERN · TONE · FILTER · MOTION · AMP; BASS: PLAY · SEQ · STEP · VOICE · TONE · FILTER; DRUMS: VOICE · STEP · VARY · KIT · DIST |
+| SEL | **KEY / SCALE** | — |
+| GLO | **MIX** · GLOBAL | GLOBAL: CLOCK · MIDI · GROOVE |
+| hold RNDMZR | **RANDOM** | MASK · LINKS · EDIT |
+| hold SAVE | **SLOTS** | LOAD · RENAME |
+
+CHORD opens first under ARP because the arpeggiator is its ARP UP / DOWN / PATTERN modes. No layer is hidden: GRID
+and PATTERN are always there, and the title says GRID OFF / PTN OFF when they are not in use.
 
 ## The look: the HTML's
 

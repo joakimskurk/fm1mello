@@ -197,9 +197,9 @@ static const Case cases[] = {
     C("DRUMS KIT", MELLO_UI_DRUMS, 3, 15, 0, "LENGTH", "FOLLOW", "SPACE", "LEVEL"),
     C("DRUMS DIST", MELLO_UI_DRUMS, 4, 3, 0, "DRIVE", "FOLD", "", ""),
 #if MELLO_FEATURE_CHORD_MACHINE
-    C("MIX", MELLO_UI_MIX, 0, 15, 0, "LEAD", "SUB", "CHORD", "PERC")};
+    C("MIX", MELLO_UI_MIX, 0, 15, 0, "LEAD", "BASS", "CHORD", "PERC")};
 #else
-    C("MIX", MELLO_UI_MIX, 0, 11, 0, "LEAD", "SUB", "CHORD", "PERC")};
+    C("MIX", MELLO_UI_MIX, 0, 11, 0, "LEAD", "BASS", "CHORD", "PERC")};
 #endif
 
 int main(void)

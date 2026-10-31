@@ -27,7 +27,7 @@ static const HintCase hints[] = {
     {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B2:LOOP B9:UNDO B10:RNDMZR"},
     {"SUB", MELLO_UI_SUB, "B0:ON B4:STEP B9:UNDO B10:RNDMZR"},
 #if MELLO_FEATURE_CHORD_MACHINE
-    {"CHORD", MELLO_UI_CHORD, "B0:ON B1:SUB B9:UNDO B10:RNDMZR"},
+    {"CHORD", MELLO_UI_CHORD, "B0:ON B1:BASS B9:UNDO B10:RNDMZR"},
 #endif
     {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B3:RST2 B9:UNDO B10:RNDMZR"},
     {"SOUND", MELLO_UI_SOUND_RESERVED, "B0:INIT B9:UNDO B10:RNDMZR"},
@@ -35,9 +35,9 @@ static const HintCase hints[] = {
     {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B9:UNDO B10:RNDMZR"},
     {"DRUMS", MELLO_UI_DRUMS, "B0:K B1:S B2:H B3:G B4:ON B5:ACC B6:ROLL B7:FEED B9:UNDO B10:RNDMZR"},
 #if MELLO_FEATURE_CHORD_MACHINE
-    {"MIX", MELLO_UI_MIX, "B0:LEAD B1:SUB B2:CHORD B3:PERC B9:UNDO B10:RNDMZR"},
+    {"MIX", MELLO_UI_MIX, "B0:LEAD B1:BASS B2:CHRD B3:PERC B9:UNDO B10:RNDMZR"},
 #else
-    {"MIX", MELLO_UI_MIX, "B0:LEAD B1:SUB B3:PERC B9:UNDO B10:RNDMZR"},
+    {"MIX", MELLO_UI_MIX, "B0:LEAD B1:BASS B3:PERC B9:UNDO B10:RNDMZR"},
 #endif
 };
 
@@ -261,21 +261,15 @@ static void verify_mod_navigation(void)
     press(&u, 400u, bit_u32(MELLO_UI_BTN_LFO), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 2u || t.engine.tm.on != on)
         die("MOD wrap", "physical MOD toggled Turing or failed wrap");
-    /* ENV after LFO: SOUND from OSC, not the LFO again; ENV again steps SOUND's layers, never onto the LFO. */
+    /* ENV after LFO: SOUND from OSC, not the LFO again (R1: ENV's pages are SOUND and SAMPLE; the LFO is LFO's). */
     press(&u, 410u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u)
         die("ENV after LFO", "stayed on Audio LFO");
     press(&u, 420u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 6u)
-        die("ENV 2", "OSC is not followed by OSC 2");
-    press(&u, 422u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* CHARACTER */
-    press(&u, 423u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* GRIT */
-    press(&u, 424u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* MOD ENV */
-    press(&u, 424u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* TRACKING */
-    press(&u, 425u, bit_u32(MELLO_UI_BTN_ENV), 0u); /* AMP ENV */
+    if (u.page != MELLO_UI_SAMPLE_RESERVED) die("ENV 2", "SOUND is not followed by SAMPLE");
     press(&u, 430u, bit_u32(MELLO_UI_BTN_ENV), 0u);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 3u)
-        die("ENV 4", "did not skip the LFO layer");
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u)
+        die("ENV 3", "SAMPLE did not go back to SOUND");
     mello_ui_set_page(&u, MELLO_UI_HOME); /* from elsewhere: always the first layer */
     press(&u, 440u, bit_u32(MELLO_UI_BTN_ENV), 0u);
     if (u.page != MELLO_UI_SOUND_RESERVED || u.sound_subpage != 0u) die("ENV", "did not open SOUND on OSC");

@@ -35,7 +35,7 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       keys do on each; the words and units each value uses. The deviations marked. Built from the code's own tables,
       as a page to review. docs/mello/UI_MAP.md (generated), the review page with the deviations (A-L) and the
       proposal (R1-R7) handed over 2026-10-31.
-- [ ] C2. Rules, decided by the product owner from the map. The frame: the M-VAVE FM-1's panel is printed (OCT-,
+- [x] C2. Rules, decided by the product owner 2026-10-31 (the proposal as revised for the printed panel). The frame: the M-VAVE FM-1's panel is printed (OCT-,
       OCT+, FX, SEL, ENV, LFO, EDIT, GLO, HOME, SAVE, ARP, SEQ, PLAY, REC; SELECT, ALGORITHM, PRESETS, K1-K4) and
       the firmware cannot rename a button, so the printed name is the section's name. Proposals:
       - the printed button is the section (SEQ, ENV, LFO, FX, ARP, SEL, GLO) and pressing it again goes to the

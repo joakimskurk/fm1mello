@@ -74,7 +74,32 @@ static uint8_t layer(const MelloUi *u, MelloUiPage p)
     }
 }
 
-static void verify_algorithm_duplicates_select(void)
+/* R1 (2026-10-31): SELECT is the layer, ALGORITHM the page of the section. Where ALGORITHM +1 goes from each page,
+ * or stays (a section of one page, and HOME, where it is RANDOM's intensity). */
+static MelloUiPage section_next_page(MelloUiPage p)
+{
+    switch (p) {
+    case MELLO_UI_SEQ_STEP: return MELLO_UI_SEQ_SEGMENT;
+    case MELLO_UI_SEQ_SEGMENT: return MELLO_UI_SEQ_LOOP;
+    case MELLO_UI_SEQ_LOOP: return MELLO_UI_SEQ_SLOTSEQ;
+    case MELLO_UI_SEQ_SLOTSEQ: return MELLO_UI_SEQ_STEP;
+    case MELLO_UI_DOT: return MELLO_UI_TURING;
+    case MELLO_UI_TURING: return MELLO_UI_SOUND_RESERVED; /* the LFO page */
+    case MELLO_UI_SUB: return MELLO_UI_DRUMS;
+#if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_UI_CHORD: return MELLO_UI_SUB;
+    case MELLO_UI_DRUMS: return MELLO_UI_CHORD;
+#else
+    case MELLO_UI_DRUMS: return MELLO_UI_SUB;
+#endif
+    case MELLO_UI_GLOBAL: return MELLO_UI_MIX;
+    case MELLO_UI_SOUND_RESERVED: return MELLO_UI_SAMPLE_RESERVED;
+    case MELLO_UI_SAMPLE_RESERVED: return MELLO_UI_SOUND_RESERVED;
+    default: return p; /* HOME, RANDOM, KEY / SCALE, SLOTS, AUDIO FX (its pages are its layer groups) */
+    }
+}
+
+static void verify_select_is_layer_algorithm_is_page(void)
 {
     unsigned i;
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
@@ -86,14 +111,18 @@ static void verify_algorithm_duplicates_select(void)
         setup(&pb, &tb, &sb, &b, cases[i].page);
         turn(&a, MELLO_UI_ENC_SELECT, +1);
         turn(&b, MELLO_UI_ENC_ALGORITHM, +1);
-        if (layer(&a, cases[i].page) != layer(&b, cases[i].page))
-            fail(cases[i].name, "ALGORITHM no longer duplicates SELECT layer movement");
         /* SOUND's second layer is OSC 2, subpage 6 (Phase 5's layers came later, and sit after OSC). */
-        if (cases[i].layers > 1u &&
+        if (cases[i].layers > 1u && cases[i].page != MELLO_UI_AUDIO_FX &&
             layer(&a, cases[i].page) != (cases[i].page == MELLO_UI_SOUND_RESERVED ? 6u : 1u))
             fail(cases[i].name, "layer encoder baseline mismatch");
         if (cases[i].layers == 1u && layer(&a, cases[i].page) != 0u)
             fail(cases[i].name, "single-layer page unexpectedly moved");
+        if (b.page != section_next_page(cases[i].page))
+            fail(cases[i].name, "ALGORITHM did not turn to the section's next page");
+        if (cases[i].page == MELLO_UI_AUDIO_FX && b.fx_subpage != 1u)
+            fail(cases[i].name, "ALGORITHM did not turn FX to DELAY");
+        if (cases[i].page == MELLO_UI_AUDIO_FX && a.fx_subpage != 0u)
+            fail(cases[i].name, "SELECT left DISTORTION, which has one layer");
     }
 }
 
@@ -134,13 +163,14 @@ static void verify_loop_k4_inert(void)
 
 int main(void)
 {
-    verify_algorithm_duplicates_select();
+    verify_select_is_layer_algorithm_is_page();
     verify_presets_global_slot_cursor();
     verify_loop_k4_inert();
-    printf("C1 ENCODER MAP: page/layers=%u ALGORITHM=SELECT-duplicate PRESETS=global-slot-cursor "
+    printf("C1 ENCODER MAP: page/layers=%u ALGORITHM=section-page PRESETS=global-slot-cursor "
            "LOOP-K4=inert\n",
            (unsigned)(sizeof(cases) / sizeof(cases[0])));
-    puts("PASS: encoder baseline preserves SELECT/ALGORITHM/PRESETS while LOOP K4 is inert after C4 "
+    puts("PASS: encoder baseline: SELECT the layer, ALGORITHM the page, PRESETS the slot, while LOOP K4 is "
+         "inert after C4 "
          "migration");
     return 0;
 }
