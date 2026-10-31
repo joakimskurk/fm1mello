@@ -5530,10 +5530,9 @@ static void draw_env_panel(MelloUi *ui, const MelloUiDrawOps *o)
     footer_texts(ui, l, v);
     ui_round_fill(o, 4, 31, 232, 138, UI_PANEL);
     ui_round_frame(o, 4, 31, 232, 138, ui_mix(UI_GOLD, UI_BLACK, 150));
-    ui_spaced(o, 10, 34, 120, "ENVELOPE", UI_GOLD, 0);
-    draw_env_curve(o, &e->sound, 12, 52, 216, 44);
+    draw_env_curve(o, &e->sound, 12, 34, 216, 40); /* the same body as every layer: the picture, four rows */
     for (k = 0u; k < 4u; ++k) {
-        int16_t y = (int16_t)(100 + k * 17);
+        int16_t y = (int16_t)(80 + k * 22);
         uint16_t c = knob_colour(ui, k), nv, nm;
         o->text(o->ctx, 10, y, 10, 0, letter[k], c, 0);
         if (knob_norm(ui, k, &nv, &nm)) ui_slider(o, 24, (int16_t)(y + 5), 146, nv, nm, c);
@@ -5541,7 +5540,260 @@ static void draw_env_panel(MelloUi *ui, const MelloUiDrawOps *o)
     }
 }
 
-/* A layer as the HTML's synth panel: its title spaced in the domain's colour, then K1-K4 as rows, each a label and
+/* ---- The part's picture (C2: "one body grammar: the part's picture on top, its four values below"). Each layer's
+ * picture is drawn from its values with fills alone, in the page's colour: what the knobs do, seen. */
+static const int16_t UI_QSINE[33] = {0,   49,  98,  147, 195, 243, 290, 337, 383, 428, 471,
+                                     514, 556, 596, 634, 672, 707, 741, 773, 803, 831, 858,
+                                     882, 904, 924, 942, 957, 970, 981, 989, 995, 999, 1000};
+/* sin of a phase 0..255 (a cycle), +-1000 */
+static int32_t pic_sine(uint32_t p)
+{
+    uint32_t q = p & 63u;
+    int32_t v = (p & 64u) ? UI_QSINE[32u - (q >> 1)] : UI_QSINE[q >> 1];
+    return (p & 128u) ? -v : v;
+}
+/* a waveform at phase 0..255, +-1000 */
+static int32_t pic_wave(MelloWaveform w, uint32_t p, uint16_t pwm)
+{
+    switch (w) {
+    case MELLO_WAVE_SAW: return (int32_t)p * 2000 / 256 - 1000;
+    case MELLO_WAVE_SQUARE: return p < 128u ? 1000 : -1000;
+    case MELLO_WAVE_TRIANGLE:
+        return p < 128u ? -1000 + (int32_t)p * 2000 / 128 : 1000 - (int32_t)(p - 128u) * 2000 / 128;
+    case MELLO_WAVE_SINE: return pic_sine(p);
+    case MELLO_WAVE_PULSE: return p < (1000u + pwm) * 256u / 2000u ? 1000 : -1000;
+    default: return 0;
+    }
+}
+/* one column of a trace: the value v (+-1000) at column x, joined to the column before (prev, +-1000, or the
+ * sentinel 0x7FFF for none) so steps show as lines */
+static void pic_dot(const MelloUiDrawOps *o, int16_t x, int16_t y0, int16_t h, int32_t v, int32_t *prev,
+                    uint16_t col)
+{
+    int16_t mid = (int16_t)(y0 + h / 2), py = (int16_t)(mid - v * (h / 2 - 1) / 1000), qy = py;
+    if (*prev != 0x7FFF) qy = (int16_t)(mid - *prev * (h / 2 - 1) / 1000);
+    if (qy < py)
+        o->fill(o->ctx, x, qy, 1, (int16_t)(py - qy + 1), col);
+    else
+        o->fill(o->ctx, x, py, 1, (int16_t)(qy - py + 1), col);
+    *prev = v;
+}
+/* a wave, cycles of it across w, at amplitude amp (0..1000) */
+static void pic_wave_trace(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h,
+                           MelloWaveform wave, uint16_t pwm, int32_t amp, uint8_t cycles, uint16_t col)
+{
+    int32_t prev = 0x7FFF, i;
+    for (i = 0; i < w; ++i)
+        pic_dot(o, (int16_t)(x + i), y, h,
+                pic_wave(wave, (uint32_t)(i * 256 * cycles / w) & 255u, pwm) * amp / 1000, &prev, col);
+}
+/* a filter's response: flat, then falling past cut (0..1000 of the width), a bump of res at the corner; the mode as
+ * the main filter's (LP, HP, BP, NOTCH) */
+static void pic_filter(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t cut,
+                       uint16_t res, MelloFilterMode mode, uint16_t col)
+{
+    int32_t prev = 0x7FFF, i, cx = (int32_t)cut * (w - 1) / 1000, third = w / 3 ? w / 3 : 1;
+    for (i = 0; i < w; ++i) {
+        int32_t d = i - cx, ad = d < 0 ? -d : d, lv;
+        int32_t fall = exp_neg_q15(ad * 32 / third) * 1000 / 32767; /* 1000 at the corner, down from it */
+        switch (mode) {
+        case MELLO_FILTER_HP: lv = d >= 0 ? 1000 : fall; break;
+        case MELLO_FILTER_BP: lv = fall; break;
+        case MELLO_FILTER_NOTCH: lv = 1000 - fall; break;
+        default: lv = d <= 0 ? 1000 : fall; break;
+        }
+        if (ad < 6 && mode != MELLO_FILTER_NOTCH) lv += (int32_t)res * 700 / 1000 * (6 - ad) / 6;
+        if (lv > 1600) lv = 1600;
+        pic_dot(o, (int16_t)(x + i), y, h, lv * 1200 / 1600 - 1000, &prev, col);
+    }
+}
+/* a rise and a fall (the MOD envelope: ATTACK, DECAY), amp +-1000 (a negative amount hangs down) */
+static void pic_ad(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t attack_ms,
+                   uint32_t decay_ms, int32_t amp, uint16_t col)
+{
+    int32_t prev = 0x7FFF, i, sum = (int32_t)(attack_ms + decay_ms), wa;
+    if (sum < 1) sum = 1;
+    wa = (int32_t)attack_ms * (w * 3 / 4) / sum;
+    if (wa < 1) wa = 1;
+    for (i = 0; i < w; ++i) {
+        int32_t lv = i < wa ? 1000 * (i + 1) / wa : exp_neg_q15((i - wa) * 40 / (w - wa)) * 1000 / 32767;
+        pic_dot(o, (int16_t)(x + i), y, h, lv * amp / 1000, &prev, col);
+    }
+}
+/* echoes: a bar, then one every TIME (30..1500 ms: a sixth to half the width), each FEEDBACK of the one before */
+static void pic_echoes(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t time_ms,
+                       uint16_t feedback, uint16_t col, uint16_t dim)
+{
+    int32_t gap = 8 + (int32_t)(time_ms > 1500u ? 1500u : time_ms) * (w / 2 - 8) / 1500, lv = 1000, bx = 0;
+    o->fill(o->ctx, x, (int16_t)(y + h - 1), w, 1, UI_LINE);
+    while (bx < w && lv > 30) {
+        int16_t bh = (int16_t)((h - 2) * lv / 1000);
+        o->fill(o->ctx, (int16_t)(x + bx), (int16_t)(y + h - 1 - bh), 3, bh, bx ? dim : col);
+        bx += gap;
+        lv = lv * (int32_t)feedback / 1000;
+    }
+}
+/* a tail: a gap of PRE, then a fall over DECAY (0.4 .. 60 s, doubling across the width), as tall as SIZE */
+static void pic_tail(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t pre_ms,
+                     uint32_t decay_ms, uint16_t size, uint16_t col, uint16_t dim)
+{
+    int32_t i, px = (int32_t)(pre_ms > 120u ? 120u : pre_ms) * (w / 6) / 120, span, k = 0;
+    uint32_t d = decay_ms < 400u ? 400u : decay_ms;
+    o->fill(o->ctx, x, (int16_t)(y + h - 1), w, 1, UI_LINE);
+    while (d > 400u && k < 7) d /= 2u, ++k; /* 0.4 s .. 51 s in seven doublings */
+    span = (w - px) * (2 + k) / 9;
+    if (span < 1) span = 1;
+    for (i = px; i < w; i += 2) {
+        int32_t lv = exp_neg_q15((i - px) * 40 / span) * 1000 / 32767;
+        int16_t bh = (int16_t)((h - 2) * lv / 1000 * (600 + (int32_t)size * 400 / 1000) / 1000);
+        if (bh < 1) break;
+        o->fill(o->ctx, (int16_t)(x + i), (int16_t)(y + h - 1 - bh), 1, bh, i == px ? col : dim);
+    }
+}
+/* sixteen ticks of a bar (the clock), the odd ones late by swing (0..1000: up to half a step), every nth lit */
+static void pic_ticks(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t swing,
+                      uint8_t every, uint16_t col, uint16_t dim)
+{
+    uint8_t i;
+    int32_t step = w / 16;
+    o->fill(o->ctx, x, (int16_t)(y + h - 1), w, 1, UI_LINE);
+    for (i = 0u; i < 16u; ++i) {
+        int32_t tx = x + i * step + ((i & 1u) ? step * (int32_t)swing / 2000 : 0);
+        bool on = every && (i % every) == 0u;
+        o->fill(o->ctx, (int16_t)tx, (int16_t)(y + (on ? 2 : h / 2)), 2, (int16_t)(on ? h - 3 : h / 2 - 1),
+                on ? col : dim);
+    }
+}
+/* grains: dots as dense as amount (0..1000), the same every time (an LCG seeded once) */
+static void pic_grains(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t amount,
+                       uint16_t col)
+{
+    uint32_t seed = 0x9E3779B9u, n = (uint32_t)w * (uint32_t)h * amount / 6000u, i;
+    for (i = 0u; i < n; ++i) {
+        seed = seed * 1664525u + 1013904223u;
+        o->fill(o->ctx, (int16_t)(x + (seed >> 8) % (uint32_t)w), (int16_t)(y + (seed >> 20) % (uint32_t)h),
+                1, 1, col);
+    }
+}
+/* levels as bars (0..1500) */
+static void pic_bars(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *lv,
+                     uint8_t n, uint16_t col)
+{
+    uint8_t i;
+    int16_t bw = (int16_t)((w - (n - 1) * 6) / n);
+    o->fill(o->ctx, x, (int16_t)(y + h - 1), w, 1, UI_LINE);
+    for (i = 0u; i < n; ++i) {
+        int16_t bh = (int16_t)((h - 2) * (lv[i] > 1500u ? 1500u : lv[i]) / 1500);
+        if (bh > 0) o->fill(o->ctx, (int16_t)(x + i * (bw + 6)), (int16_t)(y + h - 1 - bh), bw, bh, col);
+    }
+}
+static void draw_layer_picture(MelloUi *ui, const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w,
+                               int16_t h, uint16_t accent)
+{
+    MelloEngine *e = eng(ui);
+    uint16_t dim = ui_mix(accent, UI_PANEL, 140);
+    const MelloSoundConfig *c;
+    if (!e) return;
+    c = &e->sound;
+    switch (ui->page) {
+    case MELLO_UI_SOUND_RESERVED:
+        switch (ui->sound_subpage) {
+        case 0u: /* OSC/FILT: the wave, and the filter it goes into */
+            pic_wave_trace(o, x, y, (int16_t)(w - 76), h, c->osc_wave, c->pwm_permille, 850, 2u, accent);
+            pic_filter(o, (int16_t)(x + w - 64), y, 64, h, c->filter_cut, c->filter_res, c->filter_mode, dim);
+            break;
+        case 2u: /* LFO: its swing, as deep as DEPTH */
+            pic_wave_trace(o, x, y, w, h, MELLO_WAVE_SINE, 500u,
+                           c->lfo_on ? 200 + (int32_t)c->lfo_depth * 800 / 1000 : 150, 3u,
+                           c->lfo_on ? accent : dim);
+            break;
+        case 3u: /* FOLLOWER: the sub's wave under the lead's */
+            pic_wave_trace(o, x, y, w, h, c->osc_wave, c->pwm_permille, 400, 4u, dim);
+            pic_wave_trace(o, x, y, w, h, c->follower_sub_wave, 500u, c->follower_sub_on ? 900 : 0, 2u,
+                           accent);
+            break;
+        case 4u: { /* LEVEL: master and lead */
+            uint16_t lv[2];
+            lv[0] = c->master_level, lv[1] = c->lead_level;
+            pic_bars(o, (int16_t)(x + w / 4), y, (int16_t)(w / 2), h, lv, 2u, accent);
+            break;
+        }
+        case 5u: /* GRIT: the wave with its grains, unison's copies beside it */
+            pic_wave_trace(o, x, y, w, h, c->osc_wave, c->pwm_permille, 800, 2u, accent);
+            if (c->unison > 1u)
+                pic_wave_trace(o, (int16_t)(x + 3), y, (int16_t)(w - 3), h, c->osc_wave, c->pwm_permille, 800,
+                               2u, dim);
+            pic_grains(o, x, y, w, h, (uint16_t)(c->noise_level + c->noise_fm), accent);
+            break;
+        case 6u: /* OSC 2: both */
+            pic_wave_trace(o, x, y, w, h, c->osc_wave, c->pwm_permille,
+                           1000 - (int32_t)c->osc2_mix * 600 / 1000, 2u, dim);
+            pic_wave_trace(o, x, y, w, h, c->osc2_wave, c->pwm_permille,
+                           c->osc2_wave == MELLO_WAVE_OFF ? 0 : 400 + (int32_t)c->osc2_mix * 600 / 1000, 3u,
+                           accent);
+            break;
+        case 7u: /* CHARACTER: the filter's mode, and the saturation squaring the wave */
+            pic_filter(o, x, y, (int16_t)(w / 2 - 6), h, c->filter_cut, c->filter_res, c->filter_mode,
+                       accent);
+            pic_wave_trace(o, (int16_t)(x + w / 2 + 6), y, (int16_t)(w / 2 - 6), h,
+                           c->saturation > 300u ? MELLO_WAVE_SQUARE : c->osc_wave, c->pwm_permille,
+                           500 + (int32_t)c->saturation * 500 / 1000, 2u, dim);
+            break;
+        case 8u: /* MOD ENV: its rise and fall, hanging down for a negative amount */
+            pic_ad(o, x, y, w, h, c->menv_attack_ms, c->menv_decay_ms,
+                   c->menv_amount == 0 ? 300 : (c->menv_amount < 0 ? -1000 : 1000),
+                   c->menv_amount ? accent : dim);
+            break;
+        case 9u: { /* TRACKING: the cutoff against the key, steeper with KEY TRACK */
+            int32_t prev = 0x7FFF, i;
+            for (i = 0; i < w; ++i)
+                pic_dot(o, (int16_t)(x + i), y, h, (i - w / 2) * 2000 / w * (int32_t)c->key_track / 1000,
+                        &prev, accent);
+            break;
+        }
+        default: break;
+        }
+        break;
+    case MELLO_UI_AUDIO_FX:
+        switch (ui->fx_subpage) {
+        case 0u: { /* DISTORTION: the curve a wave goes through */
+            int32_t prev = 0x7FFF, i, g = 1000 + (int32_t)e->fx.dist_amount * 7;
+            for (i = 0; i < w; ++i) {
+                int32_t t = (i - w / 2) * 2000 / w * g / 1000;
+                if (t > 1000) t = 1000;
+                if (t < -1000) t = -1000;
+                pic_dot(o, (int16_t)(x + i), y, h, (3 * t - t * t / 1000 * t / 1000) / 2, &prev, accent);
+            }
+            break;
+        }
+        case 1u:
+        case 2u: pic_echoes(o, x, y, w, h, e->fx.delay_time_ms, e->fx.delay_feedback, accent, dim); break;
+        default:
+            pic_tail(o, x, y, w, h, e->fx.reverb_pre_ms, e->fx.reverb_decay_ms, e->fx.reverb_size, accent,
+                     dim);
+            break;
+        }
+        break;
+    case MELLO_UI_GLOBAL:
+        switch (ui->global_subpage) {
+        case 0u: /* CLOCK: the bar's sixteenths, the beats lit; the chip's audio load beside (B5) */
+            pic_ticks(o, x, y, (int16_t)(w - 70), h, 0u, 4u, accent, dim);
+            if (ui->audio_load) {
+                char b[16];
+                value_pct(copy_s(b, "CPU "), ui->audio_load);
+                o->text(o->ctx, (int16_t)(x + w - 64), (int16_t)(y + h / 2 - 6), 64, 0, b, UI_DIM, 2);
+            }
+            break;
+        case 2u:
+            pic_ticks(o, x, y, w, h, e->drums.swing, 4u, accent, dim);
+            break; /* GROOVE: the odd ones late */
+        default: break;
+        }
+        break;
+    default: break;
+    }
+}
+/* A layer as one body (C2): the part's picture on top, drawn from its values, then K1-K4 as rows, each a label and
  * its value, with the HTML's slider under a continuous value and a pill around a list's or a switch's. The texts are
  * the footer's (footer_texts), the colours knob_colour's (the envelope's A D S R as the HTML's letters). */
 static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o)
@@ -5557,20 +5809,16 @@ static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o)
     footer_texts(ui, l, v);
     ui_round_fill(o, 4, 31, 232, 138, UI_PANEL);
     ui_round_frame(o, 4, 31, 232, 138, ui_mix(accent, UI_BLACK, 150));
-    (void)title;                                         /* the layer's name is in the header (R2) */
-    if (ui->page == MELLO_UI_GLOBAL && ui->audio_load) { /* the chip's audio load, measured: "CPU 33%" */
-        char b[16];
-        value_pct(copy_s(b, "CPU "), ui->audio_load);
-        o->text(o->ctx, 138, 36, 92, 0, b, UI_DIM, 2);
-    }
+    (void)title; /* the layer's name is in the header (R2) */
+    draw_layer_picture(ui, o, 10, 34, 220, 40, accent);
     for (k = 0u; k < 4u; ++k) {
-        int16_t y = (int16_t)(56 + k * 28);
+        int16_t y = (int16_t)(80 + k * 22);
         uint16_t c = knob_colour(ui, k), nv, nm;
         if (!v[k][0] || (v[k][0] == '-' && !v[k][1])) continue; /* an empty knob: no row */
         ui_spaced(o, 10, y, 128, full_label(l[k]), c == accent ? UI_DIM : c, 0);
         if (knob_norm(ui, k, &nv, &nm)) {
             o->text(o->ctx, 138, y, 92, 0, v[k], c, 2);
-            ui_slider(o, 10, (int16_t)(y + 18), 220, nv, nm, c);
+            ui_slider(o, 10, (int16_t)(y + 16), 220, nv, nm, c);
         } else {
             int16_t w = (int16_t)(ui_text_len(v[k]) * 8u + 8u);
             ui_round_frame(o, (int16_t)(230 - w), (int16_t)(y - 1), w, 18, c);

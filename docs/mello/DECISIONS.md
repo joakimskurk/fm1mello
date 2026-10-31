@@ -623,6 +623,25 @@ HOME, STEP, SEGMENT and RANDOM keep a compact 4..32-step visual overview. Do not
 
 Finish and verify Step 4 before implementing later product expansion. A P0 reliability defect may be fixed earlier only if it blocks meaningful Step 4 testing. Undo Last Random stays separate from Step 4.
 
+## One body (2026-10-31)
+
+C2's last rule, "one body grammar: the part's picture on top, its four values below as sliders, the section's
+colour", applied to the parameter layers. The ENV panel had it (the envelope's curve, A D S R under it); every
+layer drawn by draw_param_panel has it now: a 40-pixel picture at the top of the panel, drawn from the layer's
+values with fills alone (draw_layer_picture), then the four knobs as rows of 22 pixels, label and value on the
+line and the slider under. The pictures say what the knobs do: OSC/FILT the wave and the filter it goes into (the
+cutoff's corner, the resonance's bump, the mode's shape), LFO the swing as deep as DEPTH, FOLLOWER the sub's wave
+under the lead's, LEVEL master and lead as bars, GRIT the wave with its grains and unison's copy, OSC 2 over OSC 1
+as mixed, CHARACTER the filter's mode and the saturation squaring the wave, MOD ENV the rise and fall (hanging down
+for a negative amount), TRACKING the cutoff against the key, DISTORTION the curve a wave goes through, the delay's
+echoes a TIME apart and FEEDBACK of each other, the reverb's tail after PRE as long as DECAY, the clock's sixteenths
+with the beats lit (and the chip's measured audio load beside, B5), GROOVE's odd ticks late by SWING. The ENV
+panel's "ENVELOPE" title went the way of the others (R2: the layer's name is in the header).
+
+Not yet one body: the pages with their own pictures (STEP, SEGMENT, CHORD, KEY, MIX, SUB, DRUMS, DOT, EVOLVE) keep
+a picture over a 2 x 2 of values (draw_knob_grid). Rows under the picture there too is the last step, when the
+pictures have been lived with.
+
 ## Room to run (2026-10-31)
 
 The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopped saving, and a CPU figure from

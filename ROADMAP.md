@@ -63,8 +63,14 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       - one body grammar: the part's picture on top, its four values below as sliders, the section's colour.
 - [x] C3. Applied 2026-10-31 in six commits (R5 words and units, R2 the header, R1 the sections, R3 the black keys,
       R4 / R6 the white keys, SEL and EDIT); locked in ui_glossary (words, units) and the control contracts (every
-      page's strip, the sections' order, the encoders' roles). Still to do here: the body grammar design pass (R5's
-      "one body"), and the hand checklist (C4).
+      page's strip, the sections' order, the encoders' roles). The body grammar (R5's "one body") 2026-10-31, in
+      part: every parameter layer (SOUND, FX, GLOBAL, the ENV panel) is the part's picture on top, drawn from its
+      values, and its four values as rows below; the pictures: the wave and its filter, the LFO's swing, the
+      follower's wave under the lead's, master and lead, grit's grains, OSC 2 over OSC 1, the filter's mode and the
+      saturation, the MOD envelope, key tracking, the distortion's curve, the echoes, the tail, the clock's ticks
+      (with the measured CPU load), the groove. Left: the pages with their own bodies (STEP, SEGMENT, CHORD, KEY,
+      MIX, SUB, DRUMS, DOT, EVOLVE) keep a picture and a 2 x 2 of values; rows under the picture there too would be
+      the last step of one body.
 - [ ] C4. A short hand checklist on the FM-1 (with the first flash, below).
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, first flash and C4.
