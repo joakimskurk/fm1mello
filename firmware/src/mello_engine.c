@@ -3948,3 +3948,120 @@ const char *mello_scale_name(MelloScale scale)
     if (scale >= MELLO_SCALE_COUNT) scale = MELLO_SCALE_MINOR;
     return SCALES[scale].name;
 }
+
+void mello_engine_stress(MelloEngine *e)
+{
+    MelloSoundConfig s;
+    MelloFxConfig fx;
+    MelloSubConfig sub;
+    MelloBassConfig bass;
+    MelloDrumConfig d;
+    MelloModRouting modr;
+    MelloDotMatrixConfig dot;
+    uint8_t i;
+    if (!e) return;
+    e->project.bpm = 140u;
+    e->project.seq_len = 16u;
+    for (i = 0u; i < 16u; ++i) {
+        MelloStep *st = &e->project.steps[i];
+        st->pitch = (int8_t)(i % 7u);
+        st->pulses = 1u;
+        st->ratchet = (uint8_t)(i & 1u ? 4u : 2u);
+        st->gate = MELLO_GATE_MULTI;
+        st->accent = (i & 1u) != 0u;
+        st->slide = (i % 3u) == 0u;
+        st->sub = true;
+        st->skip = false;
+        st->probability = 65535u;
+    }
+    (void)mello_engine_rebuild_sequence(e);
+    s = e->sound;
+    s.unison = MELLO_UNISON_MAX;
+    s.detune = 600u;
+    s.noise_level = 300u;
+    s.noise_fm = 300u;
+    s.osc2_wave = MELLO_WAVE_SQUARE;
+    s.osc2_mix = 500u;
+    s.osc2_sync = true;
+    s.fm_amount = 500u;
+    s.saturation = 500u;
+    s.filter_res = 500u;
+    s.lfo_on = true;
+    s.lfo_target = MELLO_LFO_FILTER;
+    s.lfo_depth = 500u;
+    s.menv_amount = 500;
+    s.follower_sub_on = true;
+    s.follower_sub_level = 500u;
+    mello_engine_sound_set_config(e, &s);
+    fx = e->fx;
+    fx.dist_amount = 600u;
+    fx.delay_wet = 500u;
+    fx.delay_feedback = 600u;
+    fx.delay_lowcut = 300u;
+    fx.reverb_wet = 500u;
+    fx.reverb_size = 800u;
+    fx.reverb_decay_ms = 8000u;
+    mello_engine_fx_set_config(e, &fx);
+    sub = e->sub;
+    sub.on = true;
+    sub.drive = 500u;
+    mello_engine_sub_set_config(e, &sub);
+    bass = e->bass;
+    bass.on = true;
+    bass.res = 600u;
+    bass.env = 600u;
+    bass.accent = 600u;
+    for (i = 0u; i < MELLO_BASS_STEPS; ++i) {
+        bass.steps[i].on = true;
+        bass.steps[i].accent = (i & 1u) != 0u;
+        bass.steps[i].glide = (i & 2u) != 0u;
+        bass.steps[i].octave = (int8_t)((i & 4u) ? 1 : 0);
+    }
+    mello_engine_bass_set_config(e, &bass);
+    d = e->drums;
+    d.on = true;
+    d.feed = true;
+    d.feed_sound = true;
+    d.roll = 500u;
+    d.drive = 600u;
+    d.fold = 500u;
+    d.space = 500u;
+    for (i = 0u; i < MELLO_DRUM_VOICES; ++i) {
+        uint8_t k;
+        d.hits[i] = 0xFFFFu;
+        d.accents[i] = 0x5555u;
+        for (k = 0u; k < MELLO_DRUM_STEPS; ++k) {
+            d.lock[i][k].ratchet = (uint8_t)((k & 3u) == 3u ? 4u : 1u);
+            d.lock[i][k].crush = (uint8_t)(k * 6u);
+        }
+    }
+    d.voice[MELLO_DRUM_GLITCH].tone = 1000u; /* STUTTER: the memory read and written */
+    d.voice[MELLO_DRUM_GLITCH].crush = 300u;
+    mello_engine_drums_set_config(e, &d);
+#if MELLO_FEATURE_CHORD_MACHINE
+    {
+        MelloChordConfig ch = e->chord;
+        ch.on = true;
+        ch.mode = MELLO_CHORD_HOLD;
+        ch.trigger = MELLO_CHORD_TRIGGER_STEP;
+        ch.voices = 4u;
+        ch.level = 600u;
+        ch.chorus = 800u;
+        ch.res = 500u;
+        ch.fenv = 500u;
+        ch.space = 800u;
+        ch.strum_ms = 20u;
+        mello_engine_chord_set_config(e, &ch);
+    }
+#endif
+    modr = e->modr;
+    modr.dot_target[0] = MELLO_DEST_CUTOFF;
+    modr.dot_target[1] = MELLO_DEST_PITCH;
+    mello_engine_mod_routing_set(e, &modr);
+    for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) {
+        dot = e->dot[i];
+        dot.cells = 0xFFFFu;
+        dot.amount = 500u;
+        mello_engine_dot_set_config(e, (MelloDotTarget)i, &dot);
+    }
+}

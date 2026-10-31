@@ -1013,6 +1013,11 @@ void mello_engine_chord_name(const MelloEngine *engine, uint8_t chord_step, char
 void mello_engine_sound_set_config(MelloEngine *engine, const MelloSoundConfig *config);
 void mello_engine_sample_set_config(MelloEngine *engine, const MelloSampleConfig *config);
 void mello_engine_fx_set_config(MelloEngine *engine, const MelloFxConfig *config);
+/* The worst case the chip must carry (ROADMAP B1; tests/bench/cpu_bench.c, a -DMELLO_STRESS firmware): every part
+ * on and busy at once: ratchets on every step, the lead with unison 4, OSC 2 with FM, noise and saturation, the LFO,
+ * the sub on BASS SEQ with RES and ENV, four chord voices held with chorus, the drums on every step with rolls,
+ * ratchets and DRIVE, delay, reverb, distortion, and both MOD lanes. */
+void mello_engine_stress(MelloEngine *engine);
 
 /* Source RANDOM button. Mutates all 32 backing steps, conditional on mask. */
 void mello_engine_set_randomize_mask(MelloEngine *engine, uint16_t mask);

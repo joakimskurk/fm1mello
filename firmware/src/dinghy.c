@@ -202,6 +202,10 @@ static void app_main(void)
         io.program = mello_flash_program;
         mello_storage_init(&storage, &io, 0);
         (void)mello_storage_load(&storage, &mt.engine);
+#ifdef MELLO_STRESS
+        mello_engine_stress(
+            &mt.engine); /* a measuring build: the worst case, whatever was saved (tools/emu_cpu.sh) */
+#endif
         mello_transport_set_bpm(&mt, mt.engine.project.bpm);
         storage_ready = true;
         mello_ui_init(&ui, &mt, &storage);
