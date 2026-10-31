@@ -5590,12 +5590,14 @@ static void draw_footer(MelloUi *ui, const MelloUiDrawOps *o)
 }
 
 /* The save word on the status line: 0 none (no storage), 1 SAVED, 2 UNSAVED (written when stopped and silent),
- * 3 SAVE OFF (the flash holds a newer firmware's project: nothing is written). */
+ * 3 SAVE OFF (the flash holds a newer firmware's project: nothing is written), 4 FULL (the project does not fit
+ * the bank: nothing is written until something is cleared). */
 static uint8_t save_state(const MelloUi *ui)
 {
     const MelloStorage *st = ui->storage;
     if (!st || !st->io.read) return 0u;
     if (st->last_save_result == MELLO_STORAGE_SAVE_PROTECTED) return 3u;
+    if (st->last_save_result == MELLO_STORAGE_SAVE_TOO_LARGE) return 4u;
     return st->dirty || st->manual_pending ? 2u : 1u;
 }
 
@@ -5604,8 +5606,8 @@ static void draw_status(MelloUi *ui, const MelloUiDrawOps *o)
     char b[48], *p;
     MelloEngine *e = eng(ui);
     uint8_t sv = save_state(ui);
-    static const char *sw[4] = {"", "SAVED", "EDITED", "NOSAVE"};
-    static const uint16_t sc[4] = {UI_DIM, UI_ACC, UI_CORAL, UI_RED};
+    static const char *sw[5] = {"", "SAVED", "EDITED", "NOSAVE", "FULL"};
+    static const uint16_t sc[5] = {UI_DIM, UI_ACC, UI_CORAL, UI_RED, UI_RED};
     o->fill(o->ctx, 0, 220, 240, 20, UI_PANEL2);
     if (e) { /* the key (R2: it left the header for the path): the HTML's title line, "C minor" */
         static const char *n[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};

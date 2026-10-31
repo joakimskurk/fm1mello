@@ -80,6 +80,7 @@ typedef struct {
     uint32_t payload_size;
     uint32_t payload_crc;
     uint32_t payload_addr;
+    bool legacy; /* read from the 40 KiB layout's second bank (load) */
 } RecordInfo;
 
 static uint32_t crc_step(uint32_t c, uint8_t b)
@@ -1183,16 +1184,16 @@ static bool crc_flash(MelloStorage *s, uint32_t addr, uint32_t n, uint32_t *out)
     return true;
 }
 
-static RecordInfo scan_bank(MelloStorage *s, uint8_t bank)
+/* The record at base, if any (bank: which bank it counts as). */
+static RecordInfo scan_record(MelloStorage *s, uint32_t base, uint8_t bank)
 {
     RecordInfo rec;
     uint8_t h[MELLO_STORAGE_HEADER_SIZE], f[MELLO_STORAGE_FOOTER_SIZE];
-    uint32_t base, ps, rev, pcrc, hcrc, actual;
+    uint32_t ps, rev, pcrc, hcrc, actual;
     uint16_t ver, hs;
     memset(&rec, 0, sizeof(rec));
     rec.bank = bank;
     if (!s || bank > 1u || !s->io.read) return rec;
-    base = s->config.bank_addr[bank];
     if (!s->io.read(s->io.ctx, base, h, sizeof(h))) {
         rec.io_error = true;
         return rec;
@@ -1230,6 +1231,15 @@ static RecordInfo scan_bank(MelloStorage *s, uint8_t bank)
     rec.payload_crc = pcrc;
     rec.payload_addr = base + MELLO_STORAGE_HEADER_SIZE;
     return rec;
+}
+static RecordInfo scan_bank(MelloStorage *s, uint8_t bank)
+{
+    RecordInfo none;
+    if (!s || bank > 1u) {
+        memset(&none, 0, sizeof none);
+        return none;
+    }
+    return scan_record(s, s->config.bank_addr[bank], bank);
 }
 
 static bool revision_newer(uint32_t a, uint32_t b)
@@ -1275,12 +1285,23 @@ static void set_baseline(MelloStorage *s, uint32_t size, uint32_t crc)
 
 MelloStorageLoadResult mello_storage_load(MelloStorage *s, MelloEngine *e)
 {
-    RecordInfo a, b, *first, *second;
+    RecordInfo a, b, c, *first, *second;
     bool ua, ub, fallback_hint = false;
     if (!s || !e || !s->io.read) return MELLO_STORAGE_LOAD_IO_ERROR;
     s->baseline_valid = false; /* nothing usable: poll takes the state after load as the baseline */
     a = scan_bank(s, 0u);
     b = scan_bank(s, 1u);
+    /* The 40 KiB layout's second bank (MELLO_STORAGE_LEGACY_BANK1_ADDR), inside bank 0 now: a record there
+     * counts as bank 0's, so the first save after an upgrade goes to bank 1 and leaves it whole. */
+    memset(&c, 0, sizeof c);
+    if (s->config.bank_addr[0] == MELLO_STORAGE_BANK0_ADDR && s->config.bank_size == MELLO_STORAGE_BANK_SIZE)
+        c = scan_record(s, MELLO_STORAGE_LEGACY_BANK1_ADDR, 0u);
+    if (c.valid && (!a.valid || revision_newer(c.revision, a.revision)) &&
+        (!b.valid || revision_newer(c.revision, b.revision))) {
+        c.legacy = true;
+        a = c;
+    }
+    s->active_legacy = false;
     ua = a.unsupported;
     ub = b.unsupported;
     if (!a.valid && !b.valid) {
@@ -1326,6 +1347,7 @@ MelloStorageLoadResult mello_storage_load(MelloStorage *s, MelloEngine *e)
     }
     if (parse_payload(s, first, e, false) && parse_payload(s, first, e, true)) {
         s->active_bank = (int8_t)first->bank;
+        s->active_legacy = first->legacy;
         s->revision = first->revision;
         s->active_payload_size = first->payload_size;
         s->active_payload_crc = first->payload_crc;
@@ -1350,14 +1372,17 @@ MelloStorageLoadResult mello_storage_load(MelloStorage *s, MelloEngine *e)
     return s->last_load_result;
 }
 
-static bool erase_bank(MelloStorage *s, uint8_t bank)
+/* The sectors the record (header, payload, footer) will occupy, from the bank's start: what a scan reads. The
+ * rest of the bank keeps whatever it held (fewer erases a save; and after an upgrade the old layout's record,
+ * further up bank 0, outlives the first save). */
+static bool erase_bank(MelloStorage *s, uint8_t bank, uint32_t payload_size)
 {
-    uint32_t off, base;
+    uint32_t off, base, need = MELLO_STORAGE_HEADER_SIZE + payload_size + MELLO_STORAGE_FOOTER_SIZE;
     if (!s || !s->io.erase4k || s->config.sector_size == 0u ||
-        s->config.bank_size % s->config.sector_size != 0u)
+        s->config.bank_size % s->config.sector_size != 0u || need > s->config.bank_size)
         return false;
     base = s->config.bank_addr[bank];
-    for (off = 0u; off < s->config.bank_size; off += s->config.sector_size)
+    for (off = 0u; off < need; off += s->config.sector_size)
         if (!s->io.erase4k(s->io.ctx, base + off)) return false;
     return true;
 }
@@ -1389,6 +1414,11 @@ MelloStorageSaveResult mello_storage_save_now(MelloStorage *s, const MelloEngine
         return s->last_save_result;
     }
     bank = s->active_bank == 0 ? 1u : 0u;
+    /* After an upgrade the project came from the 40 KiB layout's second bank, which lies across the top of bank
+     * 0 and the start of bank 1: a record that fits under it goes to bank 0 and leaves it whole. */
+    if (s->active_legacy && MELLO_STORAGE_HEADER_SIZE + size + MELLO_STORAGE_FOOTER_SIZE <=
+                                MELLO_STORAGE_LEGACY_BANK1_ADDR - MELLO_STORAGE_BANK0_ADDR)
+        bank = 0u;
     rev = s->active_bank < 0 ? 1u : s->revision + 1u;
     base = s->config.bank_addr[bank];
     /* After a rollback, a newer firmware's project is the user's newest work and this firmware cannot read
@@ -1410,7 +1440,7 @@ MelloStorageSaveResult mello_storage_save_now(MelloStorage *s, const MelloEngine
             return s->last_save_result;
         }
     }
-    if (!erase_bank(s, bank)) {
+    if (!erase_bank(s, bank, size)) {
         s->last_save_result = MELLO_STORAGE_SAVE_IO_ERROR;
         return s->last_save_result;
     }
@@ -1444,6 +1474,7 @@ MelloStorageSaveResult mello_storage_save_now(MelloStorage *s, const MelloEngine
         return s->last_save_result;
     }
     s->active_bank = (int8_t)bank;
+    s->active_legacy = false;
     s->revision = rev;
     s->active_payload_size = size;
     s->active_payload_crc = crc;

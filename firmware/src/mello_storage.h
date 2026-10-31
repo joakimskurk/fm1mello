@@ -9,20 +9,23 @@
 extern "C" {
 #endif
 
-#define MELLO_STORAGE_FORMAT_VERSION           3u
-#define MELLO_STORAGE_MAGIC                    0x374C454Du /* little-endian bytes: M E L 7 */
-#define MELLO_STORAGE_COMMIT_MAGIC             0x21374B4Fu /* little-endian bytes: O K 7 ! */
-#define MELLO_STORAGE_HEADER_SIZE              24u
-#define MELLO_STORAGE_FOOTER_SIZE              8u
-#define MELLO_STORAGE_SECTOR_SIZE              0x1000u
-#define MELLO_STORAGE_BANK_SIZE                0xA000u
-#define MELLO_STORAGE_BANK0_ADDR               0x00098000u
-#define MELLO_STORAGE_BANK1_ADDR               (MELLO_STORAGE_BANK0_ADDR + MELLO_STORAGE_BANK_SIZE)
+#define MELLO_STORAGE_FORMAT_VERSION 3u
+#define MELLO_STORAGE_MAGIC          0x374C454Du /* little-endian bytes: M E L 7 */
+#define MELLO_STORAGE_COMMIT_MAGIC   0x21374B4Fu /* little-endian bytes: O K 7 ! */
+#define MELLO_STORAGE_HEADER_SIZE    24u
+#define MELLO_STORAGE_FOOTER_SIZE    8u
+#define MELLO_STORAGE_SECTOR_SIZE    0x1000u
+#define MELLO_STORAGE_BANK_SIZE      0x10000u /* 64 KiB: 64 full slots with their grit and MOD are 42.4 KiB */
+#define MELLO_STORAGE_BANK0_ADDR     0x00098000u
+#define MELLO_STORAGE_BANK1_ADDR     (MELLO_STORAGE_BANK0_ADDR + MELLO_STORAGE_BANK_SIZE)
+/* Up to 0.5-f21 the banks were 40 KiB and the second began here; a record there is still read at boot (and the
+ * first save then goes to bank 1, which does not overlap it), so an upgrade keeps the last project. */
+#define MELLO_STORAGE_LEGACY_BANK1_ADDR        0x000A2000u
 #define MELLO_STORAGE_AUTOSAVE_DEBOUNCE_MS     2000u
 #define MELLO_STORAGE_AUTOSAVE_MIN_INTERVAL_MS 20000u
 #define MELLO_STORAGE_CHANGE_CHECK_MS          250u /* how often poll compares the project with flash */
 
-/* Target note: these two 40 KiB banks occupy 0x98000..0xABFFF. Dinghy 0.3
+/* Target note: these two 64 KiB banks occupy 0x98000..0xB7FFF, up to the sample staging area. Dinghy 0.3
  * allows reads anywhere but its current FL_RANGE_OK must be deliberately widened
  * before erase/program is legal on hardware. Do not apply that target patch until
  * the exact upstream checkout/flash map has passed its unchanged baseline gate. */
@@ -69,6 +72,7 @@ typedef struct {
     MelloStorageIo io;
     MelloStorageConfig config;
     int8_t active_bank;
+    bool active_legacy; /* the record read came from the 40 KiB layout's second bank (an upgrade) */
     uint32_t revision;
     uint32_t active_payload_size;
     uint32_t active_payload_crc;
