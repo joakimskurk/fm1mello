@@ -1,4 +1,5 @@
 #include "mello_ui.h"
+#include <string.h>
 
 #define UI_RGB(r, g, b)                                                                                      \
     ((uint16_t)((((uint16_t)(r) & 0xF8u) << 8) | (((uint16_t)(g) & 0xFCu) << 3) | ((uint16_t)(b) >> 3)))
@@ -165,7 +166,7 @@ static void manual_save(MelloUi *ui, uint32_t now_ms)
     ui->dirty |= MELLO_UI_DIRTY_STATUS;
 }
 
-static uint8_t page_button(MelloUi *ui)
+static uint8_t page_button(const MelloUi *ui)
 {
     switch (ui->page) {
     case MELLO_UI_SEQ_STEP:
@@ -1949,6 +1950,8 @@ static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
 
 static const char *layer_name(const MelloUi *ui);
 static const char *domain_name(const MelloUi *ui);
+static const char *button_name(const MelloUi *ui);
+static uint16_t ui_text_len(const char *s);
 static uint8_t save_state(const MelloUi *ui);
 static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o);
 static const char *full_label(const char *l);
@@ -3334,15 +3337,25 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
     char b[32], status[12], *p;
     uint16_t accent = ui_page_accent(ui);
     o->fill(o->ctx, 0, 0, 240, 30, UI_PANEL);
-    if (e) { /* the key, where the wordmark was: the HTML's title line ("C minor") */
-        char key[24], *q;
-        static const char *n[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
-        static const char *sc[MELLO_SCALE_COUNT] = {"CHROM", "MINOR", "DORIAN", "PHRYG", "LYDIAN", "MIXO",
-                                                    "PENTA", "mPENT", "DIM",    "WHOLE", "AUG",    "MAJOR"};
-        q = copy_s(key, n[e->project.root_note % 12u]);
-        q = copy_s(q, " ");
-        (void)copy_s(q, sc[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR]);
-        o->text(o->ctx, 4, 7, 84, 0, key, UI_GOLD, 0);
+    /* R2: BUTTON > PAGE > LAYER, the printed button first, so the screen says which button you pressed and what its
+     * next press gives. 24 characters fit before the tempo; a path longer than that drops the button. */
+    if (ui->page != MELLO_UI_HOME) {
+        const char *btn = button_name(ui), *page = domain_name(ui), *layer = layer_name(ui);
+        int16_t x = 4;
+        uint16_t need = ui_text_len(btn) + 3u + ui_text_len(page) + (layer ? 3u + ui_text_len(layer) : 0u);
+        if ((need <= 24u || !layer) && strcmp(btn, page)) { /* a page named as its button (FX) shows once */
+            o->text(o->ctx, x, 7, (int16_t)(ui_text_len(btn) * 8u), 0, btn, UI_DIM, 0);
+            x = (int16_t)(x + ui_text_len(btn) * 8u);
+            o->text(o->ctx, x, 7, 24, 0, " > ", UI_LINE, 0);
+            x = (int16_t)(x + 24);
+        }
+        o->text(o->ctx, x, 7, (int16_t)(ui_text_len(page) * 8u), 0, page, accent, 0);
+        x = (int16_t)(x + ui_text_len(page) * 8u);
+        if (layer) {
+            o->text(o->ctx, x, 7, 24, 0, " > ", UI_LINE, 0);
+            x = (int16_t)(x + 24);
+            o->text(o->ctx, x, 7, (int16_t)(196 - x), 0, layer, UI_BRIGHT, 0);
+        }
     }
     p = copy_s(b, ui->page == MELLO_UI_HOME && ui->keys_mode ? (ui->keys_rec ? "HOME REC" : "HOME KEYS")
                                                              : domain_name(ui));
@@ -3364,7 +3377,7 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
         *p++ = (char)('A' + (seg < MELLO_MAX_SEGMENTS ? seg : 0u));
         *p = 0;
     }
-    ui_spaced(o, 88, 7, 100, b, accent, 1);
+    if (ui->page == MELLO_UI_HOME) o->text(o->ctx, 4, 7, 188, 0, b, accent, 0); /* HOME: its own line */
     /* the HTML's "● PLAYING": a dot lit while playing, then the tempo */
     o->fill(o->ctx, 200, 13, 4, 4, ui->transport->running ? UI_ACC : UI_LINE);
     o->fill(o->ctx, 201, 12, 2, 6, ui->transport->running ? UI_ACC : UI_LINE);
@@ -3387,8 +3400,8 @@ static void ui_section(MelloUi *ui, const MelloUiDrawOps *o, int16_t y, const ch
     const char *layer = layer_name(ui);
     ui_round_fill(o, 4, y, 232, (int16_t)(169 - y), UI_PANEL);
     ui_round_frame(o, 4, y, 232, (int16_t)(169 - y), ui_mix(accent, UI_BLACK, 150));
-    ui_spaced(o, 10, (int16_t)(y + 3), 124, title, accent, 0);
-    if (layer) ui_spaced(o, 136, (int16_t)(y + 3), 96, layer, UI_DIM, 2);
+    ui_spaced(o, 10, (int16_t)(y + 3), 222, title, accent, 0);
+    (void)layer;
 }
 
 /* A pill as the HTML's buttons: on = filled in a dark shade of its colour with a bright edge, off = a dim edge. */
@@ -5351,7 +5364,7 @@ static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o)
     footer_texts(ui, l, v);
     ui_round_fill(o, 4, 31, 232, 138, UI_PANEL);
     ui_round_frame(o, 4, 31, 232, 138, ui_mix(accent, UI_BLACK, 150));
-    ui_spaced(o, 10, 34, 220, title ? title : "AUDIO LFO", accent, 0);
+    (void)title; /* the layer's name is in the header (R2) */
     for (k = 0u; k < 4u; ++k) {
         int16_t y = (int16_t)(56 + k * 28);
         uint16_t c = knob_colour(ui, k), nv, nm;
@@ -5393,26 +5406,34 @@ static void draw_status(MelloUi *ui, const MelloUiDrawOps *o)
     char b[48], *p;
     MelloEngine *e = eng(ui);
     uint8_t sv = save_state(ui);
-    static const char *sw[4] = {"", "SAVED", "UNSAVED", "SAVE OFF"};
+    static const char *sw[4] = {"", "SAVED", "EDITED", "NOSAVE"};
     static const uint16_t sc[4] = {UI_DIM, UI_ACC, UI_CORAL, UI_RED};
     o->fill(o->ctx, 0, 220, 240, 20, UI_PANEL2);
-    if (ui->transport->running && ui->transport->display_step != 0xFFu) {
-        p = copy_s(b, "STEP ");
-        p = put_u32(p, (uint32_t)ui->transport->display_step + 1u);
-        if (e) {
-            p = copy_s(p, "/");
-            p = put_u32(p, e->project.seq_len);
-        }
-    } else { /* stopped: just the length */
+    if (e) { /* the key (R2: it left the header for the path): the HTML's title line, "C minor" */
+        static const char *n[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+        static const char *sc_name[MELLO_SCALE_COUNT] = {"CHROM",  "MINOR", "DORIAN", "PHRYG",
+                                                         "LYDIAN", "MIXO",  "PENTA",  "mPENT",
+                                                         "DIM",    "WHOLE", "AUG",    "MAJOR"};
+        p = copy_s(b, n[e->project.root_note % 12u]);
+        p = copy_s(p, " ");
+        (void)copy_s(p, sc_name[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR]);
+        o->text(o->ctx, 4, 222, 72, 0, b, UI_GOLD, 0);
+    }
+    if (ui->transport->running && ui->transport->display_step != 0xFFu) { /* the step of the length */
+        p = put_u32(b, (uint32_t)ui->transport->display_step + 1u);
+        p = copy_s(p, "/");
+        put_u32(p, e ? e->project.seq_len : 0u);
+    } else { /* stopped: the length */
         p = put_u32(b, e ? e->project.seq_len : 0u);
-        p = copy_s(p, " STEPS");
+        (void)copy_s(p, " ST");
     }
+    o->text(o->ctx, 80, 222, 48, 0, b, UI_MID, 0);
     if (e && e->active_slot >= 0) {
-        p = copy_s(p, "  SLOT ");
+        p = copy_s(b, "SLOT ");
         put_u32(p, (uint32_t)e->active_slot + 1u);
+        o->text(o->ctx, 132, 222, 56, 0, b, UI_BLUE, 0);
     }
-    o->text(o->ctx, 4, 222, 140, 0, b, UI_MID, 0);
-    o->text(o->ctx, 148, 222, 88, 0, sw[sv], sc[sv], 2);
+    o->text(o->ctx, 188, 222, 48, 0, sw[sv], sc[sv], 2);
     ui->seen_save_state = sv;
 }
 
@@ -5466,10 +5487,30 @@ static void fit_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, 
  * button), whatever page holds them. */
 static const char *domain_name(const MelloUi *ui)
 {
-    if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage == 2u) return "MOD LFO";
-    if (ui->page == MELLO_UI_DOT) return "MOD DOT";
-    if (ui->page == MELLO_UI_TURING) return "MOD EVOLVE";
+    if (ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage == 2u) return "LFO";
+    if (ui->page == MELLO_UI_DOT) return "DOT";
+    if (ui->page == MELLO_UI_TURING) return "EVOLVE";
+    if (ui->page == MELLO_UI_SEQ_LOOP) return "LOOP";
+    if (ui->page == MELLO_UI_KEY_SCALE) return "KEY";
+    if (ui->page == MELLO_UI_AUDIO_FX) return "FX";
     return mello_ui_page_name(ui->page);
+}
+
+/* The printed panel button that leads here (R2): what the header shows first. */
+static const char *button_name(const MelloUi *ui)
+{
+    switch (page_button(ui)) {
+    case MELLO_UI_BTN_SEQ: return "SEQ";
+    case MELLO_UI_BTN_ENV: return "ENV";
+    case MELLO_UI_BTN_LFO: return "LFO";
+    case MELLO_UI_BTN_FX: return "FX";
+    case MELLO_UI_BTN_ARP: return "ARP";
+    case MELLO_UI_BTN_SEL: return "SEL";
+    case MELLO_UI_BTN_GLO: return "GLO";
+    case MELLO_UI_BTN_SAVE: return "SAVE";
+    case MELLO_UI_BTN_HOME: return "HOME";
+    default: return "RNDMZR"; /* RANDOM: the held key */
+    }
 }
 
 /* The name of the layer SELECT shows on the current page, or 0 where a page has none. */
@@ -5478,13 +5519,13 @@ static const char *layer_name(const MelloUi *ui)
     static const char *step[4] = {"TRIG", "NOTE", "FLAGS", "SEQ"}, *loop[3] = {"STEP", "HARM", "LOOP"},
                       *slots[2] = {"LOAD", "RENAME"},
                       *dot[5] = {"ACCENT", "MOD 1", "RATCHET", "SUB", "MOD 2"},
-                      *dsh[2] = {"MOD 1 SHAPE", "MOD 2 SHAPE"}, *tm[4] = {"MAIN", "ROUTES", "DEPTH", "SOUND"},
+                      *dsh[2] = {"SHAPE 1", "SHAPE 2"}, *tm[4] = {"MAIN", "ROUTES", "DEPTH", "SOUND"},
                       *sub[6] = {"PLAY", "SEQ", "STEP", "VOICE", "TONE", "FILTER"},
                       *glo[3] = {"CLOCK", "MIDI", "GROOVE"},
-                      *snd[10] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO", "FOLLOWER SUB", "PLAY / LEVEL",
-                                  "GRIT",         "OSC 2",        "CHARACTER", "MOD ENV",      "TRACKING"},
-                      *fx[5] = {"DISTORTION", "DELAY", "DELAY CONFIG", "REVERB", "RETURNS"},
-                      *smp[4] = {"SAMPLE MAIN", "SAMPLE PITCH", "TRIM / LOOP", "ENVELOPE"};
+                      *snd[10] = {"OSC/FILT", "AMP ENV", "LFO",       "FOLLOWER", "LEVEL",
+                                  "GRIT",     "OSC 2",   "CHARACTER", "MOD ENV",  "TRACKING"},
+                      *fx[5] = {"DISTORTION", "DELAY", "DLY CONF", "REVERB", "RETURNS"},
+                      *smp[4] = {"MAIN", "PITCH", "TRIM", "ENVELOPE"};
     switch (ui->page) {
     case MELLO_UI_SEQ_STEP: return step[ui->step_subpage % 4u];
     case MELLO_UI_SEQ_LOOP: return loop[ui->loop_subpage % 3u];
@@ -5547,9 +5588,13 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
     const char *l[4], *layer = layer_name(ui);
     uint16_t accent = ui_page_accent(ui);
     footer_texts(ui, l, v);
+    if (strcmp(button_name(ui), domain_name(ui))) {
+        p = copy_s(p, button_name(ui));
+        p = copy_s(p, " > ");
+    }
     p = copy_s(p, domain_name(ui));
     if (layer) {
-        p = copy_s(p, " / ");
+        p = copy_s(p, " > ");
         (void)copy_s(p, layer);
     }
     o->fill(o->ctx, 0, 30, 240, 142,

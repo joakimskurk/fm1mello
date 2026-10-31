@@ -66,7 +66,7 @@ int main(void)
     turn(&u, 1000u, MELLO_UI_ENC_KNOB3, 1); /* SOUND / OSC: K3 = cutoff */
     if (u.readout != 3u) return fail("K3 on SOUND gave no readout");
     render(&u);
-    if (!body_has("SOUND / OSC / FILTER")) return fail("readout does not say where");
+    if (!body_has("ENV > SOUND > OSC/FILT")) return fail("readout does not say where"); /* R2: the path */
     {
         unsigned i, big = 0u;
         for (i = 0u; i < seen_n; ++i)

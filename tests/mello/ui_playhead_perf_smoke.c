@@ -74,7 +74,7 @@ int main(void)
         return 1;
     }
     if (!delta_render(&ui, &ops, 1u, 1u)) return 2;
-    if (fills >= 20u || texts >= 4u) {
+    if (fills >= 20u || texts >= 5u) { /* the status line: key, steps, slot, save (R2) */
         fprintf(stderr, "STEP playhead redraw too broad: fills=%u texts=%u\n", fills, texts);
         return 3;
     }
@@ -84,7 +84,7 @@ int main(void)
        old/new playhead cells while a pattern is running. */
     full_render(&ui, &ops, MELLO_UI_RANDOM);
     if (!delta_render(&ui, &ops, 2u, 2u)) return 4;
-    if (fills >= 20u || texts >= 4u) {
+    if (fills >= 20u || texts >= 5u) { /* the status line: key, steps, slot, save (R2) */
         fprintf(stderr, "RANDOM playhead redraw too broad: fills=%u texts=%u\n", fills, texts);
         return 5;
     }
@@ -102,7 +102,7 @@ int main(void)
        never repaint the full 142 px body. */
     full_render(&ui, &ops, MELLO_UI_AUDIO_FX);
     if (!delta_render(&ui, &ops, 3u, 3u)) return 7;
-    if (fills > 2u || texts > 2u) {
+    if (fills > 2u || texts > 3u) {
         fprintf(stderr, "static FX page redrew body on transport tick: fills=%u texts=%u\n", fills, texts);
         return 8;
     }

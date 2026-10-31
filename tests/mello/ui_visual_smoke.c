@@ -254,7 +254,7 @@ int main(void)
     mello_ui_render(&ui, &ops);
 
     if (bounds_error) return 17;
-    if (fills >= 20 || texts >= 4) {
+    if (fills >= 20 || texts >= 5) { /* the status line now carries the key too (R2) */
         fprintf(stderr, "HOME playhead redraw too broad: fills=%d texts=%d\n", fills, texts);
         return 18;
     }

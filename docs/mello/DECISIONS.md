@@ -310,6 +310,14 @@ same bevegelse meaning different things from page to page. The rules, decided 20
   drums' DECAY shows the time it is, per voice; MIDI's fixed length too); every CUT in Hz (the sub's 40 x 55^x, the
   chord's 60 x 107^x, as the lead's already was); pitch locks in ST; relative locks signed with their unit (+0%). An
   unused knob has no label and "-". tests/mello/ui_glossary.c renders every page and layer and holds this.
+- **R2, the header says where you are** (done). The top line reads BUTTON > PAGE > LAYER: the printed panel button
+  dim, the page in the section's colour, the layer bright ("ARP > DRUMS > KIT", "ENV > SOUND > GRIT"); a page named
+  as its button shows once ("FX > DELAY"). HOME keeps its own line (segment, KEYS / REC, the chord sounding). The
+  readout's "where" line is the same path. The layer's name left the body (ui_section's right side, the parameter
+  panels' title line), so it stands in one place. The key ("C MINOR") moved from the header to the status line, with
+  the step of the length (12/16, or "16 ST" stopped), the slot and the save state (SAVED / EDITED / NOSAVE). Layer
+  names were shortened to fit 24 characters (OSC/FILT, AMP ENV, LFO, FOLLOWER, LEVEL, DLY CONF, MAIN, PITCH, TRIM,
+  SHAPE 1).
 
 ## The splash (2026-10-31)
 
