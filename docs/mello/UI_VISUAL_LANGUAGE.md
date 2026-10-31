@@ -166,7 +166,7 @@ Constraints:
 
 ## SUB 5-SEQ naming
 
-Former user-facing `X-SUB` terminology remains deprecated. Display `SUB 5-SEQ` / `5-SEQ`; internal identifiers may remain unchanged to avoid engine risk.
+Former user-facing `X-SUB` terminology remains deprecated. Since 2026-10-31 the SUB page edits BASS SEQ (16 steps) in its place: display `SEQ` / `BASS SEQ`; `5-SEQ` shows only as SEQ's value while an old project's 5-SEQ is still on.
 
 ## Rendering constraints
 

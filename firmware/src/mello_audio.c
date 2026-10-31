@@ -464,14 +464,22 @@ static void sub_begin_decay(MelloAudio *a)
     sub_curve_begin(a, permille_q24(a->sub_config.mode == MELLO_SUB_MODE_DRONE ? 1000u : 240u),
                     a->sub_config.decay_ms);
 }
-static void sub_attack(MelloAudio *a, uint8_t note, uint8_t vel)
+/* seq: a BASS SEQ note, which slides (GLIDE, or 60 ms at 0) only when its step is glided into, and then, the last
+ * note still held, without a new attack (legato); others always glide GLIDE, as the HTML's. */
+static void sub_attack(MelloAudio *a, uint8_t note, uint8_t vel, bool seq, bool slide)
 {
     uint32_t attack_n;
+    uint16_t glide = a->sub_config.glide_ms;
+    bool legato = seq && slide && a->sub.gate && a->sub.env_q24 > 0;
+    if (seq) glide = slide ? (glide ? glide : 60u) : 0u;
     a->sub.note = note;
     a->sub.velocity = vel;
     a->sub.gate = true;
+    a->sub.accent = seq && vel >= 127u;
     voice_glide_to(&a->sub.inc, &a->sub.target_inc, &a->sub.pitch_q16, &a->sub.slide_step, &a->sub.slide_left,
-                   note, a->sub_config.glide_ms, a->sub.env_q24);
+                   note, glide, a->sub.env_q24);
+    if (legato) return; /* the envelopes go on */
+    a->sub.fenv = 1 << 24;
     /* Tone.Envelope shortens a retrigger attack by the already-reached level. */
     attack_n = ms_samples(3u);
     if (a->sub.env_q24 > 0 && a->sub.env_q24 < Q24_ONE)
@@ -1238,7 +1246,8 @@ static void apply_event(MelloAudio *a, const MelloEvent *e)
         if (event_tag(e) == a->lead.on_tag) lead_release(a);
     } else if (e->type == MELLO_EVENT_SUB_NOTE_ON) {
         a->sub.on_tag = event_tag(e);
-        sub_attack(a, e->note, e->velocity);
+        sub_attack(a, e->note, e->velocity, e->ratchet_index != 0u,
+                   e->slide); /* ratchet_index: BASS SEQ's step */
     } else if (e->type == MELLO_EVENT_SUB_NOTE_OFF) {
         if (event_tag(e) == a->sub.on_tag) sub_release(a);
     }
@@ -1254,6 +1263,39 @@ static void apply_event(MelloAudio *a, const MelloEvent *e)
         sample_attack_voice(a, e);
     else if (e->type == MELLO_EVENT_SAMPLE_NOTE_OFF)
         sample_release_voice(a, e->sample_slot);
+}
+
+/* BASS SEQ's filter, used once RES or ENV is above 0: CUT as the HTML's (40 x 55^cut Hz), up to 4 octaves more by
+ * ENV x the filter envelope (to -60 dB in ENV DECAY), 2 more by an accent's ACCENT; two state-variable low-passes,
+ * the second with RES (Q 0.7 .. ~17). The frequency is worked out every 16 samples. */
+static int32_t sub_svf(MelloAudio *a, int32_t x)
+{
+    MelloAudioSubVoice *s = &a->sub;
+    const MelloBassConfig *b = &a->bass_config;
+    int32_t h;
+    s->fenv -= (int32_t)(((int64_t)s->fenv * s->fenv_k) >> 24);
+    if (!s->svf_ctl--) {
+        int32_t q8 = (int32_t)a->sub_config.cut * 17766 / 1000 /* 69.4 semitones over CUT */
+                     + (int32_t)(((int64_t)((int32_t)b->env * 12288 / 1000) * s->fenv) >> 24);
+        uint32_t hz;
+        if (s->accent) q8 += (int32_t)(((int64_t)((int32_t)b->accent * 6144 / 1000) * s->fenv) >> 24);
+        s->fenv_k = (int32_t)(2625000u / (b->env_decay_ms < 20u ? 20u : b->env_decay_ms));
+        if (q8 > 96 * 256) q8 = 96 * 256;
+        hz = (640u * semi_ratio_q16(q8 - 48 * 256)) >> 16; /* 40 Hz at 0 */
+        s->svf_f = (int32_t)(hz * 4669u / 1000u);
+        if (s->svf_f > 30000) s->svf_f = 30000;
+        s->svf_damp = 45875 - (int32_t)b->res * 44000 / 1000;
+        s->svf_ctl = 15u;
+    }
+    s->svf_lp[0] =
+        clamp32(s->svf_lp[0] + (int32_t)(((int64_t)s->svf_f * s->svf_bp[0]) >> 15), -1048576, 1048575);
+    h = x - s->svf_lp[0] - (int32_t)(((int64_t)45875 * s->svf_bp[0]) >> 15);
+    s->svf_bp[0] = clamp32(s->svf_bp[0] + (int32_t)(((int64_t)s->svf_f * h) >> 15), -1048576, 1048575);
+    s->svf_lp[1] =
+        clamp32(s->svf_lp[1] + (int32_t)(((int64_t)s->svf_f * s->svf_bp[1]) >> 15), -1048576, 1048575);
+    h = s->svf_lp[0] - s->svf_lp[1] - (int32_t)(((int64_t)s->svf_damp * s->svf_bp[1]) >> 15);
+    s->svf_bp[1] = clamp32(s->svf_bp[1] + (int32_t)(((int64_t)s->svf_f * h) >> 15), -1048576, 1048575);
+    return clamp32(s->svf_lp[1], -65535, 65535);
 }
 
 static int32_t sub_biquad_step(int32_t x, const ToneSubBiquadCoeff *c, int32_t *x1, int32_t *x2, int32_t *y1,
@@ -1871,6 +1913,7 @@ static void apply_pending(MelloAudio *a)
     a->sub_config = a->pending_sub_config;
     a->sample_config = a->pending_sample_config;
     a->drum_config = a->pending_drum_config;
+    a->bass_config = a->pending_bass_config;
 #if MELLO_FEATURE_CHORD_MACHINE
     {
         bool was_on = a->chord_config.on;
@@ -1940,6 +1983,7 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
     a->lead.uni_phase[2] = 0x2AAAAAAAu;
     mello_sound_defaults(&a->pending_config);
     mello_drum_defaults(&a->pending_drum_config);
+    mello_bass_defaults(&a->pending_bass_config);
     mello_mod_routing_defaults(&a->pending_modr);
     a->modr = a->pending_modr;
     mello_fx_defaults(&a->pending_fx);
@@ -1993,6 +2037,14 @@ void mello_audio_set_mod_routing(MelloAudio *a, const MelloModRouting *m)
     if (!a || !m) return;
     update = config_update_begin(a);
     a->pending_modr = *m;
+    config_update_end(a, update);
+}
+void mello_audio_set_bass_config(MelloAudio *a, const MelloBassConfig *c)
+{
+    uint32_t update;
+    if (!a || !c) return;
+    update = config_update_begin(a);
+    a->pending_bass_config = *c;
     config_update_end(a, update);
 }
 void mello_audio_set_drum_config(MelloAudio *a, const MelloDrumConfig *c)
@@ -2425,11 +2477,16 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             sub = tone_osc_sample(a->sub_config.wave, a->sub.phase, a->sub.inc, 500u);
             sub = q15mul(sub, a->sub.env_q24 >> 8);
             sub = q15mul(sub, (int32_t)a->sub.velocity * 258);
-            /* HTML: Tone.Filter rolloff=-24 => two cascaded biquads, both Q=.8. */
-            filtered = sub_biquad_step(sub, bc, &a->sub.biquad1_x1, &a->sub.biquad1_x2, &a->sub.biquad1_y1,
-                                       &a->sub.biquad1_y2);
-            filtered = sub_biquad_step(filtered, bc, &a->sub.biquad2_x1, &a->sub.biquad2_x2,
-                                       &a->sub.biquad2_y1, &a->sub.biquad2_y2);
+            if (a->bass_config.res | a->bass_config.env)
+                filtered = sub_svf(a, sub);
+            else { /* HTML: Tone.Filter rolloff=-24 => two cascaded biquads, both Q=.8. */
+                filtered = sub_biquad_step(sub, bc, &a->sub.biquad1_x1, &a->sub.biquad1_x2,
+                                           &a->sub.biquad1_y1, &a->sub.biquad1_y2);
+                filtered = sub_biquad_step(filtered, bc, &a->sub.biquad2_x1, &a->sub.biquad2_x2,
+                                           &a->sub.biquad2_y1, &a->sub.biquad2_y2);
+            }
+            if (a->sub.accent && a->bass_config.accent) /* ACCENT: up to half again as loud */
+                filtered += (int32_t)(((int64_t)filtered * a->bass_config.accent) >> 11);
             if (a->sub_config.drive) {
                 /* Lightweight 2x approximation around Tone.WaveShaper oversample=2x. */
                 int32_t mid = a->sub.drive_prev + ((filtered - a->sub.drive_prev) >> 1);

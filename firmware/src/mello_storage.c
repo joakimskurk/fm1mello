@@ -9,7 +9,8 @@ enum {
     SEC_CHORD = 6,
     SEC_GRIT = 7,
     SEC_MOD = 8,
-    SEC_DRUMS = 9
+    SEC_DRUMS = 9,
+    SEC_BASS = 10
 };
 
 enum {
@@ -21,7 +22,8 @@ enum {
     SECVER_CHORD = 2, /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading) */
     SECVER_GRIT = 4,  /* 4: MIX's LEAD */
     SECVER_MOD = 3,
-    SECVER_DRUMS = 1
+    SECVER_DRUMS = 1,
+    SECVER_BASS = 1
 };
 
 #define SAMPLE_WIRE_SIZE   83u
@@ -39,6 +41,7 @@ enum {
 #define MOD_ENTRY_SIZE_V2  44u
 #define MOD_ENTRY_SIZE     57u
 #define DRUMS_WIRE_SIZE    (12u + MELLO_DRUM_VOICES * (12u + 4u + MELLO_DRUM_STEPS * 4u))
+#define BASS_WIRE_SIZE     (10u + MELLO_BASS_STEPS * 2u)
 #define SLOT_SEQ_WIRE_SIZE (2u + MELLO_MAX_SLOT_SEQ_STEPS * 3u)
 #define SLOT_WIRE_SIZE     (1u + (MELLO_SLOT_NAME_CHARS + 1u) + SNAPSHOT_WIRE_SIZE)
 
@@ -562,6 +565,43 @@ static bool decode_drums(Reader *r, MelloDrumConfig *d)
     return true;
 }
 
+/* BASS SEQ (SEC_BASS, global as the drums): flags, length, the voice's four, and each step in two bytes: on, glide,
+ * accent and the tone in one, the octave in the other. */
+static void encode_bass(Writer *w, const MelloBassConfig *b)
+{
+    uint8_t k;
+    wr_u8(w, (uint8_t)((b->on ? 1u : 0u) | (b->follow ? 2u : 0u)));
+    wr_u8(w, b->length);
+    wr_u16(w, b->res);
+    wr_u16(w, b->env);
+    wr_u16(w, b->env_decay_ms);
+    wr_u16(w, b->accent);
+    for (k = 0u; k < MELLO_BASS_STEPS; ++k) {
+        const MelloBassStep *s = &b->steps[k];
+        wr_u8(w, (uint8_t)((s->on ? 1u : 0u) | (s->glide ? 2u : 0u) | (s->accent ? 4u : 0u) |
+                           (s->tone & 7u) << 3));
+        wr_i8(w, s->octave);
+    }
+}
+static bool decode_bass(Reader *r, MelloBassConfig *b)
+{
+    uint8_t k, f;
+    if (!rd_u8(r, &f) || !rd_u8(r, &b->length) || !rd_u16(r, &b->res) || !rd_u16(r, &b->env) ||
+        !rd_u16(r, &b->env_decay_ms) || !rd_u16(r, &b->accent))
+        return false;
+    b->on = (f & 1u) != 0u;
+    b->follow = (f & 2u) != 0u;
+    for (k = 0u; k < MELLO_BASS_STEPS; ++k) {
+        MelloBassStep *s = &b->steps[k];
+        if (!rd_u8(r, &f) || !rd_i8(r, &s->octave)) return false;
+        s->on = (f & 1u) != 0u;
+        s->glide = (f & 2u) != 0u;
+        s->accent = (f & 4u) != 0u;
+        s->tone = (uint8_t)(f >> 3 & 7u);
+    }
+    return true;
+}
+
 #if MELLO_FEATURE_CHORD_MACHINE
 /* The working Chord Machine config. A reader without this section (an older or chord-off build) skips it. */
 static void encode_chord(Writer *w, const MelloChordConfig *c)
@@ -864,6 +904,8 @@ static bool encode_payload(Writer *w, const MelloEngine *e)
 #endif
     section_header(w, SEC_DRUMS, SECVER_DRUMS, DRUMS_WIRE_SIZE);
     encode_drums(w, &e->drums);
+    section_header(w, SEC_BASS, SECVER_BASS, BASS_WIRE_SIZE);
+    encode_bass(w, &e->bass);
     for (i = 0u; i < MELLO_MAX_SLOTS; ++i)
         if (e->slots[i].valid) valid_count++;
     section_header(w, SEC_SLOTS, SECVER_SLOTS, 1u + (uint32_t)valid_count * SLOT_WIRE_SIZE);
@@ -1034,6 +1076,11 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             mello_drum_defaults(&drums);
             if (len != DRUMS_WIRE_SIZE || !decode_drums(&r, &drums)) return false;
             if (apply && e) mello_engine_drums_set_config(e, &drums);
+        } else if (id == SEC_BASS && ver == SECVER_BASS) {
+            MelloBassConfig bass;
+            mello_bass_defaults(&bass);
+            if (len != BASS_WIRE_SIZE || !decode_bass(&r, &bass)) return false;
+            if (apply && e) mello_engine_bass_set_config(e, &bass);
         } else if (id == SEC_MOD && ver >= 1u && ver <= SECVER_MOD) {
             uint8_t count, i;
             uint32_t size = ver == 1u ? MOD_ENTRY_SIZE_V1 : (ver == 2u ? MOD_ENTRY_SIZE_V2 : MOD_ENTRY_SIZE);

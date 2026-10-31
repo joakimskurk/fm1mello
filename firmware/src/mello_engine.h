@@ -440,6 +440,29 @@ typedef struct {
     int8_t octave;
 } MelloSubXStep;
 
+/* BASS SEQ (2026-10-31: "a 16-step bass sequencer instead of 5-SEQ, with length, and per step tone, octave, glide;
+ * its own clock, not stopped by the main sequence's skipped or held steps unless asked to follow them"). It plays the
+ * dedicated sub, and while on it decides the sub's notes (the sub's MODE waits). With it, the sub's voice gains what a
+ * bass line wants: a resonant filter with an envelope, and accents that open it. Global, as the drums (SEC_BASS). */
+#define MELLO_BASS_STEPS 16u
+typedef struct {
+    bool on;
+    uint8_t tone;  /* MelloSubTone */
+    int8_t octave; /* -2..2 */
+    bool glide;    /* held into the next step, which slides there */
+    bool accent;   /* louder, and the filter opens by ACCENT */
+} MelloBassStep;
+typedef struct {
+    bool on;
+    bool follow; /* step with the main sequence's steps (its skips and long steps stop it), not every pulse */
+    uint8_t length; /* 1..16 */
+    uint16_t res;   /* 0..1000: the sub filter's resonance (0 with ENV 0: the HTML's filter as it was) */
+    uint16_t env;   /* 0..1000: the filter envelope, up to 4 octaves over CUT */
+    uint16_t env_decay_ms; /* 20..2000 */
+    uint16_t accent;       /* 0..1000: what an accent adds: level, and the envelope again */
+    MelloBassStep steps[MELLO_BASS_STEPS];
+} MelloBassConfig;
+
 typedef struct {
     bool on;
     MelloSubMode mode;
@@ -841,6 +864,10 @@ typedef struct {
     uint8_t hold_total;
     /* The DRONE sub's note sounding (its ON sent, its OFF at STOP, or when the mode or SUB changes). */
     MelloDrumConfig drums;
+    MelloBassConfig bass;
+    uint8_t bass_pos;   /* the next BASS SEQ step */
+    int8_t bass_step;   /* the one playing, -1 stopped (the SUB page) */
+    bool bass_glide_in; /* the last step glides into this one */
     MelloPrng drum_rng; /* chance and rolls: the other streams stay as they were */
     uint8_t drum_pos;   /* the drum step playing next */
     int8_t drum_step;   /* the one playing, -1 stopped (the DRUMS page) */
@@ -882,6 +909,8 @@ void mello_mod_routing_defaults(MelloModRouting *config);
 void mello_dot_defaults_for(MelloDotMatrixConfig *config, uint8_t id);
 void mello_sub_defaults(MelloSubConfig *config);
 void mello_drum_defaults(MelloDrumConfig *config);
+void mello_bass_defaults(MelloBassConfig *config);
+void mello_engine_bass_set_config(MelloEngine *engine, const MelloBassConfig *config);
 void mello_engine_drums_set_config(MelloEngine *engine, const MelloDrumConfig *config);
 /* A roll of the drums: hits, accents and per-step locks, as much as roll says, the kick kept on the one. */
 void mello_engine_drums_roll(MelloEngine *engine);

@@ -110,6 +110,7 @@ typedef struct {
     uint8_t selected_drum_voice;
     uint8_t selected_drum_step;
     int8_t seen_drum_step;
+    int8_t seen_bass_step;
 
     uint8_t step_subpage;    /* TRIG, NOTE, FLAGS, SEQ */
     uint8_t segment_subpage; /* always 0: SEGMENT has one layer */
@@ -168,7 +169,7 @@ typedef struct {
     bool dot_shape;              /* a MOD lane's SHAPE layer */
     uint8_t tm_bank;
     uint8_t selected_tm_bit;
-    uint8_t selected_sub_x_step;
+    uint8_t selected_sub_x_step; /* BASS SEQ's picked step (it was 5-SEQ's) */
 #if MELLO_FEATURE_CHORD_MACHINE
     uint8_t selected_chord_step;
     uint8_t selected_chord_pattern;

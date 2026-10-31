@@ -155,9 +155,9 @@ int main(void)
     ui.selected_sub_x_step = 0u;
     key(&ui, 3u);
     if (ui.selected_sub_x_step != 3u) return 17;
-    gate = t.engine.sub.gate_amount;
+    gate = t.engine.bass.steps[3].accent; /* STEP: K4 is the picked BASS SEQ step's ACCENT */
     enc(&ui, MELLO_UI_ENC_KNOB4, +1);
-    if (ui.selected_sub_x_step != 3u || t.engine.sub.gate_amount <= gate) return 18;
+    if (ui.selected_sub_x_step != 3u || gate || !t.engine.bass.steps[3].accent) return 18;
 
 #if MELLO_FEATURE_CHORD_MACHINE
     /* CHAIN/PATTERN position is keys-only; SELECT changes chord function page. */

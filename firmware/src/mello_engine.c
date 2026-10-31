@@ -754,6 +754,58 @@ static MelloDrumConfig sanitize_drum_config(MelloDrumConfig c)
     return c;
 }
 
+void mello_bass_defaults(MelloBassConfig *c)
+{
+    /* Off; when turned on, a line under the default beat: the root with an accent on the one, again on 4, up an
+     * octave on 7 sliding down into the fifth on 8, the root (accented) on 11, the third on 14, the seventh on 15
+     * sliding home to the root on 16. A glide reaches only a step that plays next. */
+    static const struct {
+        uint8_t k, tone;
+        int8_t octave;
+        bool glide, accent;
+    } line[8] = {{0u, MELLO_SUB_TONE_ROOT, 0, false, true},     {3u, MELLO_SUB_TONE_ROOT, 0, false, false},
+                 {6u, MELLO_SUB_TONE_OCTAVE, 0, true, false},   {7u, MELLO_SUB_TONE_FIFTH, 0, false, false},
+                 {10u, MELLO_SUB_TONE_ROOT, 0, false, true},    {13u, MELLO_SUB_TONE_THIRD, 0, false, false},
+                 {14u, MELLO_SUB_TONE_SEVENTH, 0, true, false}, {15u, MELLO_SUB_TONE_ROOT, 0, false, false}};
+    uint8_t i;
+    if (!c) return;
+    memset(c, 0, sizeof(*c));
+    c->length = 16u;
+    c->env_decay_ms = 300u;
+    c->accent = 500u;
+    for (i = 0u; i < 8u; ++i) {
+        MelloBassStep *s = &c->steps[line[i].k];
+        s->on = true;
+        s->tone = line[i].tone;
+        s->octave = line[i].octave;
+        s->glide = line[i].glide;
+        s->accent = line[i].accent;
+    }
+}
+
+static MelloBassConfig sanitize_bass_config(MelloBassConfig c)
+{
+    uint8_t i;
+    if (c.length < 1u) c.length = 1u;
+    if (c.length > MELLO_BASS_STEPS) c.length = MELLO_BASS_STEPS;
+    if (c.res > 1000u) c.res = 1000u;
+    if (c.env > 1000u) c.env = 1000u;
+    c.env_decay_ms = clamp_u16_range(c.env_decay_ms, 20u, 2000u);
+    if (c.accent > 1000u) c.accent = 1000u;
+    for (i = 0u; i < MELLO_BASS_STEPS; ++i) {
+        if (c.steps[i].tone > MELLO_SUB_TONE_OCTAVE) c.steps[i].tone = MELLO_SUB_TONE_ROOT;
+        c.steps[i].octave = clamp_i8(c.steps[i].octave, -2, 2);
+    }
+    return c;
+}
+
+void mello_engine_bass_set_config(MelloEngine *e, const MelloBassConfig *config)
+{
+    if (!e || !config) return;
+    e->bass = sanitize_bass_config(*config);
+    if (e->bass_pos >= e->bass.length) e->bass_pos = 0u;
+}
+
 void mello_engine_drums_set_config(MelloEngine *e, const MelloDrumConfig *config)
 {
     if (!e || !config) return;
@@ -817,6 +869,35 @@ void mello_engine_drums_roll(MelloEngine *e)
                                        rng_bounded(&e->drum_rng, (uint32_t)(hi[v][k] - lo[v][k]) + 1u));
         }
     }
+}
+
+/* One BASS SEQ step, pulses long: its note on the sub (unless SUB MUTE), held into the next step if it glides, the
+ * next one marked to slide; accents louder (127, else 114 as the sub's). The events carry ratchet_index 1 + the step
+ * (mello_audio: a BASS SEQ note slides only when asked, and tags each step apart). */
+static uint8_t resolve_sub_midi(const MelloEngine *e, uint8_t x_tone, int8_t x_octave);
+static void emit_basic(MelloEngine *e, MelloEventType type, uint32_t tick, uint8_t step_idx,
+                       uint8_t pulse_idx, uint8_t total_pulses, uint8_t note, uint8_t vel,
+                       uint8_t ratchet_index, bool slide, bool pass);
+static void bass_tick(MelloEngine *e, uint8_t pulses, uint8_t main_step)
+{
+    const MelloBassConfig *b = &e->bass;
+    uint8_t st = (uint8_t)(e->bass_pos % b->length);
+    const MelloBassStep *s = &b->steps[st];
+    e->bass_step = (int8_t)st;
+    e->bass_pos = (uint8_t)((st + 1u) % b->length);
+    if (s->on && !e->perf.sub_mute) {
+        uint32_t pt = mello_pulse_ticks(&e->project), len = pt * pulses, dur;
+        uint8_t note = resolve_sub_midi(e, s->tone, s->octave);
+        dur = s->glide
+                  ? len + pt / 4u
+                  : clamp_duration_ms_as_ticks(&e->project, len * e->sub.gate_amount / 1000u, 30u, 2500u);
+        emit_basic(e, MELLO_EVENT_SUB_NOTE_ON, e->now_tick, main_step, 0u, pulses, note,
+                   s->accent ? 127u : 114u, (uint8_t)(1u + st), e->bass_glide_in, true);
+        emit_basic(e, MELLO_EVENT_SUB_NOTE_OFF, e->now_tick + dur, main_step, 0u, pulses, note, 0u,
+                   (uint8_t)(1u + st), false, true);
+        e->bass_glide_in = s->glide;
+    } else
+        e->bass_glide_in = false;
 }
 
 /* One drum step: its hits (each with CHANCE), RATCH spread over the step, rising; SWING moves them with the rest
@@ -1192,6 +1273,8 @@ void mello_engine_init(MelloEngine *e, const MelloProject *project, uint32_t see
     mello_drum_defaults(&e->drums);
     mello_prng_seed(&e->drum_rng, seed ^ 0x44524D53u);
     e->drum_step = -1;
+    mello_bass_defaults(&e->bass);
+    e->bass_step = -1;
 #if MELLO_FEATURE_CHORD_MACHINE
     mello_chord_defaults(&e->chord);
     e->chord_grid_runtime.cycle = -1;
@@ -1468,6 +1551,9 @@ void mello_engine_reset_transport(MelloEngine *e)
     e->drone_open = false;
     e->drum_pos = 0u;
     e->drum_step = -1;
+    e->bass_pos = 0u;
+    e->bass_step = -1;
+    e->bass_glide_in = false;
     e->perf_buf_n = 0u;
     mello_event_clear(e);
 }
@@ -3638,8 +3724,12 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         }
     }
 
+    /* BASS SEQ: a step every pulse (its own clock), or with FOLLOW at each of the sequence's steps; while on, the
+     * sub's own MODE waits. */
+    if (e->bass.on && e->sub.on && (!e->bass.follow || pe.pulse_index == 0u))
+        bass_tick(e, e->bass.follow ? (uint8_t)pe.total_pulses : 1u, pe.step_index);
     /* Dedicated sub is independent of main probability/gate and evaluates only at step start. */
-    if (pe.pulse_index == 0u && e->sub.on) {
+    if (pe.pulse_index == 0u && e->sub.on && !e->bass.on) {
         bool sub_should = false;
         uint8_t x_tone = MELLO_SUB_TONE_ROOT;
         int8_t x_oct = 0;

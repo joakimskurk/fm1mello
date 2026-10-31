@@ -863,8 +863,12 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         break;
     }
     case MELLO_UI_SUB:
-        if ((uint8_t)w < MELLO_SUB_X_MAX_STEPS) {
+        if ((uint8_t)w <
+            MELLO_BASS_STEPS) { /* a step key: BASS SEQ's step there on or off, and that step picked */
+            MelloBassConfig b = e->bass;
+            b.steps[(uint8_t)w].on = !b.steps[(uint8_t)w].on;
             ui->selected_sub_x_step = (uint8_t)w;
+            mello_engine_bass_set_config(e, &b);
             mark_edit(ui);
         }
         break;
@@ -1260,14 +1264,69 @@ static void adjust_turing(MelloUi *ui, uint8_t knob, int16_t delta)
     mark_edit(ui);
 }
 
+/* BASS SEQ's ON: an old project's 5-SEQ, if on, becomes the BASS SEQ's first steps (FOLLOW, as it played). */
+static void bass_seq_toggle(MelloEngine *e, bool on)
+{
+    MelloBassConfig b = e->bass;
+    if (on && e->sub.x_on) {
+        MelloSubConfig c = e->sub;
+        uint8_t i;
+        b.length = c.x_length;
+        b.follow = true;
+        for (i = 0u; i < MELLO_BASS_STEPS; ++i) {
+            const MelloSubXStep *x = &c.x_steps[i % MELLO_SUB_X_MAX_STEPS];
+            b.steps[i].on = i < MELLO_SUB_X_MAX_STEPS && x->on;
+            b.steps[i].tone = x->tone, b.steps[i].octave = x->octave;
+            b.steps[i].glide = b.steps[i].accent = false;
+        }
+        c.x_on = false;
+        mello_engine_sub_set_config(e, &c);
+    }
+    b.on = on;
+    mello_engine_bass_set_config(e, &b);
+}
+
 static void adjust_sub(MelloUi *ui, uint8_t knob, int16_t delta)
 {
     MelloEngine *e = eng(ui);
     MelloSubConfig c;
-    MelloSubXStep *xs;
+    MelloBassConfig b;
+    MelloBassStep *bs;
     if (!e || !delta) return;
     c = e->sub;
-    xs = &c.x_steps[ui->selected_sub_x_step];
+    b = e->bass;
+    bs = &b.steps[ui->selected_sub_x_step % MELLO_BASS_STEPS];
+    if (ui->sub_subpage == 1u || ui->sub_subpage == 2u || ui->sub_subpage == 5u) { /* BASS SEQ's */
+        if (ui->sub_subpage == 1u && knob == 0u) {
+            bass_seq_toggle(e, delta > 0);
+            mark_edit(ui);
+            return;
+        }
+        if (ui->sub_subpage == 1u && knob == 3u) {
+            c.gate_amount = (uint16_t)clamp_i32((int32_t)c.gate_amount + delta * 50, 150, 1200);
+            mello_engine_sub_set_config(e, &c);
+            mark_edit(ui);
+            return;
+        }
+        switch (ui->sub_subpage * 4u + knob) {
+        case 5: b.length = (uint8_t)clamp_i32((int32_t)b.length + delta, 1, MELLO_BASS_STEPS); break;
+        case 6: b.follow = delta > 0; break;
+        case 8:
+            bs->tone = (uint8_t)clamp_i32((int32_t)bs->tone + (delta > 0 ? 1 : -1), 0, 7), bs->on = true;
+            break;
+        case 9: bs->octave = (int8_t)clamp_i32((int32_t)bs->octave + delta, -2, 2); break;
+        case 10: bs->glide = delta > 0; break;
+        case 11: bs->accent = delta > 0; break;
+        case 20: b.res = (uint16_t)clamp_i32((int32_t)b.res + delta * 10, 0, 1000); break;
+        case 21: b.env = (uint16_t)clamp_i32((int32_t)b.env + delta * 10, 0, 1000); break;
+        case 22: b.env_decay_ms = (uint16_t)clamp_i32((int32_t)b.env_decay_ms + delta * 10, 20, 2000); break;
+        case 23: b.accent = (uint16_t)clamp_i32((int32_t)b.accent + delta * 10, 0, 1000); break;
+        default: return;
+        }
+        mello_engine_bass_set_config(e, &b);
+        mark_edit(ui);
+        return;
+    }
     if (ui->sub_subpage == 0u) {
         if (knob == 0u)
             c.mode = (MelloSubMode)wrap_u8((int32_t)c.mode + (delta > 0 ? 1 : -1), 5u);
@@ -1277,27 +1336,6 @@ static void adjust_sub(MelloUi *ui, uint8_t knob, int16_t delta)
             c.euclid_rotate = (uint8_t)clamp_i32((int32_t)c.euclid_rotate + delta, 0, 64);
         else if (knob == 3u)
             c.octave = (int8_t)clamp_i32((int32_t)c.octave + delta, -2, 1);
-    } else if (ui->sub_subpage == 1u) {
-        if (knob == 0u)
-            c.x_on = delta > 0;
-        else if (knob == 1u) {
-            if (delta > 0)
-                c.x_length = c.x_length == 2u ? 3u : 5u;
-            else
-                c.x_length = c.x_length == 5u ? 3u : 2u;
-        } else if (knob == 2u)
-            c.x_reset = delta > 0;
-        else if (knob == 3u)
-            c.gate_amount = (uint16_t)clamp_i32((int32_t)c.gate_amount + delta * 50, 150, 1200);
-    } else if (ui->sub_subpage == 2u) {
-        if (knob == 0u)
-            xs->on = delta > 0;
-        else if (knob == 1u)
-            xs->tone = (uint8_t)wrap_u8((int32_t)xs->tone + (delta > 0 ? 1 : -1), 8u);
-        else if (knob == 2u)
-            xs->octave = (int8_t)clamp_i32((int32_t)xs->octave + delta, -2, 2);
-        else if (knob == 3u)
-            c.gate_amount = (uint16_t)clamp_i32((int32_t)c.gate_amount + delta * 50, 150, 1200);
     } else if (ui->sub_subpage == 3u) {
         if (knob == 0u)
             c.level = (uint16_t)clamp_i32((int32_t)c.level + delta * 10, 0, 1000);
@@ -1795,7 +1833,7 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
         ui->dot_shape = DOT_LAYERS[i][1] != 0u;
     } break;
     case MELLO_UI_TURING: ui->tm_subpage = wrap_u8((int32_t)ui->tm_subpage + (delta > 0 ? 1 : -1), 4u); break;
-    case MELLO_UI_SUB: ui->sub_subpage = wrap_u8((int32_t)ui->sub_subpage + (delta > 0 ? 1 : -1), 5u); break;
+    case MELLO_UI_SUB: ui->sub_subpage = wrap_u8((int32_t)ui->sub_subpage + (delta > 0 ? 1 : -1), 6u); break;
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD: {
         uint8_t n = 0u, l = ui->chord_subpage;
@@ -2268,12 +2306,14 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         mark_edit(ui);
         break;
     }
-    case MELLO_CTX_SUB_STEP:
-        if (ui->selected_sub_x_step < MELLO_SUB_X_MAX_STEPS) {
-            e->sub.x_steps[ui->selected_sub_x_step].on = !e->sub.x_steps[ui->selected_sub_x_step].on;
-            mark_edit(ui);
-        }
+    case MELLO_CTX_SUB_STEP: { /* the picked BASS SEQ step on or off */
+        MelloBassConfig b = e->bass;
+        b.steps[ui->selected_sub_x_step % MELLO_BASS_STEPS].on =
+            !b.steps[ui->selected_sub_x_step % MELLO_BASS_STEPS].on;
+        mello_engine_bass_set_config(e, &b);
+        mark_edit(ui);
         break;
+    }
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_CTX_CHORD_TOGGLE: {
         MelloChordConfig c = e->chord;
@@ -2575,7 +2615,8 @@ void mello_ui_tick(MelloUi *ui)
         ui->seen_chord_pos != e->chord_chain_pos || ui->seen_chord_grid != e->chord_grid_active_cell ||
         (ui->page == MELLO_UI_CHORD && ui->seen_chord_lit != ui->transport->display_chord_lit) ||
 #endif
-        (ui->page == MELLO_UI_DRUMS && ui->seen_drum_step != e->drum_step) || ui->seen_running != run;
+        (ui->page == MELLO_UI_DRUMS && ui->seen_drum_step != e->drum_step) ||
+        (ui->page == MELLO_UI_SUB && ui->seen_bass_step != e->bass_step) || ui->seen_running != run;
 
     /* Static/edit pages do not depend on the transport cursor. Do not redraw
        their 142-pixel body merely because playback advanced elsewhere. */
@@ -2629,6 +2670,7 @@ void mello_ui_tick(MelloUi *ui)
         ui->seen_chord_lit = ui->transport->display_chord_lit;
 #endif
         ui->seen_drum_step = e->drum_step;
+        ui->seen_bass_step = e->bass_step;
         ui->seen_running = run;
         ui->dirty |= MELLO_UI_DIRTY_STATUS | MELLO_UI_DIRTY_LEDS;
     }
@@ -3745,34 +3787,35 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         break;
     }
     case MELLO_UI_SUB: {
-        /* The dedicated sub's 5-SEQ as yellow cards: each step's tone as a bar (off = a line), its octave mark; the
-         * playing one gold, the selected one framed; then K1-K4. */
-        uint8_t i, xlen = e->sub.x_length;
-        if (xlen != 2u && xlen != 3u && xlen != 5u) xlen = 5u;
-        (void)copy_s(copy_s(a, e->sub.on ? "SUB  " : "SUB OFF  "), sub_mode_name(e->sub.mode));
+        /* BASS SEQ in gold: sixteen columns, each step's tone as a bar's height (an octave up or down marked in blue
+         * above or below), accents bright, a glide drawn on to the next step, steps past LENGTH dim; the playing step
+         * framed gold, the picked one white; then K1-K4. */
+        const MelloBassConfig *b = &e->bass;
+        uint8_t i;
+        (void)copy_s(copy_s(a, e->sub.on ? "SUB  " : "SUB OFF  "),
+                     b->on ? "BASS SEQ" : sub_mode_name(e->sub.mode));
         ui_section(ui, o, 32, a, e->sub.on ? UI_GOLD : UI_DIM);
-        ui_spaced(o, 10, 52, 100, "SUB 5-SEQ", e->sub.x_on ? UI_GOLD : UI_DIM, 0);
-        o->text(o->ctx, 110, 52, 120, 0, !e->sub.x_on ? "OFF" : (e->sub.x_reset ? "RESET LOOP" : "FREE RUN"),
-                e->sub.x_on ? UI_GOLD : UI_DIM, 2);
-        for (i = 0u; i < MELLO_SUB_X_MAX_STEPS; ++i) {
-            MelloSubXStep *xs = &e->sub.x_steps[i];
-            int16_t x = (int16_t)(10 + i * 45u), tone_h = (int16_t)(4 + xs->tone * 3u);
-            bool in_len = i < xlen, active = e->sub.x_on && e->sub_x_active_index == (int8_t)i,
-                 selected = i == ui->selected_sub_x_step;
-            uint16_t bar = e->sub.x_on ? UI_GOLD : UI_MID;
-            ui_round_fill(o, x, 70, 40, 28, in_len ? UI_PANEL2 : UI_PANEL);
-            ui_round_frame(o, x, 70, 40, 28,
-                           active ? UI_GOLD : (selected ? UI_BRIGHT : (in_len ? UI_LINE : UI_TRACK)));
-            if (in_len && xs->on) {
-                if (tone_h > 20) tone_h = 20;
-                ui_vgrad(o, (int16_t)(x + 4), (int16_t)(94 - tone_h), 32, tone_h, bar,
-                         ui_mix(bar, UI_PANEL2, 150));
+        o->text(o->ctx, 10, 52, 110, 0, b->on ? (b->follow ? "FOLLOW" : "OWN CLOCK") : "SEQ OFF",
+                b->on ? UI_GOLD : UI_DIM, 0);
+        value_u(a, "LEN ", b->length);
+        o->text(o->ctx, 150, 52, 80, 0, a, b->on ? UI_GOLD : UI_DIM, 2);
+        for (i = 0u; i < MELLO_BASS_STEPS; ++i) {
+            const MelloBassStep *s = &b->steps[i];
+            int16_t x = (int16_t)(8 + i * 14u), h = (int16_t)(6 + s->tone * 4u);
+            bool in_len = i < b->length, playing = b->on && e->bass_step == (int8_t)i,
+                 picked = i == ui->selected_sub_x_step % MELLO_BASS_STEPS;
+            uint16_t c = !in_len ? UI_TRACK : (s->accent ? UI_WHITE : (b->on ? UI_GOLD : UI_MID));
+            o->fill(o->ctx, x, 68, 12, 44, in_len ? UI_PANEL2 : UI_PANEL);
+            if (s->on && in_len) {
+                o->fill(o->ctx, (int16_t)(x + 2), (int16_t)(108 - h), 8, h,
+                        ui_mix(c, UI_PANEL2, s->accent ? 40 : 90));
+                if (s->octave > 0) o->fill(o->ctx, (int16_t)(x + 2), 70, 8, 2, UI_BLUE);
+                if (s->octave < 0) o->fill(o->ctx, (int16_t)(x + 2), 109, 8, 2, UI_BLUE);
+                if (s->glide && i + 1u < b->length)
+                    o->fill(o->ctx, (int16_t)(x + 10), (int16_t)(106 - h), 6, 2, c);
             } else if (in_len)
-                o->fill(o->ctx, (int16_t)(x + 4), 92, 32, 2, UI_LINE);
-            if (in_len && xs->octave)
-                o->fill(o->ctx, (int16_t)(x + 4), xs->octave > 0 ? 73 : 95, 32, 2, UI_BLUE);
-            a[0] = (char)('1' + i), a[1] = 0;
-            o->text(o->ctx, x, 99, 40, 0, a, active ? UI_GOLD : (selected ? UI_BRIGHT : UI_DIM), 1);
+                o->fill(o->ctx, (int16_t)(x + 2), 106, 8, 2, UI_LINE);
+            if (playing || picked) ui_frame(o, x, 68, 12, 44, playing ? UI_GOLD : UI_BRIGHT);
         }
         draw_knob_grid(ui, o, 118);
         break;
@@ -4337,11 +4380,19 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         v = e->visible_slot_count, m = MELLO_MAX_SLOTS;
     } else if (ui->page == MELLO_UI_SUB) {
         const MelloSubConfig *c = &e->sub;
+        const MelloBassConfig *b = &e->bass;
+        const MelloBassStep *bs = &b->steps[ui->selected_sub_x_step % MELLO_BASS_STEPS];
         switch (ui->sub_subpage * 4u + k) {
         case 1: v = c->euclid_pulses, m = 64u; break;
         case 2: v = c->euclid_rotate, m = 64u; break;
-        case 7:
-        case 11: v = c->gate_amount, m = 1200u; break;
+        case 5: v = b->length - 1u, m = 15u; break;
+        case 7: v = c->gate_amount, m = 1200u; break;
+        case 8: v = bs->tone, m = 7u; break;
+        case 9: v = (uint32_t)(bs->octave + 2), m = 4u; break;
+        case 20: v = b->res; break;
+        case 21: v = b->env; break;
+        case 22: v = b->env_decay_ms, m = 2000u; break;
+        case 23: v = b->accent; break;
         case 12: v = c->level; break;
         case 14: v = c->decay_ms, m = 700u; break;
         case 15: v = c->release_ms, m = 1200u; break;
@@ -4700,24 +4751,34 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             l[3] = "OCT";
             value_i(v[3], "", e->sub.octave);
         } else if (ui->sub_subpage == 1u) {
-            l[0] = "5SEQ ON";
-            copy_s(v[0], e->sub.x_on ? "ON" : "OFF");
-            l[1] = "5SEQLEN";
-            value_u(v[1], "", e->sub.x_length);
-            l[2] = "RESET";
-            copy_s(v[2], e->sub.x_reset ? "ON" : "OFF");
+            l[0] = "SEQ";
+            copy_s(v[0], e->bass.on ? "ON" : (e->sub.x_on ? "5-SEQ" : "OFF"));
+            l[1] = "LENGTH";
+            value_u(v[1], "", e->bass.length);
+            l[2] = "FOLLOW";
+            copy_s(v[2], e->bass.follow ? "ON" : "OFF");
             l[3] = "GATE";
             value_u(v[3], "", e->sub.gate_amount / 10u);
         } else if (ui->sub_subpage == 2u) {
-            MelloSubXStep *xs = &e->sub.x_steps[ui->selected_sub_x_step];
-            l[0] = "ON";
-            copy_s(v[0], xs->on ? "ON" : "OFF");
-            l[1] = "TONE";
-            value_u(v[1], "", xs->tone);
-            l[2] = "OCT";
-            value_i(v[2], "", xs->octave);
-            l[3] = "GATE";
-            value_u(v[3], "", e->sub.gate_amount / 10u);
+            static const char *tn[8] = {"ROOT", "2ND", "3RD", "4TH", "5TH", "6TH", "7TH", "OCT"};
+            const MelloBassStep *bs = &e->bass.steps[ui->selected_sub_x_step % MELLO_BASS_STEPS];
+            l[0] = "TONE";
+            copy_s(v[0], bs->on ? tn[bs->tone & 7u] : "OFF");
+            l[1] = "OCT";
+            value_i(v[1], "", bs->octave);
+            l[2] = "GLIDE";
+            copy_s(v[2], bs->glide ? "ON" : "OFF");
+            l[3] = "ACCENT";
+            copy_s(v[3], bs->accent ? "ON" : "OFF");
+        } else if (ui->sub_subpage == 5u) {
+            l[0] = "RES";
+            value_u(v[0], "", e->bass.res / 10u);
+            l[1] = "ENV";
+            value_u(v[1], "", e->bass.env / 10u);
+            l[2] = "E.DEC";
+            value_ms(v[2], e->bass.env_decay_ms);
+            l[3] = "ACCENT";
+            value_u(v[3], "", e->bass.accent / 10u);
         } else if (ui->sub_subpage == 3u) {
             l[0] = "LEVEL";
             value_u(v[0], "", e->sub.level / 10u);
@@ -5334,7 +5395,8 @@ static const char *layer_name(const MelloUi *ui)
                       *slots[2] = {"LOAD", "RENAME"},
                       *dot[5] = {"ACCENT", "MOD 1", "RATCHET", "SUB", "MOD 2"},
                       *dsh[2] = {"MOD 1 SHAPE", "MOD 2 SHAPE"}, *tm[4] = {"MAIN", "ROUTES", "DEPTH", "SOUND"},
-                      *sub[5] = {"TRIG", "5-SEQ", "STEP", "VOICE", "TONE"}, *glo[2] = {"CLOCK", "MIDI"},
+                      *sub[6] = {"TRIG", "SEQ", "STEP", "VOICE", "TONE", "FILTER"},
+                      *glo[2] = {"CLOCK", "MIDI"},
                       *snd[10] = {"OSC / FILTER", "AMP ENVELOPE", "AUDIO LFO", "FOLLOWER SUB", "PLAY / LEVEL",
                                   "GRIT",         "OSC 2",        "CHARACTER", "MOD ENV",      "TRACKING"},
                       *fx[5] = {"DISTORTION", "DELAY", "DELAY CONFIG", "REVERB", "RETURNS"},
@@ -5349,7 +5411,7 @@ static const char *layer_name(const MelloUi *ui)
                    ? dsh[dot_lane(ui->selected_dot_target)]
                    : dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT];
     case MELLO_UI_TURING: return tm[ui->tm_subpage % 4u];
-    case MELLO_UI_SUB: return sub[ui->sub_subpage % 5u];
+    case MELLO_UI_SUB: return sub[ui->sub_subpage % 6u];
     case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 2u];
     case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 10u];
     case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 5u];
@@ -5532,10 +5594,11 @@ static uint32_t calc_key_leds(MelloUi *ui)
         uint8_t base = (uint8_t)(ui->tm_bank * 16u);
         for (i = 0u; i < 16u; ++i)
             if (e->tm_bool_reg[base + i]) mask |= bit_u32(white_key_notes[i]);
-    } else if (ui->page == MELLO_UI_SUB) {
-        for (i = 0u; i < MELLO_SUB_X_MAX_STEPS; ++i)
-            if (e->sub.x_steps[i].on) mask |= bit_u32(white_key_notes[i]);
-        mask |= bit_u32(white_key_notes[ui->selected_sub_x_step]);
+    } else if (ui->page == MELLO_UI_SUB) { /* BASS SEQ's steps lit; its playhead flips its key */
+        for (i = 0u; i < e->bass.length; ++i)
+            if (e->bass.steps[i].on) mask |= bit_u32(white_key_notes[i]);
+        if (ui->transport->running && e->bass.on && e->bass_step >= 0)
+            mask ^= bit_u32(white_key_notes[(uint8_t)e->bass_step]);
 #if MELLO_FEATURE_CHORD_MACHINE
     } else if (ui->page == MELLO_UI_CHORD) {
         if (ui->chord_subpage == 3u) {

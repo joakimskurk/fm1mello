@@ -38,6 +38,7 @@ static MelloChordConfig synced_chord;
 #endif
 static MelloSampleConfig synced_sample;
 static MelloDrumConfig synced_drums;
+static MelloBassConfig synced_bass;
 static MelloModRouting synced_modr;
 static MelloSampleBank sample_bank;
 #ifndef DINGHY_HOST
@@ -150,9 +151,12 @@ static void sync_audio_config(void)
 #endif
         memcmp(&synced_modr, &mt.engine.modr, sizeof synced_modr) ||
         memcmp(&synced_sample, &mt.engine.sample, sizeof synced_sample) ||
-        memcmp(&synced_drums, &mt.engine.drums, sizeof synced_drums)) {
+        memcmp(&synced_drums, &mt.engine.drums, sizeof synced_drums) ||
+        memcmp(&synced_bass, &mt.engine.bass, sizeof synced_bass)) {
         synced_drums = mt.engine.drums;
         mello_audio_set_drum_config(&audio, &synced_drums);
+        synced_bass = mt.engine.bass;
+        mello_audio_set_bass_config(&audio, &synced_bass);
         synced_sound = mt.engine.sound;
         synced_fx = mt.engine.fx;
         synced_sub = mt.engine.sub;
@@ -233,6 +237,8 @@ static void app_main(void)
 #endif
     synced_drums = mt.engine.drums;
     mello_audio_set_drum_config(&audio, &synced_drums);
+    synced_bass = mt.engine.bass;
+    mello_audio_set_bass_config(&audio, &synced_bass);
     mello_transport_set_event_sink(&mt, mello_audio_event_sink, &audio);
     audio_ready = true;
     last_running = mt.running;

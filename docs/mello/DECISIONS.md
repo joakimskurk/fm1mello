@@ -297,6 +297,36 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
     TUNE, DECAY and TONE, each with ROLL's chance, within what suits the voice. The kick stays a kick: TUNE 25-60%,
     DECAY up to 25%, TONE up to 35%. GLITCH's TONE can pick any kind. FEED+ is in SEC_DRUMS's flags (bit 3).
 
+## BASS SEQ (2026-10-31)
+
+Feedback: "a 16-step bass sequencer instead of 5-SEQ: length 1-16, per step tone, octave, glide and more; its own
+clock, not stopped by the main sequence's skipped or held steps unless asked to follow them", and "more parameters
+for the bass synth, if there are any under the hood".
+
+- **The sequence.** 16 steps, LENGTH 1-16. Each step has ON, TONE (ROOT .. 7TH, OCT, in the key as 5-SEQ's were),
+  OCT -2..+2, GLIDE and ACCENT. It has its own clock: a step every pulse, whatever the sequence skips, holds or
+  REVERSE / REPEAT play. FOLLOW steps it with the sequence's steps instead, as 5-SEQ did. While it is on, it decides
+  the sub's notes, and the sub's MODE (STEP, EUCLID, ..) waits. SUB MUTE silences it. It is global, as the drums are
+  (SEC_BASS 10, 42 bytes), not per slot.
+- **Glide and accent, as a 303's.** A gliding step's note is held past the next step's start. If the next step
+  plays, that note slides there (GLIDE's time, or 60 ms at 0) without a new attack. A glide into a rest does nothing
+  but hold. An accent is velocity 127 (others 114, the sub's): louder by up to half again (ACCENT), and it opens the
+  filter by up to 2 octaves more. Outside BASS SEQ, the sub glides as the HTML's always did. The events carry
+  ratchet_index 1 + the step, which tells mello_audio they are BASS SEQ's and tags each step apart.
+- **The voice: a FILTER layer.** RES (Q 0.7 to ~17), ENV (up to 4 octaves over CUT, falling to -60 dB in E.DEC,
+  20-2000 ms) and ACCENT. Once RES or ENV is above 0, the sub's filter becomes two state-variable low-passes, the
+  second resonant, with the frequency worked out every 16 samples. At 0 it is the HTML's two biquads, exactly.
+  Rendered alone, the default line with RES 65%, ENV 60% and E.DEC 250 ms has 21 dB more at 200 Hz-2 kHz than
+  without.
+- **The page.** SEQ (ON, LENGTH, FOLLOW, GATE), STEP (the picked step's TONE, OCT, GLIDE, ACCENT), FILTER. A white key
+  toggles its step and picks it, as on DRUMS; B4 toggles the picked one. The steps are drawn as 16 gold columns:
+  height for the tone, blue marks for an octave, accents white, glides drawn on to the next step, the playing step
+  framed gold.
+- **The default line**, for when it is turned on: root (accented) on 1, root on 4, an octave on 7 sliding down to the
+  fifth on 8, root (accented) on 11, third on 14, seventh on 15 sliding home on 16.
+- **5-SEQ** stays in the engine and the snapshot (the HTML's, per slot). Turning SEQ on in a project whose 5-SEQ is on
+  moves 5-SEQ's steps into BASS SEQ, FOLLOW on, so it plays as it did.
+
 ## MIX (2026-10-31)
 
 Feedback: "we need a mixer now; K1-4 lead, sub bass, chords/arp, perc". GLO opens it first, then GLOBAL, then
@@ -304,7 +334,7 @@ SAMPLE. It has four faders in their parts' colours (LEAD green, SUB gold, CHORD 
 part is off.
 - K1 LEAD is new: the lead and its follower sub alone, before the filter (MelloSoundConfig.lead_level, 100% by
   default, ramped). It is saved with the sound in SEC_GRIT 4, so it belongs to the slot as the rest of the sound does.
-- K2 SUB is the 5-SEQ bass's LEVEL, K3 CHORD the chord voice's, K4 PERC the drums': each is the same value as on its
+- K2 SUB is the dedicated sub's LEVEL, K3 CHORD the chord voice's, K4 PERC the drums': each is the same value as on its
   own page.
 - The name: CHORD, the same as the page. The arpeggio is the chord's PATTERN mode, so "chords/arp" is one part.
 - Saved in SEC_DRUMS (9). Not yet: MIDI out, LFO / DOT / EVOLVE routes to the drums.

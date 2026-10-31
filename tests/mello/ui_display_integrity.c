@@ -118,7 +118,7 @@ static int subcount(MelloUiPage p)
     case MELLO_UI_SEQ_LOOP: return 3;
     case MELLO_UI_SLOTS: return 2;
     case MELLO_UI_TURING: return 4;
-    case MELLO_UI_SUB: return 5;
+    case MELLO_UI_SUB: return 6;
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD: return 9;
 #endif

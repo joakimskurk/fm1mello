@@ -55,13 +55,15 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
       the room left shared out; where there is no room for frames (HOME, SEGMENT, DRUMS), plain tinted cells a pixel
       apart; on = filled.
 - [ ] **RANDOMIZE WAVE per step**: with WAVE in the mask a roll gives each step its own wave (never OFF).
-- [ ] **The bass sequencer: 16 steps** instead of 5-SEQ: length 1-16, per step tone, octave, glide and more; its own
-      clock, not stopped by the main sequence's skipped or held steps unless asked to follow them.
+- [x] **The bass sequencer: 16 steps** instead of 5-SEQ: length 1-16, per step tone, octave, glide and more; its own
+      clock, not stopped by the main sequence's skipped or held steps unless asked to follow them. BASS SEQ on the SUB
+      page (DECISIONS.md "BASS SEQ").
 - [x] **More delay times**: DIV is now 16T, 16N, 8T, 8N, 4T, 8D, 4N, 4D, 2N (shortest first; the stored numbers keep
       the HTML's four).
 - [x] **A MUSICAL randomizer**: as now, and a setting to roll musically instead of at random (rhythmic, in phrase),
       so fewer rolls are needed before tweaking. INT's fourth step, MUSICAL (DECISIONS.md "RANDOM: MUSICAL").
-- [ ] **More parameters for the bass synth**, if there are any under the hood.
+- [x] **More parameters for the bass synth**, if there are any under the hood: RES, ENV, E.DEC and ACCENT (SUB's
+      FILTER layer).
 - [x] **A simple 16-step drum machine**: minimal, classic voices, "Aphex Twin meets Richard Divine": the sonic
       differences come from per-step modulation and the randomizer. Its own clock as the bass's.
       Done (DECISIONS.md "Drums"): DRUMS after SUB and CHORD on BASS; KICK, SNARE, HAT, GLITCH; per step PITCH, DECAY,

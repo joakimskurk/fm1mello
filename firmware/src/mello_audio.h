@@ -103,6 +103,12 @@ typedef struct {
     int32_t biquad2_y1;
     int32_t biquad2_y2;
     int32_t drive_prev;
+    /* BASS SEQ's filter (RES or ENV above 0): two state-variable low-passes, the second resonant */
+    int32_t svf_lp[2], svf_bp[2];
+    int32_t svf_f, svf_damp; /* Q15, set every 16 samples */
+    uint8_t svf_ctl;
+    int32_t fenv, fenv_k; /* Q24: the filter envelope, 1 at a note's attack, and its fall a sample */
+    bool accent;
 } MelloAudioSubVoice;
 
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -203,6 +209,8 @@ typedef struct {
 #endif
     MelloDrumConfig drum_config;
     MelloDrumConfig pending_drum_config;
+    MelloBassConfig bass_config;
+    MelloBassConfig pending_bass_config;
     MelloAudioDrumVoice drum[MELLO_DRUM_VOICES];
     uint32_t drum_noise;
     int16_t drum_buf[MELLO_DRUM_BUF]; /* the music and the drums, for STUTTER */
@@ -329,6 +337,7 @@ void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *sound, const 
 void mello_audio_set_chord_config(MelloAudio *a, const MelloChordConfig *chord);
 #endif
 void mello_audio_set_drum_config(MelloAudio *a, const MelloDrumConfig *drums);
+void mello_audio_set_bass_config(MelloAudio *a, const MelloBassConfig *bass);
 void mello_audio_attach_sample_bank(MelloAudio *a, MelloSampleBank *bank);
 bool mello_audio_push_engine_event(MelloAudio *a, const MelloEvent *event, uint32_t due_us);
 void mello_audio_event_sink(void *ctx, const MelloEvent *event, uint32_t due_us);
