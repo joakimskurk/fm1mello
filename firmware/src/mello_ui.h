@@ -220,6 +220,8 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
                     const int16_t encoder_delta[MELLO_UI_ENCODER_COUNT]);
 
 void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops);
+/* The splash, while the FM-1 starts (storage, samples): the wordmark over a sixteen-step motif, the version under it. */
+void mello_ui_draw_splash(const MelloUiDrawOps *ops, const char *version);
 void mello_ui_sync_leds(MelloUi *ui, const MelloUiDrawOps *ops);
 uint16_t mello_ui_dirty(const MelloUi *ui);
 const char *mello_ui_page_name(MelloUiPage page);

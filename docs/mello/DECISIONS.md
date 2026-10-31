@@ -297,6 +297,13 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
     TUNE, DECAY and TONE, each with ROLL's chance, within what suits the voice. The kick stays a kick: TUNE 25-60%,
     DECAY up to 25%, TONE up to 35%. GLITCH's TONE can pick any kind. FEED+ is in SEC_DRUMS's flags (bit 3).
 
+## The splash (2026-10-31)
+
+The wordmark left the header for the key ("C MINOR"). It is now on a splash at boot: sixteen steps drawn as HOME
+draws them, a phrase rising and falling in the four segments' colours, a line, SKURKYMELLO in the HTML's green (large),
+and "FM-1" with the version under it. dinghy.c draws it first, before storage and the samples load, and keeps it up
+for 1.5 s at least (not in host mode). tests/mello/ui_splash.c checks that it fits.
+
 ## The chord chain (2026-10-31)
 
 ROADMAP: "HOLD in steps rather than triggers; chords that follow the segments; the sub on the chord's root".

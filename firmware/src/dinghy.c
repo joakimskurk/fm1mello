@@ -3,6 +3,9 @@
  * native UI, fixed-point DSP and four-slot compressed sample layer. Audio/sample
  * events are timestamped in main-loop context and consumed inside app_audio().
  */
+#ifndef APP_VER
+#define APP_VER "dev"
+#endif
 #ifndef APP_NAME
 #define APP_NAME "SKURKYMELLO"
 #endif
@@ -179,8 +182,11 @@ static void sync_audio_config(void)
 
 static void app_main(void)
 {
-    uint32_t last_render_ms = 0u, last_service_ms = 0xFFFFFFFFu;
+    uint32_t last_render_ms = 0u, last_service_ms = 0xFFFFFFFFu, splash_us;
     MelloUiDrawOps draw = ui_draw_ops();
+
+    mello_ui_draw_splash(&draw, APP_VER); /* while storage and the samples load */
+    splash_us = fm1_micros();
 
     mello_project_defaults(&project);
     mello_transport_init(&mt, &project, 0x4D454C4Cu, midi_out_cb, 0);
@@ -247,6 +253,12 @@ static void app_main(void)
     audio_ready = true;
     last_running = mt.running;
 
+#ifndef DINGHY_HOST
+    while ((uint32_t)(fm1_micros() - splash_us) < 1500000u)
+        platform_poll(); /* the splash for 1.5 s at least */
+#else
+    (void)splash_us;
+#endif
     mello_ui_render(&ui, &draw);
     mello_ui_sync_leds(&ui, &draw);
 

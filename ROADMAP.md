@@ -163,8 +163,11 @@ of the HTML (`tools/tone-ref/shoot.mjs`).
 - [x] The performance keys on HOME: FILL, SUB MUTE, REVERSE, REPEAT (+ white key = length), RESTART; REVERSE and
       REPEAT keep time; RNDMZR moved to the last black key on every page (DECISIONS.md "Performance keys").
 - [ ] Note names in HOME's step bars as the HTML's lanes; the remaining pages' bodies in music units.
+      The first half is done (checked 2026-10-31): HOME's bars carry the note's letter and a dot for a sharp, as the
+      HTML's lanes (NOTE_NAMES, no octave). Still open: a page-by-page pass for music units.
 - [x] Randomizer "skyline": its length and bar width follow the sequence length.
-- [ ] A splash screen with the SKURKYMELLO wordmark (it left the header).
+- [x] A splash screen with the SKURKYMELLO wordmark (it left the header): at boot, while storage and the samples
+      load, for 1.5 s at least (mello_ui_draw_splash; ui_splash).
 
 ## Phase 5: deeper sound and modulation (2026-10-29 wishlist)
 

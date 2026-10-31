@@ -5615,6 +5615,38 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
     ui->dirty &= MELLO_UI_DIRTY_LEDS;
 }
 
+/* The splash (ROADMAP: "a splash screen with the SKURKYMELLO wordmark; it left the header"): sixteen steps as HOME
+ * draws them, a phrase rising and falling in the four segments' colours, the wordmark in the HTML's green under it,
+ * and the version. */
+void mello_ui_draw_splash(const MelloUiDrawOps *ops, const char *version)
+{
+    static const uint8_t h[16] = {18, 26, 34, 26, 42, 34, 50, 58, 46, 38, 54, 66, 50, 34, 26, 18};
+    MelloUiFitCtx fit_ctx;
+    MelloUiDrawOps o;
+    char b[32];
+    uint8_t i;
+    if (!ops || !ops->fill || !ops->text) return;
+    fit_ctx.raw = ops;
+    fit_ctx.fn = 0u;
+    fit_ctx.fhead = 0u;
+    memset(&o, 0, sizeof o);
+    o.fill = fit_fill;
+    o.text = fit_text;
+    o.ctx = &fit_ctx;
+    o.fill(o.ctx, 0, 0, 240, 240, UI_BLACK);
+    for (i = 0u; i < 16u; ++i) {
+        int16_t x = (int16_t)(25 + i * 12), y = (int16_t)(116 - h[i]);
+        uint16_t c = ui_segment_colour((uint8_t)(i / 4u));
+        o.fill(o.ctx, x, y, 9, 2, c); /* the cap, as HOME's */
+        ui_vgrad(&o, x, (int16_t)(y + 2), 9, (int16_t)(h[i] - 2), ui_mix(c, UI_BLACK, 90),
+                 ui_mix(c, UI_BLACK, 200));
+    }
+    o.fill(o.ctx, 24, 120, 192, 1, UI_LINE);
+    o.text(o.ctx, 0, 132, 240, 1, "SKURKYMELLO", UI_ACC, 1);
+    (void)copy_s(copy_s(b, "FM-1  "), version ? version : "");
+    o.text(o.ctx, 0, 176, 240, 0, b, UI_DIM, 1);
+}
+
 static uint32_t calc_key_leds(MelloUi *ui)
 {
     MelloEngine *e = eng(ui);
