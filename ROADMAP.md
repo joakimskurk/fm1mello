@@ -35,9 +35,13 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       keys do on each; the words and units each value uses. The deviations marked. Built from the code's own tables,
       as a page to review. docs/mello/UI_MAP.md (generated), the review page with the deviations (A-L) and the
       proposal (R1-R7) handed over 2026-10-31.
-- [ ] C2. Rules, decided by the product owner from the map. Proposals:
-      - a panel button is a section and pressing it again goes to the section's next page; SELECT is always the layer;
-        no hidden layers (dimmed instead); the header shows where you are (section > page > layer).
+- [ ] C2. Rules, decided by the product owner from the map. The frame: the M-VAVE FM-1's panel is printed (OCT-,
+      OCT+, FX, SEL, ENV, LFO, EDIT, GLO, HOME, SAVE, ARP, SEQ, PLAY, REC; SELECT, ALGORITHM, PRESETS, K1-K4) and
+      the firmware cannot rename a button, so the printed name is the section's name. Proposals:
+      - the printed button is the section (SEQ, ENV, LFO, FX, ARP, SEL, GLO) and pressing it again goes to the
+        section's next page; ALGORITHM is the page, SELECT is always the layer; no hidden layers (dimmed instead);
+        the header shows BUTTON > PAGE > LAYER; OCT-/OCT+ are the octave on every page; held keys open the deep
+        pages (RNDMZR, SAVE).
       - B0 is ON for the page's part wherever there is one; B9 UNDO and B10 RNDMZR stay; the keys between in a fixed
         order (pick, then toggles, then actions).
       - white keys: one meaning on every page (for example: tap toggles a step, EDIT + tap picks it).
