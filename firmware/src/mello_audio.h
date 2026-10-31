@@ -75,6 +75,10 @@ typedef struct {
     int16_t vel_q15; /* tracking: the note's velocity from the plain step's, +-32767 (an accent is +32767) */
     uint8_t vel_level; /* the velocity the level uses (vel_level sets how far it is from the plain step's) */
     uint32_t osc2_phase;
+    int16_t vel_cut;      /* tracking, worked out at the note: VEL > CUTOFF's offset, permille */
+    int32_t menv_amt_q15; /* MOD ENV's amount for this note (VEL > MOD ENV in it), Q15 */
+    int32_t osc2_q8_last; /* OSC 2: the pitch offset semi_ratio_q16 was last taken for, and what it gave */
+    uint32_t osc2_r2;
 } MelloAudioLeadVoice;
 
 typedef struct {
@@ -136,6 +140,7 @@ typedef struct {
     int32_t hp_x1, hp_y1;
     int32_t f_q15, damp_q15; /* its coefficients, every 16 samples */
     uint8_t ctl;
+    int32_t chorus_depth, chorus_mix_q15; /* CHORUS: the swing in samples, and how much is wet */
     int16_t chorus_buf[MELLO_CHORD_CHORUS_LEN];
     uint16_t chorus_pos;
     uint32_t chorus_lfo;
@@ -267,6 +272,14 @@ typedef struct {
         drum_mod[4]; /* the drums' modulation (DOT, EVOLVE, LFO), -1000..1000: TUNE, DECAY, CRUSH, DRIVE */
     int32_t mix_gain[4]; /* each part's, Q15, sliding as sub_gain does */
     uint16_t effective_decay_ms;
+    /* From the config, worked out when it changes (apply_pending), so the per-sample path has no divide: the chip
+     * divides in hardware but slowly, and a divide by a constant is a divide too; its widening multiply is one
+     * instruction. Gains in Q12 (4096 = 1), modulation depths in Q15. */
+    int32_t lfo_depth_q15, lfo_filter_span_q15, lfo_pitch_cents, lfo_pwm_swing, key_track_q15, osc2_q8_base,
+        osc2_mix_q15, delay_lc_k, drum_level_q12, drum_space_q12, drum_fold_q12;
+#if MELLO_FEATURE_CHORD_MACHINE
+    int32_t chord_level_q12, chord_send_q12;
+#endif
     int16_t last_lfo;
     int16_t tm_filter_mod_q15;
     int16_t tm_decay_mod_q15;
@@ -331,6 +344,7 @@ typedef struct {
     volatile bool all_notes_off_pending;
     volatile bool silent;
     uint32_t tail_guard_frames;
+    uint32_t reverb_live; /* frames the reverb still has to run after its last input (render: its own tail) */
     uint32_t rendered_frames;
     int16_t peak;
 #if defined(MELLO_LIVE_EDIT_TEST_HOOK) && MELLO_LIVE_EDIT_TEST_HOOK
