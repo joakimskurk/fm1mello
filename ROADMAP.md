@@ -20,7 +20,8 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
 **B. Measure, then make room**
 - [x] B1. CPU on the chip's model again (fm1-emu): done 2026-10-31 with tools/emu_cpu.sh (two runs, silence then
       PLAY, so the splash does not dilute it) and mello_engine_stress, the worst case (everything on at once).
-      0.5-f19, playing: the default pattern 77 M instructions/s = 32% of the chip, the worst case 179 M/s = 75%.
+      0.5-f19, playing: the default pattern 77 M instructions/s = 32% of the chip, the worst case 179 M/s = 75%;
+      0.5-f27 (after B3's second round): 75.9 M/s = 32% and 169.6 M/s = 71%, silence 4.8 M/s = 2% (f19: 60).
       In silence the interrupts took 60 M/s more: 55 of them were the render running through the silence (its
       early return compared two arrays' addresses, never equal; fixed in f24, silence costs ~5 M/s = 2%: the
       timer with the key scan, 2.5 in silence and ~12 while playing with LEDs lit). The emulator
@@ -34,9 +35,11 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       constant is a divide for this toolchain); its 64-bit multiply is one instruction, no libcall.
 - [x] B3. Done 2026-10-31 for what B2 showed: the per-sample path has no divide (Q12 gains, Q15 depths, worked out
       when the config or the note changes), the reverb runs on its own tail only, the drums' modulation is read
-      every 16 samples. Renders: the parity table within 0.1 dB. Left, in order of worth: the modulation block at
-      a control rate (every 4 samples: the LFO, the cutoff's sum, the main filter's coefficients under the LFO),
-      the key scan's LED pulses (fm1_input_tick, a HAL file: ~12 M/s while playing).
+      every 16 samples. Renders: the parity table within 0.1 dB. Then (the same evening): the render's early
+      return for silence never fired (two arrays' addresses compared), 55 M/s with the sequencer stopped, fixed;
+      the modulators' offsets at a control rate (every 4 samples), the ramps and mutes stepped only while they
+      move, the sample voices called only when on. Left: the key scan's LED pulses (fm1_input_tick, a HAL file:
+      ~12 M/s while playing with LEDs lit; a 4 us spin a tick where a dim LED is).
 - [x] B4. RAM, 2026-10-31: 800 B free -> 7456 B. The table (tests/bench, sizes): the engine 60 KB, of it the 64
       slots 49.7 KB, its event queue 3.8 KB, UNDO's copies 1.2 KB; the audio 21.9 KB -> 16.3 (its event queue 8 KB
       -> 4, the chorus line 2 KB -> 0.5); dinghy.c's synced copies and default project 1.2 KB -> 0. Left: the stack's

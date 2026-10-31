@@ -658,7 +658,8 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   second against the chip's 240 M. A -DMELLO_STRESS build plays mello_engine_stress at boot: every part on and busy
   at once (ratchets, unison 4 with OSC 2, FM, noise and SAT, the LFO on the filter, BASS SEQ with RES and ENV, four
   held chord voices with chorus, the drums on every step with rolls, ratchets, STUTTER and DRIVE, delay, reverb,
-  distortion, both MOD lanes). 0.5-f19: the default pattern 32% of the chip, the worst case 75%. The emulator
+  distortion, both MOD lanes). 0.5-f19: the default pattern 32% of the chip, the worst case 75%, and 25% in
+  silence (the early return that never fired, below); 0.5-f27: 32%, 71% and 2%. The emulator
   counts instructions and not cycles (its ISA notes say so: cycle counts unverified), so a divide is one
   instruction there and a widening multiply one: it cannot see what the next decision gains. The chip can:
   dinghy.c times every render block and GLOBAL shows the worst block of each second as CPU nn% (B5).
