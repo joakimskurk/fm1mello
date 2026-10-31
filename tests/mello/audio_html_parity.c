@@ -257,6 +257,8 @@ int main(void)
     fx.reverb_wet = 0u;
     fx.dist_amount = 0u;
     mello_audio_set_config(&a, &sound, &fx, &sub, &sample);
+    a.tail_guard_frames = 100000u; /* nothing sounds here: keep the render from its silent early return */
+    a.silent = false;
     {
         /* apply the config; the feedback and delay time ramp over 50 ms (rampTo), so let them arrive */
         uint32_t k;

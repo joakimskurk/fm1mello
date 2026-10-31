@@ -2260,9 +2260,23 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
     /* Bound the IMA decode work per call whatever the sample settings (P1-4). Normal playback needs about
      * one block per voice per 256 frames; four voices at +24 semitones need 16. */
     a->sample_decode_budget = MELLO_SAMPLE_DECODE_BUDGET;
-    if (a->silent && a->q_head == a->q_tail && !a->all_notes_off_pending) {
-        a->rendered_frames += frames;
-        return;
+    if (a->silent && !a->all_notes_off_pending && !a->dot_lane[0].stage && !a->dot_lane[1].stage) {
+        /* Nothing sounds and nothing is due: the block stays zero. (This compared the two lane arrays' addresses
+         * before, never equal, so the whole loop ran through the silence: 55 M instructions/s on the chip.) */
+        uint8_t ql;
+        for (ql = 0u; ql < MELLO_AUDIO_EVENT_LANES; ++ql)
+            if (!audio_lane_empty(a, ql)) break;
+        if (ql == MELLO_AUDIO_EVENT_LANES) {
+            /* the mutes' gains still settle, as they would have a sample at a time (ui_perf_keys) */
+            int32_t step = 75 * (int32_t)frames;
+            uint8_t m;
+            a->sub_gain = clamp32(a->sub_gain + (a->sub_mute ? -step : step), 0, 32767);
+            for (m = 0u; m < 4u; ++m)
+                a->mix_gain[m] =
+                    clamp32(a->mix_gain[m] + (((a->mix_mute >> m) & 1u) ? -step : step), 0, 32767);
+            a->rendered_frames += frames;
+            return;
+        }
     }
     if (a->all_notes_off_pending) {
         {

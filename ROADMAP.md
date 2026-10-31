@@ -20,9 +20,10 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
 **B. Measure, then make room**
 - [x] B1. CPU on the chip's model again (fm1-emu): done 2026-10-31 with tools/emu_cpu.sh (two runs, silence then
       PLAY, so the splash does not dilute it) and mello_engine_stress, the worst case (everything on at once).
-      0.5-f19, playing: the default pattern 77 M instructions/s = 32% of the chip, the worst case 179 M/s = 75%;
-      some 58 M/s more in interrupts whatever plays (the audio ISR's own passes, the 10 kHz timer: the key scan is
-      2.5 of them in silence, ~12 while playing with LEDs lit; the USB poll none without a host). The emulator
+      0.5-f19, playing: the default pattern 77 M instructions/s = 32% of the chip, the worst case 179 M/s = 75%.
+      In silence the interrupts took 60 M/s more: 55 of them were the render running through the silence (its
+      early return compared two arrays' addresses, never equal; fixed in f24, silence costs ~5 M/s = 2%: the
+      timer with the key scan, 2.5 in silence and ~12 while playing with LEDs lit). The emulator
       counts instructions, not cycles: a divide is one there. The 60% budget stands for the worst case; it is not
       met on instruction count, and the chip's own cycles are read on GLOBAL now (CPU nn%, B5). The main loop spins
       in the emulator (its idle instruction does not sleep there), so its share says nothing.

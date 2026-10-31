@@ -666,6 +666,11 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   0.1 dB at most; on the emulator the default pattern costs 2.5% more instructions, as expected (one became three).
 - **The reverb keeps its own tail.** Its network ran whenever the delay's tail guard was armed, WET 0 or not; it
   runs while WET is up or its own tail (reverb_live, the decay time after the last input) is alive.
+- **Silence costs nothing now.** The render's early return for silence compared the two event-lane arrays'
+  addresses (`q_head == q_tail`), never equal, so the whole loop (filters, delay, reverb, distortion, limiter) ran
+  through every silent block: 55 M instructions/s, 23% of the chip, with the sequencer stopped. Found by building
+  a firmware without the render call (fm1-emu: 60 -> 5 M/s in silence). It returns early when every lane is empty,
+  nothing sounds and no MOD lane is still moving; the mutes' gains settle on that path too.
 - **Where the time goes** (make bench, the worst case on this computer, one part out at a time): drums 21%, the
   lead's grit and OSC 2 13%, the chords 13%, the sub with BASS SEQ 5%, the MOD lanes 3%, the LFO 2%. The reverb,
   delay and distortion cost little here. Not done, in order of worth: the modulation block at a control rate (every
