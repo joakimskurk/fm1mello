@@ -264,6 +264,27 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
   (`queue_push`), so a note keeps its length, and a NOTE_OFF that lands in the next pulse is still its own note's
   (`mello_audio` releases only on a note's own OFF). The loop's wrap and the slots' changes stay on the grid. At 0 it
   renders sample for sample as before (the HTML has no swing). tests/mello/swing_global.c checks it.
+- The glitch kit (2026-10-31: "the drum design sounds very 16-bit FM; I want something modern and glitchy: Richard
+  Devine, Aphex Twin, glitch music"). The voices were classic synthesized drums: a sine kick, a snare of sines and
+  noise, an 808 hat and an FM glitch. That is how a 16-bit console makes drums. Glitch music builds them from other
+  things: noise through resonant filters that sweep, micro-sounds and clicks, the music itself cut into loops, rolls
+  that rise, every hit somewhere else. Now:
+  - KICK: as before (a short punch, a two-stage pitch fall, a click).
+  - SNARE: noise through a state-variable band-pass that sweeps down from 4x its TUNE (0.9-3 kHz) in ~18 ms, with a
+    short falling body under it, driven. TONE goes from a broad crack (Q 0.7) to a resonant zap (Q 12). Its tail is
+    gated: at -18 dB it falls four times as fast.
+  - HAT: noise high-passed and ringing at 5-9 kHz (TUNE). TONE crosses it with a tick, a sine burst there gone in ~4 ms
+    (the Ikeda click).
+  - GLITCH: TONE picks the kind, in quarters, and the page names it. BLEEP is the old FM, its ratio x2-7 within the
+    quarter. CHIRP is a sine falling from 8x in ~12 ms, ring-modulated. CRACKLE is noise held for longer and longer
+    (digital rain). STUTTER loops the last 6-46 ms (TUNE) of the music and the drums. It is the default: the drums cut
+    up the sequence itself. PITCH shortens the loop.
+  - The hat and the glitch scatter: each hit lands up to 60% to either side. Kick and snare stay in the middle,
+    through the glue.
+  - A roll (RATCH) rises 2 semitones a hit and tightens 15 DECAY a hit, as drill'n'bass rolls do. The kick's rolls
+    don't rise.
+  The drums now render every sample while ON (STUTTER keeps listening, a 2048-sample memory, 4 KB). Cost: +36% audio
+  render with all voices ringing all the time, against +32% for the kit before.
 - Saved in SEC_DRUMS (9). Not yet: MIDI out, LFO / DOT / EVOLVE routes to the drums.
 
 ## The chord voice (2026-10-30)

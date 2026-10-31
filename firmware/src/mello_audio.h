@@ -140,20 +140,24 @@ typedef struct {
 /* A drum voice (DRUMS): one hit at a time, retriggered by the next. */
 typedef struct {
     uint8_t on;
+    uint8_t gated; /* the tail cut short (the snare's gate) */
+    uint8_t kind;  /* GLITCH: MELLO_GLITCH_* */
     int32_t env; /* Q24, falls by k a sample (one-pole, to -60 dB in the hit's decay) after hold_s samples */
     int32_t k;
     uint16_t hold_s;
-    int32_t penv,
-        pk; /* faster envelopes, Q24: the kick's body pitch, the snare's body, the glitch's FM index */
-    int32_t cenv, ck; /* the attack: the kick's click and pitch, the snare's snap */
-    uint32_t ph[6],
-        inc[6];   /* the tones (kick sine; snare body and its mode; hat's six squares; glitch pair) */
-    int32_t gain; /* Q15: LEVEL and the hit's velocity */
-    int32_t hp1, hp2, lp1; /* noise filters */
-    int32_t lpk;           /* the snare's noise low-pass, Q15 (TONE) */
-    uint8_t hold, hold_n;  /* CRUSH: sample and hold, and the bits kept */
+    int32_t penv, pk; /* a slower envelope, Q24: the kick's body pitch, the snare's body, the bleep's index */
+    int32_t cenv, ck; /* the attack, Q24: the kick's click, the snare's sweep, the chirp's fall */
+    uint32_t ph[2], inc[2]; /* the tones (kick sine; snare body; the hat's tick; the glitch's pair) */
+    int32_t gain;           /* Q15: LEVEL and the hit's velocity */
+    int32_t gl, gr;         /* Q15: where this hit sits (the hat and glitch are scattered) */
+    int32_t lp, bp, hp1;    /* filters: the state-variable pair, a one-pole */
+    int32_t f, damp;        /* the state-variable filter's base frequency and damping, Q15 */
+    uint16_t loop_start, loop_len, loop_pos, sh_n, sh_left; /* STUTTER's loop; CRACKLE's sample and hold */
+    int32_t sh;
+    uint8_t hold, hold_n; /* CRUSH: sample and hold, and the bits kept */
     int32_t held, mask;
 } MelloAudioDrumVoice;
+#define MELLO_DRUM_BUF 2048u /* STUTTER's memory of the music: 46 ms */
 
 typedef struct {
     bool active;
@@ -201,6 +205,8 @@ typedef struct {
     MelloDrumConfig pending_drum_config;
     MelloAudioDrumVoice drum[MELLO_DRUM_VOICES];
     uint32_t drum_noise;
+    int16_t drum_buf[MELLO_DRUM_BUF]; /* the music and the drums, for STUTTER */
+    uint16_t drum_buf_pos;
     volatile uint32_t config_generation;
     uint32_t applied_generation;
 

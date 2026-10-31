@@ -1,7 +1,8 @@
 /* DRUMS (feedback 2026-10-30: "a very simple 16-step drum machine ... not stopped by the main sequence's per-step
  * stops unless asked"). Checked: the drums step every pulse whatever the sequence skips, and with FOLLOW only with
- * its steps; RATCH and CHANCE; a ROLL keeps the kick on the one and UNDO takes it back; each voice sounds, stays in
- * range (UBSan) and CRUSH changes it; the kit and pattern survive a power cycle. */
+ * its steps; RATCH and CHANCE, a roll rising; a ROLL keeps the kick on the one and UNDO takes it back; each voice and
+ * each GLITCH kind sounds, stays in range at its extremes (UBSan) and CRUSH changes it; STUTTER loops what was just
+ * heard; the kit and pattern survive a power cycle. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -101,6 +102,16 @@ int main(void)
     for (v = 0u; v < MELLO_DRUM_STEPS; ++v) e.drums.lock[MELLO_DRUM_HAT][v].ratchet = 4u;
     n = hits_over(16u, per);
     CHECK(per[MELLO_DRUM_HAT] == 64u, "RATCH 4 gave %u hits in 16 steps", per[MELLO_DRUM_HAT]);
+    { /* the roll rises 2 semitones a hit */
+        MelloEvent ev;
+        uint8_t notes[4], k = 0u;
+        (void)mello_engine_advance_pulse(&e);
+        while (mello_event_pop(&e, &ev))
+            if (ev.type == MELLO_EVENT_DRUM_HIT && ev.sample_slot == MELLO_DRUM_HAT && k < 4u)
+                notes[k++] = ev.note;
+        CHECK(k == 4u && notes[1] == notes[0] + 2u && notes[3] == notes[0] + 6u,
+              "the roll did not rise (%u hits)", k);
+    }
     start(false); /* CHANCE 0: none */
     e.drums.voice[MELLO_DRUM_HAT].chance = 0u;
     n = hits_over(32u, per);
@@ -123,8 +134,10 @@ int main(void)
         printf("ROLL changed %u voices' hits, the kick on the one; UNDO restored them\n", changed);
     }
 
-    for (v = 0u; v < MELLO_DRUM_VOICES; ++v) { /* each voice, plain and crushed, at its extremes */
-        static const char *names[MELLO_DRUM_VOICES] = {"KICK", "SNARE", "HAT", "GLITCH"};
+    for (v = 0u; v < 7u; ++v) { /* each voice and GLITCH kind, plain and crushed, at its extremes */
+        static const char *names[7] = {"KICK", "SNARE", "HAT", "BLEEP", "CHIRP", "CRACKLE", "STUTTER"};
+        static const uint16_t tone[7] = {1000u, 1000u, 500u, 0u, 400u, 600u, 999u};
+        uint8_t voice = v < 3u ? (uint8_t)v : MELLO_DRUM_GLITCH;
         int32_t peak[2] = {0, 0};
         uint64_t diff = 0u;
         int32_t keep[2][4410];
@@ -146,18 +159,23 @@ int main(void)
             mello_drum_defaults(&d);
             d.on = true;
             d.level = 1000u;
-            d.voice[v].level = d.voice[v].tone = 1000u;
-            d.voice[v].crush = c ? 1000u : 0u;
+            d.voice[voice].level = 1000u;
+            d.voice[voice].tone = tone[v];
+            d.voice[voice].crush = c ? 1000u : 0u;
             mello_audio_init(&a, db, 4096u, rb, 24576u);
             mello_audio_set_config(&a, &s, &fx, &sub, &sm);
             mello_audio_set_drum_config(&a, &d);
             memset(&ev, 0, sizeof ev);
             ev.type = MELLO_EVENT_DRUM_HIT;
-            ev.sample_slot = (uint8_t)v;
             ev.note = 64u + 24u; /* PITCH +24 */
             ev.velocity = 127u;
             ev.drum_decay = 100;
-            (void)mello_audio_push_engine_event(&a, &ev, 0u);
+            if (v == 6u) { /* STUTTER: a kick first, for it to loop */
+                ev.sample_slot = MELLO_DRUM_KICK;
+                (void)mello_audio_push_engine_event(&a, &ev, 0u);
+            }
+            ev.sample_slot = voice;
+            (void)mello_audio_push_engine_event(&a, &ev, v == 6u ? 20000u : 0u);
             for (blk = 0u; blk < 10u; ++blk) {
                 memset(out, 0, sizeof out);
                 mello_audio_render(&a, out, 441u, blk * 10000u, 120u);
@@ -169,7 +187,7 @@ int main(void)
             }
         }
         for (c = 0u; c < 4410u; ++c) diff += (uint64_t)abs(keep[0][c] - keep[1][c]);
-        printf("%-6s peak %5d, crushed %5d, differ by %llu\n", names[v], (int)peak[0], (int)peak[1],
+        printf("%-7s peak %5d, crushed %5d, differ by %llu\n", names[v], (int)peak[0], (int)peak[1],
                (unsigned long long)diff);
         CHECK(peak[0] > 300 && peak[0] <= 32767, "%s's peak %d", names[v], (int)peak[0]);
         CHECK(diff > 10000u, "%s: CRUSH changed nothing", names[v]);

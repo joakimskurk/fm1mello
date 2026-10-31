@@ -464,6 +464,14 @@ typedef struct {
 #define MELLO_DRUM_VOICES 4u
 #define MELLO_DRUM_STEPS  16u
 typedef enum { MELLO_DRUM_KICK = 0, MELLO_DRUM_SNARE, MELLO_DRUM_HAT, MELLO_DRUM_GLITCH } MelloDrumVoiceId;
+/* GLITCH's kinds, by its TONE in quarters. */
+typedef enum {
+    MELLO_GLITCH_BLEEP = 0,
+    MELLO_GLITCH_CHIRP,
+    MELLO_GLITCH_CRACKLE,
+    MELLO_GLITCH_STUTTER
+} MelloGlitchKind;
+#define MELLO_GLITCH_KIND(tone) ((uint8_t)((tone) >= 1000u ? 3u : (tone) / 250u))
 typedef struct {
     int8_t pitch;    /* -24..24 semitones */
     int8_t decay;    /* -100..100: up to 4x shorter or longer */
@@ -473,7 +481,7 @@ typedef struct {
 typedef struct {
     uint16_t tune;   /* 0..1000 */
     uint16_t decay;  /* 0..1000 */
-    uint16_t tone;   /* 0..1000: the voice's character (kick drive, snare snap, hat metal, glitch FM ratio) */
+    uint16_t tone;   /* 0..1000: the voice's character (kick drive, snare resonance, hat tick, glitch kind) */
     uint16_t level;  /* 0..1000 */
     uint16_t chance; /* 0..1000: the chance a hit plays */
     uint16_t crush;  /* 0..1000: sample-rate and bit reduction */

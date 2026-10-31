@@ -4903,9 +4903,14 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         uint8_t L = ui->drum_subpage % DRUM_LAYERS;
         for (k = 0u; k < 4u; ++k) l[k] = lab[L][k];
         if (L == 0u) {
+            static const char *kind[4] = {"BLEEP", "CHIRP", "CRACKLE", "STUTTER"};
             value_pct(v[0], dv->tune);
             value_pct(v[1], dv->decay);
-            value_pct(v[2], dv->tone);
+            if (ui->selected_drum_voice % MELLO_DRUM_VOICES ==
+                MELLO_DRUM_GLITCH) /* TONE picks GLITCH's kind */
+                copy_s(v[2], kind[MELLO_GLITCH_KIND(dv->tone)]);
+            else
+                value_pct(v[2], dv->tone);
             value_pct(v[3], dv->level);
         } else if (L == 1u) {
             value_i(v[0], "", dl->pitch);

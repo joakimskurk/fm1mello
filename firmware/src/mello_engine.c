@@ -680,13 +680,13 @@ void mello_drum_defaults(MelloDrumConfig *c)
 {
     /* The default beat, BROKEN (feedback 2026-10-31: "I like 3"): a syncopated kick, the snare on the backbeat with a
      * ghost before the second, sixteenths of hat that leave gaps, a few glitches that jump in pitch. Straight: SWING 0,
-     * as the sequence, which has none (DECISIONS.md "Drums"). The kit as redesigned the same day: a short kick with no
-     * PITCH on its steps, CRUSH 0. */
+     * as the sequence, which has none (DECISIONS.md "Drums"). The glitch kit of the same day: a short kick with no
+     * PITCH on its steps, a snare between crack and zap, a closed hat with a little tick, GLITCH as STUTTER; CRUSH 0. */
     static const MelloDrumVoice v[MELLO_DRUM_VOICES] = {
-        {400u, 100u, 150u, 900u, 1000u, 0u}, /* KICK ~57 Hz, short, a little drive */
-        {450u, 400u, 550u, 700u, 1000u, 0u}, /* SNARE */
-        {600u, 150u, 650u, 500u, 1000u, 0u}, /* HAT, closed, more metal than noise */
-        {500u, 200u, 600u, 450u, 1000u, 0u}  /* GLITCH */
+        {400u, 100u, 100u, 900u, 1000u, 0u}, /* KICK ~57 Hz, short, a touch of drive */
+        {500u, 250u, 350u, 750u, 1000u, 0u}, /* SNARE ~2 kHz, between crack and zap */
+        {500u, 60u, 200u, 380u, 1000u, 0u},  /* HAT ~7 kHz, closed, a little tick */
+        {500u, 300u, 875u, 600u, 1000u, 0u}  /* GLITCH: STUTTER, ~26 ms loops */
     };
     /* Bit k is step k + 1:  KICK x..x...x..x..x..  SNARE ....x....x..x...  HAT x.xxx.x.x.xxx.xx  GLITCH .....x.....x..x. */
     static const uint16_t hits[MELLO_DRUM_VOICES] = {0x2489u, 0x1210u, 0xDD5Du, 0x4820u},
@@ -799,7 +799,8 @@ void mello_engine_drums_roll(MelloEngine *e)
     d->hits[MELLO_DRUM_KICK] |= 1u; /* the one */
 }
 
-/* One drum step: its hits (each with CHANCE), RATCH spread over the step; SWING moves them with the rest (queue_push). */
+/* One drum step: its hits (each with CHANCE), RATCH spread over the step, rising; SWING moves them with the rest
+ * (queue_push). */
 static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
 {
     MelloDrumConfig *d = &e->drums;
@@ -820,11 +821,12 @@ static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
             ev.tick = e->now_tick + pulse_ticks * r / n;
             ev.step_index = st;
             ev.sample_slot = v;
-            ev.note = (uint8_t)(64 + l->pitch);
+            /* A roll rises (2 semitones a hit, the kick's excepted) and tightens, as drill'n'bass rolls do */
+            ev.note = (uint8_t)(64 + l->pitch + (v != MELLO_DRUM_KICK ? 2 * (int32_t)r : 0));
             ev.velocity = (d->accents[v] & (1u << st)) ? 127u
                           : r                          ? 72u
                                                        : 96u; /* a roll's later hits softer */
-            ev.drum_decay = l->decay;
+            ev.drum_decay = (int8_t)(l->decay - 15 * (int32_t)r < -100 ? -100 : l->decay - 15 * (int32_t)r);
             ev.drum_crush = l->crush;
             (void)queue_push(e, &ev);
         }
