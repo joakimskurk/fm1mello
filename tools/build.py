@@ -221,6 +221,8 @@ def check(img, syms, dis, rt):
     notes.append(f"image {len(img)} B of {APP_SLOT}; RAM .data+.bss {ram} B of 98304; pool {pool} B of 344064")
     if ram > 96 * 1024:
         errors.append(f"RAM .data+.bss {ram} B > 96 KiB")
+    elif 96 * 1024 - ram < 2048:    # ROADMAP B5: a release keeps 2 KiB in hand for the stack of a bad day
+        errors.append(f"RAM .data+.bss {ram} B leaves {96 * 1024 - ram} B free, under the 2 KiB guard")
     return errors, notes
 
 

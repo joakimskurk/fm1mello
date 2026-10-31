@@ -67,9 +67,22 @@ static void sample_idle_cb(void *ctx)
 }
 #endif
 
+/* The chip's audio load (ROADMAP B1): the render's share of each block's time, the worst block of every ~1 s
+ * (172 blocks), in permille. The one number the emulator cannot give: it counts instructions, the chip cycles. */
+static volatile uint16_t audio_load;
 static void app_audio(int32_t *out, uint32_t n)
 {
-    if (audio_ready) mello_audio_render(&audio, out, n, fm1_micros(), mello_transport_effective_bpm(&mt));
+    static uint16_t worst, blocks;
+    uint32_t t0 = fm1_micros(), took, share;
+    if (!audio_ready) return;
+    mello_audio_render(&audio, out, n, t0, mello_transport_effective_bpm(&mt));
+    took = fm1_micros() - t0;        /* us; the block is n / 44.1 us long */
+    share = took * 441u / (n * 10u); /* permille */
+    if (share > worst) worst = (uint16_t)(share > 9999u ? 9999u : share);
+    if (++blocks >= 172u) {
+        audio_load = worst;
+        worst = 0u, blocks = 0u;
+    }
 }
 
 #ifndef DINGHY_HOST
@@ -278,6 +291,9 @@ static void app_main(void)
         for (i = 0u; i < MELLO_UI_ENCODER_COUNT; ++i) enc[i] = (int16_t)fm1_enc_take(i);
 
         mello_ui_set_held_notes(&ui, fm1_in.notes);
+#ifndef DINGHY_HOST
+        mello_ui_set_audio_load(&ui, audio_load); /* (the host's clock has milliseconds: nothing to show) */
+#endif
         mello_ui_input(&ui, now_us, fm1_ms, pressed, released, fm1_in.buttons, notes, enc);
         mello_transport_poll_ahead(&mt, now_us, MELLO_TRANSPORT_LOOKAHEAD_US);
         if (last_running && !mt.running) mello_audio_all_notes_off(&audio);

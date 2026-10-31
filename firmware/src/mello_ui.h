@@ -130,6 +130,7 @@ typedef struct {
     uint32_t readout_until_ms;
     /* HOME: a white key held down holds its step (K1-K4 edit it); released without a turn, it toggles the step. */
     uint32_t held_notes;     /* mello_ui_set_held_notes: the note keys held now */
+    uint16_t audio_load;     /* mello_ui_set_audio_load: the chip's audio load, permille (GLOBAL shows it) */
     uint16_t held_black;     /* HOME: the black keys held now (bit = B0..B10), for the strip's names */
     uint8_t perf_repeat_len; /* REPEAT's length in pulses (a white key while REPEAT is held); 0 = 4 */
     uint8_t held_step;       /* MELLO_UI_NO_STEP when none */
@@ -216,6 +217,9 @@ void mello_ui_tick(MelloUi *ui);
 /* The note keys held down now (fm1_in.notes), before mello_ui_input each round: HOME's hold-a-step needs the
  * releases, which the press edges do not carry. */
 void mello_ui_set_held_notes(MelloUi *ui, uint32_t notes);
+/* The chip's audio load, permille of real time the audio interrupt takes (dinghy.c measures it; ROADMAP B1): the
+ * GLOBAL page shows it as CPU. 0 = unknown (the host). */
+void mello_ui_set_audio_load(MelloUi *ui, uint16_t permille);
 void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pressed_buttons,
                     uint32_t released_buttons, uint32_t held_buttons, uint32_t note_pressed,
                     const int16_t encoder_delta[MELLO_UI_ENCODER_COUNT]);

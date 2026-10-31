@@ -2755,6 +2755,12 @@ static void perf_poll(MelloUi *ui)
     mello_engine_set_perf(e, &p);
 }
 
+void mello_ui_set_audio_load(MelloUi *ui, uint16_t permille)
+{
+    if (!ui || ui->audio_load == permille) return;
+    ui->audio_load = permille;
+    if (ui->page == MELLO_UI_GLOBAL) ui->dirty |= MELLO_UI_DIRTY_BODY;
+}
 void mello_ui_set_held_notes(MelloUi *ui, uint32_t notes)
 {
     MelloEngine *e;
@@ -5551,7 +5557,12 @@ static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o)
     footer_texts(ui, l, v);
     ui_round_fill(o, 4, 31, 232, 138, UI_PANEL);
     ui_round_frame(o, 4, 31, 232, 138, ui_mix(accent, UI_BLACK, 150));
-    (void)title; /* the layer's name is in the header (R2) */
+    (void)title;                                         /* the layer's name is in the header (R2) */
+    if (ui->page == MELLO_UI_GLOBAL && ui->audio_load) { /* the chip's audio load, measured: "CPU 33%" */
+        char b[16];
+        value_pct(copy_s(b, "CPU "), ui->audio_load);
+        o->text(o->ctx, 138, 36, 92, 0, b, UI_DIM, 2);
+    }
     for (k = 0u; k < 4u; ++k) {
         int16_t y = (int16_t)(56 + k * 28);
         uint16_t c = knob_colour(ui, k), nv, nm;
