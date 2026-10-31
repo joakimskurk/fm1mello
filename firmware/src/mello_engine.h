@@ -274,12 +274,13 @@ typedef struct {
     uint16_t dist_level;     /* 200..1400 */
     uint16_t delay_wet;      /* 0..1000 */
     bool delay_sync;
-    uint8_t delay_div;        /* the HTML's 0=8n, 1=16n, 2=4n, 3=8t; then 4=16t, 5=4t, 6=8d, 7=4d, 8=2n */
-    uint16_t delay_time_ms;   /* 30..1500 */
-    uint16_t delay_feedback;  /* 0..950 */
-    uint16_t delay_tone;      /* 0..1000: HI CUT on the return */
-    uint16_t delay_lowcut;    /* 0..1000: LO CUT on the return and in the feedback, 20 Hz .. 2 kHz; 0 off */
-    bool delay_pre_dist;      /* the delay before the distortion: its filtered echoes are driven too (HTML: after) */
+    uint8_t delay_div;       /* the HTML's 0=8n, 1=16n, 2=4n, 3=8t; then 4=16t, 5=4t, 6=8d, 7=4d, 8=2n */
+    uint16_t delay_time_ms;  /* 30..1500 */
+    uint16_t delay_feedback; /* 0..950 */
+    uint16_t delay_tone;     /* 0..1000: HI CUT on the return */
+    uint16_t delay_lowcut;   /* 0..1000: LO CUT on the return and in the feedback, 20 Hz .. 2 kHz; 0 off */
+    bool
+        delay_pre_dist; /* the delay before the distortion: its filtered echoes are driven too (HTML: after) */
     uint16_t delay_level;     /* 0..1500 */
     uint16_t reverb_wet;      /* 0..1000 */
     uint16_t reverb_size;     /* 0..1000 */
@@ -479,13 +480,13 @@ typedef struct {
 } MelloDrumVoice;
 typedef struct {
     bool on;
-    bool follow;     /* step with the main sequence's steps (its skips and long steps stop it), not every pulse */
-    bool feed;       /* RNDMZR rolls the drums too */
-    uint8_t length;  /* 1..16 */
-    uint16_t swing;  /* 0..1000: the off steps up to half a step late */
-    uint16_t level;  /* 0..1000 */
-    uint16_t space;  /* 0..1000: the send to the delay and reverb */
-    uint16_t roll;   /* 0..1000: how much a roll changes */
+    bool follow; /* step with the main sequence's steps (its skips and long steps stop it), not every pulse */
+    bool feed;   /* RNDMZR rolls the drums too */
+    uint8_t length; /* 1..16 */
+    uint16_t swing; /* 0..1000: the off steps up to half a step late */
+    uint16_t level; /* 0..1000 */
+    uint16_t space; /* 0..1000: the send to the delay and reverb */
+    uint16_t roll;  /* 0..1000: how much a roll changes */
     MelloDrumVoice voice[MELLO_DRUM_VOICES];
     uint16_t hits[MELLO_DRUM_VOICES];    /* bit = step */
     uint16_t accents[MELLO_DRUM_VOICES]; /* bit = step */
@@ -786,7 +787,8 @@ typedef struct {
     uint8_t chord_voiced[MELLO_CHORD_MAX_VOICES]; /* the chord sounding, as voiced (voice leading) */
     uint8_t chord_voiced_n;
     uint8_t chord_voiced_slot; /* which chain chord it is (0xFF: none yet) */
-    uint8_t chord_prev[MELLO_CHORD_MAX_VOICES]; /* the chord before it, as voiced: voice leading's reference */
+    uint8_t
+        chord_prev[MELLO_CHORD_MAX_VOICES]; /* the chord before it, as voiced: voice leading's reference */
     uint8_t chord_prev_n;
 #endif
 

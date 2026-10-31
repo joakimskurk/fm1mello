@@ -66,7 +66,8 @@ int main(void)
     MelloProject d;
     uint8_t pmax, home;
     uint32_t s;
-    unsigned strong_on = 0u, strong_n = 0u, weak_on = 0u, weak_n = 0u, mus_motion = 0u, med_motion = 0u, back = 0u;
+    unsigned strong_on = 0u, strong_n = 0u, weak_on = 0u, weak_n = 0u, mus_motion = 0u, med_motion = 0u,
+             back = 0u;
     mello_project_defaults(&d);
     pmax = (uint8_t)(7u * d.pitch_span_oct - 1u);
     home = pmax >= 11u ? 7u : 0u;
@@ -79,7 +80,8 @@ int main(void)
             const MelloStep *st = &e.project.steps[i];
             CHECK(st->pulses == 1u && !st->skip, "seed %u step %u: pulses %u skip %d", (unsigned)s, i,
                   (unsigned)st->pulses, st->skip);
-            CHECK(st->pitch >= 0 && st->pitch <= pmax, "seed %u step %u: pitch %d", (unsigned)s, i, st->pitch);
+            CHECK(st->pitch >= 0 && st->pitch <= pmax, "seed %u step %u: pitch %d", (unsigned)s, i,
+                  st->pitch);
             if (i < 16u && played(i)) {
                 uint8_t deg = (uint8_t)(st->pitch % 7);
                 if (i % 4u == 0u)
@@ -89,33 +91,36 @@ int main(void)
             if (i < 16u && i % 2u) weak_n++, weak_on += played(i);
             if (i < 16u && i % 4u == 0u) strong_n++, strong_on += played(i);
             if (i >= 16u)
-                CHECK(st->pitch == e.project.steps[i - 16u].pitch && st->gate == e.project.steps[i - 16u].gate,
+                CHECK(st->pitch == e.project.steps[i - 16u].pitch &&
+                          st->gate == e.project.steps[i - 16u].gate,
                       "seed %u: step %u is not step %u again", (unsigned)s, i, i - 16u);
         }
         CHECK(played(0u), "seed %u: the first step rests", (unsigned)s);
         back += !memcmp(&e.project.steps[0], &e.project.steps[8], 4u * sizeof(MelloStep));
         last = last_played(16u);
         CHECK(last >= 0 && e.project.steps[last].pitch == home && e.project.steps[last].octave == 0,
-              "seed %u: the phrase ends on %d, not the root %u", (unsigned)s, last >= 0 ? e.project.steps[last].pitch : -1,
-              (unsigned)home);
+              "seed %u: the phrase ends on %d, not the root %u", (unsigned)s,
+              last >= 0 ? e.project.steps[last].pitch : -1, (unsigned)home);
         mus_motion += motion(16u);
         roll(s, 16u, MELLO_RAND_DEFAULT, MELLO_RANDOMIZE_MED);
         med_motion += motion(16u);
     }
     printf("300 rolls: the first beat back at step 9 in %u\n", back);
     CHECK(back >= 180u, "the first beat came back at step 9 in only %u rolls of 300", back);
-    printf("300 rolls: strong steps play %u%%, weak %u%%; the melody moves %u.%02u scale steps a note (MED %u.%02u)\n",
-           strong_on * 100u / strong_n, weak_on * 100u / weak_n, mus_motion / 30000u, mus_motion / 300u % 100u,
-           med_motion / 30000u, med_motion / 300u % 100u);
-    CHECK(strong_on * 100u / strong_n > 75u && weak_on * 100u / weak_n < 50u, "strong %u/%u, weak %u/%u", strong_on,
-          strong_n, weak_on, weak_n);
+    printf("300 rolls: strong steps play %u%%, weak %u%%; the melody moves %u.%02u scale steps a note (MED "
+           "%u.%02u)\n",
+           strong_on * 100u / strong_n, weak_on * 100u / weak_n, mus_motion / 30000u,
+           mus_motion / 300u % 100u, med_motion / 30000u, med_motion / 300u % 100u);
+    CHECK(strong_on * 100u / strong_n > 75u && weak_on * 100u / weak_n < 50u, "strong %u/%u, weak %u/%u",
+          strong_on, strong_n, weak_on, weak_n);
     CHECK(mus_motion * 10u < med_motion * 6u, "MUSICAL moves %u, MED %u", mus_motion, med_motion);
 
     { /* the mask: PITCH only leaves the rhythm as it was */
         MelloProject p;
         uint8_t i;
         mello_project_defaults(&p);
-        for (i = 0u; i < MELLO_MAX_STEPS; ++i) p.steps[i].gate = (MelloGateMode)(i % 3u), p.steps[i].pulses = 2u;
+        for (i = 0u; i < MELLO_MAX_STEPS; ++i)
+            p.steps[i].gate = (MelloGateMode)(i % 3u), p.steps[i].pulses = 2u;
         mello_engine_init(&e, &p, 9u);
         mello_engine_set_randomize_mask(&e, MELLO_RAND_PITCH);
         mello_engine_randomize_steps_intensity(&e, MELLO_RANDOMIZE_MUSICAL);

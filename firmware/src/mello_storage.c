@@ -17,7 +17,7 @@ enum {
     SECVER_WORKING = 1,
     SECVER_SLOTS = 1,
     SECVER_SLOT_SEQ = 1,
-    SECVER_FX = 3, /* 2: the delay's LO CUT; 3: PRE DIST */
+    SECVER_FX = 3,    /* 2: the delay's LO CUT; 3: PRE DIST */
     SECVER_CHORD = 2, /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading) */
     SECVER_GRIT = 3,
     SECVER_MOD = 3,
@@ -498,7 +498,8 @@ static bool decode_fx(Reader *r, MelloFxConfig *c, uint8_t ver)
            rd_u16(r, &c->delay_tone) && rd_u16(r, &c->delay_level) && rd_u16(r, &c->reverb_wet) &&
            rd_u16(r, &c->reverb_size) && rd_u16(r, &c->reverb_decay_ms) && rd_u16(r, &c->reverb_pre_ms) &&
            rd_u16(r, &c->reverb_tone) && rd_u16(r, &c->reverb_level) &&
-           (ver < 2u || rd_u16(r, &c->delay_lowcut)) && (ver < 3u || (rd_u8(r, &b) && ((c->delay_pre_dist = b != 0u), true)));
+           (ver < 2u || rd_u16(r, &c->delay_lowcut)) &&
+           (ver < 3u || (rd_u8(r, &b) && ((c->delay_pre_dist = b != 0u), true)));
 }
 
 /* DRUMS: the kit, then each voice's sound, hits, accents and per-step locks. A reader without this section skips it;
@@ -543,9 +544,9 @@ static bool decode_drums(Reader *r, MelloDrumConfig *d)
     d->feed = (flags & 4u) != 0u;
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
         MelloDrumVoice *dv = &d->voice[v];
-        if (!rd_u16(r, &dv->tune) || !rd_u16(r, &dv->decay) || !rd_u16(r, &dv->tone) || !rd_u16(r, &dv->level) ||
-            !rd_u16(r, &dv->chance) || !rd_u16(r, &dv->crush) || !rd_u16(r, &d->hits[v]) ||
-            !rd_u16(r, &d->accents[v]))
+        if (!rd_u16(r, &dv->tune) || !rd_u16(r, &dv->decay) || !rd_u16(r, &dv->tone) ||
+            !rd_u16(r, &dv->level) || !rd_u16(r, &dv->chance) || !rd_u16(r, &dv->crush) ||
+            !rd_u16(r, &d->hits[v]) || !rd_u16(r, &d->accents[v]))
             return false;
         for (k = 0u; k < MELLO_DRUM_STEPS; ++k)
             if (!rd_i8(r, &d->lock[v][k].pitch) || !rd_i8(r, &d->lock[v][k].decay) ||
@@ -630,10 +631,10 @@ static bool decode_chord(Reader *r, MelloChordConfig *c, uint8_t ver)
         if (!rd_u8(r, &c->pattern_masks[i])) return false;
     if (ver >= 2u) {
         uint8_t link, lead;
-        if (!rd_u16(r, &c->cut) || !rd_u16(r, &c->res) || !rd_u16(r, &c->fenv) || !rd_u16(r, &c->fenv_attack_ms) ||
-            !rd_u16(r, &c->fenv_decay_ms) || !rd_u16(r, &c->decay_ms) || !rd_u16(r, &c->sustain) ||
-            !rd_u16(r, &c->chorus) || !rd_u16(r, &c->space) || !rd_u8(r, &c->strum_ms) || !rd_u8(r, &link) ||
-            !rd_u8(r, &lead))
+        if (!rd_u16(r, &c->cut) || !rd_u16(r, &c->res) || !rd_u16(r, &c->fenv) ||
+            !rd_u16(r, &c->fenv_attack_ms) || !rd_u16(r, &c->fenv_decay_ms) || !rd_u16(r, &c->decay_ms) ||
+            !rd_u16(r, &c->sustain) || !rd_u16(r, &c->chorus) || !rd_u16(r, &c->space) ||
+            !rd_u8(r, &c->strum_ms) || !rd_u8(r, &link) || !rd_u8(r, &lead))
             return false;
         c->link = link != 0u;
         c->voice_lead = lead != 0u;
@@ -960,7 +961,9 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
         } else if (id == SEC_FX && ver >= 1u && ver <= SECVER_FX) {
             MelloFxConfig fx;
             memset(&fx, 0, sizeof(fx));
-            if (len != (ver == 1u ? FX_WIRE_SIZE_V1 : ver == 2u ? FX_WIRE_SIZE_V2 : FX_WIRE_SIZE) ||
+            if (len != (ver == 1u   ? FX_WIRE_SIZE_V1
+                        : ver == 2u ? FX_WIRE_SIZE_V2
+                                    : FX_WIRE_SIZE) ||
                 !decode_fx(&r, &fx, ver))
                 return false;
             if (apply && e) mello_engine_fx_set_config(e, &fx);

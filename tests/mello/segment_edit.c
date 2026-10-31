@@ -14,7 +14,8 @@ static const char *lengths(const MelloProject *p)
     static char out[64];
     uint8_t b[MELLO_MAX_SEGMENTS + 1u], sc = mello_segment_bounds(p, b), i;
     char *q = out;
-    for (i = 0u; i < sc; ++i) q += snprintf(q, (size_t)(out + sizeof out - q), i ? " %u" : "%u", (unsigned)(b[i + 1u] - b[i]));
+    for (i = 0u; i < sc; ++i)
+        q += snprintf(q, (size_t)(out + sizeof out - q), i ? " %u" : "%u", (unsigned)(b[i + 1u] - b[i]));
     return out;
 }
 
@@ -67,7 +68,7 @@ int main(void)
     if (r != 0) fails++, fprintf(stderr, "FAIL: the join picks A\n");
 
     p.seg_repeats[1] = 3u, p.seg_mode[2] = MELLO_SEG_PINGPONG; /* settings move with their segments */
-    (void)mello_segment_toggle_start(&p, 4u);                 /* B joins A: C, D move up */
+    (void)mello_segment_toggle_start(&p, 4u);                  /* B joins A: C, D move up */
     expect("join B into A", &p, "8 4 4");
     if (p.seg_repeats[0] != 1u || p.seg_mode[1] != MELLO_SEG_PINGPONG)
         fails++, fprintf(stderr, "FAIL: the settings did not follow their segments\n");

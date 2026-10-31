@@ -136,10 +136,11 @@ int main(void)
               c.pattern_length == want.pattern_length &&
               memcmp(c.pattern_masks, want.pattern_masks, sizeof c.pattern_masks) == 0,
           "chord grid/pattern fields differ after reload");
-    CHECK(c.cut == want.cut && c.res == want.res && c.fenv == want.fenv && c.fenv_attack_ms == want.fenv_attack_ms &&
-              c.fenv_decay_ms == want.fenv_decay_ms && c.decay_ms == want.decay_ms && c.sustain == want.sustain &&
-              c.chorus == want.chorus && c.space == want.space && c.strum_ms == want.strum_ms &&
-              c.link == want.link && c.voice_lead == want.voice_lead,
+    CHECK(c.cut == want.cut && c.res == want.res && c.fenv == want.fenv &&
+              c.fenv_attack_ms == want.fenv_attack_ms && c.fenv_decay_ms == want.fenv_decay_ms &&
+              c.decay_ms == want.decay_ms && c.sustain == want.sustain && c.chorus == want.chorus &&
+              c.space == want.space && c.strum_ms == want.strum_ms && c.link == want.link &&
+              c.voice_lead == want.voice_lead,
           "chord voice fields differ after reload");
     printf("PASS: Chord Machine settings survive a power cycle\n");
 #else

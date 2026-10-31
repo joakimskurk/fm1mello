@@ -205,10 +205,12 @@ int main(void)
         mello_engine_init(&b, &p, 1u);
         mello_storage_init(&st, &io, NULL);
         CHECK(mello_storage_load(&st, &b) == MELLO_STORAGE_LOAD_OK, "reload");
-        CHECK(b.drums.on && b.drums.feed && b.drums.follow && b.drums.length == 11u && b.drums.swing == 333u &&
-                  b.drums.voice[MELLO_DRUM_GLITCH].tone == 777u && b.drums.hits[MELLO_DRUM_SNARE] == 0x1234u &&
-                  b.drums.accents[MELLO_DRUM_HAT] == 0x8001u && b.drums.lock[MELLO_DRUM_KICK][5].pitch == -7 &&
-                  b.drums.lock[MELLO_DRUM_HAT][15].ratchet == 3u && b.drums.lock[MELLO_DRUM_SNARE][2].crush == 55u,
+        CHECK(b.drums.on && b.drums.feed && b.drums.follow && b.drums.length == 11u &&
+                  b.drums.swing == 333u && b.drums.voice[MELLO_DRUM_GLITCH].tone == 777u &&
+                  b.drums.hits[MELLO_DRUM_SNARE] == 0x1234u && b.drums.accents[MELLO_DRUM_HAT] == 0x8001u &&
+                  b.drums.lock[MELLO_DRUM_KICK][5].pitch == -7 &&
+                  b.drums.lock[MELLO_DRUM_HAT][15].ratchet == 3u &&
+                  b.drums.lock[MELLO_DRUM_SNARE][2].crush == 55u,
               "the drums differ after a reload");
         puts("the kit and pattern survive a power cycle");
     }

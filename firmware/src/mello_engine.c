@@ -681,19 +681,70 @@ void mello_drum_defaults(MelloDrumConfig *c)
     };
     static const uint16_t hits[MELLO_DRUM_VOICES] = {0xF953u, 0x8090u, 0x8CF0u, 0x0000u},
                           accents[MELLO_DRUM_VOICES] = {0x1080u, 0x5031u, 0x0100u, 0x0AE7u};
-    static const MelloDrumLock lock[MELLO_DRUM_VOICES][MELLO_DRUM_STEPS] = {
-        {{3, 16, 0, 1}, {0, 0, 0, 1}, {-1, 21, 23, 1}, {0, 0, 96, 1}, {2, 0, 31, 3}, {1, 17, 0, 1}, {2, 76, 0, 1},
-         {-2, 0, 0, 1}, {0, -9, 0, 1}, {0, 0, 0, 1}, {0, -9, 52, 1}, {0, 0, 0, 1}, {0, -71, 0, 1}, {-4, 0, 21, 1},
-         {-2, 0, 0, 3}, {4, -45, 43, 1}},
-        {{0, -7, 0, 1}, {0, -54, 35, 1}, {-1, 0, 0, 1}, {0, 0, 0, 1}, {0, -76, 0, 1}, {1, 31, 0, 4}, {1, 0, 0, 1},
-         {-3, 72, 0, 1}, {0, 0, 0, 1}, {0, 0, 0, 2}, {-6, -48, 0, 1}, {0, 0, 69, 1}, {0, 60, 0, 1}, {0, 0, 48, 1},
-         {0, 0, 0, 4}, {0, -23, 0, 1}},
-        {{-4, -60, 63, 1}, {4, 0, 0, 1}, {-1, -28, 0, 3}, {0, 44, 0, 1}, {0, 0, 0, 1}, {-1, 0, 0, 1}, {-2, 0, 0, 1},
-         {1, 0, 0, 1}, {0, 0, 0, 1}, {0, 2, 68, 2}, {0, -18, 0, 1}, {0, -59, 0, 1}, {10, 0, 0, 1}, {0, 0, 0, 4},
-         {0, 0, 0, 1}, {0, 0, 13, 1}},
-        {{0, 0, 0, 1}, {-2, 0, 0, 3}, {-10, 0, 86, 2}, {9, -15, 0, 1}, {9, 68, 0, 1}, {-3, 0, 0, 1}, {0, -14, 0, 1},
-         {-9, 0, 70, 1}, {10, -63, 73, 1}, {0, 0, 0, 3}, {12, 14, 0, 1}, {4, 54, 0, 1}, {-1, 0, 0, 1}, {0, -10, 0, 1},
-         {-10, 0, 0, 1}, {0, 0, 0, 1}}};
+    static const MelloDrumLock lock[MELLO_DRUM_VOICES][MELLO_DRUM_STEPS] = {{{3, 16, 0, 1},
+                                                                             {0, 0, 0, 1},
+                                                                             {-1, 21, 23, 1},
+                                                                             {0, 0, 96, 1},
+                                                                             {2, 0, 31, 3},
+                                                                             {1, 17, 0, 1},
+                                                                             {2, 76, 0, 1},
+                                                                             {-2, 0, 0, 1},
+                                                                             {0, -9, 0, 1},
+                                                                             {0, 0, 0, 1},
+                                                                             {0, -9, 52, 1},
+                                                                             {0, 0, 0, 1},
+                                                                             {0, -71, 0, 1},
+                                                                             {-4, 0, 21, 1},
+                                                                             {-2, 0, 0, 3},
+                                                                             {4, -45, 43, 1}},
+                                                                            {{0, -7, 0, 1},
+                                                                             {0, -54, 35, 1},
+                                                                             {-1, 0, 0, 1},
+                                                                             {0, 0, 0, 1},
+                                                                             {0, -76, 0, 1},
+                                                                             {1, 31, 0, 4},
+                                                                             {1, 0, 0, 1},
+                                                                             {-3, 72, 0, 1},
+                                                                             {0, 0, 0, 1},
+                                                                             {0, 0, 0, 2},
+                                                                             {-6, -48, 0, 1},
+                                                                             {0, 0, 69, 1},
+                                                                             {0, 60, 0, 1},
+                                                                             {0, 0, 48, 1},
+                                                                             {0, 0, 0, 4},
+                                                                             {0, -23, 0, 1}},
+                                                                            {{-4, -60, 63, 1},
+                                                                             {4, 0, 0, 1},
+                                                                             {-1, -28, 0, 3},
+                                                                             {0, 44, 0, 1},
+                                                                             {0, 0, 0, 1},
+                                                                             {-1, 0, 0, 1},
+                                                                             {-2, 0, 0, 1},
+                                                                             {1, 0, 0, 1},
+                                                                             {0, 0, 0, 1},
+                                                                             {0, 2, 68, 2},
+                                                                             {0, -18, 0, 1},
+                                                                             {0, -59, 0, 1},
+                                                                             {10, 0, 0, 1},
+                                                                             {0, 0, 0, 4},
+                                                                             {0, 0, 0, 1},
+                                                                             {0, 0, 13, 1}},
+                                                                            {{0, 0, 0, 1},
+                                                                             {-2, 0, 0, 3},
+                                                                             {-10, 0, 86, 2},
+                                                                             {9, -15, 0, 1},
+                                                                             {9, 68, 0, 1},
+                                                                             {-3, 0, 0, 1},
+                                                                             {0, -14, 0, 1},
+                                                                             {-9, 0, 70, 1},
+                                                                             {10, -63, 73, 1},
+                                                                             {0, 0, 0, 3},
+                                                                             {12, 14, 0, 1},
+                                                                             {4, 54, 0, 1},
+                                                                             {-1, 0, 0, 1},
+                                                                             {0, -10, 0, 1},
+                                                                             {-10, 0, 0, 1},
+                                                                             {0, 0, 0, 1}}};
     uint8_t i;
     if (!c) return;
     memset(c, 0, sizeof(*c));
@@ -777,8 +828,10 @@ void mello_engine_drums_roll(MelloEngine *e)
             l->decay = chance_permille(&e->drum_rng, 500u)
                            ? 0
                            : (int8_t)((int32_t)rng_bounded(&e->drum_rng, 161u) - 80);
-            l->crush = chance_permille(&e->drum_rng, 700u) ? 0u : (uint8_t)(10u + rng_bounded(&e->drum_rng, 91u));
-            l->ratchet = chance_permille(&e->drum_rng, 850u) ? 1u : (uint8_t)(2u + rng_bounded(&e->drum_rng, 3u));
+            l->crush =
+                chance_permille(&e->drum_rng, 700u) ? 0u : (uint8_t)(10u + rng_bounded(&e->drum_rng, 91u));
+            l->ratchet =
+                chance_permille(&e->drum_rng, 850u) ? 1u : (uint8_t)(2u + rng_bounded(&e->drum_rng, 3u));
         }
     d->hits[MELLO_DRUM_KICK] |= 1u; /* the one */
 }
@@ -807,7 +860,9 @@ static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
             ev.step_index = st;
             ev.sample_slot = v;
             ev.note = (uint8_t)(64 + l->pitch);
-            ev.velocity = (d->accents[v] & (1u << st)) ? 127u : r ? 72u : 96u; /* a roll's later hits softer */
+            ev.velocity = (d->accents[v] & (1u << st)) ? 127u
+                          : r                          ? 72u
+                                                       : 96u; /* a roll's later hits softer */
             ev.drum_decay = l->decay;
             ev.drum_crush = l->crush;
             (void)queue_push(e, &ev);
@@ -1235,7 +1290,8 @@ int8_t mello_segment_toggle_start(MelloProject *p, uint8_t step)
             return (int8_t)(j - 1u);
         }
     if (sc >= MELLO_MAX_SEGMENTS) return -1;
-    for (j = 0u; j + 1u < sc && b[j + 1u] <= step; ++j) {}
+    for (j = 0u; j + 1u < sc && b[j + 1u] <= step; ++j) {
+    }
     for (k = (uint8_t)(sc + 1u); k > j + 1u; --k) b[k] = b[k - 1u]; /* segment j is cut at step */
     b[j + 1u] = step;
     for (k = sc; k > j + 1u; --k) segment_copy(p, k, (uint8_t)(k - 1u));
@@ -2430,11 +2486,13 @@ static uint16_t prob_from_hundredths(uint8_t hundredths)
 static void roll_wave_med(MelloEngine *e)
 {
     uint32_t wr = rng_bounded(&e->gen_rng, 1000u);
-    e->sound.osc_wave = wr < 350u ? MELLO_WAVE_SAW
-                                  : (wr < 600u ? MELLO_WAVE_SQUARE
-                                               : (wr < 800u ? MELLO_WAVE_TRIANGLE
-                                                            : (wr < 920u ? MELLO_WAVE_SINE : MELLO_WAVE_PULSE)));
-    if (e->sound.osc_wave == MELLO_WAVE_PULSE) e->sound.pwm_permille = (uint16_t)(280u + rng_bounded(&e->gen_rng, 441u));
+    e->sound.osc_wave = wr < 350u
+                            ? MELLO_WAVE_SAW
+                            : (wr < 600u ? MELLO_WAVE_SQUARE
+                                         : (wr < 800u ? MELLO_WAVE_TRIANGLE
+                                                      : (wr < 920u ? MELLO_WAVE_SINE : MELLO_WAVE_PULSE)));
+    if (e->sound.osc_wave == MELLO_WAVE_PULSE)
+        e->sound.pwm_permille = (uint16_t)(280u + rng_bounded(&e->gen_rng, 441u));
 }
 
 void mello_engine_randomize_steps(MelloEngine *e)
@@ -2752,8 +2810,9 @@ static uint8_t mus_snap(int32_t d, uint8_t pmax, uint8_t n, uint8_t t3, uint8_t 
     return (uint8_t)(d < 0 ? 0 : (d > (int32_t)pmax ? pmax : d));
 }
 
-static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, uint8_t lo, uint8_t hi, uint8_t pmax,
-                     uint8_t n, uint8_t t3, uint8_t t5, int16_t density, const uint8_t slot[2], bool down)
+static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, uint8_t lo, uint8_t hi,
+                     uint8_t pmax, uint8_t n, uint8_t t3, uint8_t t5, int16_t density, const uint8_t slot[2],
+                     bool down)
 {
     static const uint16_t play[3] = {350u, 600u, 850u}; /* weak, medium, strong */
     uint8_t o, hits = 0u;
@@ -2791,7 +2850,8 @@ static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, ui
         if (m == 0u && chance_permille(&e->gen_rng, 200u)) st->probability = prob_from_hundredths(70u);
         st->sample_slot = m == 2u ? slot[0] : (chance_permille(&e->gen_rng, 250u) ? slot[1] : 0u);
     }
-    for (o = 0u; o + 1u < cl; ++o) /* slides into the weak steps that follow a note, a long note before a rest */
+    for (o = 0u; o + 1u < cl;
+         ++o) /* slides into the weak steps that follow a note, a long note before a rest */
         if (c[o].gate != MELLO_GATE_REST) {
             if (c[o + 1u].gate == MELLO_GATE_REST)
                 c[o].gate = chance_permille(&e->gen_rng, 300u) ? MELLO_GATE_HOLD : c[o].gate;
@@ -2824,7 +2884,8 @@ static void randomize_musical(MelloEngine *e)
     MelloStep tmp[MELLO_MAX_STEPS];
     uint16_t mask, smask[MELLO_MAX_STEPS];
     const ScaleDef *sd;
-    uint8_t pmax, n, t3, t5, home, fifth, lo, hi, len, cl, cells, f = 0u, i, fp, first[3] = {255u, 255u, 255u};
+    uint8_t pmax, n, t3, t5, home, fifth, lo, hi, len, cl, cells, f = 0u, i, fp,
+                                                                  first[3] = {255u, 255u, 255u};
     uint8_t slot[2];
     int16_t density;
     uint32_t r;
@@ -2851,13 +2912,16 @@ static void randomize_musical(MelloEngine *e)
     while (f < 3u && r >= form_w[f]) r -= form_w[f++];
     if (cells == 2u) f = (uint8_t)(f & 1u);
     density = (int16_t)((int32_t)rng_bounded(&e->gen_rng, 3u) * 150 - 150); /* sparse, as is, busy */
-    slot[0] = chance_permille(&e->gen_rng, 400u) ? 0u : (uint8_t)(1u + rng_bounded(&e->gen_rng, MELLO_SAMPLE_SLOT_COUNT));
+    slot[0] = chance_permille(&e->gen_rng, 400u)
+                  ? 0u
+                  : (uint8_t)(1u + rng_bounded(&e->gen_rng, MELLO_SAMPLE_SLOT_COUNT));
     slot[1] = (uint8_t)(1u + rng_bounded(&e->gen_rng, MELLO_SAMPLE_SLOT_COUNT));
     for (i = 0u; i < MELLO_MAX_STEPS; ++i) tmp[i] = e->project.steps[i];
     for (fp = 0u; fp < cells; ++fp) {
         uint8_t id = cells == 1u ? 0u : (cells == 2u ? halves[f][fp] : forms[f][fp]), b = base_of[id];
         MelloStep *c = &tmp[fp * cl];
-        if (first[b] == 255u) { /* A from the root (or a chord tone near it), B and C from another chord tone */
+        if (first[b] ==
+            255u) { /* A from the root (or a chord tone near it), B and C from another chord tone */
             uint8_t start = home;
             if (b || chance_permille(&e->gen_rng, 300u)) {
                 uint8_t pick = (uint8_t)rng_bounded(&e->gen_rng, 3u);
@@ -2875,7 +2939,8 @@ static void randomize_musical(MelloEngine *e)
             mus_end(c, cl, 1u, home, fifth);
         if (fp + 1u == cells && chance_permille(&e->gen_rng, 200u)) c[cl - 1u].ratchet = 2u; /* a fill */
     }
-    for (i = len; i < MELLO_MAX_STEPS; ++i) tmp[i] = tmp[i % len]; /* a longer sequence later plays it again */
+    for (i = len; i < MELLO_MAX_STEPS; ++i)
+        tmp[i] = tmp[i % len]; /* a longer sequence later plays it again */
     randomize_step_masks(e, mask, smask);
     for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
         MelloStep *st = &e->project.steps[i];
@@ -2896,8 +2961,9 @@ static void randomize_musical(MelloEngine *e)
                                      chance_permille(&e->gen_rng, (uint16_t)(e->modr.rnd_amount[12] * 10u))))
         roll_wave_med(e);
 #if MELLO_FEATURE_CHORD_MACHINE
-    if ((mask & MELLO_RAND_CHORD) && (e->modr.rnd_amount[11] >= 100u ||
-                                      chance_permille(&e->gen_rng, (uint16_t)(e->modr.rnd_amount[11] * 10u)))) {
+    if ((mask & MELLO_RAND_CHORD) &&
+        (e->modr.rnd_amount[11] >= 100u ||
+         chance_permille(&e->gen_rng, (uint16_t)(e->modr.rnd_amount[11] * 10u)))) {
         /* A progression people play, in the scale: i VI iv v, i iv v i, i VI III VII, i VII VI VII, i iv i v,
          * I V vi IV; all triads or all sevenths, each chord as long as the first was. */
         static const uint8_t prog[6][4] = {{0, 5, 3, 4}, {0, 3, 4, 0}, {0, 5, 2, 6},
@@ -3262,8 +3328,8 @@ void mello_engine_chord_name(const MelloEngine *e, uint8_t chord_step, char out[
     else if (s->shape == MELLO_CHORD_SUS4)
         q = "sus4";
     else if (s->shape == MELLO_CHORD_SEVENTH && e->chord.voices >= 4u)
-        q = i3 == 3 && i5 == 6 ? (i7 == 9 ? "o7" : "h7") /* half-diminished */
-            : i3 == 3          ? (i7 == 11 ? "mM7" : "m7")
+        q = i3 == 3 && i5 == 6   ? (i7 == 9 ? "o7" : "h7") /* half-diminished */
+            : i3 == 3            ? (i7 == 11 ? "mM7" : "m7")
             : i3 == 4 && i5 == 8 ? "+7"
                                  : (i7 == 11 ? "M7" : "7");
     else
@@ -3333,7 +3399,8 @@ static void chord_voice_lead(uint8_t *notes, uint8_t n, const uint8_t *prev, uin
                 d = (int32_t)cand[i] - (int32_t)prev[i];
                 cost += 2 * (d < 0 ? -d : d);
             }
-            d = (sum - written) / (int32_t)n; /* the pull back to where it is written grows with the distance */
+            d = (sum - written) /
+                (int32_t)n; /* the pull back to where it is written grows with the distance */
             cost += d * d;
             if (cost < best_cost) {
                 best_cost = cost;
@@ -3354,7 +3421,8 @@ static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advanc
     cs = &c->steps[slot];
     fresh = e->chord_chain_hold == 0u;
     n = mello_engine_resolve_chord_notes(e, slot, notes);
-    if (slot != e->chord_voiced_slot) { /* a new chord in the chain: the one sounding is voice leading's reference */
+    if (slot !=
+        e->chord_voiced_slot) { /* a new chord in the chain: the one sounding is voice leading's reference */
         memcpy(e->chord_prev, e->chord_voiced, sizeof e->chord_prev);
         e->chord_prev_n = e->chord_voiced_n;
         e->chord_voiced_slot = slot;
@@ -3415,7 +3483,8 @@ static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advanc
         dur = (unit_ticks * (uint32_t)c->gate_amount) / 1000u;
         dur = clamp_duration_ms_as_ticks(&e->project, dur, 20u, 4000u);
         for (i = 0u; i < n; ++i)
-            if (mask & (uint8_t)(1u << i)) { /* STRUM moves a voice's whole note (its OFF never comes first) */
+            if (mask &
+                (uint8_t)(1u << i)) { /* STRUM moves a voice's whole note (its OFF never comes first) */
                 uint32_t at = e->now_tick + (c->mode == MELLO_CHORD_STAB ? strum * i : 0u);
                 emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_ON, at, pe->step_index, pe->pulse_index,
                                 pe->total_pulses, notes[i], 88u, i);
@@ -3482,8 +3551,8 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         e->hold_open = false;
     }
     if (e->drone_open && (!e->sub.on || e->sub.mode != MELLO_SUB_MODE_DRONE)) {
-        emit_basic(e, MELLO_EVENT_SUB_NOTE_OFF, e->now_tick, e->drone_step, 0u, 1u, e->drone_note, 0u, 0u, false,
-                   true);
+        emit_basic(e, MELLO_EVENT_SUB_NOTE_OFF, e->now_tick, e->drone_step, 0u, 1u, e->drone_note, 0u, 0u,
+                   false, true);
         e->drone_open = false;
     }
     if (e->perf_mode && e->perf_buf_n) {
@@ -3617,10 +3686,10 @@ bool mello_engine_advance_pulse(MelloEngine *e)
             uint8_t sub_note = resolve_sub_midi(e, x_tone, x_oct);
             if (!e->drone_open || sub_note != e->drone_note) {
                 if (e->drone_open) /* MIDI out ends the old note; the voice is attacked again at once */
-                    emit_basic(e, MELLO_EVENT_SUB_NOTE_OFF, e->now_tick, e->drone_step, 0u, 1u, e->drone_note, 0u,
-                               0u, false, true);
-                emit_basic(e, MELLO_EVENT_SUB_NOTE_ON, e->now_tick, pe.step_index, 0u, pe.total_pulses, sub_note,
-                           114u, 0u, false, pass);
+                    emit_basic(e, MELLO_EVENT_SUB_NOTE_OFF, e->now_tick, e->drone_step, 0u, 1u, e->drone_note,
+                               0u, 0u, false, true);
+                emit_basic(e, MELLO_EVENT_SUB_NOTE_ON, e->now_tick, pe.step_index, 0u, pe.total_pulses,
+                           sub_note, 114u, 0u, false, pass);
                 e->drone_open = true, e->drone_note = sub_note, e->drone_step = pe.step_index;
             }
         } else if (sub_should &&

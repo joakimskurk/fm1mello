@@ -88,8 +88,8 @@ int main(void)
 
     movement(false, &m_off, &s_off);
     movement(true, &m_on, &s_on);
-    printf("voice leading: the voices move %d semitones over the chain (%d as written), stray %d\n", m_on, m_off,
-           s_on);
+    printf("voice leading: the voices move %d semitones over the chain (%d as written), stray %d\n", m_on,
+           m_off, s_on);
     CHECK(m_on < m_off, "voice leading did not move the voices less (%d, written %d)", m_on, m_off);
     CHECK(s_on <= 7, "voice leading strayed %d semitones from the written chords", s_on);
 
@@ -109,9 +109,11 @@ int main(void)
         }
         CHECK(ons == 4, "%s: %d NOTE_ONs", i ? "STAB" : "HOLD", ons);
         for (k = 1; k < 4; ++k)
-            CHECK(on_tick[k] > on_tick[k - 1], "%s: voice %d not after voice %d", i ? "STAB" : "HOLD", k, k - 1);
+            CHECK(on_tick[k] > on_tick[k - 1], "%s: voice %d not after voice %d", i ? "STAB" : "HOLD", k,
+                  k - 1);
         printf("STRUM 20 ms (%s): the voices at +0 / +%u / +%u / +%u ticks\n", i ? "STAB" : "HOLD",
-               (unsigned)(on_tick[1] - first), (unsigned)(on_tick[2] - first), (unsigned)(on_tick[3] - first));
+               (unsigned)(on_tick[1] - first), (unsigned)(on_tick[2] - first),
+               (unsigned)(on_tick[3] - first));
     }
 
     for (i = 0u; i < 2u; ++i) { /* the voice at its extremes; CHORUS off is mono */
@@ -152,11 +154,13 @@ int main(void)
             memset(out, 0, sizeof out);
             mello_audio_render(&a, out, 256u, us, 120u);
             for (k = 0u; k < 512u; ++k) peak = abs(out[k]) > peak ? abs(out[k]) : peak;
-            for (k = 0u; k < 256u; ++k) side = abs(out[2u * k] - out[2u * k + 1u]) > side ? abs(out[2u * k] - out[2u * k + 1u]) : side;
+            for (k = 0u; k < 256u; ++k)
+                side =
+                    abs(out[2u * k] - out[2u * k + 1u]) > side ? abs(out[2u * k] - out[2u * k + 1u]) : side;
             us += 256u * 1000000u / 44100u;
         }
-        printf("CHORUS %s, CUT RES ENV 100%%: peak %d, left - right up to %d\n", i ? "off" : "100%", (int)peak,
-               (int)side);
+        printf("CHORUS %s, CUT RES ENV 100%%: peak %d, left - right up to %d\n", i ? "off" : "100%",
+               (int)peak, (int)side);
         CHECK(peak > 1000 && peak <= 32767, "the chord voice's peak %d", (int)peak);
         CHECK(i ? side == 0 : side > 500, "CHORUS %s: left - right %d", i ? "off" : "on", (int)side);
     }

@@ -510,7 +510,8 @@ static int32_t drum_noise(MelloAudio *a)
 }
 static void drum_hit(MelloAudio *a, const MelloEvent *e)
 {
-    static const uint16_t base_ms[MELLO_DRUM_VOICES] = {80u, 60u, 15u, 10u}, span_ms[MELLO_DRUM_VOICES] = {1120u, 540u, 785u, 390u};
+    static const uint16_t base_ms[MELLO_DRUM_VOICES] = {80u, 60u, 15u, 10u},
+                          span_ms[MELLO_DRUM_VOICES] = {1120u, 540u, 785u, 390u};
     uint8_t v = e->sample_slot;
     MelloAudioDrumVoice *d;
     const MelloDrumVoice *c;
@@ -543,7 +544,8 @@ static void drum_hit(MelloAudio *a, const MelloEvent *e)
         d->pk = 0;
         break;
     default: /* GLITCH: FM at an inharmonic ratio, its index falling fast */
-        d->inc = inc_times(hz_inc(550u), semi_ratio_q16((int32_t)c->tune * 59 * 256 / 1000 - 7552)); /* 100 Hz .. 3 kHz */
+        d->inc = inc_times(hz_inc(550u),
+                           semi_ratio_q16((int32_t)c->tune * 59 * 256 / 1000 - 7552)); /* 100 Hz .. 3 kHz */
         d->inc = inc_times(d->inc, ratio);
         d->inc2 = inc_times(d->inc, 32768u + (uint32_t)c->tone * 441u); /* x 0.5 .. 7.2 */
         d->pk = drum_rate(ms / 4u + 2u);
@@ -588,7 +590,8 @@ static int32_t drum_render(MelloAudio *a)
             d->hp1 += (n - d->hp1) >> 3; /* a high-pass at ~900 Hz */
             n -= d->hp1;
             /* TONE: snap, the noise against the body */
-            y = q15mul(q15mul(body, pb), 32767 - (int32_t)c->tone * 20) + q15mul(n, 9000 + (int32_t)c->tone * 23);
+            y = q15mul(q15mul(body, pb), 32767 - (int32_t)c->tone * 20) +
+                q15mul(n, 9000 + (int32_t)c->tone * 23);
             y = q15mul(clamp32(y, -32767, 32767), g);
             break;
         }
@@ -598,7 +601,7 @@ static int32_t drum_render(MelloAudio *a)
             d->phase2 += d->inc2;
             metal = ((d->phase ^ d->phase2) & 0x80000000u) ? 20000 : -20000;
             y = n + q15mul(metal - n, (int32_t)c->tone * 32); /* TONE: noise .. metal */
-            d->hp1 += (y - d->hp1) >> 2; /* two high-passes at ~3 kHz */
+            d->hp1 += (y - d->hp1) >> 2;                      /* two high-passes at ~3 kHz */
             y -= d->hp1;
             d->hp2 += (y - d->hp2) >> 2;
             y -= d->hp2;
@@ -610,7 +613,8 @@ static int32_t drum_render(MelloAudio *a)
             d->phase2 += d->inc2;
             m = SINE_Q15[(uint8_t)(d->phase2 >> 24)];
             d->phase += d->inc;
-            y = SINE_Q15[(uint8_t)((d->phase + (uint32_t)((int64_t)m * (d->penv >> 8))) >> 24)]; /* index to 0.5 */
+            y = SINE_Q15[(uint8_t)((d->phase + (uint32_t)((int64_t)m * (d->penv >> 8))) >>
+                                   24)]; /* index to 0.5 */
             y = q15mul(y, g);
             break;
         }
@@ -906,14 +910,15 @@ static void chord_control(MelloAudio *a)
         v->fenv -= (int32_t)(((int64_t)v->fenv * v->k_fdec) >> 24);
     /* CUT 0..1000 = 60 Hz .. 6.4 kHz (81 semitones), the envelope up to 48 more, LINK as far as the lead's CUTOFF
      * from its middle; counted from 960 Hz (semi_ratio_q16 reaches +-48 semitones) */
-    q8 = (int32_t)c->cut * 20736 / 1000 + (int32_t)(((int64_t)v->fenv * ((int32_t)c->fenv * 12288 / 1000)) >> 24) -
-         48 * 256;
+    q8 = (int32_t)c->cut * 20736 / 1000 +
+         (int32_t)(((int64_t)v->fenv * ((int32_t)c->fenv * 12288 / 1000)) >> 24) - 48 * 256;
     if (c->link) q8 += ((int32_t)a->config.filter_cut - 500) * 235 / 10;
     if (q8 > 33 * 256) q8 = 33 * 256;
     w = (int32_t)(((int64_t)semi_ratio_q16(q8) * 4482) >> 16); /* 2 pi fc / fs, Q15 */
-    w -= (int32_t)((((int64_t)w * w >> 15) * w) >> 15) / 24;     /* 2 sin(w / 2) */
+    w -= (int32_t)((((int64_t)w * w >> 15) * w) >> 15) / 24;   /* 2 sin(w / 2) */
     v->f_q15 = clamp32(w, 40, 29000);
-    v->damp_q15 = 65536 - (int32_t)c->res * 62000 / 1000; /* damping 2 (RES 0) .. 0.1: just short of whistling */
+    v->damp_q15 =
+        65536 - (int32_t)c->res * 62000 / 1000; /* damping 2 (RES 0) .. 0.1: just short of whistling */
 }
 /* One sample of the chord layer, left and right (before LEVEL). */
 static void chord_render(MelloAudio *a, int32_t *out_l, int32_t *out_r)
@@ -955,7 +960,7 @@ static void chord_render(MelloAudio *a, int32_t *out_l, int32_t *out_r)
         v->chorus_buf[v->chorus_pos] = (int16_t)x;
         v->chorus_lfo += 43826u + (uint32_t)c->chorus * 39u;
         tri = v->chorus_lfo >> 16;
-        tri = tri < 32768u ? tri * 2u : (65535u - tri) * 2u; /* 0..65535 */
+        tri = tri < 32768u ? tri * 2u : (65535u - tri) * 2u;                  /* 0..65535 */
         d = (uint32_t)((154 << 8) + ((((int32_t)tri - 32768) * depth) >> 7)); /* Q8 samples */
         pos = (uint32_t)v->chorus_pos + MELLO_CHORD_CHORUS_LEN * 2u - (d >> 8);
         f = d & 0xFFu;
@@ -1574,9 +1579,10 @@ static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t d
     if (a->fx.delay_lowcut) {
         /* LO CUT, 12 dB an octave, 20 Hz .. 2 kHz: on the return and in the feedback, so each repeat is thinner than
          * the last. 2 pi f / fs, Q15: f = 20 Hz x 100^(lowcut / 1000), counted from 320 Hz (48 semitones up). */
-        int32_t k = (int32_t)(((int64_t)semi_ratio_q16((int32_t)a->fx.delay_lowcut * 797 * 256 / 10000 - 48 * 256) *
-                               1494) >>
-                              16);
+        int32_t k =
+            (int32_t)(((int64_t)semi_ratio_q16((int32_t)a->fx.delay_lowcut * 797 * 256 / 10000 - 48 * 256) *
+                       1494) >>
+                      16);
         a->delay_lc[0] += (int32_t)(((int64_t)(d - a->delay_lc[0]) * k) >> 15);
         d -= a->delay_lc[0];
         a->delay_lc[1] += (int32_t)(((int64_t)(d - a->delay_lc[1]) * k) >> 15);
@@ -2295,7 +2301,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         }
         /* DRUMS: past the lead's filter and distortion, their own LEVEL and SPACE */
         if (a->drum[0].on | a->drum[1].on | a->drum[2].on | a->drum[3].on)
-            drums = drum_render(a) * (int32_t)a->drum_config.level / 3000; /* LEVEL 70%: a little over the lead */
+            drums =
+                drum_render(a) * (int32_t)a->drum_config.level / 3000; /* LEVEL 70%: a little over the lead */
         if (a->fx.delay_pre_dist) {
             /* PRE DIST: the delay before the distortion, so its filtered echoes are driven too (the HTML has it
              * after); what the chords and drums send to it goes there with them. */
@@ -2334,7 +2341,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             fx_in += chord_mix * 800 / 1000 * (int32_t)a->chord_config.space / 1000;
 #endif
             fx_in += drums * (int32_t)a->drum_config.space / 1000;
-            if (!a->fx.delay_pre_dist) mix += delay_tick(a, fx_in * dly_send / 1000, dly_fb, delay_q8) * dly_level / 1000;
+            if (!a->fx.delay_pre_dist)
+                mix += delay_tick(a, fx_in * dly_send / 1000, dly_fb, delay_q8) * dly_level / 1000;
             mix_l = mix;
             mix_r = mix;
 #if MELLO_FEATURE_CHORD_MACHINE
