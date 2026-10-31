@@ -225,7 +225,7 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
   are the steps (a key toggles the picked voice's hit there and picks the step), B0-B3 pick the voice, B4 ON, B5 ACC.
   Layers: VOICE, STEP (the picked step's locks), VARY (CHANCE, CRUSH, SWING, ROLL), KIT (LENGTH, FOLLOW, SPACE, LEVEL).
 - The sound: past the lead's filter and distortion, a little over the lead at LEVEL 70%. Cost: up to about 20% more
-  audio render with all four voices on every step (about 5% of the chip).
+  audio render with all four voices on every step (about 5% of the chip). Since the redesign below, up to 31%.
 - The default beat (feedback: "that one sounded very good"): a full ROLL of the first kit with SWING 30% and CRUSH 40%,
   kept as it came out; GLITCH has no hits in it. The drums are off until ON.
 - The kick tightened (2026-10-31: "it eats the bass's room, a long release and pitch changes; more percussive than
@@ -235,6 +235,24 @@ sonic differences come from modulation and the randomizer". Four synthesized voi
   step's PITCH or DECAY makes the kick longer or retunes it. ROLL keeps it so: it never rolls the kick's PITCH, never
   rolls a DECAY longer than the voice's, and lays a little fewer kicks (22%, not 28%). With a MUSICAL roll over it, the
   mix has 7.5 dB less at 30-90 Hz and 4 dB less at 90-250 Hz, and the same above.
+- The voices redesigned (2026-10-31: "the drums should sit more; now they sound very 8-bit and flat"). The 8-bit
+  came from CRUSH at 40% on every voice and on many steps, from sines read from the 256-point table without
+  interpolation, and from snare and hat noise open to 22 kHz. The flatness came from a kick with no attack, one level
+  for every part of a voice, and everything in mono. Now:
+  - KICK: an interpolated sine whose pitch falls twice, a click from 7x in ~6 ms and a body from 1.7x in ~60 ms. Its
+    level is held up to 12 ms before it falls, which gives the punch. A short burst of noise above ~2 kHz rides on the
+    click.
+  - SNARE: a body sine falling from 1.5x in ~25 ms, with a mode at 1.59x. The noise is band-passed (~900 Hz up; TONE
+    sets 4-10 kHz down) and twice as loud for its first ~25 ms (the snap).
+  - HAT: six square waves at the TR-808's ratios, summed and band-passed (two high-passes ~5 kHz, a low-pass ~10 kHz).
+    TONE goes from noise to metal.
+  - GLITCH: as it was.
+  - Kick and snare share a soft cubic saturation (x - x^3/3 on 1.5x), so their peaks lean on each other. The hat sits a
+    little right and the glitch a little left.
+  - CRUSH is 0 on every voice and step of the default beat. It stays as an effect.
+  At the default kit a hit is within 1 dB of its old level (the kick +1.9 dB RMS from its hold). Cost: up to +31% audio
+  render with all four voices ringing all the time, against +16%, so about 4% more of the chip. The kick's click and
+  the snare's body stop computing once they are down 60 dB.
 - Saved in SEC_DRUMS (9). Not yet: MIDI out, LFO / DOT / EVOLVE routes to the drums.
 
 ## The chord voice (2026-10-30)

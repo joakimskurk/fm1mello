@@ -140,14 +140,17 @@ typedef struct {
 /* A drum voice (DRUMS): one hit at a time, retriggered by the next. */
 typedef struct {
     uint8_t on;
-    int32_t env; /* Q24, falls by k a sample (one-pole, to -60 dB in the hit's decay) */
+    int32_t env; /* Q24, falls by k a sample (one-pole, to -60 dB in the hit's decay) after hold_s samples */
     int32_t k;
+    uint16_t hold_s;
     int32_t penv,
-        pk; /* a second, faster envelope: the kick's pitch, the snare's body, the glitch's FM index */
-    uint32_t phase, inc;   /* the tone (kick, snare body, hat square, glitch carrier) */
-    uint32_t phase2, inc2; /* the second (snare body, hat square, glitch modulator) */
-    int32_t gain;          /* Q15: LEVEL and the hit's velocity */
-    int32_t hp1, hp2, x1;  /* noise filters */
+        pk; /* faster envelopes, Q24: the kick's body pitch, the snare's body, the glitch's FM index */
+    int32_t cenv, ck; /* the attack: the kick's click and pitch, the snare's snap */
+    uint32_t ph[6],
+        inc[6];   /* the tones (kick sine; snare body and its mode; hat's six squares; glitch pair) */
+    int32_t gain; /* Q15: LEVEL and the hit's velocity */
+    int32_t hp1, hp2, lp1; /* noise filters */
+    int32_t lpk;           /* the snare's noise low-pass, Q15 (TONE) */
     uint8_t hold, hold_n;  /* CRUSH: sample and hold, and the bits kept */
     int32_t held, mask;
 } MelloAudioDrumVoice;

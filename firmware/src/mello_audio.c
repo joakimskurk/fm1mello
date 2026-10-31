@@ -489,7 +489,18 @@ static void sub_release(MelloAudio *a)
     sub_curve_begin(a, 0, a->sub_config.release_ms);
 }
 static int32_t soft_drive(int32_t x, uint16_t amount, uint16_t character);
-/* DRUMS: four plain voices, made to move by each hit's PITCH, DECAY and CRUSH. */
+/* DRUMS (2026-10-31: "they should sit more; now they sound very 8-bit and flat"). Each voice as the analogue
+ * machines make theirs, in a few operations a sample, then moved by each hit's PITCH, DECAY and CRUSH:
+ * - KICK: an interpolated sine whose pitch falls twice, a click (from 7x in ~6 ms) and a body (from 1.7x in ~60 ms);
+ *   its level held up to 12 ms before it falls, so it punches; a short burst of high-passed noise on the click;
+ *   TONE drive.
+ * - SNARE: a body sine falling from 1.5x in ~25 ms with a mode at 1.59x, and noise band-passed (~900 Hz up, 4 .. 10
+ *   kHz down by TONE), twice as loud for its first ~25 ms (the snap); TONE also moves body towards noise.
+ * - HAT: six square waves at the TR-808's ratios, summed and band-passed (two high-passes ~5 kHz, a low-pass ~10
+ *   kHz); TONE from noise (0) to metal (1000).
+ * - GLITCH: FM at an inharmonic ratio, its index falling fast.
+ * Kick and snare are rounded together by a soft cubic saturation, so their peaks lean on each other (drum_glue);
+ * the hat sits a little right, the glitch a little left. CRUSH stays, at 0 by default. */
 static uint32_t hz_inc(uint32_t hz)
 {
     return hz * 97392u; /* 2^32 / 44100 a Hz */
@@ -508,49 +519,64 @@ static int32_t drum_noise(MelloAudio *a)
     a->drum_noise = x;
     return (int32_t)(x >> 16) - 32768;
 }
+/* The phase increment pushed up by an envelope: inc x (1 + m), m Q24. */
+static uint32_t drum_bend(uint32_t inc, int32_t m)
+{
+    return inc + (uint32_t)(((uint64_t)inc * (uint32_t)m) >> 24);
+}
 static void drum_hit(MelloAudio *a, const MelloEvent *e)
 {
-    static const uint16_t base_ms[MELLO_DRUM_VOICES] = {80u, 60u, 15u, 10u},
-                          span_ms[MELLO_DRUM_VOICES] = {1120u, 540u, 785u, 390u};
-    uint8_t v = e->sample_slot;
+    static const uint16_t base_ms[MELLO_DRUM_VOICES] = {60u, 60u, 15u, 10u},
+                          span_ms[MELLO_DRUM_VOICES] = {1140u, 540u, 785u, 390u};
+    /* The TR-808's six hat oscillators (205.3, 304.4, 369.6, 522.7, 540, 800 Hz) as ratios to the first, Q16. */
+    static const uint32_t hat_ratio[6] = {65536u, 97171u, 117984u, 166857u, 172379u, 255377u};
+    uint8_t v = e->sample_slot, i;
     MelloAudioDrumVoice *d;
     const MelloDrumVoice *c;
-    uint32_t ms, ratio, crush;
+    uint32_t ms, ratio, crush, hold_ms = 0u;
     if (v >= MELLO_DRUM_VOICES || !a->drum_config.on) return;
     d = &a->drum[v];
     c = &a->drum_config.voice[v];
     ms = base_ms[v] + (uint32_t)c->decay * span_ms[v] / 1000u;
     if (e->drum_decay) ms = inc_times(ms << 8, semi_ratio_q16((int32_t)e->drum_decay * 24 * 256 / 100)) >> 8;
     ratio = semi_ratio_q16(((int32_t)e->note - 64) * 256); /* PITCH */
-    d->k = drum_rate(ms);
     d->env = 1 << 24;
-    d->penv = 1 << 24;
+    d->penv = d->cenv = 1 << 24;
+    d->pk = d->ck = 0;
     d->gain = (int32_t)c->level * 32767 / 1000 * e->velocity / 127;
     switch (v) {
-    case MELLO_DRUM_KICK: /* a sine falling from four times its pitch in ~25 ms */
-        d->inc = inc_times(hz_inc(35u + c->tune * 55u / 1000u), ratio);
-        d->pk = drum_rate(25u);
-        d->phase = 0u;
+    case MELLO_DRUM_KICK:
+        d->inc[0] = inc_times(hz_inc(35u + c->tune * 55u / 1000u), ratio);
+        d->ph[0] = 0u;
+        d->ck = drum_rate(6u);
+        d->pk = drum_rate(60u);
+        hold_ms = ms / 8u > 12u ? 12u : ms / 8u;
         break;
-    case MELLO_DRUM_SNARE: /* two body tones that die in a third of the noise's time */
-        d->inc = inc_times(hz_inc(140u + c->tune * 180u / 1000u), ratio);
-        d->inc2 = inc_times(d->inc, 96338u); /* x 1.47 */
-        d->pk = drum_rate(ms / 3u);
-        d->phase = d->phase2 = 0u;
+    case MELLO_DRUM_SNARE:
+        d->inc[0] = inc_times(hz_inc(150u + c->tune * 150u / 1000u), ratio);
+        d->inc[1] = inc_times(d->inc[0], 104202u); /* x 1.59 */
+        d->ph[0] = d->ph[1] = 0u;
+        d->pk = drum_rate(ms / 3u + 5u);
+        d->ck = drum_rate(25u);
+        d->lpk = 14746 + (int32_t)c->tone * 13107 / 1000; /* 0.45 .. 0.85: ~4 .. 10 kHz */
+        hold_ms = 2u;
         break;
-    case MELLO_DRUM_HAT: /* noise and two square waves ring-modulated, high-passed */
-        d->inc = inc_times(hz_inc(3100u + c->tune * 3000u / 1000u), ratio);
-        d->inc2 = inc_times(d->inc, 96338u);
-        d->pk = 0;
+    case MELLO_DRUM_HAT: {
+        uint32_t base = inc_times(hz_inc(205u + c->tune * 205u / 1000u), ratio);
+        for (i = 0u; i < 6u; ++i) d->inc[i] = inc_times(base, hat_ratio[i]);
+        hold_ms = 1u;
         break;
-    default: /* GLITCH: FM at an inharmonic ratio, its index falling fast */
-        d->inc = inc_times(hz_inc(550u),
-                           semi_ratio_q16((int32_t)c->tune * 59 * 256 / 1000 - 7552)); /* 100 Hz .. 3 kHz */
-        d->inc = inc_times(d->inc, ratio);
-        d->inc2 = inc_times(d->inc, 32768u + (uint32_t)c->tone * 441u); /* x 0.5 .. 7.2 */
+    }
+    default: /* GLITCH */
+        d->inc[0] = inc_times(
+            hz_inc(550u), semi_ratio_q16((int32_t)c->tune * 59 * 256 / 1000 - 7552)); /* 100 Hz .. 3 kHz */
+        d->inc[0] = inc_times(d->inc[0], ratio);
+        d->inc[1] = inc_times(d->inc[0], 32768u + (uint32_t)c->tone * 441u); /* x 0.5 .. 7.2 */
         d->pk = drum_rate(ms / 4u + 2u);
         break;
     }
+    d->k = drum_rate(ms > hold_ms + 2u ? ms - hold_ms : 2u);
+    d->hold_s = (uint16_t)(hold_ms * 44u);
     crush = (uint32_t)c->crush / 10u + e->drum_crush;
     if (crush > 100u) crush = 100u;
     d->hold_n = (uint8_t)(1u + crush * 15u / 100u);
@@ -558,18 +584,32 @@ static void drum_hit(MelloAudio *a, const MelloEvent *e)
     d->hold = 0u;
     d->on = 1u;
 }
-/* One sample of the drums, mono (before LEVEL). */
-static int32_t drum_render(MelloAudio *a)
+/* The kit's soft saturation: x - x^3 / 3 (full scale 65536) on 1.5 x the sum, back down by 1.5. Unity for quiet
+ * hits; a kick's peak ~1.4 dB rounder; never past full scale. */
+static int32_t drum_glue(int32_t s)
 {
-    int32_t sum = 0;
-    uint8_t v;
+    int32_t x = clamp32(s * 3 / 2, -65535, 65535), q = (int32_t)(((int64_t)x * x) >> 16);
+    return (x - (int32_t)(((int64_t)q * x) >> 16) / 3) * 2 / 3;
+}
+/* One sample of the drums, in stereo (before LEVEL). */
+static void drum_render(MelloAudio *a, int32_t *out_l, int32_t *out_r)
+{
+    int32_t mid = 0, l = 0, r = 0;
+    uint8_t v, i;
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
         MelloAudioDrumVoice *d = &a->drum[v];
         const MelloDrumVoice *c = &a->drum_config.voice[v];
         int32_t y, g;
         if (!d->on) continue;
-        d->env -= (int32_t)(((int64_t)d->env * d->k) >> 24);
+        if (d->hold_s)
+            --d->hold_s;
+        else
+            d->env -= (int32_t)(((int64_t)d->env * d->k) >> 24);
         if (d->pk) d->penv -= (int32_t)(((int64_t)d->penv * d->pk) >> 24);
+        if (d->ck) {
+            d->cenv -= (int32_t)(((int64_t)d->cenv * d->ck) >> 24);
+            if (d->cenv < 16384) d->cenv = 0, d->ck = 0; /* -60 dB: done */
+        }
         if (d->env < 2048) {
             d->on = 0u;
             continue;
@@ -577,43 +617,57 @@ static int32_t drum_render(MelloAudio *a)
         g = d->env >> 9;
         switch (v) {
         case MELLO_DRUM_KICK:
-            d->phase += d->inc + (uint32_t)(((int64_t)d->inc * 3 * d->penv) >> 24);
-            y = SINE_Q15[(uint8_t)(d->phase >> 24)];
+            d->ph[0] += drum_bend(d->inc[0], d->cenv * 6 + d->penv / 10 * 7);
+            y = osc_sample(MELLO_WAVE_SINE, d->ph[0], 0u, 0u);
             if (c->tone) y = soft_drive(y, c->tone, 500u); /* TONE: drive */
-            y = q15mul(y, g);
+            if (d->ck) {                                   /* the click's noise, above ~2 kHz */
+                int32_t n = drum_noise(a);
+                d->hp1 += (n - d->hp1) >> 2;
+                y += q15mul(n - d->hp1, d->cenv >> 9) / 3;
+            }
+            y = q15mul(clamp32(y, -32767, 32767), g);
             break;
         case MELLO_DRUM_SNARE: {
-            int32_t n = drum_noise(a), body, pb = d->penv >> 9;
-            d->phase += d->inc;
-            d->phase2 += d->inc2;
-            body = (SINE_Q15[(uint8_t)(d->phase >> 24)] + SINE_Q15[(uint8_t)(d->phase2 >> 24)]) / 2;
-            d->hp1 += (n - d->hp1) >> 3; /* a high-pass at ~900 Hz */
+            int32_t n = drum_noise(a), body = 0, snap = 32768 + (d->cenv >> 9);
+            if (d->pk) { /* the body, until it is down 60 dB */
+                d->ph[0] += drum_bend(d->inc[0], d->cenv >> 1);
+                d->ph[1] += drum_bend(d->inc[1], d->cenv >> 1);
+                body = (osc_sample(MELLO_WAVE_SINE, d->ph[0], 0u, 0u) * 2 +
+                        osc_sample(MELLO_WAVE_SINE, d->ph[1], 0u, 0u)) /
+                       3;
+                body = q15mul(body, d->penv >> 9);
+                if (d->penv < 16384) d->pk = 0;
+            }
+            d->hp1 += (n - d->hp1) >> 3; /* ~900 Hz up */
             n -= d->hp1;
+            d->lp1 += (int32_t)(((int64_t)(n - d->lp1) * d->lpk) >> 15); /* TONE: 4 .. 10 kHz down */
+            n = q15mul_wide(d->lp1, snap);                               /* the snap: x2 at first */
             /* TONE: snap, the noise against the body */
-            y = q15mul(q15mul(body, pb), 32767 - (int32_t)c->tone * 20) +
-                q15mul(n, 9000 + (int32_t)c->tone * 23);
+            y = q15mul(body, 32767 - (int32_t)c->tone * 13) + q15mul(n, 14000 + (int32_t)c->tone * 14);
             y = q15mul(clamp32(y, -32767, 32767), g);
             break;
         }
         case MELLO_DRUM_HAT: {
-            int32_t n = drum_noise(a), metal;
-            d->phase += d->inc;
-            d->phase2 += d->inc2;
-            metal = ((d->phase ^ d->phase2) & 0x80000000u) ? 20000 : -20000;
+            int32_t n = drum_noise(a) / 2, metal = 0;
+            for (i = 0u; i < 6u; ++i) {
+                d->ph[i] += d->inc[i];
+                metal += (d->ph[i] & 0x80000000u) ? 5400 : -5400;
+            }
             y = n + q15mul(metal - n, (int32_t)c->tone * 32); /* TONE: noise .. metal */
-            d->hp1 += (y - d->hp1) >> 2;                      /* two high-passes at ~3 kHz */
+            d->hp1 += (y - d->hp1) >> 1;                      /* two high-passes at ~5 kHz */
             y -= d->hp1;
-            d->hp2 += (y - d->hp2) >> 2;
+            d->hp2 += (y - d->hp2) >> 1;
             y -= d->hp2;
-            y = q15mul(clamp32(y, -32767, 32767), g);
+            d->lp1 += ((y - d->lp1) * 3) >> 2;                 /* a low-pass at ~10 kHz */
+            y = q15mul(clamp32(d->lp1 * 6, -32767, 32767), g); /* x6: what the band-pass took */
             break;
         }
         default: {
             int32_t m;
-            d->phase2 += d->inc2;
-            m = SINE_Q15[(uint8_t)(d->phase2 >> 24)];
-            d->phase += d->inc;
-            y = SINE_Q15[(uint8_t)((d->phase + (uint32_t)((int64_t)m * (d->penv >> 8))) >>
+            d->ph[1] += d->inc[1];
+            m = SINE_Q15[(uint8_t)(d->ph[1] >> 24)];
+            d->ph[0] += d->inc[0];
+            y = SINE_Q15[(uint8_t)((d->ph[0] + (uint32_t)((int64_t)m * (d->penv >> 8))) >>
                                    24)]; /* index to 0.5 */
             y = q15mul(y, g);
             break;
@@ -626,9 +680,17 @@ static int32_t drum_render(MelloAudio *a)
             }
             y = d->held;
         }
-        sum += q15mul(y, d->gain);
+        y = q15mul(y, d->gain);
+        if (v == MELLO_DRUM_HAT) /* placed: the hat a little right, the glitch a little left */
+            l += y * 3 / 4, r += y;
+        else if (v == MELLO_DRUM_GLITCH)
+            l += y, r += y * 3 / 4;
+        else
+            mid += y;
     }
-    return clamp32(sum, -65535, 65535);
+    if (mid) mid = drum_glue(mid);
+    *out_l = clamp32(mid + l, -65535, 65535);
+    *out_r = clamp32(mid + r, -65535, 65535);
 }
 static uint32_t sample_rate_q16(const MelloSampleSlotConfig *c, uint8_t note)
 {
@@ -2004,7 +2066,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
 #if MELLO_FEATURE_CHORD_MACHINE
         int32_t chord_mix = 0, chord_l = 0, chord_r = 0;
 #endif
-        int32_t drums = 0;
+        int32_t drums = 0, drums_l = 0, drums_r = 0;
         uint16_t cut = (uint16_t)(ramp_q8(&a->rp_cut) >> 8), res = (uint16_t)(ramp_q8(&a->rp_res) >> 8);
         int32_t master = ramp_q8(&a->rp_master) >> 8, rev_send = ramp_q8(&a->rp_rev_send) >> 8,
                 rev_level = ramp_q8(&a->rp_rev_level) >> 8, dly_send = ramp_q8(&a->rp_dly_send) >> 8,
@@ -2300,9 +2362,12 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             mix = clamp32(y, -65535, 65535);
         }
         /* DRUMS: past the lead's filter and distortion, their own LEVEL and SPACE */
-        if (a->drum[0].on | a->drum[1].on | a->drum[2].on | a->drum[3].on)
-            drums =
-                drum_render(a) * (int32_t)a->drum_config.level / 3000; /* LEVEL 70%: a little over the lead */
+        if (a->drum[0].on | a->drum[1].on | a->drum[2].on | a->drum[3].on) {
+            drum_render(a, &drums_l, &drums_r);
+            drums_l = drums_l * (int32_t)a->drum_config.level / 3000; /* LEVEL 70%: a little over the lead */
+            drums_r = drums_r * (int32_t)a->drum_config.level / 3000;
+            drums = (drums_l + drums_r) / 2; /* what SPACE sends */
+        }
         if (a->fx.delay_pre_dist) {
             /* PRE DIST: the delay before the distortion, so its filtered echoes are driven too (the HTML has it
              * after); what the chords and drums send to it goes there with them. */
@@ -2349,8 +2414,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             mix_l += chord_l * 672 / 1000; /* 800 x 840 as the lead's dry */
             mix_r += chord_r * 672 / 1000;
 #endif
-            mix_l += drums * 840 / 1000;
-            mix_r += drums * 840 / 1000;
+            mix_l += drums_l * 840 / 1000;
+            mix_r += drums_r * 840 / 1000;
             if (a->reverb_buffer && a->reverb_capacity > 1024u &&
                 (a->fx.reverb_wet || a->tail_guard_frames)) {
                 int32_t send = fx_in * rev_send / 1000, rv_l = 0, rv_r = 0;
