@@ -15,9 +15,9 @@ extern "C" {
 #define MELLO_STORAGE_HEADER_SIZE    24u
 #define MELLO_STORAGE_FOOTER_SIZE    8u
 #define MELLO_STORAGE_SECTOR_SIZE    0x1000u
-#define MELLO_STORAGE_BANK_SIZE      0x10000u /* 64 KiB: 64 full slots with their grit and MOD are 42.4 KiB */
-#define MELLO_STORAGE_BANK0_ADDR     0x00098000u
-#define MELLO_STORAGE_BANK1_ADDR     (MELLO_STORAGE_BANK0_ADDR + MELLO_STORAGE_BANK_SIZE)
+#define MELLO_STORAGE_BANK_SIZE (64u * 1024u) /* 64 KiB: 64 full slots with their grit and MOD are 42.4 KiB */
+#define MELLO_STORAGE_BANK0_ADDR 0x00098000u
+#define MELLO_STORAGE_BANK1_ADDR (MELLO_STORAGE_BANK0_ADDR + MELLO_STORAGE_BANK_SIZE)
 /* Up to 0.5-f21 the banks were 40 KiB and the second began here; a record there is still read at boot (and the
  * first save then goes to bank 1, which does not overlap it), so an upgrade keeps the last project. */
 #define MELLO_STORAGE_LEGACY_BANK1_ADDR        0x000A2000u
