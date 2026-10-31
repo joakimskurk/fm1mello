@@ -1,5 +1,4 @@
 #include "mello_ui.h"
-#include <string.h>
 
 #define UI_RGB(r, g, b)                                                                                      \
     ((uint16_t)((((uint16_t)(r) & 0xF8u) << 8) | (((uint16_t)(g) & 0xFCu) << 3) | ((uint16_t)(b) >> 3)))
@@ -2131,6 +2130,7 @@ static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
 static const char *layer_name(const MelloUi *ui);
 static const char *domain_name(const MelloUi *ui);
 static const char *button_name(const MelloUi *ui);
+static bool ui_str_eq(const char *a, const char *b);
 static uint16_t ui_text_len(const char *s);
 static uint8_t save_state(const MelloUi *ui);
 static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o);
@@ -3508,7 +3508,8 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
         const char *btn = button_name(ui), *page = domain_name(ui), *layer = layer_name(ui);
         int16_t x = 4;
         uint16_t need = ui_text_len(btn) + 3u + ui_text_len(page) + (layer ? 3u + ui_text_len(layer) : 0u);
-        if ((need <= 24u || !layer) && strcmp(btn, page)) { /* a page named as its button (FX) shows once */
+        if ((need <= 24u || !layer) &&
+            !ui_str_eq(btn, page)) { /* a page named as its button (FX) shows once */
             o->text(o->ctx, x, 7, (int16_t)(ui_text_len(btn) * 8u), 0, btn, UI_DIM, 0);
             x = (int16_t)(x + ui_text_len(btn) * 8u);
             o->text(o->ctx, x, 7, 24, 0, " > ", UI_LINE, 0);
@@ -5685,6 +5686,13 @@ static const char *domain_name(const MelloUi *ui)
     return mello_ui_page_name(ui->page);
 }
 
+/* Two strings the same (the target's libc has no strcmp). */
+static bool ui_str_eq(const char *a, const char *b)
+{
+    while (*a && *a == *b) ++a, ++b;
+    return *a == *b;
+}
+
 /* The printed panel button that leads here (R2): what the header shows first. */
 static const char *button_name(const MelloUi *ui)
 {
@@ -5777,7 +5785,7 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
     const char *l[4], *layer = layer_name(ui);
     uint16_t accent = ui_page_accent(ui);
     footer_texts(ui, l, v);
-    if (strcmp(button_name(ui), domain_name(ui))) {
+    if (!ui_str_eq(button_name(ui), domain_name(ui))) {
         p = copy_s(p, button_name(ui));
         p = copy_s(p, " > ");
     }
