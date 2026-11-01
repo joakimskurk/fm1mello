@@ -103,6 +103,9 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
 - [x] D6. Black ground (DECISIONS "Black ground"): the palette, the zones, HOME's body, and every page's card gone;
       sliders with grey tracks and thumbs in the value's colour. Kept from the old body: the four value rows under
       the picture (the mockups' footer-only idea leaves some layers empty). Package 0.5-f30.
+- [x] D7. MUSICAL v2 (DECISIONS "A melody, not a walk"): a contour with a climax, cells that head for a target with
+      leaps answered by a step back, A' and B' as developments, the whole range and the octave above. Span 4.9 to
+      7.1 scale steps, distinct notes 3.8 to 4.8, over 300 rolls.
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, D1-D2, first flash and C4.
 

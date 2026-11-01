@@ -735,6 +735,31 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   91040 of 98304. A fifth slot needs 32 KiB of pool (the delay's 1.49 s is the only thing that size) and flash
   that no map lists (0xE5000..0xFC000 is unlisted in Felucca's): not without a unit.
 
+## A melody, not a walk (2026-11-01)
+
+MUSICAL (2026-10-31) rolled a phrase in a form (A A' A B ...) but walked each cell by random steps from a chord tone
+and bounced off a range of one octave and a bit, and A' was a copy of A. The user: it plays safe, often repetitive,
+within a few notes, within one octave. What the tunes people remember do instead, and what v2 does:
+
+- **A contour.** The phrase has a shape: an ARCH that climbs to its climax in the answer and comes home, a RISE
+  that keeps climbing, a WAVE that dips first, a FALL that opens high and settles. The contour gives every cell a
+  register in scale degrees from home (B four to six up, C down), and the climax is the third or fourth cell, never
+  the first.
+- **A line towards a target.** In a cell the notes head for the next cell's register four times in five, mostly by
+  step, a quarter of the time by a skip of a third, and now and then by a leap of a fourth to a sixth onto a chord
+  tone, which the next note answers with a step back the other way (the oldest rule of melody). Never the same note
+  three times, never straight back to the note before the last.
+- **Development, not copies.** A' and B' are A and B moved along the contour: the same rhythm, flags and samples,
+  the pitches shifted by scale degrees (a sequence), strong steps snapped back to chord tones.
+- **The range.** The walk may use the whole pitch span, and a line pushed past it takes the octave field up rather
+  than bouncing back; the climax cell starts an octave up in almost half the rolls.
+- **What stays.** Strong steps on chord tones, the first step playing, the phrase ending on the root at octave 0,
+  A back at step 9 in the four-cell forms, pulses 1 and nothing skipped, the mask and EDIT's amounts.
+
+Measured over 300 rolls of 16 steps (random_musical): a phrase spanned 4.9 scale steps and used 3.8 distinct notes
+and reached the octave above in 41 rolls; now 7.1, 4.8 and 135, while strong steps still play 95%, weak 40%, and the
+melody moves 2.0 scale steps a note against MED's 4.65. The test holds the floor at a span of 7 and 4.5 notes.
+
 ## Black ground (2026-11-01)
 
 The user found the screen busy: the HTML's five green tones (ground #040E08, two panels, lines, dim and mid text)

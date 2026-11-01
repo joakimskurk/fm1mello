@@ -109,6 +109,40 @@ int main(void)
     }
     printf("300 rolls: the first beat back at step 9 in %u\n", back);
     CHECK(back >= 180u, "the first beat came back at step 9 in only %u rolls of 300", back);
+    { /* MUSICAL v2 (DECISIONS.md "A melody, not a walk"): a phrase uses the range and more than a handful of notes.
+       * Over 300 rolls: the mean span (highest to lowest sounding note, octave field counted) and the mean count of
+       * distinct notes, and how many rolls reach into the octave above. */
+        unsigned span_sum = 0u, distinct_sum = 0u, up = 0u;
+        for (s = 1u; s <= 300u; ++s) {
+            int lo = 999, hi = -999, i, k, n = 0, seen[64];
+            roll(s, 16u, MELLO_RAND_DEFAULT, MELLO_RANDOMIZE_MUSICAL);
+            for (i = 0; i < 16; ++i) {
+                int v;
+                if (!played((uint8_t)i)) continue;
+                v = e.project.steps[i].pitch + e.project.steps[i].octave * 7;
+                if (v < lo) lo = v;
+                if (v > hi) hi = v;
+                for (k = 0; k < n && seen[k] != v; ++k) {
+                }
+                if (k == n) seen[n++] = v;
+                if (e.project.steps[i].octave > 0) up = (unsigned)(up | (1u << 31));
+            }
+            span_sum += (unsigned)(hi - lo);
+            distinct_sum += (unsigned)n;
+            if (up & (1u << 31)) up = (up & ~(1u << 31)) + 1u;
+        }
+        printf(
+            "300 rolls: a phrase spans %u.%u scale steps and uses %u.%u distinct notes; %u rolls reach the "
+            "octave above\n",
+            span_sum / 300u, span_sum * 10u / 300u % 10u, distinct_sum / 300u,
+            distinct_sum * 10u / 300u % 10u, up);
+        CHECK(span_sum >= 300u * 7u,
+              "the phrases span only %u.%u scale steps on average: a melody, not a walk", span_sum / 300u,
+              span_sum * 10u / 300u % 10u);
+        CHECK(distinct_sum * 10u >= 300u * 45u, "the phrases use only %u.%u distinct notes on average",
+              distinct_sum / 300u, distinct_sum * 10u / 300u % 10u); /* 4.5: the floor; v2 measures 4.8 */
+        CHECK(up >= 60u, "only %u rolls of 300 reach the octave above", up);
+    }
     printf("300 rolls: strong steps play %u%%, weak %u%%; the melody moves %u.%02u scale steps a note (MED "
            "%u.%02u)\n",
            strong_on * 100u / strong_n, weak_on * 100u / weak_n, mus_motion / 30000u,

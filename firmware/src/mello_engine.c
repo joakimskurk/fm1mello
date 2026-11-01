@@ -2903,42 +2903,67 @@ static uint8_t mus_snap(int32_t d, uint8_t pmax, uint8_t n, uint8_t t3, uint8_t 
     return (uint8_t)(d < 0 ? 0 : (d > (int32_t)pmax ? pmax : d));
 }
 
-static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, uint8_t lo, uint8_t hi,
-                     uint8_t pmax, uint8_t n, uint8_t t3, uint8_t t5, int16_t density, const uint8_t slot[2],
-                     bool down)
+/* A cell's notes (MUSICAL v2, DECISIONS.md "A melody, not a walk"): the line heads for a target (the contour's
+ * register for this cell, a few scale degrees off the start), mostly by step, sometimes by a skip of a third, now
+ * and then by a leap of a fourth to a sixth that the next note answers with a step back the other way (the oldest
+ * rule of melody), and never the same note three times. Strong steps still land on chord tones; weak steps pass
+ * between them. A note pushed past the range goes up an octave (the octave field) rather than bouncing back. */
+static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, int32_t target, uint8_t lo,
+                     uint8_t hi, uint8_t pmax, uint8_t n, uint8_t t3, uint8_t t5, int16_t density,
+                     const uint8_t slot[2], bool down)
 {
-    static const uint16_t play[3] = {350u, 600u, 850u}; /* weak, medium, strong */
-    uint8_t o, hits = 0u;
-    int32_t d = start;
+    static const uint16_t play[3] = {420u, 680u, 880u}; /* weak, medium, strong */
+    uint8_t o, hits = 0u, same = 0u;
+    int32_t d = start, before = -99, last_leap = 0, lo32 = lo,
+            hi32 = (int32_t)hi + (int32_t)n; /* an octave of headroom */
     for (o = 0u; o < cl; ++o) {
         MelloStep *st = &c[o];
         uint8_t m = mus_metric(o);
-        int32_t p = o ? (int32_t)play[m] + density : (down ? 1000 : 920 + density);
+        int32_t p = o ? (int32_t)play[m] + density : (down ? 1000 : 920 + density), prev = d;
         st->pulses = 1u, st->ratchet = 1u, st->skip = false, st->octave = 0, st->slide = false;
         st->probability = 65535u;
         if (!chance_permille(&e->gen_rng, (uint16_t)(p < 0 ? 0 : p))) {
             st->gate = MELLO_GATE_REST, st->accent = st->sub = false, st->sample_slot = 0u;
             continue;
         }
-        if (hits++) { /* a step: mostly to the next scale note, sometimes two, a repeat, or a leap to a chord tone */
+        if (hits++) {
             uint32_t r = rng_bounded(&e->gen_rng, 100u);
-            int32_t dir = chance_permille(&e->gen_rng, 500u) ? 1 : -1;
-            if (r < 55u)
+            int32_t toward = target > d ? 1 : (target < d ? -1 : 0), dir;
+            /* the direction: towards the target four times in five, else the other way; never straight back to
+             * the note before the last (a line, not a trill) */
+            dir = toward && chance_permille(&e->gen_rng, 800u)
+                      ? toward
+                      : (chance_permille(&e->gen_rng, 500u) ? 1 : -1);
+            if (d + dir == before && toward) dir = toward;
+            if (last_leap) { /* after a leap: a step back the other way */
+                d -= last_leap > 0 ? 1 : -1;
+                last_leap = 0;
+            } else if (r < 40u)
                 d += dir;
-            else if (r < 80u)
+            else if (r < 65u)
                 d += 2 * dir;
-            else if (r >= 90u)
-                d = mus_snap(d + dir * (int32_t)(2u + rng_bounded(&e->gen_rng, n)), pmax, n, t3, t5);
-            if (d < (int32_t)lo) d = (int32_t)lo + ((int32_t)lo - d);
-            if (d > (int32_t)hi) d = (int32_t)hi - (d - (int32_t)hi);
-            if (d < (int32_t)lo) d = lo;
+            else if (r < 85u) { /* a leap of a fourth, fifth or sixth, to a chord tone */
+                int32_t leap = (int32_t)(3u + rng_bounded(&e->gen_rng, 3u)) * dir;
+                d = mus_snap(d + leap, pmax + n, n, t3, t5);
+                last_leap = d - prev;
+            } else if (same >= 1u) /* a repeat, but never three alike */
+                d += dir;
+            if (d < lo32) d = lo32 + (lo32 - d);
+            if (d > hi32) d = hi32 - (d - hi32);
+            if (d < lo32) d = lo32;
+            if (d > hi32) d = hi32;
         }
-        if (m == 2u) d = mus_snap(d, pmax, n, t3, t5);
-        st->pitch = (int8_t)d;
+        if (m == 2u) d = mus_snap(d, pmax + n, n, t3, t5);
+        same = d == prev && hits > 1u ? (uint8_t)(same + 1u) : 0u;
+        if (hits > 1u) before = prev;
+        if (d > (int32_t)pmax) { /* above the range: the same degree an octave up */
+            st->octave = 1;
+            st->pitch = (int8_t)(d - n);
+        } else
+            st->pitch = (int8_t)d;
         st->gate = m == 0u && chance_permille(&e->gen_rng, 200u) ? MELLO_GATE_MULTI : MELLO_GATE_SINGLE;
         st->accent = chance_permille(&e->gen_rng, m == 2u ? 400u : 120u);
         st->sub = chance_permille(&e->gen_rng, d % n == 0 ? 550u : 80u);
-        if (m == 0u && chance_permille(&e->gen_rng, 120u)) st->octave = 1;
         if (m == 0u && chance_permille(&e->gen_rng, 60u)) st->ratchet = 2u;
         if (m == 0u && chance_permille(&e->gen_rng, 200u)) st->probability = prob_from_hundredths(70u);
         st->sample_slot = m == 2u ? slot[0] : (chance_permille(&e->gen_rng, 250u) ? slot[1] : 0u);
@@ -2952,6 +2977,27 @@ static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, ui
                 c[o + 1u].slide = chance_permille(&e->gen_rng, 300u);
         }
     if (!hits) c[0].gate = MELLO_GATE_SINGLE, c[0].pitch = (int8_t)start;
+}
+
+/* A' from A (and B' from B): the same rhythm, flags and samples, the line moved by shift scale degrees (a sequence,
+ * as a tune answers itself a third up or a step down); strong steps snapped back onto chord tones, a note pushed
+ * past the top taken an octave up on the octave field, one below the bottom reflected. */
+static void mus_develop(MelloStep *dst, const MelloStep *src, uint8_t cl, int32_t shift, uint8_t lo,
+                        uint8_t pmax, uint8_t n, uint8_t t3, uint8_t t5)
+{
+    uint8_t o;
+    for (o = 0u; o < cl; ++o) {
+        int32_t d;
+        dst[o] = src[o];
+        if (src[o].gate == MELLO_GATE_REST) continue;
+        d = (int32_t)src[o].pitch + (src[o].octave > 0 ? (int32_t)n : 0) + shift;
+        if (d < (int32_t)lo) d = (int32_t)lo + ((int32_t)lo - d);
+        if (mus_metric(o) == 2u) d = mus_snap(d, pmax + n, n, t3, t5);
+        if (d > (int32_t)pmax + (int32_t)n) d = (int32_t)pmax + (int32_t)n;
+        if (d < 0) d = 0;
+        dst[o].octave = d > (int32_t)pmax ? 1 : 0;
+        dst[o].pitch = (int8_t)(d > (int32_t)pmax ? d - n : d);
+    }
 }
 
 /* The cell's last note on the root (2) or the fifth (1). */
@@ -2992,7 +3038,7 @@ static void randomize_musical(MelloEngine *e)
     home = pmax >= n + 4u ? n : 0u;
     fifth = (uint8_t)(home + t5 <= pmax ? home + t5 : (home + t5 >= n ? home + t5 - n : home));
     lo = home > n / 2u ? (uint8_t)(home - n / 2u) : 0u;
-    hi = (uint8_t)(home + n + 2u > pmax ? pmax : home + n + 2u);
+    hi = pmax; /* the whole span; a cell heading higher takes the octave field (mus_cell) */
     len = e->project.seq_len ? e->project.seq_len : 16u;
     if (len > MELLO_MAX_STEPS) len = MELLO_MAX_STEPS;
     if (len % 16u == 0u && chance_permille(&e->gen_rng, 400u))
@@ -3009,32 +3055,63 @@ static void randomize_musical(MelloEngine *e)
                   ? 0u
                   : (uint8_t)(1u + rng_bounded(&e->gen_rng, MELLO_SAMPLE_SLOT_COUNT));
     slot[1] = (uint8_t)(1u + rng_bounded(&e->gen_rng, MELLO_SAMPLE_SLOT_COUNT));
-    for (i = 0u; i < MELLO_MAX_STEPS; ++i) tmp[i] = e->project.steps[i];
-    for (fp = 0u; fp < cells; ++fp) {
-        uint8_t id = cells == 1u ? 0u : (cells == 2u ? halves[f][fp] : forms[f][fp]), b = base_of[id];
-        MelloStep *c = &tmp[fp * cl];
-        if (first[b] ==
-            255u) { /* A from the root (or a chord tone near it), B and C from another chord tone */
-            uint8_t start = home;
-            if (b || chance_permille(&e->gen_rng, 300u)) {
-                uint8_t pick = (uint8_t)rng_bounded(&e->gen_rng, 3u);
-                start = (uint8_t)(home + (pick == 0u ? t3 : (pick == 1u ? t5 : 0u)));
-                if (b && start == home) start = (uint8_t)(home + t3);
-                if (start > pmax) start = home;
-            }
-            mus_cell(e, c, cl, start, lo, hi, pmax, n, t3, t5, density, slot, b == 0u);
-            if (mask & MELLO_RAND_WAVE) { /* WAVE: a wave a cell, so the timbre moves with the phrase */
-                uint8_t w = roll_wave_med(e), o;
-                for (o = 0u; o < cl; ++o) c[o].wave = w;
-            }
-            first[b] = fp;
-        } else
-            memcpy(c, &tmp[first[b] * cl], sizeof(MelloStep) * cl);
-        if (fp + 1u == cells)
-            mus_end(c, cl, 2u, home, fifth);
-        else if (id)
-            mus_end(c, cl, 1u, home, fifth);
-        if (fp + 1u == cells && chance_permille(&e->gen_rng, 200u)) c[cl - 1u].ratchet = 2u; /* a fill */
+    /* The phrase's contour (DECISIONS.md "A melody, not a walk"): where each cell sits, in scale degrees from
+     * home: an ARCH climbs to its climax in the answer and comes home, a RISE keeps climbing to the end, a WAVE
+     * dips before it climbs, a FALL opens high and settles. The climax is the third or the fourth cell, never the
+     * first, as in most tunes; A' and B' are A and B moved along the contour (a sequence), not copies. */
+    {
+        static const int8_t contour[4][5] = {                    /* by cell id: A, A', B, B', C */
+                                             {0, 3, 5, 4, 2},    /* ARCH */
+                                             {0, 2, 4, 6, 7},    /* RISE */
+                                             {0, -3, 4, 5, 2},   /* WAVE */
+                                             {0, -2, 5, 3, -3}}; /* FALL (B high, C low) */
+        uint8_t ct = (uint8_t)rng_bounded(&e->gen_rng, 4u), climax_oct = chance_permille(&e->gen_rng, 450u);
+        for (i = 0u; i < MELLO_MAX_STEPS; ++i) tmp[i] = e->project.steps[i];
+        for (fp = 0u; fp < cells; ++fp) {
+            uint8_t id = cells == 1u ? 0u : (cells == 2u ? halves[f][fp] : forms[f][fp]), b = base_of[id];
+            MelloStep *c = &tmp[fp * cl];
+            int32_t reg = contour[ct][id]; /* this cell's register, in degrees from home */
+            if (id == 1u || id == 3u) {    /* A', B': the base cell moved along the contour */
+                uint8_t base = id == 1u ? first[0] : first[1];
+                int32_t shift = reg - contour[ct][id - 1u];
+                if (base == 255u) base = first[0];
+                mus_develop(c, &tmp[base * cl], cl, shift, lo, pmax, n, t3, t5);
+            } else if (first[b] == 255u) { /* A from home, B and C from a chord tone at their register */
+                int32_t start = (int32_t)home + reg, target = start;
+                uint8_t o;
+                if (b) {
+                    start = mus_snap(start, pmax + n, n, t3, t5);
+                    if (start == (int32_t)home) start = (int32_t)home + t3;
+                    target =
+                        start +
+                        (cells == 4u ? (int32_t)contour[ct][fp + 1u < 4u ? forms[f][fp + 1u] : id] - reg : 0);
+                    if (climax_oct && reg >= 3) start += n, target += n; /* the climax an octave up */
+                } else
+                    target =
+                        (int32_t)home +
+                        (cells > 1u ? (int32_t)contour[ct][cells == 2u ? halves[f][1] : forms[f][1]] : 0);
+                if (start > (int32_t)pmax + (int32_t)n) start = (int32_t)pmax + (int32_t)n;
+                mus_cell(e, c, cl, (uint8_t)(start > (int32_t)pmax ? start - n : start), target, lo, hi, pmax,
+                         n, t3, t5, density, slot, b == 0u);
+                if (start > (int32_t)pmax) /* the cell's first note carries the octave the start asked for */
+                    for (o = 0u; o < cl; ++o)
+                        if (c[o].gate != MELLO_GATE_REST) {
+                            c[o].octave = 1;
+                            break;
+                        }
+                if (mask & MELLO_RAND_WAVE) { /* WAVE: a wave a cell, so the timbre moves with the phrase */
+                    uint8_t w = roll_wave_med(e);
+                    for (o = 0u; o < cl; ++o) c[o].wave = w;
+                }
+                first[b] = fp;
+            } else
+                memcpy(c, &tmp[first[b] * cl], sizeof(MelloStep) * cl);
+            if (fp + 1u == cells)
+                mus_end(c, cl, 2u, home, fifth);
+            else if (id)
+                mus_end(c, cl, 1u, home, fifth);
+            if (fp + 1u == cells && chance_permille(&e->gen_rng, 200u)) c[cl - 1u].ratchet = 2u; /* a fill */
+        }
     }
     for (i = len; i < MELLO_MAX_STEPS; ++i)
         tmp[i] = tmp[i % len]; /* a longer sequence later plays it again */
