@@ -606,6 +606,7 @@ typedef enum {
     MELLO_CTX_DRUM_ACCENT, /* the selected step's accent */
     MELLO_CTX_DRUM_ROLL,   /* roll the drums (undoable) */
     MELLO_CTX_DRUM_FEED,   /* RNDMZR rolls the drums too */
+    MELLO_CTX_BASS_ROLL,   /* roll a bass line under the sequence (undoable) */
     MELLO_CTX_DELAY_PRE,   /* FX: the delay before the distortion */
     MELLO_CTX_SAMPLE_TOGGLE,
     MELLO_CTX_HOME_RANDOM, /* reroll now, at the intensity ALGORITHM sets */
@@ -722,6 +723,7 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
                          [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_SUB] = {[0] = {MELLO_CTX_SUB_TOGGLE, "ON"},
                       [1] = {MELLO_CTX_SUB_STEP, "STEP"},
+                      [2] = {MELLO_CTX_BASS_ROLL, "ROLL"},
                       [5] = {MELLO_CTX_PERF_FILL, "F"},
                       [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
                       [7] = {MELLO_CTX_PERF_REVERSE, "<"},
@@ -2559,6 +2561,12 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
     case MELLO_CTX_DRUM_ROLL:
         mello_engine_undo_snapshot(e);
         mello_engine_drums_roll(e);
+        persistent_dirty(ui, now_ms);
+        mark_edit(ui);
+        break;
+    case MELLO_CTX_BASS_ROLL:
+        mello_engine_undo_snapshot(e);
+        mello_engine_bass_roll(e);
         persistent_dirty(ui, now_ms);
         mark_edit(ui);
         break;

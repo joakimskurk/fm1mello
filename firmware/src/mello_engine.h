@@ -898,6 +898,7 @@ typedef struct {
     MelloChordConfig undo_chord;
 #endif
     MelloDrumConfig undo_drums;
+    MelloBassConfig undo_bass; /* ROLL on BASS is undoable too */
     bool undo_valid;
     bool undo_is_redo;  /* the last press was UNDO: the next puts the roll back */
     uint32_t undo_hash; /* the state as UNDO left it: an edit since means there is nothing to redo */
@@ -969,6 +970,11 @@ void mello_sub_defaults(MelloSubConfig *config);
 void mello_drum_defaults(MelloDrumConfig *config);
 void mello_bass_defaults(MelloBassConfig *config);
 void mello_engine_bass_set_config(MelloEngine *engine, const MelloBassConfig *config);
+/* ROLL on BASS (DECISIONS.md "A bass line that fits"): a new BASS SEQ line, weighted towards one a bass player would
+ * play under the sequence as it is: the root on the one, roots and fifths on the beats, the melody's chord tones
+ * where the lead has them, passing tones and octave jumps on the way, glides and accents, an octave down. Turns
+ * BASS SEQ on. Undo: the caller snapshots. */
+void mello_engine_bass_roll(MelloEngine *engine);
 void mello_engine_drums_set_config(MelloEngine *engine, const MelloDrumConfig *config);
 /* A roll of the drums: hits, accents and per-step locks, as much as roll says, the kick kept on the one. */
 void mello_engine_drums_roll(MelloEngine *engine);

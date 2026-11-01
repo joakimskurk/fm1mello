@@ -24,7 +24,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f33.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f34.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -168,6 +168,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   puts the bass on the chord's root.
 - **Bass** (ARP > BASS). The dedicated sub voice: a step, euclidean, matrix, register or drone mode, or BASS SEQ, a
   16-step bass line of its own with tone, octave, glide and accent per step, a resonant filter with envelope, drive.
+  ROLL (B2) writes a line under the sequence as it is: roots and fifths, or the lead's chord tones, on the beats,
+  walks and octave jumps between, an octave down; UNDO takes it back.
 - **Drums** (ARP > DRUMS). Kick, snare, hat and a glitch voice (bleep, chirp, crackle, stutter) on a 16-step
   pattern with accents, per-step pitch, decay, crush and ratchet locks, rolls, chance, swing (GLOBAL > GROOVE, for
   everything), a kit drive with fold, and a send to the delay and reverb. RNDMZR rolls them too with FEED on.
@@ -212,12 +214,12 @@ K1-K4 with their default values.
 | EVOLVE | LFO | ROUTES | `ON RND LOOP F B < R UNDO RNDMZR` | GATE ON · FILTER OFF · OCT OFF · DECAY OFF |
 | EVOLVE | LFO | DEPTH | `ON RND LOOP F B < R UNDO RNDMZR` | GATE 35% · FILTER 35% · OCT 35% · DECAY 35% |
 | EVOLVE | LFO | SOUND | `ON RND LOOP F B < R UNDO RNDMZR` | DEST A OFF · DEPTH A +50% · DEST B OFF · DEPTH B +50% |
-| BASS | ARP | PLAY | `ON STEP F B < R UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
-| BASS | ARP | SEQ | `ON STEP F B < R UNDO RNDMZR` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
-| BASS | ARP | STEP | `ON STEP F B < R UNDO RNDMZR` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
-| BASS | ARP | VOICE | `ON STEP F B < R UNDO RNDMZR` | LEVEL 42% · WAVE SINE · DECAY 160MS · RELEASE 120MS |
-| BASS | ARP | TONE | `ON STEP F B < R UNDO RNDMZR` | GLIDE 20MS · CUT 242.0HZ · DRIVE 0% · OCT -1 |
-| BASS | ARP | FILTER | `ON STEP F B < R UNDO RNDMZR` | RES 0% · ENV 0% · F.DEC 300MS · ACCENT 50% |
+| BASS | ARP | PLAY | `ON STEP ROLL F B < R UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
+| BASS | ARP | SEQ | `ON STEP ROLL F B < R UNDO RNDMZR` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
+| BASS | ARP | STEP | `ON STEP ROLL F B < R UNDO RNDMZR` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
+| BASS | ARP | VOICE | `ON STEP ROLL F B < R UNDO RNDMZR` | LEVEL 42% · WAVE SINE · DECAY 160MS · RELEASE 120MS |
+| BASS | ARP | TONE | `ON STEP ROLL F B < R UNDO RNDMZR` | GLIDE 20MS · CUT 242.0HZ · DRIVE 0% · OCT -1 |
+| BASS | ARP | FILTER | `ON STEP ROLL F B < R UNDO RNDMZR` | RES 0% · ENV 0% · F.DEC 300MS · ACCENT 50% |
 | CHORD | ARP | PLAY | `ON BASS F B < R UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
 | CHORD | ARP | CHORD | `ON BASS F B < R UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 2 · OCT -1 |
 | CHORD | ARP | VOICING | `ON BASS F B < R UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |

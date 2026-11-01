@@ -875,6 +875,93 @@ void mello_engine_drums_roll(MelloEngine *e)
     }
 }
 
+/* ROLL on BASS (DECISIONS.md "A bass line that fits"). A bass player under this sequence: the one is the root, the
+ * other beats (every fourth step) are roots or fifths, or the lead's note where the lead has a chord tone there; the
+ * offbeats are walks into the next beat (the second or the seventh under a root, the fourth or sixth under a fifth),
+ * octave jumps before a root, or the lead's note; the line sits an octave down, with octave jumps up to 0 for the
+ * fills. Five to eleven notes of sixteen, always the one; glides where a note runs into the next, accents on the
+ * one and the three and a few more. A roll never gives two lines alike (the rng moves on). */
+static uint8_t mus_degree(const ScaleDef *sd, int8_t semis); /* the MUSICAL randomizer's, below */
+void mello_engine_bass_roll(MelloEngine *e)
+{
+    static const uint8_t walk_to_root[3] = {MELLO_SUB_TONE_SEVENTH, MELLO_SUB_TONE_SECOND,
+                                            MELLO_SUB_TONE_FIFTH},
+                         walk_to_fifth[3] = {MELLO_SUB_TONE_FOURTH, MELLO_SUB_TONE_SIXTH,
+                                             MELLO_SUB_TONE_ROOT};
+    MelloBassConfig b;
+    const ScaleDef *sd;
+    uint8_t n, k, len, hits = 0u, lead_deg[MELLO_BASS_STEPS], beat_tone[MELLO_BASS_STEPS];
+    bool lead_chord[MELLO_BASS_STEPS];
+    int16_t density;
+    if (!e) return;
+    b = e->bass;
+    sd = &SCALES[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR];
+    n = sd->n;
+    len = b.length ? (b.length > MELLO_BASS_STEPS ? MELLO_BASS_STEPS : b.length) : 16u;
+    density = (int16_t)((int32_t)rng_bounded(&e->gen_rng, 3u) * 120 - 120); /* sparse, as is, busy */
+    /* what the lead plays at each bass step: its scale degree, and whether that is a chord tone (0, 3rd, 5th) */
+    for (k = 0u; k < len; ++k) {
+        const MelloStep *st = &e->project.steps[k % (e->project.seq_len ? e->project.seq_len : 16u)];
+        uint8_t deg = (uint8_t)((st->pitch < 0 ? 0 : st->pitch) % (n ? n : 7u));
+        lead_deg[k] = deg;
+        lead_chord[k] =
+            st->gate != MELLO_GATE_REST && !st->skip &&
+            (deg == 0u || deg == mus_degree(sd, 3) || deg == mus_degree(sd, 4) || deg == mus_degree(sd, 7));
+    }
+    /* the beats first: the one is the root; the others a root or a fifth, or the lead's chord tone when it has one */
+    for (k = 0u; k < len; ++k) {
+        MelloBassStep *s = &b.steps[k];
+        s->on = false, s->glide = false, s->accent = false, s->octave = -1, s->tone = MELLO_SUB_TONE_ROOT;
+        if (k % 4u) continue;
+        if (k == 0u)
+            beat_tone[k] = MELLO_SUB_TONE_ROOT;
+        else if (lead_chord[k] && chance_permille(&e->gen_rng, 550u))
+            beat_tone[k] =
+                lead_deg[k] == 0u ? MELLO_SUB_TONE_ROOT : (uint8_t)lead_deg[k]; /* the degree is the tone */
+        else
+            beat_tone[k] = chance_permille(&e->gen_rng, 600u) ? MELLO_SUB_TONE_ROOT : MELLO_SUB_TONE_FIFTH;
+        s->tone = beat_tone[k];
+        s->on = k == 0u || chance_permille(&e->gen_rng, (uint16_t)(780 + density));
+        s->accent = k == 0u || (k % 8u == 0u && chance_permille(&e->gen_rng, 600u));
+        if (s->on) ++hits;
+    }
+    /* the offbeats: a walk into the next beat, an octave jump before a root, the lead's note, or nothing */
+    for (k = 0u; k < len; ++k) {
+        MelloBassStep *s = &b.steps[k];
+        uint8_t next = (uint8_t)(((k / 4u + 1u) * 4u) % len), to = beat_tone[next], r;
+        uint16_t p =
+            k % 2u ? (uint16_t)(280 + density) : (uint16_t)(420 + density); /* the "and" more than the "e" */
+        if (k % 4u == 0u) continue;
+        if (!chance_permille(&e->gen_rng, p)) continue;
+        r = (uint8_t)rng_bounded(&e->gen_rng, 100u);
+        if (k % 4u == 3u && r < 45u) /* the step before a beat: a walk into it */
+            s->tone = to == MELLO_SUB_TONE_FIFTH ? walk_to_fifth[rng_bounded(&e->gen_rng, 3u)]
+                                                 : walk_to_root[rng_bounded(&e->gen_rng, 3u)];
+        else if (k % 4u == 3u && r < 65u && to == MELLO_SUB_TONE_ROOT) /* an octave jump before the root */
+            s->tone = MELLO_SUB_TONE_ROOT, s->octave = 0;
+        else if (lead_chord[k] && r < 85u)
+            s->tone = lead_deg[k] == 0u ? MELLO_SUB_TONE_ROOT : (uint8_t)lead_deg[k];
+        else
+            s->tone = beat_tone[(k / 4u) * 4u]; /* the beat's note again: a pulse */
+        s->on = true;
+        s->accent = chance_permille(&e->gen_rng, 120u);
+        ++hits;
+    }
+    if (hits < 5u) /* never sporadic: fill the ands until five play */
+        for (k = 2u; k < len && hits < 5u; k += 4u)
+            if (!b.steps[k].on) b.steps[k].on = true, b.steps[k].tone = beat_tone[(k / 4u) * 4u], ++hits;
+    for (k = 1u; k < len && hits > 11u; k += 2u) /* never a wall of sixteenths: the "e"s go first */
+        if (b.steps[k].on) b.steps[k].on = false, --hits;
+    for (k = 0u; k < len; ++k) /* glides where a note runs into the next and the two differ */
+        if (b.steps[k].on && b.steps[(k + 1u) % len].on &&
+            (b.steps[k].tone != b.steps[(k + 1u) % len].tone ||
+             b.steps[k].octave != b.steps[(k + 1u) % len].octave) &&
+            chance_permille(&e->gen_rng, 300u))
+            b.steps[k].glide = true;
+    b.on = true;
+    mello_engine_bass_set_config(e, &b);
+}
+
 /* One BASS SEQ step, pulses long: its note on the sub (unless SUB MUTE), held into the next step if it glides, the
  * next one marked to slide; accents louder (127, else 114 as the sub's). The events carry ratchet_index 1 + the step
  * (mello_audio: a BASS SEQ note slides only when asked, and tags each step apart). */
@@ -3232,6 +3319,7 @@ void mello_engine_undo_snapshot(MelloEngine *e)
     e->undo_chord = e->chord;
 #endif
     e->undo_drums = e->drums;
+    e->undo_bass = e->bass;
     e->undo_valid = true;
     e->undo_is_redo = false;
 }
@@ -3250,7 +3338,8 @@ static uint32_t undo_hash(const MelloEngine *e)
 #if MELLO_FEATURE_CHORD_MACHINE
     h = undo_hash_bytes(h, &e->chord, sizeof e->chord);
 #endif
-    return undo_hash_bytes(h, &e->drums, sizeof e->drums);
+    h = undo_hash_bytes(h, &e->drums, sizeof e->drums);
+    return undo_hash_bytes(h, &e->bass, sizeof e->bass);
 }
 
 uint8_t mello_engine_undo_state(MelloEngine *e)
@@ -3280,8 +3369,11 @@ bool mello_engine_undo_swap(MelloEngine *e)
 #endif
     {
         MelloDrumConfig d = e->drums;
+        MelloBassConfig b = e->bass;
         e->drums = e->undo_drums;
         e->undo_drums = d;
+        e->bass = e->undo_bass;
+        e->undo_bass = b;
     }
     (void)mello_engine_rebuild_sequence(e);
     e->undo_is_redo = !e->undo_is_redo;

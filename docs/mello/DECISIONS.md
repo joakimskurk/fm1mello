@@ -735,6 +735,28 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   91040 of 98304. A fifth slot needs 32 KiB of pool (the delay's 1.49 s is the only thing that size) and flash
   that no map lists (0xE5000..0xFC000 is unlisted in Felucca's): not without a unit.
 
+## A bass line that fits (2026-11-01)
+
+The user wanted to roll the bass as the drums roll: "not MUSICAL as such, but weighted towards something usable;
+the bass is often an octave too high and very sporadic under the ordinary randomizer; with a melody in the main
+sequence, a rolled bass line should fit it, more or less." So BASS gets ROLL on B2, beside ON and STEP, and
+`mello_engine_bass_roll` writes a BASS SEQ line the way a bass player would under the sequence as it is:
+
+- **The beats** (every fourth step) first: the one is the root, accented; the others a root or a fifth, or, where
+  the lead has a chord tone on that step (root, third, fifth or seventh of the scale), the lead's degree itself, so
+  the line moves with the melody.
+- **The offbeats** are walks into the next beat (the seventh, second or fifth under a root; the fourth, sixth or
+  root under a fifth), an octave jump before a root, the lead's note where it is a chord tone, or the beat's note
+  again as a pulse; the "and" more often than the "e".
+- **Never sporadic**: five to eleven notes of sixteen, the ands filled to five, the "e"s dropped past eleven. Three
+  densities, as MUSICAL's.
+- **An octave down**: every step at octave -1, the jumps at 0 (the sub's own OCT, -1 by default, still applies).
+- **Glides** where a note runs into a different next note, three in ten; accents on the one, often on the three,
+  and a few more.
+
+ROLL turns BASS SEQ on, so the line is heard at once, and UNDO takes it back: the undo snapshot now keeps the bass
+with the project, the sound, the chords and the drums. The test (bass_roll) checks 200 rolls for all of it.
+
 ## A melody, not a walk (2026-11-01)
 
 MUSICAL (2026-10-31) rolled a phrase in a form (A A' A B ...) but walked each cell by random steps from a chord tone

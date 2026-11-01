@@ -109,6 +109,9 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       developments by sequence, inversion or displacement, syncopated answers; span 8.3, notes 5.4, the second
       half never the first again. Package 0.5-f32. v2.2: rhythm motifs from a library (3+3+2 figures, offbeat
       answers), cross-rhythm accents, more ratchets, slides and chance notes, octave leaps. Package 0.5-f33.
+- [x] D8. ROLL on BASS (DECISIONS "A bass line that fits"): a BASS SEQ line under the sequence as it is, roots and
+      fifths or the lead's chord tones on the beats, walks and octave jumps between, an octave down, never
+      sporadic, undoable. Package 0.5-f34.
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, D1-D2, first flash and C4.
 
