@@ -272,15 +272,14 @@ def update_map(path, shots):
     out, in_table, missing = [], False, []
     for line in lines:
         cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.startswith("|") else None
-        if cells and cells[0] == "Screen":
-            cells = cells[1:]
+        while cells and (cells[0] in ("", "Screen") or cells[0].startswith("<img ")):
+            cells.pop(0)  # a Screen column from an earlier run: replaced
         if cells and cells[:2] == ["Page", "Button"]:
             in_table = True
             out.append("| Screen | " + " | ".join(cells) + " |")
             continue
         if in_table and cells and cells[0].startswith("---"):
-            cells = cells[1:] if len(cells) > 5 else cells
-            out.append("|---|" + "|".join(cells) + "|")
+            out.append("|---|" + "|".join(cells[-5:]) + "|")
             continue
         if in_table and cells and len(cells) >= 3:
             slug = by_key.get((cells[0], cells[2]))
