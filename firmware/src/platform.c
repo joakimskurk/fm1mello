@@ -5,7 +5,7 @@
  *   boot + boot guard   a firmware that crashes at boot falls back to the USB rescue, then to the ROM
  *   USB rescue          OCT- held at power-on: no audio, only the updater (the web installer still works)
  *   updater             the M-UPGRADE SysEx path: the web installer / the hub can always reach the FM-1
- *   USB-MIDI            in and out (midi_get, midi_send)
+ *   MIDI                USB in and out, the FM-1's TRS jack in (midi_get: 1 USB, 2 TRS; midi_send)
  *   USB audio           the output as a class-compliant 16-bit stereo input, 44.1 or 48 kHz
  *   keys, knobs, LEDs   fm1_in.notes / buttons, fm1_input_edges, fm1_enc_take, fm1_led_key (hal/fm1_input.h)
  *   screen              240 x 240, lcd_fill, draw_text_box with FONT_S (16 px) / FONT_L (32 px) (gfx.c)
@@ -68,8 +68,11 @@ static volatile uint32_t fm1_ms;                /* milliseconds since power-on (
 #define FELUCCA_OTA 1
 #define FELUCCA_CDC 0
 #define FELUCCA_UAC 1
-#define FELUCCA_UART 0
+#define FELUCCA_UART 1                          /* the FM-1's TRS MIDI IN (Dinghy 0.4) */
 #include "usb.c"
+#if FELUCCA_UART
+#include "midi_uart.c"                          /* (Dinghy 0.4: sloopDX's, after Felucca Salt: the ring read by content; cable 1) */
+#endif
 
 /* ---- flash: read anywhere; erase / program only the update's staging area and the settings sector */
 #define SETTINGS_AT 0x000FC000u                 /* one 4 KiB sector of Felucca's globals area */
@@ -179,8 +182,8 @@ static int settings_save(const void *p, uint32_t n)   /* p in RAM, n <= 256 */
     return fl_write(SETTINGS_AT, (const uint8_t *)h, sizeof h);   /* the header last: a cut save stays invalid */
 }
 
-/* ---- MIDI over USB: 4-byte USB-MIDI packets, cable 0 */
-static int midi_get(uint8_t *st, uint8_t *d1, uint8_t *d2)   /* 1: a message (status, data 1, data 2) */
+/* ---- MIDI: USB and the TRS jack share one ring of 4-byte USB-MIDI packets (USB cable 0, the jack cable 1) */
+static int midi_get(uint8_t *st, uint8_t *d1, uint8_t *d2)   /* 1 (USB) or 2 (TRS): a message; 0: none */
 {
     uint32_t pk;
     if (mi_r == mi_w)
@@ -190,9 +193,9 @@ static int midi_get(uint8_t *st, uint8_t *d1, uint8_t *d2)   /* 1: a message (st
     *st = (uint8_t)(pk >> 8);
     *d1 = (uint8_t)(pk >> 16);
     *d2 = (uint8_t)(pk >> 24);
-    return 1;
+    return pk & 0xF0u ? 2 : 1;
 }
-static void midi_send(uint32_t st, uint32_t d1, uint32_t d2)   /* from the main loop only */
+static void midi_send(uint32_t st, uint32_t d1, uint32_t d2)   /* USB out, from the main loop only */
 {
     midi_out_event((st >> 4) | st << 8 | (d1 & 0x7Fu) << 16 | (d2 & 0x7Fu) << 24);
 }
@@ -213,7 +216,11 @@ void fm1_timer5_irq(void)
         fm1_ms++;
     }
     if (usb_due)
-        owed = 1;
+        owed |= 1u;
+#if FELUCCA_UART
+    if (sub % 5u == 2u)
+        owed |= 2u;                             /* 2 kHz: <= ~7 bytes per call at 31250 baud */
+#endif
     if (++sub == 10u)
         sub = 0;
     if (in_audio) {
@@ -221,8 +228,12 @@ void fm1_timer5_irq(void)
             uac_service();
         return;
     }
-    if (owed)
+    if (owed & 1u)
         usb_poll();
+#if FELUCCA_UART
+    if (owed & 2u)
+        uart_midi_poll();
+#endif
     owed = 0;
 }
 extern void isr_timer5(void);
@@ -343,6 +354,9 @@ void fm1_cstart(void)
     fm1_adc_init();
     fm1_audio_init(abuf, HALF_WORDS, isr_alnk0, 3);   /* (abuf is zero: .bss) */
     usb_start();
+#if FELUCCA_UART
+    uart_midi_init();                           /* before TIMER5: PORTH read-modify-write */
+#endif
     fm1_timer5_start(isr_timer5, 4);
     fm1_guard_lock_top();
     fm1_irq_enable_all();
