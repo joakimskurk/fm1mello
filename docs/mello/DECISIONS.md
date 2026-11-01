@@ -735,6 +735,17 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   91040 of 98304. A fifth slot needs 32 KiB of pool (the delay's 1.49 s is the only thing that size) and flash
   that no map lists (0xE5000..0xFC000 is unlisted in Felucca's): not without a unit.
 
+## Pictures in the manual (2026-11-01)
+
+The README's tour and every row of the UI map show the screen as a picture. The pictures are not photographs, not
+drawings and not the HTML's: the firmware itself draws them, in host mode, on a scripted tour of the panel
+(`tools/screens.py`, `make screens`). The script presses the buttons, turns SELECT and holds the keys the way a
+player does, waits for the layer readout to clear, and takes the screen; the PNGs (240 x 240 doubled, ~8 KB each,
+77 of them) go to `docs/screens/`, and the map gets a `Screen` column keyed on its Page and Layer names. So a picture
+is always of the code it sits next to, and a UI change regenerates them in the same commit as the map. For that the
+host keeps the splash up for 1.5 s like the target does (it used to skip it), which `make host`'s first default shot
+now shows. Pillow is not needed: the PNG writer is zlib and struct.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

@@ -31,6 +31,24 @@ python3 tools/fm1_install.py --info        # what the FM-1 runs now
 The same package plays in the web emulator (`joakimeriksson.github.io/fm1-emu`) and in `fm1-emu` on a computer. The
 splash shows the version at boot.
 
+## A first tour
+
+Nine screens, drawn by the firmware itself (`make screens`): what you see, and what to do.
+
+| | |
+|---|---|
+| <img src="docs/screens/splash.png" width="240" alt="The splash"> | **Switch on.** The splash shows the version while the project loads from flash. Then HOME. |
+| <img src="docs/screens/home.png" width="240" alt="HOME"> | **HOME.** Sixteen steps as bars: the height is the pitch, the note is written on the bar, the segments A-D sit over them in their colours. The strip under the bars is what the black keys do here; the footer is the four macros on K1-K4. The status line reads the key, the step and the slot. |
+| <img src="docs/screens/home-playing.png" width="240" alt="HOME, playing"> | **PLAY.** The playing step is bright, the LED blinks on the beat and the status line counts the steps. SELECT is the tempo (the number top right), PRESETS the pattern slot. |
+| <img src="docs/screens/home-rolled.png" width="240" alt="HOME after a roll"> | **RNDMZR**, the last black key. A tap rolls a new sequence from what the RANDOM page's mask allows; UNDO, the key before it, takes the roll back (and again puts it forward). Hold RNDMZR for the RANDOM page. |
+| <img src="docs/screens/home-held-step.png" width="240" alt="A step held"> | **Hold a white key.** That step's pitch, pulses, ratchet and gate come onto K1-K4, its flags (SKIP, ACC, SLD, SUB) onto the first black keys. A tap mutes or unmutes the step. |
+| <img src="docs/screens/step-trig.png" width="240" alt="SEQ > STEP"> | **SEQ.** The STEP page: the picked step's values, the picture drawn from them. SELECT turns the layers (TRIG, NOTE, FLAGS, SEQ); SEQ again goes on to SEGMENT, LOOP CYCLE and SLOT SEQ. With EDIT on, a white key sets the step's pitch. |
+| <img src="docs/screens/sound-osc-filt.png" width="240" alt="ENV > SOUND"> | **ENV.** The lead's sound: the wave, PWM, cutoff and resonance first, the envelope, follower, grit, second oscillator and the rest on SELECT. INIT (B1) puts the sound back. ENV again: the sample layer. |
+| <img src="docs/screens/drums-voice.png" width="240" alt="ARP > DRUMS"> | **ARP**, three times: the drums. Four voices on a 16-step grid; VOX picks the voice, a white key puts its hit on or off, ON (B0) turns the kit on. CHORD and BASS are ARP's pages before it. |
+| <img src="docs/screens/mix.png" width="240" alt="GLO > MIX"> | **GLO.** The mix: lead, bass, chords and drums on the knobs, a mute under each (LD, BS, CH, DR). SAVE writes the project to flash; the status line says SAVED. |
+
+Every page and layer is pictured beside its row in [docs/mello/UI_MAP.md](docs/mello/UI_MAP.md).
+
 ## The panel
 
 The FM-1's panel is printed, so its names are the firmware's names. What each control is, everywhere:
@@ -157,7 +175,7 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
 
 ## Every page's knobs and keys
 
-Generated from the code (`docs/mello/UI_MAP.md`): the strip is what the black keys B0..B10 read on that page, then
+Generated from the code (`docs/mello/UI_MAP.md`, where every row also has its page's picture): the strip is what the black keys B0..B10 read on that page, then
 K1-K4 with their default values.
 
 | Page | Button | Layer | Strip B0..B10 | K1 · K2 · K3 · K4 |
@@ -286,6 +304,7 @@ make sanitize      # the same with UBSan and ASan
 make parity        # the C engine against the HTML's renders (needs numpy)
 make bench         # where the audio's time goes on this computer
 make host          # the whole firmware on this computer: a WAV and screen PNGs (pip3 install Pillow)
+make screens       # every page as PNG in docs/screens, and the UI map's pictures (python3, nothing else)
 make format        # clang-format the Mello sources (pip3 install clang-format)
 ```
 
@@ -329,9 +348,10 @@ firmware/src/mello_sample.*    user samples
 firmware/src/platform.c, hal/  Dinghy's platform, as close to upstream as possible
 firmware/src/midi_uart.c       Dinghy 0.4's MIDI IN on the TRS jack, as upstream has it
 tests/mello/                   host tests;  tests/bench/  the CPU bench;  tests/parity/  the HTML parity
-tools/fm1_samples.py (WAVs into the sample slots), fm1_install.py, emu_cpu.sh, build.py
+tools/fm1_samples.py (WAVs into the sample slots), fm1_install.py, screens.py (the pages as PNG), emu_cpu.sh, build.py
 reference/skurkymello.html     the original: the reference for sound and feel
 docs/mello/                    DECISIONS.md, UI_MAP.md, CONTROL_GRAMMAR.md, UI_ICEBERG.md, FIRST_FLASH.md
+docs/screens/                  every page of the firmware as a picture, drawn by the host build (make screens)
 ```
 
 ## Upstream and licence

@@ -93,6 +93,10 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       free with the four slots' compressed data in it, RAM 7.3 KiB free. A fifth slot would need 32 KiB of pool
       (the delay line is 128 KiB for 1.49 s) and a flash sector range: 0xE5000..0xFC000 is unlisted in Felucca's
       map and not to be touched without a unit to try it on.
+- [x] D4. The manual pictured. `tools/screens.py` (`make screens`) walks every page and layer in the host build on a
+      scripted tour of the panel and writes 77 PNGs to `docs/screens/`; the UI map gets a `Screen` column keyed on
+      its Page and Layer, and the README opens with a first tour in nine of them. The host keeps the splash up for
+      1.5 s like the target, so it is pictured too. Regenerate with the map after any UI change.
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, D1-D2, first flash and C4.
 
