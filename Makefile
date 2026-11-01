@@ -1,5 +1,5 @@
 # SkurkyMello: the everyday commands. The firmware itself is built by ./build.sh (see README.md).
-.PHONY: test sanitize bench host parity reference format format-check clean
+.PHONY: test sanitize bench host screens parity reference format format-check clean
 test:            ## Mello host tests (tests/mello), seconds, no FM-1 or toolchain needed
 	sh tests/run_mello.sh
 sanitize:        ## the same tests with UBSan and ASan: any signed overflow or bad access fails
@@ -18,6 +18,8 @@ reference:       ## re-render the HTML golden files (tests/golden/html) with Ton
 	cd tools/tone-ref && npm ci --no-fund --no-audit && npm run render
 host:            ## the whole firmware on this computer: build/host/dinghy.wav and screen PNGs (needs Pillow)
 	sh tests/run_host.sh
+screens:         ## every page as PNG in docs/screens, and the UI map's pictures (python3, nothing else)
+	python3 tools/screens.py
 format:          ## clang-format the Mello sources (the Dinghy platform keeps upstream's style)
 	clang-format -i firmware/src/dinghy.c firmware/src/mello_*.c firmware/src/mello_*.h tests/mello/*.c tests/bench/*.c
 format-check:
