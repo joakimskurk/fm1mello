@@ -402,4 +402,6 @@ identity: `FM-1_970`.
 
 The firmware is GPL-3.0-only, as Dinghy: ship it, and ship its source. The original instrument
 (`reference/skurkymello.html`) and the design record (`docs/mello/`) are not free: read them, keep them unchanged in a
-clone, nothing more. [LICENSING.md](LICENSING.md) has who made what and the exact terms.
+clone, nothing more. The Big screen encoder and its protocol (`firmware/src/screen_mirror.c`) are Patrick F.
+Kellogg's, MIT licensed, from his [FM-1 Mirror](https://github.com/pfkellogg/fm1-mirror) work; thank you.
+[LICENSING.md](LICENSING.md) has who made what and the exact terms.
