@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* The TRS MIDI IN parser (firmware/src/midi_uart.c, from Dinghy 0.4) on the host: bytes land in its DMA ring the
  * way UART1 would write them, um_drain turns them into USB-MIDI packets on the shared ring with cable 1, and
  * midi_get's rule (cable 1 -> 2) tells the jack from USB. Running status, one-byte Cx / Dx messages, realtime

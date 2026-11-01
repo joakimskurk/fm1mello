@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 5: the grit (DECISIONS.md "Grit"). Off by default and then sample for sample the plain saw; noise, noise FM
  * and unison each change the sound, at a comparable level, without overflow (built with UBSan) even all at full on
  * a high note with the LFO on top. */

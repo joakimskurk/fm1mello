@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* DRUMS (feedback 2026-10-30: "a very simple 16-step drum machine ... not stopped by the main sequence's per-step
  * stops unless asked"). Checked: the drums step every pulse whatever the sequence skips, and with FOLLOW only with
  * its steps; RATCH and CHANCE, a roll rising; a ROLL keeps the kick on the one and UNDO takes it back; each voice and

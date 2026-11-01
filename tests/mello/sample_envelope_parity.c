@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 2: a sample slot's envelope follows Tone.AmplitudeEnvelope as the lead's does. Its decay and release are
  * exponential (tau = ln(t + 1) / ln 200, then a linear tail), not straight lines: halfway through a 200 ms decay to
  * sustain 0 the level is ~5%, where a linear decay is at 50%. */

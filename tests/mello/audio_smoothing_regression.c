@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 2 regression: a knob turned while a note sounds ramps as the HTML's rampTo does (master 50 ms) instead of
  * stepping, which clicks (zipper noise on every encoder detent). A held saw, dry; MASTER 750 -> 150 mid-note: the
  * level must not drop at once, and must have arrived after the ramp. */

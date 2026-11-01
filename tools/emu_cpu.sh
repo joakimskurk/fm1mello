@@ -1,5 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 joakimskurk
 # The chip's load for a package, on fm1-emu (ROADMAP B1, B5): the audio interrupt's share of the chip while it
 # plays, in instructions (the emulator counts instructions, not cycles: a divide counts as one). Two runs: 1.6 s of
 # the splash and silence, then 5.6 s with PLAY pressed at 1.6 s; the difference is 4 s of playing. The main loop

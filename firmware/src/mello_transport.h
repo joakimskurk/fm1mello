@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 #ifndef MELLO_TRANSPORT_H
 #define MELLO_TRANSPORT_H
 

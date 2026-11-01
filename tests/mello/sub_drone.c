@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* SUB DRONE (feedback 2026-10-30: "a mode where the sub just drones, always on while playing"). The sub is gated and
  * at full level from the first step to STOP, through rests and skips; a new pitch (OCT here) moves the same note; SUB
  * MUTE silences it and lets it back; leaving DRONE ends it, and so does a stop. */

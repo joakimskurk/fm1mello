@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 3: HOME's performance keys (DECISIONS.md "Performance keys").
  * - Held on HOME, FILL / SUB MUTE / REVERSE / REPEAT reach the engine; let go, they stop; a white key while REPEAT is
  *   held sets its length (and edits no step); RESTART goes to step 1 at the next pulse.

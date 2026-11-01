@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 3: the readout. Turning a knob shows, large over the body, where you are (page / layer), what the knob
  * moves and its value, with the footer's own texts; it goes 1.2 s after the last detent. An inert knob and a page
  * change leave no readout. */

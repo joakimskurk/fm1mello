@@ -1,5 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 joakimskurk
 # Build and run SkurkyMello's host tests (tests/mello/*.c) against firmware/src/mello_*.c.
 #   tests/run_mello.sh [name ...]      (default: all)
 # Each test is built with -Werror and fails the run on a non-zero exit. Output goes to build/mello-tests/.

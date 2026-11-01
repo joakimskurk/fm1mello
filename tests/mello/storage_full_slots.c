@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* ROADMAP A1: 64 full slots, their grit and MOD entries with them, must fit a bank and come back after a power
  * cycle; a record in the 40 KiB layout's second bank (0.5-f21 and before) is read at boot and the first save after
  * it goes under it in bank 0, leaving it whole; a project that does not fit says so (SAVE_TOO_LARGE: the status

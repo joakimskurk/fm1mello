@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 joakimskurk
 """Put a WAV into one of SkurkyMello's four sample slots over USB-MIDI, or look at what is there.
 
   fm1_samples.py send SOUND.wav --slot N [--name NAME] [--start S] [--length S] [--gain DB | --normalize]

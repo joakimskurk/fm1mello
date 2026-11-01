@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* The sample transfer over MIDI (mello_sample.c, tools/fm1_samples.py): a record built the way the host tool
  * builds it goes in as START, DATA digits and END; the device answers ACK, the slot plays the sound back, and
  * it is still there after a power cycle. A START while the engine runs is refused, a corrupted digit is caught

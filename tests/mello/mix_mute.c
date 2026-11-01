@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* MIX's mutes (2026-10-31): B0-B3 mute LEAD, SUB, CHORD, PERC. Checked in the audio: a muted part is gone within
  * ~12 ms (it glides there, as SUB MUTE does), and another part's mute leaves it alone. */
 #include <stdio.h>

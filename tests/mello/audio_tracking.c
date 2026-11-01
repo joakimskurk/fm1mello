@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 5: velocity and key tracking (DECISIONS.md "Velocity and key tracking"). By default a note is as the HTML
  * plays it; VEL > CUTOFF opens the filter for an accent and leaves a plain step's alone; VEL > LEVEL 0 plays an
  * accent as loud as a plain step; KEY TRACK moves the cutoff with the note from C4 (10.9 permille a semitone at

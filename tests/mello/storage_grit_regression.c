@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 5: the grit and the Virus layer are saved, in their own section (SEC_GRIT), for the working sound and for
  * each pattern slot; a project with neither is written exactly as before, so older builds read it unchanged. Flash
  * is a RAM model. */

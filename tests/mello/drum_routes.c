@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* The drums on MIDI out and under the modulation (ROADMAP: "MIDI out for the drums, LFO / DOT / EVOLVE routes to
  * them"). Checked: with NOTE OUT on, each hit is a GM note on channel 10 (kick 36, snare 38, hat 42, glitch 39) with
  * its OFF, and none with NOTE OUT off; the LFO on D.TUNE moves the drums' pitch over time and on D.DRIVE their drive,

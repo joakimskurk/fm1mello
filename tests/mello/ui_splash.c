@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* The splash (2026-10-31): everything inside 240x240, the wordmark there, its text and the version's inside their
  * boxes (8 pixels a character, 16 large), and nothing drawn for a missing ops table. */
 #include <stdio.h>

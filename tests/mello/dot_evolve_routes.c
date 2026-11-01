@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 5: DOT and EVOLVE (DECISIONS.md "DOT and EVOLVE routes").
  * - EVOLVE mutates at the loop's one by default, not on every step; LOOP off gives the old per-step mutation.
  * - DOT's EVOLVE moves lit cells at the loop's one only, and keeps how many are lit.

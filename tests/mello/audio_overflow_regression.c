@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* P0 regression (review 2026-10, P0-1): legal settings must not overflow the fixed-point path.
  * The ladder filter and the LFO->AMP multiply used to wrap int32; the ladder then latched at -21903 DC
  * until reboot. tests/run_mello.sh builds this test with UBSan, so any signed overflow fails it too. */

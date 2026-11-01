@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 5: the randomizer's links (DECISIONS.md "Randomizer links"). A rolled target linked + follows each step's pitch
  * (pulses and ratchets 1-4 and chance 30-100% set by it, flags drawn with it), linked - mirrors it; RANDOM's LINKS
  * layer cycles a target free -> + -> - -> free and rolls it; the links survive a power cycle (SEC_MOD version 2). */

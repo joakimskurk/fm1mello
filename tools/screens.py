@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 joakimskurk
 """Every page of SkurkyMello as a PNG, drawn by the firmware itself on this computer.
 
 The firmware runs in host mode (tests/host.c) on a script that presses the panel's buttons, turns SELECT and holds

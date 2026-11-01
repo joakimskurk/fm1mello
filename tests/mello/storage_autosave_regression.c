@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* P1 regression (review 2026-10): step, sound and FX edits were never marked dirty, so they were lost at
  * power-off. mello_storage_poll now notices any change to what a save would write. Flash is a RAM model. */
 #include <stdint.h>

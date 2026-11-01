@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* The chord voice (feedback 2026-10-30: "the chords should sound as good as the rest, and I want to see them move").
  * Checked: the chain's names in the key; voice leading moves the voices less than the chords as written and stays
  * near them; STRUM spreads a chord's NOTE_ONs and never puts a NOTE_OFF before its NOTE_ON; the voice at its

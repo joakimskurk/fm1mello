@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 #include "mello_sample.h"
 
 #define SAMPLE_MAGIC     0x30314D53u /* SM10 little-endian */

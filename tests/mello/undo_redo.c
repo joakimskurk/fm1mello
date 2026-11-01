@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* UNDO / REDO (feedback 2026-10-30): the key toggles, says which it will do, and an edit after an UNDO leaves nothing
  * to redo. */
 #include <stdio.h>

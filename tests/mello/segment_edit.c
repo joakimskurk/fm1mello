@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Segments made easy (feedback 2026-10-30: "the segmenting is confusing and hard to adjust"). A new project has four
  * segments of four that play as one of sixteen; a step key cuts and joins; EVEN spreads them; LENGTH moves a segment's
  * end and the ones after keep theirs; a new sequence length keeps their proportions. */

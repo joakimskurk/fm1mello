@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* R5 (DECISIONS.md "One thread": words and units). Every page and layer rendered: no footer label from the banned
  * list of abbreviations (one word per thing); an unused knob has no label and "-"; a known level or amount reads
  * with %, a known time with MS or S, every CUT in HZ; no label wider than its 60-pixel cell (7 characters). */

@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 5: DOT's MOD 2, the MOD lanes' routing, DOT's evolve and EVOLVE's sound routes are saved in their own section
  * (SEC_MOD), for the working pattern and each slot. A project that leaves them alone writes no section, and MOD 1's
  * amount keeps the HTML's meaning in SEC_WORKING / SEC_SLOTS (1000 = +24% cutoff = depth 240). Flash is a RAM model. */

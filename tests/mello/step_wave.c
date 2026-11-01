@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* A wave per step (feedback 2026-10-30: "WAVE on in the randomizer should give a wave PER STEP, not OFF"). Checked: a
  * step's wave rides its NOTE_ON (0 for a step that has none); the lead plays it in place of the sound's WAVE (a sine
  * step has far less high end than the sound's saw); the sound's WAVE OFF still silences the lead; the compact slot format

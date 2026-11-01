@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Feedback 2026-10-30: "the randomizer gets an EDIT: how much each parameter is affected, not only on / off". Each
  * target has an amount, the chance a roll changes a step (WAVE / CHORD: the sound): 0% never, 100% every step (as
  * before, drawing nothing more, so default rolls are unchanged). RANDOM's EDIT: a key picks a target, K1 sets its

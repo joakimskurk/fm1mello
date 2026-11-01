@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* SWING for everything (feedback 2026-10-31: "I'm afraid the drums' swing clashes with the main sequence"). Checked:
  * at SWING 0 nothing moves; at 500 every lead, sub and drum event of an odd sixteenth comes a quarter of a step late,
  * the even ones stay, and so the drums and the sequence still land together; no NOTE_OFF comes before its NOTE_ON;

@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 #include "mello_transport.h"
 
 #define US_PER_MINUTE                  60000000u

@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Renders tools/tone-ref/stimuli.json (via stimuli.h) through the C audio engine, as 32-bit float WAVs that
  * tools/tone-ref/compare.py holds against the HTML's (tests/golden/html). Not a pass/fail test by itself.
  *   render_stimuli OUTDIR [name ...] */

@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* P1 regression (review 2026-10, P1-3): Chord Machine settings were not in the saved project at all.
  * They now have their own section (SEC_CHORD); readers without it skip it. Flash is a RAM model. */
 #include <stdint.h>

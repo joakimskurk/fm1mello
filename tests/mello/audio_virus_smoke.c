@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 5: the Virus layer (DECISIONS.md "Virus layer"). Off by default, and OSC 2 settings without its mix change
  * nothing; each part does what it says (HP and BP take the low end, notch the fundamental, sync and FM change the
  * tone, the MOD envelope opens the filter early in the note); SAT keeps the level; everything at full stays in range

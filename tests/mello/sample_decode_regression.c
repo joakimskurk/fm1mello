@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* P1 regression (review 2026-10, P1-4): sample decoding in the audio callback was unbounded. A loop wrap
  * threw the decoded block away, and high pitch needs a new block every few frames: up to 84 IMA block
  * decodes per 256-frame callback (2.3x the normal render cost). Now a loop keeps its block and each render

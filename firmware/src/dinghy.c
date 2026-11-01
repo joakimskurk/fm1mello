@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 zvenson (the Dinghy app skeleton), joakimskurk (SkurkyMello, the app) */
 /* SkurkyMello FM-1 Phase 10 shell: parity engine + transport + crash-safe storage,
  * native UI, fixed-point DSP and four-slot compressed sample layer. Audio/sample
  * events are timestamped in main-loop context and consumed inside app_audio().

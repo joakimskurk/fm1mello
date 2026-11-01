@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* P1 regression (review 2026-10, P1-1): after a note on the factory patch (reverb on), the audio must
  * report silent again once the tail has died. dinghy.c only autosaves, SAVEs and accepts sample uploads
  * while stopped and silent; a reverb-return DC of about -150 used to keep the tail guard armed forever. */

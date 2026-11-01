@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 #include "mello_engine.h"
 
 #define MELLO_ZERO_SEED_REMAP 0x6D2B79F5u

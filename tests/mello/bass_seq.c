@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* BASS SEQ (feedback 2026-10-31: "a 16-step bass sequencer instead of 5-SEQ: length, per step tone, octave, glide;
  * its own clock, not stopped by the main sequence's skipped or held steps unless asked to follow them"). Checked:
  * own clock plays every on step whatever the sequence skips, FOLLOW only with its steps; while on, the sub's MODE waits;

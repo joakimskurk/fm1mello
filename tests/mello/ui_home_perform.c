@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 3, PERFORM HOME (docs/mello/UI_ICEBERG.md): K1-K4 are CUTOFF / DECAY / SPACE / DRIVE; a white key held down
  * holds its step for K1-K4 and, let go without a turn, switches the step on/off; keys past the length do nothing;
  * the step LEDs show the steps that are on, with the playhead flipping its key. */

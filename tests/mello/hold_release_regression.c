@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Regression (feedback 2026-10-30: "playback stops and the last note hangs for ever"). A HOLD step over several
  * pulses sent its NOTE_ON at pulse 0 and its NOTE_OFF at the last pulse, tagged with that pulse; mello_audio releases
  * only on the OFF of the note it is playing (event_tag, so that legato notes are not cut), so the OFF was ignored and

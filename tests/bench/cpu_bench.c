@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Where the audio's time goes, on this computer (ROADMAP B2). The transport drives the audio as dinghy.c does, in
  * 256-frame blocks, for the default pattern and for the worst case (mello_engine_stress); then the worst case again
  * with one part taken out at a time. Prints the CPU time per second of audio, so 1000 ms = this computer's whole

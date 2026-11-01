@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* How the chord chain moves (ROADMAP: "HOLD in steps rather than triggers; chords that follow the segments; the sub on
  * the chord's root"). Checked: CHAIN STEPS changes chord every HOLD sixteenths whatever the sequence skips or holds,
  * and HOLD's chord sounds at once; CHAIN SEG plays chord k in segment k, also when the segments play in another order;

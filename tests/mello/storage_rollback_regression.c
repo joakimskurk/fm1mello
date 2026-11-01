@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* P1 regression (review 2026-10, P1-2): after a rollback to an older firmware, its autosave used to erase
  * the project a newer firmware had written (format version > ours), and then the user's older project too.
  * A bank holding a newer format is now never erased. Flash is a RAM model. */

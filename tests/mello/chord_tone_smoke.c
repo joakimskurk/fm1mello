@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 #include "mello_audio.h"
 #include <stdio.h>
 #include <string.h>

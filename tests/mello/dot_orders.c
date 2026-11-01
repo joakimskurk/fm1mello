@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 5: DOT's orders (DECISIONS.md "DOT orders"). The routes are what they say (spiral, diagonals, ping-pong
  * without doubled ends, the bouncing ball, LEN taking the route's first cells); the engine reads them in that order,
  * backwards with REV; WALK steps to neighbours within LEN; RANDOM plays each of the first LEN cells once a round; the

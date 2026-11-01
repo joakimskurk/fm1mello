@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Phase 2 regression (review 2026-10, timing): the main loop saw a pulse only after the audio block holding
  * it had been rendered, so every step started 0-5.8 ms late, at the next block. With
  * mello_transport_poll_ahead every note reaches the audio queue before its block is rendered. The loop

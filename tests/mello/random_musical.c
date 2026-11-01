@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* RANDOM: MUSICAL (feedback 2026-10-31: "musical instead of random; I press RANDOM many times and then tweak").
  * Checked over 300 rolls: the bar stays a bar (pulses 1, no skips), pitches stay in the span, strong steps that play
  * are chord tones, the first step always plays, the phrase ends on the root, the A cell comes back (at step 9 in

@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (C) 2026 joakimskurk */
 /* Feedback 2026-10-30: "the randomizer ruins the synth sound and there is no way back". RNDMZR rolls the pattern by
  * default (the first nine targets), not the sound; OSC 2 is OFF on a new project; SOUND's INIT, pressed twice, puts
  * the sound back to the defaults, and UNDO undoes that. */
