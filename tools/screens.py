@@ -158,7 +158,7 @@ def the_tour():
     # ARP: CHORD, BASS, DRUMS
     t.btn(ARP)
     layers(t, "chord", "CHORD",
-           ["PLAY", "CHORD", "VOICING", "GRID", "PATTERN", "TONE", "FILTER", "MOTION", "AMP"])
+           ["PLAY", "CHORD", "VOICING", "GRID", "PATTERN", "TONE", "FILTER", "MOTION", "AMP", "HARMONY"])
     t.btn(ARP)
     layers(t, "bass", "BASS", ["PLAY", "SEQ", "STEP", "VOICE", "TONE", "FILTER"])
     t.btn(ARP)

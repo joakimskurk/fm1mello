@@ -47,6 +47,7 @@ K1-K4's labels with their default values. Regenerate with the extractor (uimap.c
 | <img src="../screens/chord-filter.png" width="96" alt="CHORD FILTER"> | CHORD | ARP | FILTER | `ON BASS F B < R UNDO RNDMZR` | CUT 986.0HZ · RES 18% · ENV 38% · LINK OFF |
 | <img src="../screens/chord-motion.png" width="96" alt="CHORD MOTION"> | CHORD | ARP | MOTION | `ON BASS F B < R UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · STRUM 0MS · NEXT TRIG |
 | <img src="../screens/chord-amp.png" width="96" alt="CHORD AMP"> | CHORD | ARP | AMP | `ON BASS F B < R UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
+| <img src="../screens/chord-harmony.png" width="96" alt="CHORD HARMONY"> | CHORD | ARP | HARMONY | `ON BASS F B < R UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
 | <img src="../screens/global-clock.png" width="96" alt="GLOBAL CLOCK"> | GLOBAL | GLO | CLOCK | `TAP RST2 F B < R UNDO RNDMZR` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | <img src="../screens/global-midi.png" width="96" alt="GLOBAL MIDI"> | GLOBAL | GLO | MIDI | `TAP RST2 F B < R UNDO RNDMZR` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | <img src="../screens/global-groove.png" width="96" alt="GLOBAL GROOVE"> | GLOBAL | GLO | GROOVE | `TAP RST2 F B < R UNDO RNDMZR` | SWING 0% · — · — · — |
@@ -73,7 +74,7 @@ K1-K4's labels with their default values. Regenerate with the extractor (uimap.c
 | <img src="../screens/drums-step.png" width="96" alt="DRUMS STEP"> | DRUMS | ARP | STEP | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | <img src="../screens/drums-vary.png" width="96" alt="DRUMS VARY"> | DRUMS | ARP | VARY | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
 | <img src="../screens/drums-kit.png" width="96" alt="DRUMS KIT"> | DRUMS | ARP | KIT | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · SPACE 25% · LEVEL 70% |
-| <img src="../screens/drums-dist.png" width="96" alt="DRUMS DIST"> | DRUMS | ARP | DIST | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | DRIVE 0% · FOLD 0% · — · — |
+| <img src="../screens/drums-dist.png" width="96" alt="DRUMS DIST"> | DRUMS | ARP | DIST | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · — |
 | <img src="../screens/mix.png" width="96" alt="MIX —"> | MIX | GLO | — | `LD BS CH DR F B < R UNDO RNDMZR` | LEAD 100% · BASS 42% · CHORD 32% · DRUMS 70% |
 
 ## White keys

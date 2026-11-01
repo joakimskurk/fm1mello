@@ -209,13 +209,34 @@ int main(void)
     }
 
 #if MELLO_FEATURE_CHORD_MACHINE
-    for (s = 1u; s <= 50u; ++s) {
-        roll(s, 16u, MELLO_RAND_DEFAULT | MELLO_RAND_CHORD, MELLO_RANDOMIZE_MUSICAL);
-        CHECK(e.chord.length == 4u && e.chord.steps[0].degree == 0u &&
-                  e.chord.steps[0].shape == e.chord.steps[3].shape,
-              "seed %u: the progression starts on degree %u", (unsigned)s, e.chord.steps[0].degree);
+    { /* Progressions with a function (DECISIONS.md): 3 to 8 chords on the scale's degrees, no degree twice
+       * running, mostly from the tonic and mostly home again, not all triads, not all of length 4, HOLD 8 in
+       * place of the chain's default 2 */
+        unsigned from_tonic = 0u, home = 0u, not_four = 0u, coloured = 0u;
+        for (s = 1u; s <= 100u; ++s) {
+            uint8_t k;
+            roll(s, 16u, MELLO_RAND_DEFAULT | MELLO_RAND_CHORD, MELLO_RANDOMIZE_MUSICAL);
+            CHECK(e.chord.length >= 3u && e.chord.length <= 8u, "seed %u: %u chords", (unsigned)s,
+                  e.chord.length);
+            for (k = 0u; k < e.chord.length; ++k) {
+                CHECK(e.chord.steps[k].degree < 7u, "seed %u: degree %u", (unsigned)s,
+                      e.chord.steps[k].degree);
+                CHECK(e.chord.steps[k].hold >= 4u, "seed %u: hold %u", (unsigned)s, e.chord.steps[k].hold);
+                if (k)
+                    CHECK(e.chord.steps[k].degree != e.chord.steps[k - 1u].degree,
+                          "seed %u: degree %u twice running", (unsigned)s, e.chord.steps[k].degree);
+                if (e.chord.steps[k].shape != MELLO_CHORD_TRIAD) coloured = 1u;
+            }
+            from_tonic += e.chord.steps[0].degree == 0u;
+            home += e.chord.steps[e.chord.length - 1u].degree == 0u;
+            not_four += e.chord.length != 4u;
+        }
+        printf("CHORD: 100 progressions: %u from the tonic, %u home at the end, %u not four chords long\n",
+               from_tonic, home, not_four);
+        CHECK(from_tonic >= 60u && from_tonic <= 95u, "from the tonic in %u of 100", from_tonic);
+        CHECK(home >= 55u && home <= 90u, "home at the end in %u of 100", home);
+        CHECK(not_four >= 30u && coloured, "%u not four long, coloured %u", not_four, coloured);
     }
-    puts("CHORD: four chords from the root, one shape");
 #endif
 
     if (fails) return 1;

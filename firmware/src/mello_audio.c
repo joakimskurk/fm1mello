@@ -592,8 +592,10 @@ static void drum_scatter(MelloAudio *a, MelloAudioDrumVoice *d)
 }
 static void drum_hit(MelloAudio *a, const MelloEvent *e)
 {
-    static const uint16_t base_ms[MELLO_DRUM_VOICES] = {60u, 60u, 15u, 10u},
-                          span_ms[MELLO_DRUM_VOICES] = {1140u, 540u, 785u, 390u};
+    /* Weight (2026-11-01, DECISIONS.md "A kick with weight"): the kick decays up to 1.5 s and the snare's body
+     * lasts; the kick's pitch falls from 3.5x over 90 ms with a 7x click, its sine always a little driven. */
+    static const uint16_t base_ms[MELLO_DRUM_VOICES] = {80u, 70u, 15u, 10u},
+                          span_ms[MELLO_DRUM_VOICES] = {1420u, 630u, 785u, 390u};
     uint8_t v = e->sample_slot;
     MelloAudioDrumVoice *d;
     const MelloDrumVoice *c;
@@ -616,18 +618,19 @@ static void drum_hit(MelloAudio *a, const MelloEvent *e)
     d->gain = (int32_t)c->level * 32767 / 1000 * e->velocity / 127;
     switch (v) {
     case MELLO_DRUM_KICK:
-        d->inc[0] = inc_times(hz_inc(35u + c->tune * 55u / 1000u), ratio);
+        d->inc[0] = inc_times(hz_inc(38u + c->tune * 52u / 1000u), ratio); /* 38 .. 90 Hz */
         d->ph[0] = 0u;
         d->ck = drum_rate(6u);
-        d->pk = drum_rate(60u);
-        hold_ms = ms / 8u > 12u ? 12u : ms / 8u;
+        d->pk = drum_rate(90u); /* the punch: the body's fall, 90 ms (was 60) */
+        a->duck_env = 1 << 24;  /* DUCK: the music dips under this kick */
+        hold_ms = ms / 8u > 14u ? 14u : ms / 8u;
         break;
     case MELLO_DRUM_SNARE:
-        d->f = drum_svf_f(900u + c->tune * 2100u / 1000u, ratio);
-        d->damp = 45875 - (int32_t)c->tone * 43254 / 1000; /* 1/Q: 1.4 .. 0.08 */
-        d->inc[0] = inc_times(hz_inc(170u + c->tune * 90u / 1000u), ratio);
+        d->f = drum_svf_f(600u + c->tune * 2400u / 1000u, ratio); /* 0.6 .. 3 kHz: lower at low TUNE */
+        d->damp = 45875 - (int32_t)c->tone * 43254 / 1000;        /* 1/Q: 1.4 .. 0.08 */
+        d->inc[0] = inc_times(hz_inc(150u + c->tune * 90u / 1000u), ratio);
         d->ph[0] = 0u;
-        d->pk = drum_rate(ms / 4u + 5u);
+        d->pk = drum_rate(ms / 2u + 10u); /* the body lasts half the hit (was a quarter) */
         d->ck = drum_rate(18u);
         hold_ms = 1u;
         break;
@@ -742,10 +745,12 @@ static void drum_render(MelloAudio *a, int32_t music, int32_t *out_l, int32_t *o
         g = d->env >> 9;
         switch (v) {
         case MELLO_DRUM_KICK:
-            d->ph[0] += drum_bend(d->inc[0], d->cenv * 6 + d->penv / 10 * 7);
+            /* the pitch falls from 3.5x over 90 ms (the punch) under a 7x click; the sine always driven a little,
+             * so the fundamental has the harmonics a small speaker can carry, TONE adds more */
+            d->ph[0] += drum_bend(d->inc[0], d->cenv * 6 + d->penv * 5 / 2);
             y = osc_sample(MELLO_WAVE_SINE, d->ph[0], 0u, 0u);
-            if (c->tone) y = soft_drive(y, c->tone, 500u); /* TONE: drive */
-            if (d->ck) {                                   /* the click's noise, above ~2 kHz */
+            y = soft_drive(y, (uint16_t)(220u + c->tone * 780u / 1000u), 500u); /* TONE: drive, from 22% */
+            if (d->ck) { /* the click's noise, above ~2 kHz */
                 int32_t n = drum_noise(a);
                 d->hp1 += (n - d->hp1) >> 2;
                 y += q15mul(n - d->hp1, d->cenv >> 9) / 3;
@@ -757,9 +762,9 @@ static void drum_render(MelloAudio *a, int32_t music, int32_t *out_l, int32_t *o
                     fmax = (65536 - d->damp) * 3 / 4;
             int32_t zap = drum_svf(d, drum_noise(a), f < fmax ? f : fmax, 0);
             y = q15mul(clamp32(zap, -65535, 65535), d->damp + 9000);
-            if (d->pk) { /* the body, until it is down 60 dB */
+            if (d->pk) { /* the body, until it is down 60 dB; twice the weight it had */
                 d->ph[0] += drum_bend(d->inc[0], d->cenv >> 1);
-                y += q15mul(osc_sample(MELLO_WAVE_SINE, d->ph[0], 0u, 0u), d->penv >> 10);
+                y += q15mul(osc_sample(MELLO_WAVE_SINE, d->ph[0], 0u, 0u), d->penv >> 9);
                 if (d->penv < 16384) d->pk = 0;
             }
             y = soft_drive(y, 450u, 600u); /* driven: the crunch */
@@ -1128,6 +1133,8 @@ static void chord_control(MelloAudio *a)
     q8 = (int32_t)c->cut * 20736 / 1000 +
          (int32_t)(((int64_t)v->fenv * ((int32_t)c->fenv * 12288 / 1000)) >> 24) - 48 * 256;
     if (c->link) q8 += ((int32_t)a->config.filter_cut - 500) * 235 / 10;
+    q8 +=
+        (int32_t)a->chord_mod_cut * 20736 / 1000; /* DOT's MOD and EVOLVE's routes on C.CUT, as CUT's range */
     if (q8 > 33 * 256) q8 = 33 * 256;
     w = (int32_t)(((int64_t)semi_ratio_q16(q8) * 4482) >> 16); /* 2 pi fc / fs, Q15 */
     w -= (int32_t)((((int64_t)w * w >> 15) * w) >> 15) / 24;   /* 2 sin(w / 2) */
@@ -2123,7 +2130,7 @@ void mello_audio_drum_kit(const MelloDrumConfig *c, MelloAudioDrumKit *k)
 {
     memset(k, 0, sizeof *k);
     k->on = c->on;
-    k->level = c->level, k->space = c->space, k->drive = c->drive, k->fold = c->fold;
+    k->level = c->level, k->space = c->space, k->drive = c->drive, k->fold = c->fold, k->duck = c->duck;
     memcpy(k->voice, c->voice, sizeof k->voice);
 }
 void mello_audio_bass_voice(const MelloBassConfig *c, MelloAudioBassVoice *v)
@@ -2395,6 +2402,10 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             dmod[MELLO_DEST_OFF] = 0;
             mods = true;
         }
+        /* the chords' share (DECISIONS.md "The chords move too"): their CUT and LEVEL, read by chord_coeffs and the
+         * mix; a route with a negative depth pulls them the other way from the lead */
+        a->chord_mod_cut = (int16_t)(mods ? clamp32(dmod[MELLO_DEST_CHORD_CUT], -1000, 1000) : 0);
+        a->chord_mod_level = (int16_t)(mods ? clamp32(dmod[MELLO_DEST_CHORD_LEVEL], -1000, 1000) : 0);
         if (a->menv_stage == 1u) {
             a->menv_q24 += a->menv_step;
             if (a->menv_q24 >= 1 << 24) a->menv_q24 = 1 << 24, a->menv_stage = 2u;
@@ -2663,8 +2674,12 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             chord_render(a, &chord_l, &chord_r);
             /* Automatic ~19% duck at full lead envelope leaves the melodic transient in front. */
             if (duck < 24500) duck = 24500;
-            chord_l = mul_q12(q15mul(chord_l, duck), a->chord_level_q12);
-            chord_r = mul_q12(q15mul(chord_r, duck), a->chord_level_q12);
+            {
+                int32_t lv = a->chord_level_q12; /* C.LEVEL: the routes scale the level, 0 .. twice */
+                if (a->chord_mod_level) lv = lv * (1000 + (int32_t)a->chord_mod_level) / 1000;
+                chord_l = mul_q12(q15mul(chord_l, duck), lv);
+                chord_r = mul_q12(q15mul(chord_r, duck), lv);
+            }
             if (a->mix_gain[2] != 32767) /* MIX's CHORD mute */
                 chord_l = q15mul(clamp32(chord_l, -65535, 65535), a->mix_gain[2]),
                 chord_r = q15mul(clamp32(chord_r, -65535, 65535), a->mix_gain[2]);
@@ -2689,6 +2704,18 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             y = main_biquad_step(a->mf_coeff, a->mf_state[0], clamp32(mix, -65535, 65535));
             y = main_biquad_step(a->mf_coeff, a->mf_state[1], y);
             mix = clamp32(y, -65535, 65535);
+        }
+        if (a->duck_env) { /* DUCK (the kick's sidechain): the music dips at each kick, back over ~160 ms */
+            int32_t g = 32767 - (int32_t)(((int64_t)(a->duck_env >> 9) * a->drum_config.duck) / 1000);
+            a->duck_env -= (int32_t)(((int64_t)a->duck_env * 16406) >> 24);
+            if (a->duck_env < 4096) a->duck_env = 0;
+            if (a->drum_config.duck) {
+                mix = q15mul(mix, g);
+#if MELLO_FEATURE_CHORD_MACHINE
+                chord_l = q15mul(chord_l, g);
+                chord_r = q15mul(chord_r, g);
+#endif
+            }
         }
         /* DRUMS: past the lead's filter and distortion, their own LEVEL and SPACE */
         if (a->drum_config.on) { /* every sample while ON: STUTTER keeps listening */

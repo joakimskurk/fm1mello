@@ -174,6 +174,7 @@ static const Case cases[] = {
     C("CHORD FILTER", MELLO_UI_CHORD, 6, 15, 0, "CUT", "RES", "ENV", "LINK"),
     C("CHORD MOTION", MELLO_UI_CHORD, 7, 15, 0, "F.ATK", "F.DEC", "STRUM", "NEXT"),
     C("CHORD AMP", MELLO_UI_CHORD, 8, 15, 0, "ATTACK", "DECAY", "SUSTAIN", "RELEASE"),
+    C("CHORD HARMONY", MELLO_UI_CHORD, 9, 7, 0, "FOLLOW", "DRIFT", "DEPTH", ""),
 #endif
     C("KEY SCALE", MELLO_UI_KEY_SCALE, 0, 15, 0, "ROOT", "SCALE", "OCT", "SPAN"),
     C("GLOBAL CLOCK", MELLO_UI_GLOBAL, 0, 15, 0, "BPM", "DIV", "SYNC", "NOTEOUT"),
@@ -197,7 +198,7 @@ static const Case cases[] = {
     C("DRUMS STEP", MELLO_UI_DRUMS, 1, 15, 0, "PITCH", "DECAY", "CRUSH", "RATCH"),
     C("DRUMS VARY", MELLO_UI_DRUMS, 2, 15, 0, "CHANCE", "CRUSH", "FEED", "ROLL"),
     C("DRUMS KIT", MELLO_UI_DRUMS, 3, 15, 0, "LENGTH", "FOLLOW", "SPACE", "LEVEL"),
-    C("DRUMS DIST", MELLO_UI_DRUMS, 4, 3, 0, "DRIVE", "FOLD", "", ""),
+    C("DRUMS DIST", MELLO_UI_DRUMS, 4, 7, 0, "DRIVE", "FOLD", "DUCK", ""),
 #if MELLO_FEATURE_CHORD_MACHINE
     C("MIX", MELLO_UI_MIX, 0, 15, 0, "LEAD", "BASS", "CHORD", "DRUMS")};
 #else

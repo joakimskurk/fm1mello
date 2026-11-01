@@ -24,7 +24,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f35.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f39.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -161,20 +161,28 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   sequence's pace: accents, ratchets, the sub, and two MOD lanes that shape a sound parameter with an attack and a
   release.
 - **EVOLVE** (LFO > EVOLVE). A Turing-machine register that mutates by a probability, routed to gate, filter,
-  octave and decay, and to two sound destinations.
+  octave and decay, and to two sound destinations: the lead's (cutoff, resonance, decay, pitch, OSC 2, FM, noise,
+  saturation, detune, PWM), the drums' (tune, decay, crush, drive) or the chords' (C.CUT, C.LEVEL). A negative
+  depth inverts, so the chords can open while the lead closes. DOT's MOD lanes reach the same destinations.
 - **FX**. Distortion with a character and a tone (PRE-DIST puts the delay before it), a delay synced to the tempo
   or free with feedback, low and high cut, and a reverb with size, decay, pre-delay and tone.
 - **Chords** (ARP > CHORD). A chain of up to eight chords in the key (degree, shape, inversion, spread, octave),
   played as stabs, held, arpeggiated or by a pattern of voice masks, triggered by the steps or by a grid; voice
   leading; a Juno-like voice with chorus, a resonant filter with its envelope, an ADSR and its own space. B1 BASS
-  puts the bass on the chord's root.
+  puts the bass on the chord's root. The HARMONY layer ties the chords to the rest: FOLLOW moves the lead's notes
+  on the beats (or all of them) to the chord sounding, and DRIFT lets one chord change each time the chain comes
+  round, within DEPTH (a degree of the same function, the shape, the voicing, or any), the first chord keeping
+  its degree, so a long piece evolves and still comes home. RNDMZR at MED, HIGH and MUSICAL rolls a progression
+  on the clock chain, so the chords change on the grid and land on the one.
 - **Bass** (ARP > BASS). The dedicated sub voice: a step, euclidean, matrix, register or drone mode, or BASS SEQ, a
   16-step bass line of its own with tone, octave, glide and accent per step, a resonant filter with envelope, drive.
   ROLL (B2) writes a line under the sequence as it is: roots and fifths, or the lead's chord tones, on the beats,
   walks and octave jumps between, an octave down; UNDO takes it back.
 - **Drums** (ARP > DRUMS). Kick, snare, hat and a glitch voice (bleep, chirp, crackle, stutter) on a 16-step
   pattern with accents, per-step pitch, decay, crush and ratchet locks, rolls, chance, swing (GLOBAL > GROOVE, for
-  everything), a kit drive with fold, and a send to the delay and reverb. RNDMZR rolls them too with FEED on.
+  everything), a kit drive with fold, DUCK (the kick's sidechain: the lead, sub and chords dip at each kick and
+  come back over 160 ms), and a send to the delay and reverb. RNDMZR rolls them too with FEED on. The kick is built
+  for weight: a driven sine from 38 to 90 Hz whose pitch falls from 3.5x over 90 ms, decaying up to 1.5 s.
 - **MIX** (GLO > MIX). The levels of lead, bass, chords and drums as faders, each with a mute (LD, BS, CH, DR).
 - **GLOBAL** (GLO > GLOBAL). Tempo (TAP), division, external sync, note out; the MIDI channels of lead and bass,
   the note length; the groove's swing. CLOCK shows the chip's measured audio load as CPU nn%.
@@ -231,6 +239,7 @@ K1-K4 with their default values.
 | CHORD | ARP | FILTER | `ON BASS F B < R UNDO RNDMZR` | CUT 986.0HZ · RES 18% · ENV 38% · LINK OFF |
 | CHORD | ARP | MOTION | `ON BASS F B < R UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · STRUM 0MS · NEXT TRIG |
 | CHORD | ARP | AMP | `ON BASS F B < R UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
+| CHORD | ARP | HARMONY | `ON BASS F B < R UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
 | GLOBAL | GLO | CLOCK | `TAP RST2 F B < R UNDO RNDMZR` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | GLOBAL | GLO | MIDI | `TAP RST2 F B < R UNDO RNDMZR` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | GLOBAL | GLO | GROOVE | `TAP RST2 F B < R UNDO RNDMZR` | SWING 0% · — · — · — |
@@ -257,7 +266,7 @@ K1-K4 with their default values.
 | DRUMS | ARP | STEP | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | DRUMS | ARP | VARY | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
 | DRUMS | ARP | KIT | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · SPACE 25% · LEVEL 70% |
-| DRUMS | ARP | DIST | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | DRIVE 0% · FOLD 0% · — · — |
+| DRUMS | ARP | DIST | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · — |
 | MIX | GLO | — | `LD BS CH DR F B < R UNDO RNDMZR` | LEAD 100% · BASS 42% · CHORD 32% · DRUMS 70% |
 
 ## Saving, slots and MIDI

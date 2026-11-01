@@ -218,6 +218,9 @@ static MelloChordConfig sanitize_chord_config(MelloChordConfig c)
     if (c.chorus > 1000u) c.chorus = 1000u;
     if (c.space > 1000u) c.space = 1000u;
     if (c.strum_ms > 60u) c.strum_ms = 60u;
+    if (c.lead_follow > 2u) c.lead_follow = 2u;
+    if (c.drift > 1000u) c.drift = 1000u;
+    if (c.drift_depth > 3u) c.drift_depth = 3u;
     return c;
 }
 #endif
@@ -688,7 +691,7 @@ void mello_drum_defaults(MelloDrumConfig *c)
      * as the sequence, which has none (DECISIONS.md "Drums"). The glitch kit of the same day: a short kick with no
      * PITCH on its steps, a snare between crack and zap, a closed hat with a little tick, GLITCH as STUTTER; CRUSH 0. */
     static const MelloDrumVoice v[MELLO_DRUM_VOICES] = {
-        {400u, 100u, 100u, 900u, 1000u, 0u}, /* KICK ~57 Hz, short, a touch of drive */
+        {400u, 180u, 250u, 900u, 1000u, 0u}, /* KICK ~59 Hz, 340 ms, driven: weight (2026-11-01) */
         {500u, 250u, 350u, 750u, 1000u, 0u}, /* SNARE ~2 kHz, between crack and zap */
         {500u, 60u, 200u, 380u, 1000u, 0u},  /* HAT ~7 kHz, closed, a little tick */
         {500u, 300u, 875u, 600u, 1000u, 0u}  /* GLITCH: STUTTER, ~26 ms loops */
@@ -710,7 +713,7 @@ void mello_drum_defaults(MelloDrumConfig *c)
     memset(c, 0, sizeof(*c));
     c->length = 16u;
     c->swing = 0u;
-    c->level = 700u;
+    c->level = 800u; /* 70% to 80% (2026-11-01): the kit sits with the lead, not behind it */
     c->space = 250u;
     c->roll = 500u;
     for (i = 0u; i < MELLO_DRUM_VOICES; ++i) {
@@ -738,6 +741,7 @@ static MelloDrumConfig sanitize_drum_config(MelloDrumConfig c)
     if (c.roll > 1000u) c.roll = 1000u;
     if (c.drive > 1000u) c.drive = 1000u;
     if (c.fold > 1000u) c.fold = 1000u;
+    if (c.duck > 1000u) c.duck = 1000u;
     for (i = 0u; i < MELLO_DRUM_VOICES; ++i) {
         MelloDrumVoice *v = &c.voice[i];
         if (v->tune > 1000u) v->tune = 1000u;
@@ -1054,6 +1058,9 @@ void mello_chord_defaults(MelloChordConfig *c)
     c->strum_ms = 0u;
     c->link = false;
     c->voice_lead = false; /* the chords as they are written; VLEAD is a choice */
+    c->lead_follow = 0u;   /* HARMONY off: nothing saved sounds different */
+    c->drift = 0u;
+    c->drift_depth = 3u;
     for (i = 0u; i < MELLO_CHORD_MAX_STEPS; ++i) {
         c->steps[i].degree = deg[i % 4u];
         c->steps[i].shape = MELLO_CHORD_TRIAD;
@@ -1760,6 +1767,41 @@ static void current_loop_context(const MelloEngine *e, int32_t *root_out, MelloS
     if (sub_transpose_out) *sub_transpose_out = mello_loop_cycle_sub_transpose(lc);
 }
 
+#if MELLO_FEATURE_CHORD_MACHINE
+/* HARMONY's FOLLOW: the note moved to the nearest tone of the chord sounding (any octave), the smaller way; ties go
+ * down. Nothing moves when no chord has sounded yet. */
+static uint8_t chord_snap_note(const MelloEngine *e, uint8_t note)
+{
+    int32_t best = note, best_d = 99;
+    uint8_t i;
+    if (!e->chord_voiced_n) return note;
+    for (i = 0u; i < e->chord_voiced_n; ++i) {
+        int32_t pc = (int32_t)e->chord_voiced[i] % 12, d = ((int32_t)note % 12 - pc + 12) % 12, cand;
+        /* d semitones above the chord tone's class: down by d, or up by 12 - d */
+        cand = d <= 6 ? (int32_t)note - d : (int32_t)note + (12 - d);
+        if ((cand > best ? cand - best : best - cand) < 99 && (d <= 6 ? d : 12 - d) < best_d) {
+            best_d = d <= 6 ? d : 12 - d;
+            best = cand;
+        }
+    }
+    return clamp_u8_i32(best, 12u, 108u);
+}
+#endif
+
+/* HARMONY FOLLOW applied to a lead note at step `step_index`: OFF leaves it, BEATS snaps the notes on the beats (every
+ * fourth step), ALL every note. */
+static uint8_t lead_follow_note(const MelloEngine *e, uint8_t note, uint8_t step_index)
+{
+#if MELLO_FEATURE_CHORD_MACHINE
+    if (e->chord.on && e->chord.lead_follow && (e->chord.lead_follow == 2u || step_index % 4u == 0u))
+        return chord_snap_note(e, note);
+#else
+    (void)e;
+    (void)step_index;
+#endif
+    return note;
+}
+
 static uint8_t resolve_engine_step_midi_mod(const MelloEngine *e, const MelloStep *step, int8_t extra_octave)
 {
     const ScaleDef *sd;
@@ -1937,7 +1979,7 @@ static void generate_gate_events(MelloEngine *e, const MelloStep *s, bool pass, 
                                  int8_t octave_mod)
 {
     uint32_t pulse_ticks = mello_pulse_ticks(&e->project);
-    uint8_t note = resolve_engine_step_midi_mod(e, s, octave_mod);
+    uint8_t note = lead_follow_note(e, resolve_engine_step_midi_mod(e, s, octave_mod), e->step_index);
     uint8_t vel = velocity_for_accent(accent);
     uint32_t t = e->now_tick;
     ratchets = clamp_1_8(ratchets);
@@ -2622,6 +2664,73 @@ static uint16_t prob_from_hundredths(uint8_t hundredths);
  * roll but leans with the melody. */
 /* Which targets a roll changes on each step: the mask, each target kept with its amount's chance (EDIT). A target at
  * 100% draws nothing, so rolls at the defaults are what they were. Bit 15 (no target) carries WAVE / CHORD's draw. */
+#if MELLO_FEATURE_CHORD_MACHINE
+/* A progression with a function (DECISIONS.md "Progressions with a function", feedback: "the most common pop
+ * progression ever, a bit boring"): three to eight chords walked through tonic, subdominant and dominant functions
+ * on the scale's own degrees (so a dorian IV or a phrygian II colours it), a deceptive cadence now and then, an open
+ * ending on the dominant one time in four, a tonic substitute instead of the tonic itself, no degree twice in a row;
+ * sevenths, sus chords and inversions on top, more of them the higher colour_min; the holds either even or
+ * long-short; HOLD 8 and the clock chain (NEXT STEPS) when the chain still stands on its default 2, so a chord lands
+ * on the one whatever the lead rests. Shared by MED, HIGH and MUSICAL (2026-11-01); the pattern masks are the
+ * caller's. */
+static void roll_progression(MelloEngine *e, uint8_t n, uint16_t colour_min)
+{
+    static const uint8_t T_deg[3] = {0u, 5u, 2u}, S_deg[3] = {3u, 1u, 5u}, D_deg[3] = {4u, 6u, 1u};
+    static const uint8_t lens[7] = {3u, 4u, 4u, 5u, 6u, 8u, 8u}; /* eight twice: four bars at HOLD 8 */
+    uint8_t len = lens[rng_bounded(&e->gen_rng, 7u)], hold = e->chord.steps[0].hold, fn = 0u /* T */,
+            last = 255u, k;
+    uint16_t colour =
+        (uint16_t)(colour_min + rng_bounded(&e->gen_rng, 1000u - colour_min)); /* beyond triads */
+    bool long_short = chance_permille(&e->gen_rng, 400u);
+    if (!n) n = 7u;
+    if (hold <= 2u) {
+        hold = 8u;
+        e->chord.chain = MELLO_CHORD_CHAIN_STEPS;
+    }
+    e->chord.length = len;
+    for (k = 0u; k < len; ++k) {
+        MelloChordStep *cs = &e->chord.steps[k];
+        uint8_t deg;
+        uint32_t r = rng_bounded(&e->gen_rng, 100u);
+        if (k == 0u)
+            fn = chance_permille(&e->gen_rng, 850u) ? 0u : (chance_permille(&e->gen_rng, 500u) ? 1u : 2u);
+        else if (k + 1u == len)
+            fn = chance_permille(&e->gen_rng, 800u) ? 0u : 2u; /* home, or left open on the dominant */
+        else if (fn == 0u)
+            fn = r < 50u ? 1u : (r < 75u ? 2u : 0u);
+        else if (fn == 1u)
+            fn = r < 55u ? 2u : (r < 80u ? 0u : 1u);
+        else
+            fn = r < 70u ? 0u
+                         : (r < 85u ? 1u : 2u); /* the dominant resolves, or deceives to the subdominant */
+        {
+            const uint8_t *pool = fn == 0u ? T_deg : (fn == 1u ? S_deg : D_deg);
+            uint8_t pick = (uint8_t)(rng_bounded(&e->gen_rng, 100u) <
+                                             (fn == 0u && (k == 0u || k + 1u == len) ? 90u : 55u)
+                                         ? 0u
+                                         : 1u + rng_bounded(&e->gen_rng, 2u));
+            deg = pool[pick];
+            if (deg == last) deg = pool[(pick + 1u) % 3u]; /* never the same chord twice running */
+            if (fn == 0u && k + 1u == len && last != 0u && chance_permille(&e->gen_rng, 900u))
+                deg = 0u; /* home is home */
+            if (deg == last && len > 1u) deg = (uint8_t)((deg + 3u) % 7u);
+        }
+        cs->degree = (uint8_t)(deg % n);
+        cs->shape = rng_bounded(&e->gen_rng, 1000u) < colour
+                        ? (chance_permille(&e->gen_rng, 600u)
+                               ? MELLO_CHORD_SEVENTH
+                               : (chance_permille(&e->gen_rng, 500u) ? MELLO_CHORD_SUS2 : MELLO_CHORD_SUS4))
+                        : MELLO_CHORD_TRIAD;
+        cs->inversion = (uint8_t)(colour > 300u ? rng_bounded(&e->gen_rng, 3u) : 0u);
+        cs->spread = (uint8_t)(colour > 600u ? rng_bounded(&e->gen_rng, 3u) : cs->spread);
+        cs->octave = (int8_t)(k && chance_permille(&e->gen_rng, 150u) ? -1 : 0);
+        cs->hold = (uint8_t)(long_short ? (k % 2u ? (hold + 1u) / 2u : hold + hold / 2u) : hold);
+        last = deg;
+    }
+    e->chord = sanitize_chord_config(e->chord);
+}
+#endif
+
 static void randomize_step_masks(MelloEngine *e, uint16_t mask, uint16_t out[MELLO_MAX_STEPS])
 {
     uint8_t i, b;
@@ -2748,23 +2857,7 @@ void mello_engine_randomize_steps(MelloEngine *e)
 #endif
 #if MELLO_FEATURE_CHORD_MACHINE
     if (mask & MELLO_RAND_CHORD) {
-        uint8_t n = e->chord.length < 2u ? 2u : e->chord.length;
-        if (n > 4u) n = 4u;
-        e->chord.length = n;
-        for (i = 0u; i < n; ++i) {
-            MelloChordStep *cs = &e->chord.steps[i];
-            uint32_t r = rng_bounded(&e->gen_rng, 1000u);
-            cs->degree = (uint8_t)rng_bounded(&e->gen_rng, sd->n);
-            cs->shape = r < 520u
-                            ? MELLO_CHORD_TRIAD
-                            : (r < 780u ? MELLO_CHORD_SEVENTH
-                                        : (r < 870u ? MELLO_CHORD_SUS2
-                                                    : (r < 960u ? MELLO_CHORD_SUS4 : MELLO_CHORD_POWER)));
-            cs->inversion = (uint8_t)rng_bounded(&e->gen_rng, 3u);
-            cs->octave = (int8_t)((int32_t)rng_bounded(&e->gen_rng, 3u) - 1);
-            cs->spread = (uint8_t)rng_bounded(&e->gen_rng, 3u);
-            cs->hold = (uint8_t)(1u + rng_bounded(&e->gen_rng, 4u));
-        }
+        roll_progression(e, sd->n, 0u); /* a progression, not four dice (2026-11-01) */
         for (i = 0u; i < e->chord.pattern_length; ++i) {
             uint8_t pm = (uint8_t)(1u << rng_bounded(&e->gen_rng, e->chord.voices));
             if (chance_permille(&e->gen_rng, 380u))
@@ -2906,19 +2999,19 @@ static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity int
 #endif
 #if MELLO_FEATURE_CHORD_MACHINE
     if (mask & MELLO_RAND_CHORD) {
-        uint8_t n = e->chord.length < 2u ? 2u : e->chord.length;
-        if (n > 4u) n = 4u;
-        e->chord.length = n;
-        for (i = 0u; i < n; ++i) {
-            MelloChordStep *cs = &e->chord.steps[i];
-            if (high) {
-                cs->degree = (uint8_t)rng_bounded(&e->gen_rng, sd->n);
-                cs->shape = (MelloChordShape)rng_bounded(&e->gen_rng, MELLO_CHORD_SHAPE_COUNT);
-                cs->inversion = (uint8_t)rng_bounded(&e->gen_rng, 4u);
-                cs->octave = (int8_t)((int32_t)rng_bounded(&e->gen_rng, 5u) - 2);
+        if (high) { /* a progression with plenty of colour, and the voicings thrown wide (2026-11-01) */
+            roll_progression(e, sd->n, 500u);
+            for (i = 0u; i < e->chord.length; ++i) {
+                MelloChordStep *cs = &e->chord.steps[i];
+                cs->octave = (int8_t)((int32_t)rng_bounded(&e->gen_rng, 3u) - 1);
                 cs->spread = (uint8_t)rng_bounded(&e->gen_rng, 4u);
-                cs->hold = (uint8_t)(1u + rng_bounded(&e->gen_rng, 8u));
-            } else {
+                if (chance_permille(&e->gen_rng, 150u)) cs->shape = MELLO_CHORD_POWER;
+            }
+        } else {
+            uint8_t n = e->chord.length < 2u ? 2u : e->chord.length;
+            e->chord.length = n;
+            for (i = 0u; i < n; ++i) {
+                MelloChordStep *cs = &e->chord.steps[i];
                 cs->degree = clamp_u8_random((int32_t)cs->degree + random_delta(&e->gen_rng, 1), 0u,
                                              (uint8_t)(sd->n - 1u));
                 if (chance_permille(&e->gen_rng, 120u))
@@ -3284,22 +3377,7 @@ static void randomize_musical(MelloEngine *e)
     if ((mask & MELLO_RAND_CHORD) &&
         (e->modr.rnd_amount[11] >= 100u ||
          chance_permille(&e->gen_rng, (uint16_t)(e->modr.rnd_amount[11] * 10u)))) {
-        /* A progression people play, in the scale: i VI iv v, i iv v i, i VI III VII, i VII VI VII, i iv i v,
-         * I V vi IV; all triads or all sevenths, each chord as long as the first was. */
-        static const uint8_t prog[6][4] = {{0, 5, 3, 4}, {0, 3, 4, 0}, {0, 5, 2, 6},
-                                           {0, 6, 5, 6}, {0, 3, 0, 4}, {0, 4, 5, 3}};
-        uint8_t pi = (uint8_t)rng_bounded(&e->gen_rng, 6u), hold = e->chord.steps[0].hold;
-        MelloChordShape shape = chance_permille(&e->gen_rng, 350u) ? MELLO_CHORD_SEVENTH : MELLO_CHORD_TRIAD;
-        e->chord.length = 4u;
-        for (i = 0u; i < 4u; ++i) {
-            MelloChordStep *cs = &e->chord.steps[i];
-            cs->degree = (uint8_t)(prog[pi][i] % n);
-            cs->shape = shape;
-            cs->inversion = 0u;
-            cs->octave = 0;
-            cs->hold = hold;
-        }
-        e->chord = sanitize_chord_config(e->chord);
+        roll_progression(e, n, 0u);
     }
 #endif
     sanitize_project(&e->project);
@@ -3734,6 +3812,46 @@ static void chord_voice_lead(uint8_t *notes, uint8_t n, const uint8_t *prev, uin
         }
     if (best_cost != 0x7FFFFFFF) memcpy(notes, best, n);
 }
+/* HARMONY's DRIFT (DECISIONS.md "Harmony as the spine"): at each pass of the chain, with the chance DRIFT, one chord
+ * changes within what DEPTH allows: DEG swaps it for a degree of the same function (tonic i / VI / III, subdominant
+ * iv / ii / VI, dominant v / VII), SHAPE gives it another shape, VOICE another inversion, spread or octave, ALL any
+ * of those. The first chord keeps its degree, so home stays home while the rest wanders: a progression that is
+ * still itself after half an hour, and never quite the same. */
+static void chord_drift(MelloEngine *e)
+{
+    static const uint8_t same_fn[7][2] = {{5u, 2u}, {3u, 6u}, {0u, 5u}, {1u, 5u},
+                                          {6u, 1u}, {0u, 3u}, {4u, 1u}};
+    MelloChordConfig *c = &e->chord;
+    MelloChordStep *cs;
+    uint8_t k, what;
+    if (!c->drift || c->length < 2u || !chance_permille(&e->gen_rng, c->drift)) return;
+    k = (uint8_t)rng_bounded(&e->gen_rng, c->length);
+    cs = &c->steps[k];
+    what = c->drift_depth < 3u ? c->drift_depth : (uint8_t)rng_bounded(&e->gen_rng, 3u);
+    if (what == 0u && k == 0u) what = 1u + (uint8_t)rng_bounded(&e->gen_rng, 2u); /* home keeps its degree */
+    switch (what) {
+    case 0u: cs->degree = same_fn[cs->degree % 7u][rng_bounded(&e->gen_rng, 2u)]; break;
+    case 1u: {
+        static const MelloChordShape sh[4] = {MELLO_CHORD_TRIAD, MELLO_CHORD_SEVENTH, MELLO_CHORD_SUS2,
+                                              MELLO_CHORD_SUS4};
+        MelloChordShape was = cs->shape;
+        do cs->shape = sh[rng_bounded(&e->gen_rng, 4u)];
+        while (cs->shape == was);
+        break;
+    }
+    default: {
+        uint32_t r = rng_bounded(&e->gen_rng, 3u);
+        if (r == 0u)
+            cs->inversion = (uint8_t)((cs->inversion + 1u + rng_bounded(&e->gen_rng, 2u)) % 3u);
+        else if (r == 1u)
+            cs->spread = (uint8_t)((cs->spread + 1u + rng_bounded(&e->gen_rng, 2u)) % 3u);
+        else
+            cs->octave = (int8_t)(cs->octave == 0 ? -1 : 0);
+        break;
+    }
+    }
+}
+
 static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advance_chain)
 {
     MelloChordConfig *c = &e->chord;
@@ -3824,6 +3942,7 @@ static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advanc
         if (e->chord_chain_hold >= cs->hold) {
             e->chord_chain_hold = 0u;
             e->chord_chain_pos = (uint8_t)((slot + 1u) % c->length);
+            if (e->chord_chain_pos == 0u) chord_drift(e); /* the chain has gone round: HARMONY's DRIFT */
             e->chord_arp_pos = 0u;
             e->chord_arp_dir = 1;
             e->chord_pattern_pos = 0u;
@@ -3843,6 +3962,7 @@ static void chord_chain_clock(MelloEngine *e, const MelloPulseEntry *pe)
         next = (uint8_t)((slot + 1u) % len);
     if (next != slot || e->chord_step_count == 0u) {
         if (next != slot) e->chord_chain_hold = 0u;
+        if (next != slot && next == 0u) chord_drift(e); /* round again: HARMONY's DRIFT */
         e->chord_chain_pos = next;
         e->chord_step_count = 0u;
         e->chord_arp_pos = 0u;
@@ -3995,7 +4115,8 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     e->last_mod.dot_mod[0] = dot_mod[0];
     e->last_mod.dot_mod[1] = dot_mod[1];
 
-    main_note = resolve_engine_step_midi_mod(e, s, e->last_mod.tm_octave_mod);
+    main_note =
+        lead_follow_note(e, resolve_engine_step_midi_mod(e, s, e->last_mod.tm_octave_mod), pe.step_index);
     emit_basic(e, MELLO_EVENT_PULSE, e->now_tick, pe.step_index, pe.pulse_index, pe.total_pulses, main_note,
                velocity_for_accent(e->last_mod.effective_accent), 0u, s->slide, pass);
     if (e->segment_pulse_pos == 0u)
@@ -4163,9 +4284,18 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         e->bass_pos = 0u;
         e->bass_glide_in = false;
 #if MELLO_FEATURE_CHORD_MACHINE
-        e->chord_chain_pos = 0u;
-        e->chord_chain_hold = 0u;
-        e->chord_grid_tick = 0u;
+        { /* the chord chain at the resets that meet its own length: a four-bar progression over a 2 BAR reset
+           * starts over every second reset, not halfway (feedback 2026-11-01: "the same progression all the way") */
+            uint32_t total = 0u, k;
+            for (k = 0u; k < e->chord.length; ++k) total += e->chord.steps[k].hold;
+            if (!total || e->absolute_pulse % total == 0u || total <= old_loop_ticks) {
+                if (e->chord_chain_pos || e->chord_step_count) chord_drift(e); /* a pass round: DRIFT */
+                e->chord_chain_pos = 0u;
+                e->chord_chain_hold = 0u;
+                e->chord_step_count = 0u; /* the clock chain (NEXT STEPS) too, so a chord lands on the one */
+                e->chord_grid_tick = 0u;
+            }
+        }
 #endif
     } else
         advance_segment_traversal(e);

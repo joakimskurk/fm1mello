@@ -225,9 +225,11 @@ typedef enum {
     MELLO_DEST_DRUM_TUNE, /* the drums (2026-10-31): as the LFO's four drum targets */
     MELLO_DEST_DRUM_DECAY,
     MELLO_DEST_DRUM_CRUSH,
-    MELLO_DEST_DRUM_DRIVE
+    MELLO_DEST_DRUM_DRIVE,
+    MELLO_DEST_CHORD_CUT, /* the chords (2026-11-01, DECISIONS.md "The chords move too"): their filter's CUT */
+    MELLO_DEST_CHORD_LEVEL /* and their LEVEL; a negative depth inverts, so the chords answer the lead */
 } MelloModDest;
-#define MELLO_DEST_COUNT 16u
+#define MELLO_DEST_COUNT 18u
 typedef enum { MELLO_FILTER_LP = 0, MELLO_FILTER_HP, MELLO_FILTER_BP, MELLO_FILTER_NOTCH } MelloFilterMode;
 #define MELLO_FILTER_MODE_COUNT 4u
 #define MELLO_UNISON_MAX        4u
@@ -535,6 +537,9 @@ typedef struct {
     uint16_t roll;   /* 0..1000: how much a roll changes */
     uint16_t drive;  /* 0..1000: the kit's own distortion, after the glue (0: none) */
     uint16_t fold;   /* 0..1000: past full scale the drive folds back instead of clipping */
+    uint16_t
+        duck; /* 0..1000: DUCK, the kick's sidechain: the lead, sub and chords dip by this at each kick and
+                        come back over ~160 ms (DECISIONS.md "A kick with weight") */
     MelloDrumVoice voice[MELLO_DRUM_VOICES];
     uint16_t hits[MELLO_DRUM_VOICES];    /* bit = step */
     uint16_t accents[MELLO_DRUM_VOICES]; /* bit = step */
@@ -611,6 +616,12 @@ typedef struct {
     bool voice_lead;         /* a new chord in the inversion nearest the last one */
     uint8_t chain;           /* MelloChordChain */
     bool sub_root;           /* SUB ROOT: the sub (and BASS SEQ) moves by the chord's root, the nearest way */
+    /* HARMONY (2026-11-01, DECISIONS.md "Harmony as the spine"): the lead follows the chords, and the chain drifts */
+    uint8_t
+        lead_follow; /* 0 OFF; 1 BEATS: the lead's notes on the beats snap to the sounding chord; 2 ALL: every note */
+    uint16_t drift; /* 0..1000: at each pass of the chain, the chance that one chord changes */
+    uint8_t
+        drift_depth; /* 0 DEG (a function-equivalent degree), 1 SHAPE, 2 VOICE (inversion, spread, octave), 3 ALL */
 } MelloChordConfig;
 #endif
 

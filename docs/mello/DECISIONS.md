@@ -735,6 +735,94 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   91040 of 98304. A fifth slot needs 32 KiB of pool (the delay's 1.49 s is the only thing that size) and flash
   that no map lists (0xE5000..0xFC000 is unlisted in Felucca's): not without a unit.
 
+## Harmony as the spine (2026-11-01)
+
+The user, after the progressions: "improve the chords much more deeply; they must talk with everything else, in all
+directions, and it must stay as easy to make my own things. My favourite is MED or HIGH, randomize, complex loop
+chains, long ambient melodic pieces that evolve for 10, 20, 30 minutes: we must not lose that." And: "the chords do
+not quite follow the rest rhythmically, the ones." The chord machine already listened one way: the chain is resolved
+in the loop cycle's key and scale, the sub and the BASS SEQ follow the chord's root (SUB ROOT), and the chords take
+EVOLVE's and DOT's modulation (C.CUT, C.LEVEL). What it did not do was speak back to the melody, change over a long
+run, or keep time with the bar. Three things, all on one new layer, CHORD > HARMONY, all off by default so nothing
+saved sounds different:
+
+- **FOLLOW** (OFF, BEATS, ALL). The lead's notes are moved to the nearest tone of the chord sounding, the smaller
+  way: on BEATS only the notes on the beats (every fourth step), so the melody still walks between them and lands
+  with the harmony; on ALL every note. It is applied where the note is resolved, so it holds for the sequence,
+  for ratchets and holds and for the samples' pitch, and it reads the chord as voiced, so voice leading and
+  inversions count. A chain of MED or HIGH chords under a MED or HIGH melody then sounds composed rather than
+  coincident, and a hand-written melody over hand-written chords is untouched until you turn it on.
+- **DRIFT** (0 .. 100%) and **DEPTH** (DEG, SHAPE, VOICE, ALL). Each time the chain comes round (its wrap, or the
+  RESET that starts it over), with the chance DRIFT one chord changes within DEPTH: DEG swaps it for a degree of the
+  same harmonic function (tonic i / VI / III, subdominant iv / ii / VI, dominant v / VII), so the progression keeps
+  its sense; SHAPE gives it another shape (triad, seventh, sus2, sus4); VOICE another inversion, spread or octave;
+  ALL one of the three. The first chord keeps its degree: home stays home while the rest wanders, which is what
+  lets a progression run for half an hour and still be itself. DRIFT 30% on DEPTH VOICE is a slow shimmer; 70% on
+  ALL is a progression that has become another one after ten minutes. UNDO does not follow DRIFT (it is the
+  music moving, not an edit), and a save keeps the chain as it stands.
+- **The ones.** A progression rolled over the chain's default (HOLD 2, by triggers, the arpeggio's) now runs on the
+  clock chain (NEXT STEPS: HOLD counted in sixteenths), so a chord changes on the grid whatever the lead rests or
+  holds, and the RESET that starts the drums and the bass over now also resets the clock chain's count, so the
+  first chord falls on the one. The polymetric case the user liked, three chords over two bars, still works:
+  a chain whose length does not meet the reset keeps its own round and realigns when it does.
+
+MED and HIGH roll progressions too now, through the same walk MUSICAL uses (roll_progression), HIGH with more colour
+and its voicings thrown wide: four random degrees with random holds was the one place the randomizer still threw
+dice. LOW still nudges what is there. The pattern masks keep their own randomization. Stored in SEC_CHORD version
+4; a version 3 record reads as FOLLOW OFF, DRIFT 0, DEPTH ALL. Test: chord_harmony.
+
+## Progressions with a function (2026-11-01)
+
+MUSICAL rolled the chord chain from six fixed progressions (i VI iv v, i iv v i, I V vi IV ...): the user, rightly,
+"the most common pop progression ever made, a bit boring". Now the chain is walked, not looked up: three to eight
+chords (four and eight most often; eight at HOLD 8 is a four-bar progression) through the three harmonic functions, tonic (degrees i, VI, III), subdominant (iv, ii,
+VI) and dominant (v, VII, ii), with the transitions a harmony teacher would mark: tonic to subdominant most, to
+dominant some; subdominant to dominant most; dominant home most of the time and once in six to the subdominant,
+the deceptive cadence. The phrase starts on the tonic four times in five and ends there three times in four,
+else open on the dominant; the tonic's substitutes (VI, III) take its place in the middle; no degree twice
+running. The degrees are the scale's own, so a dorian roll has its major IV and a phrygian one its II, and the
+colour comes from the scale rather than from a table. A roll draws how coloured it is: from plain triads to
+sevenths, sus2 and sus4 with inversions. The holds are even, or long-short (12 and 4 of 16) two rolls in five,
+and when the chain still stands on its default HOLD 2 (the arpeggio's) MUSICAL sets 8: two chords a bar at 16
+steps, four over the 2 BAR reset. Settings the user has changed (a HOLD other than 2) are kept.
+
+## A kick with weight (2026-11-01)
+
+The user: "it all sounds very light and cheerful; I wish I had a much deeper, punchier EDM / techno kick; the drums
+sound thin, light, bright; the music gets very arcade-game, and I wish it could sound like that sometimes but also
+like a dark techno beat when wanted. Go over it deeply and adjust, without taking anything out." What was thin,
+measured on one default kick hit rendered alone (drum_weight): peak 3411 of 32767, above -20 dB for 70 ms, and 147
+of energy at the fundamental and its first two harmonics. The kick was a clean sine at 57 Hz with a short 1.7x
+sweep and a 258 ms tail; a clean 57 Hz sine is what a small speaker cannot carry, and the sweep was over before
+the ear heard it as a punch. Changed, without removing anything:
+
+- **The kick.** The fundamental 38 .. 90 Hz (was 35 .. 90), its pitch falling from 3.5x over 90 ms (was 1.7x over
+  60) under the 7x click, the sine always driven from 22% so the harmonics a speaker carries are there, TONE adding
+  drive on top (it used to add all of it), the tail up to 1.5 s (was 1.2), the level held up to 14 ms. Default DECAY
+  180 and TONE 25% (were 100 and 10%): 340 ms, driven. Now: peak 3901, 120 ms above -20 dB, low end 254.
+- **The snare.** The body lasts half the hit (was a quarter) at twice its weight, and the noise's band-pass starts
+  at 600 Hz (was 900) so a low TUNE gives a darker crack.
+- **The kit.** LEVEL 80% by default (was 70): it sits with the lead, not behind it.
+- **DUCK**, new on the DIST layer's third knob: the kick's sidechain. At each kick the lead, the sub and the chords
+  dip by DUCK and come back over ~160 ms. 0 by default, so nothing saved sounds different; 40 .. 60% is the pump of
+  a techno track. Stored in SEC_DRUMS version 2; a version 1 record reads as 0.
+
+Dark versus cheerful is then a matter of settings, not of what the instrument can do: a long driven kick with DUCK
+on, a low CUTOFF with SAT, a saw rather than a square, HOLD chords, a big dark reverb and 120 .. 130 BPM is the
+one; a bright square lead over a short kick at 80 BPM the other. The sound examples of 2026-11-01 give both.
+
+## The chords move too (2026-11-01)
+
+The user: "the chord sound is very static; EVOLVE must be routable to it too, and preferably inverted from what
+goes to the ordinary synth." The chord voice had its own filter and envelopes but nothing modulated them: the
+modulation destinations (DOT's MOD lanes, EVOLVE's DEST A and B) were the lead's parameters and the drums'. Two
+more: C.CUT, the chords' filter cutoff on CUT's own range, and C.LEVEL, their level from nothing to twice. The depth
+of a route was already signed (-100% .. +100%), so the inversion asked for is a route with a negative depth: EVOLVE
+A on CUTOFF at +50% and B on C.CUT at -50% opens the lead as it closes the chords, and the two parts answer each
+other instead of standing still together. The audio keeps the chords' share of the modulation sum per block
+(chord_mod_cut, chord_mod_level) and reads it in the filter coefficients and the mix. Stored routes with ids beyond
+an older firmware's list fall back to OFF there (the sanitizer). Test: chord_routes.
+
 ## RESET resets everything (2026-11-01)
 
 RESET (STEP > SEQ, 1 to 8 BAR, or FREE) used to reset the sequence's segment traversal alone: the drums, the BASS
@@ -745,6 +833,11 @@ drums, the bass line and the chord chain (its position, its hold count and the g
 sequence; FREE leaves every part on its own clock. The parts still have their own clocks between resets (a 12-step
 drum pattern still turns over inside the two bars), which is what gives polymetric patterns their life, but they
 all meet on the one. The transport's own start resets the same things, so a reset is a start. Test: reset_all_parts.
+
+One exception, the same day: the chord chain starts over only at the resets that meet its own length (or when it
+is no longer than the reset). A progression of eight chords at HOLD 8 is four bars; under a 2 BAR reset it used
+to be cut off after the fourth chord every time ("the same progression all the way"), so now it starts over every
+second reset, and a three-chord chain over two bars realigns every third.
 
 ## A bass line that fits (2026-11-01)
 

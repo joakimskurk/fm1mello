@@ -449,9 +449,9 @@ static const char *lfo_target_name(MelloLfoTarget t)
 
 static const char *mod_dest_name(uint8_t d)
 {
-    static const char *n[MELLO_DEST_COUNT] = {"OFF",    "CUTOFF",  "RES",     "DECAY",  "PITCH",  "OSC 2",
-                                              "FM",     "NOISE",   "N.FM",    "SAT",    "DETUNE", "PWM",
-                                              "D.TUNE", "D.DECAY", "D.CRUSH", "D.DRIVE"};
+    static const char *n[MELLO_DEST_COUNT] = {"OFF",    "CUTOFF",  "RES",     "DECAY",   "PITCH",  "OSC 2",
+                                              "FM",     "NOISE",   "N.FM",    "SAT",     "DETUNE", "PWM",
+                                              "D.TUNE", "D.DECAY", "D.CRUSH", "D.DRIVE", "C.CUT",  "C.LEVEL"};
     return d < MELLO_DEST_COUNT ? n[d] : "?";
 }
 
@@ -1721,7 +1721,7 @@ static const char *chord_mode_name(MelloChordMode m)
 }
 /* CHORD's layers: PLAY, CHORD, VOICING, GRID (with TRIG GRID), PATTERN (with MODE PATTERN), TONE, FILTER, MOTION,
  * AMP. */
-#define CHORD_LAYERS 9u
+#define CHORD_LAYERS 10u /* the tenth, HARMONY (2026-11-01): FOLLOW, DRIFT, DEPTH */
 static bool chord_layer_shown(const MelloChordConfig *c, uint8_t l)
 {
     (void)c;
@@ -1798,6 +1798,9 @@ static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
     case 33: c.decay_ms = chord_ms(c.decay_ms, delta, 10u, 4000u); break;
     case 34: c.sustain = (uint16_t)clamp_i32((int32_t)c.sustain + delta * 10, 0, 1000); break;
     case 35: c.release_ms = chord_ms(c.release_ms, delta, 5u, 4000u); break;
+    case 36: c.lead_follow = (uint8_t)clamp_i32((int32_t)c.lead_follow + (delta > 0 ? 1 : -1), 0, 2); break;
+    case 37: c.drift = (uint16_t)clamp_i32((int32_t)c.drift + delta * 50, 0, 1000); break;
+    case 38: c.drift_depth = (uint8_t)clamp_i32((int32_t)c.drift_depth + (delta > 0 ? 1 : -1), 0, 3); break;
     default: return;
     }
     mello_engine_chord_set_config(e, &c);
@@ -1841,6 +1844,7 @@ static void adjust_drums(MelloUi *ui, uint8_t knob, int16_t delta)
     case 15: d.level = (uint16_t)clamp_i32((int32_t)d.level + delta * 10, 0, 1000); break;
     case 16: d.drive = (uint16_t)clamp_i32((int32_t)d.drive + delta * 10, 0, 1000); break;
     case 17: d.fold = (uint16_t)clamp_i32((int32_t)d.fold + delta * 10, 0, 1000); break;
+    case 18: d.duck = (uint16_t)clamp_i32((int32_t)d.duck + delta * 10, 0, 1000); break;
     default: return;
     }
     mello_engine_drums_set_config(e, &d);
@@ -4882,6 +4886,9 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 33: v = c->decay_ms, m = 4000u; break;
         case 34: v = c->sustain; break;
         case 35: v = c->release_ms, m = 4000u; break;
+        case 36: v = c->lead_follow, m = 2u; break;
+        case 37: v = c->drift; break;
+        case 38: v = c->drift_depth, m = 3u; break;
         default: return false;
         }
 #endif
@@ -4908,6 +4915,7 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 15: v = d->level; break;
         case 16: v = d->drive; break;
         case 17: v = d->fold; break;
+        case 18: v = d->duck; break;
         default: return false;
         }
     } else if (ui->page == MELLO_UI_SAMPLE_RESERVED) {
@@ -5269,7 +5277,8 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
                                                    {"WAVE", "CHORUS", "SPACE", "LEVEL"},
                                                    {"CUT", "RES", "ENV", "LINK"},
                                                    {"F.ATK", "F.DEC", "STRUM", "NEXT"},
-                                                   {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"}};
+                                                   {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"},
+                                                   {"FOLLOW", "DRIFT", "DEPTH", ""}};
         MelloChordConfig *c = &e->chord;
         MelloChordStep *s = &c->steps[ui->selected_chord_step % c->length];
         uint8_t L = ui->chord_subpage % CHORD_LAYERS;
@@ -5328,6 +5337,15 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[3], c->chain == MELLO_CHORD_CHAIN_STEPS
                              ? "STEPS"
                              : (c->chain == MELLO_CHORD_CHAIN_SEG ? "SEG" : "TRIG"));
+            break;
+        case 9: /* HARMONY: the lead on the chord's tones, and a chain that drifts */
+            copy_s(v[0], c->lead_follow == 0u ? "OFF" : (c->lead_follow == 1u ? "BEATS" : "ALL"));
+            value_pct(v[1], c->drift);
+            copy_s(v[2], c->drift_depth == 0u   ? "DEG"
+                         : c->drift_depth == 1u ? "SHAPE"
+                         : c->drift_depth == 2u ? "VOICE"
+                                                : "ALL");
+            copy_s(v[3], "-");
             break;
         default:
             value_ms(v[0], c->attack_ms);
@@ -5538,7 +5556,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
                                                   {"PITCH", "DECAY", "CRUSH", "RATCH"},
                                                   {"CHANCE", "CRUSH", "FEED", "ROLL"},
                                                   {"LENGTH", "FOLLOW", "SPACE", "LEVEL"},
-                                                  {"DRIVE", "FOLD", "", ""}};
+                                                  {"DRIVE", "FOLD", "DUCK", ""}};
         const MelloDrumConfig *d = &e->drums;
         const MelloDrumVoice *dv = &d->voice[ui->selected_drum_voice % MELLO_DRUM_VOICES];
         const MelloDrumLock *dl =
@@ -5549,8 +5567,8 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             static const char *kind[4] = {"BLEEP", "CHIRP", "CRACKLE", "STUTTER"};
             value_pct(v[0], dv->tune);
             { /* the voice's decay as the time it is (mello_audio's base and span per voice) */
-                static const uint16_t base_ms[4] = {60u, 60u, 15u, 10u},
-                                      span_ms[4] = {1140u, 540u, 785u, 390u};
+                static const uint16_t base_ms[4] = {80u, 70u, 15u, 10u},
+                                      span_ms[4] = {1420u, 630u, 785u, 390u};
                 uint8_t dvi = ui->selected_drum_voice % MELLO_DRUM_VOICES;
                 value_ms(v[1], base_ms[dvi] + (uint32_t)dv->decay * span_ms[dvi] / 1000u);
             }
@@ -5578,7 +5596,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         } else {
             value_pct(v[0], d->drive);
             value_pct(v[1], d->fold);
-            copy_s(v[2], "-");
+            value_pct(v[2], d->duck);
             copy_s(v[3], "-");
         }
         break;
@@ -6179,7 +6197,7 @@ static const char *layer_name(const MelloUi *ui)
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD: {
         static const char *chd[CHORD_LAYERS] = {"PLAY", "CHORD",  "VOICING", "GRID", "PATTERN",
-                                                "TONE", "FILTER", "MOTION",  "AMP"};
+                                                "TONE", "FILTER", "MOTION",  "AMP",  "HARMONY"};
         return chd[ui->chord_subpage % CHORD_LAYERS];
     }
 #endif

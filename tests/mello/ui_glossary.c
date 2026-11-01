@@ -48,7 +48,7 @@ static int subcount(MelloUiPage p)
     case MELLO_UI_TURING: return 4;
     case MELLO_UI_SUB: return 6;
 #if MELLO_FEATURE_CHORD_MACHINE
-    case MELLO_UI_CHORD: return 9;
+    case MELLO_UI_CHORD: return 10;
 #endif
     case MELLO_UI_GLOBAL: return 3;
     case MELLO_UI_SOUND_RESERVED: return 10;

@@ -114,6 +114,17 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       sporadic, undoable. Package 0.5-f34.
 - [x] D9. RESET resets everything (DECISIONS): at the reset the drums, the bass line and the chord chain start over
       with the sequence; FREE leaves them on their own clocks. Package 0.5-f35.
+- [x] D10. The chords move too (DECISIONS): C.CUT and C.LEVEL as modulation destinations for DOT's MOD lanes and
+      EVOLVE's routes; a negative depth inverts, so the chords answer the lead. Package 0.5-f36.
+- [x] D11. A kick with weight (DECISIONS): a driven sine falling from 3.5x over 90 ms, decaying up to 1.5 s, the
+      snare's body doubled, the kit at 80%, and DUCK (the kick's sidechain) on the DIST layer. Package 0.5-f37.
+- [x] D12. Progressions with a function (DECISIONS): MUSICAL walks the chord chain through tonic, subdominant and
+      dominant on the scale's own degrees, 3 to 8 chords, deceptive cadences, open endings, sevenths and sus
+      chords, long-short holds; HOLD 8 in place of the default 2. Package 0.5-f38.
+- [x] D13. Harmony as the spine (DECISIONS): CHORD > HARMONY with FOLLOW (the lead's notes on the beats, or all of
+      them, moved to the chord sounding), DRIFT (one chord changes each pass round the chain, within DEPTH, home
+      kept) and DEPTH; MED and HIGH roll progressions too; a rolled progression runs on the clock chain and the
+      chain restarts with RESET, so the chords land on the one. Package 0.5-f39.
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, D1-D2, first flash and C4.
 
