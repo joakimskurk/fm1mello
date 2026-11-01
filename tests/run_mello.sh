@@ -33,6 +33,19 @@ run() {    # name, binary suffix, extra flags
     fi
 }
 
+# sample_transfer_roundtrip also feeds in a record made by the host tool (tools/fm1_samples.py): a 440 Hz sine,
+# 1 s at 22 050 Hz, named PYTONE, for slot 1. Without python3 the test says so and skips that part.
+rm -f "$OUT/py_record.bin"
+if command -v python3 >/dev/null 2>&1; then
+    python3 -c '
+import math, struct, sys, wave
+w = wave.open(sys.argv[1], "wb"); w.setnchannels(1); w.setsampwidth(2); w.setframerate(22050)
+w.writeframes(b"".join(struct.pack("<h", int(16383.0 * math.sin(6.2831853 * 440.0 * i / 22050))) for i in range(22050)))
+w.close()' "$OUT/py_tone.wav" &&
+        python3 tools/fm1_samples.py pack "$OUT/py_tone.wav" --slot 1 --name PYTONE -o "$OUT/py_record.bin" >/dev/null ||
+        rm -f "$OUT/py_record.bin"
+fi
+
 FAILED=0
 if [ $# -gt 0 ]; then NAMES="$*"; else NAMES=$(cd tests/mello && ls ./*.c | sed 's|^\./||; s|\.c$||'); fi
 for n in $NAMES; do
