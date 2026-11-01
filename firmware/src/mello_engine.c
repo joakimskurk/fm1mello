@@ -4156,6 +4156,17 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         e->active_runtime_segment = 0u;
         e->segment_pulse_pos = 0u;
         e->segment_repeat_done = 0u;
+        /* RESET is a reset for every part (DECISIONS.md "RESET resets everything"): the drums, the bass line and
+         * the chord chain start over with the sequence, so a 12-step bass under a 16-step lead lines up again at
+         * every RESET; only FREE lets each part run its own length. */
+        e->drum_pos = 0u;
+        e->bass_pos = 0u;
+        e->bass_glide_in = false;
+#if MELLO_FEATURE_CHORD_MACHINE
+        e->chord_chain_pos = 0u;
+        e->chord_chain_hold = 0u;
+        e->chord_grid_tick = 0u;
+#endif
     } else
         advance_segment_traversal(e);
     set_current_entry(e);

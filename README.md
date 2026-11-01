@@ -24,7 +24,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f34.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f35.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -143,7 +143,9 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
 
 - **The sequence** (SEQ > STEP). 16 steps (up to 32), each with a pitch in the key, pulses (its length), ratchets,
   a gate (SINGLE, HOLD, REST, MULTI), an octave, a chance, a sample slot and its own wave; flags for accent, sub,
-  slide and skip. SEQ's last layer sets the length, the bar reset, the clock division and the pitch span.
+  slide and skip. SEQ's last layer sets the length, the bar reset, the clock division and the pitch span. At the
+  reset (RESET 1 to 8 BAR) every part starts over together: the sequence, the drums, the bass line and the chord
+  chain; FREE leaves each on its own clock.
 - **Segments** (SEQ > SEGMENT). The sequence cut into up to six segments A-F, each with repeats, an order (FWD, REV,
   ping-pong, random) and a skip; EVEN spreads the cuts.
 - **Loop cycle** (SEQ > LOOP CYCLE). Up to eight steps that transpose the whole sequence, change its key or scale

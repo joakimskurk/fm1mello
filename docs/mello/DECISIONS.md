@@ -735,6 +735,17 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   91040 of 98304. A fifth slot needs 32 KiB of pool (the delay's 1.49 s is the only thing that size) and flash
   that no map lists (0xE5000..0xFC000 is unlisted in Felucca's): not without a unit.
 
+## RESET resets everything (2026-11-01)
+
+RESET (STEP > SEQ, 1 to 8 BAR, or FREE) used to reset the sequence's segment traversal alone: the drums, the BASS
+SEQ line and the chord chain kept their own clocks, so a 12-step bass under a 16-step lead drifted against it
+until their lengths met. The user: "it does not sound as if everything resets to 1 when the sequence has run its
+course; that should always happen unless something is FREE." Agreed, and that is the rule now: at the reset the
+drums, the bass line and the chord chain (its position, its hold count and the grid's tick) start over with the
+sequence; FREE leaves every part on its own clock. The parts still have their own clocks between resets (a 12-step
+drum pattern still turns over inside the two bars), which is what gives polymetric patterns their life, but they
+all meet on the one. The transport's own start resets the same things, so a reset is a start. Test: reset_all_parts.
+
 ## A bass line that fits (2026-11-01)
 
 The user wanted to roll the bass as the drums roll: "not MUSICAL as such, but weighted towards something usable;

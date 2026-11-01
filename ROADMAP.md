@@ -112,6 +112,8 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
 - [x] D8. ROLL on BASS (DECISIONS "A bass line that fits"): a BASS SEQ line under the sequence as it is, roots and
       fifths or the lead's chord tones on the beats, walks and octave jumps between, an octave down, never
       sporadic, undoable. Package 0.5-f34.
+- [x] D9. RESET resets everything (DECISIONS): at the reset the drums, the bass line and the chord chain start over
+      with the sequence; FREE leaves them on their own clocks. Package 0.5-f35.
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, D1-D2, first flash and C4.
 
