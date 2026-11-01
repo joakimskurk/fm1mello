@@ -100,6 +100,9 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
 - [x] D5. HOME's knobs are yours: EDIT held on HOME is MACROS, each of K1-K4 picks what it turns from 26 live
       parameters (none a black key's or an encoder's); saved with the project in SEC_MACROS. The status line counts
       the beats before RESET, not the sequence's steps.
+- [ ] D6. Black ground (DECISIONS "Black ground"): the palette and the zones are done for every page, HOME's body is
+      redrawn. Still to redraw, body by body, from the mockups: STEP (the card goes, the step's pulses and ratchets
+      as rows), SOUND (the picture gets the body, the layers as dots), DRUMS (the grid gets the room), then the rest.
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, D1-D2, first flash and C4.
 

@@ -60,7 +60,7 @@ static void text(void *c, int16_t x, int16_t y, int16_t w, uint8_t large, const 
     if (y == 7) { /* the header's words, in order */
         size_t n = strlen(header);
         snprintf(header + n, sizeof header - n, "%s%s", n ? " " : "", s);
-    } else if (y == 188 && x >= 2) {
+    } else if (y == 189 && x >= 2) {
         int k = (x - 2) / 60;
         if (k >= 0 && k < 4) snprintf(label[k], sizeof label[k], "%s", s);
     }

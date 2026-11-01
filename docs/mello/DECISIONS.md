@@ -735,6 +735,21 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   91040 of 98304. A fifth slot needs 32 KiB of pool (the delay's 1.49 s is the only thing that size) and flash
   that no map lists (0xE5000..0xFC000 is unlisted in Felucca's): not without a unit.
 
+## Black ground (2026-11-01)
+
+The user found the screen busy: the HTML's five green tones (ground #040E08, two panels, lines, dim and mid text)
+sat under everything, so the frame competed with the sequence. The new rule: the ground is black (#000000), the
+frame is grey, and a colour appears only where it means something. Labels #6E7470, standing figures and the status
+line #8E948F, values #E1FFEE or the knob's colour; a card #101010 only where the content needs one; one hairline
+#262626 between the zones (under the header at 29, over the strip at 171, over the footer at 188 with a hairline
+between its columns, over the status at 220) instead of filled bands. The zones keep their geometry, so no drawing
+routine moves; the body stops at row 170 and the footer's text rows are 189 and 205. The header reads the page in
+white and the layer in the page's colour (HOME: `HOME > A` with the segment in its colour); the tempo is green only
+while playing. The functional colours and the segment colours are untouched. HOME first: segment lines under the
+letters, bars in their segment's full colour (the playing one white-capped and white-topped, the picked one framed),
+the keys' strip as quiet cells with the label in its colour. The other pages' bodies keep their cards until each is
+redrawn. Mockups: the design canvas of 2026-11-01.
+
 ## HOME's knobs are yours (2026-11-01)
 
 The HTML's four macros (CUTOFF, DECAY, SPACE, DRIVE) are HOME's K1-K4 by default, and they stay the default. But a
