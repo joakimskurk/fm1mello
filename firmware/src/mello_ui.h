@@ -146,6 +146,11 @@ typedef struct {
     /* KEYS (EDIT on HOME): the 27 keys are a keyboard. Playing: a key is the new root. Stopped: it plays the lead
      * while held; with REC on, it writes the next step (keys_rec_pos) and moves on. */
     bool keys_mode;
+    /* MACROS (EDIT held on HOME): K1-K4 pick what they turn (MelloMacroConfig); a tap of EDIT leaves. EDIT's tap
+     * (KEYS) waits for the release, like SAVE's. */
+    bool macro_mode;
+    bool edit_down;
+    uint32_t edit_down_ms;
     bool step_pitch_mode; /* STEP's EDIT: the white keys set the picked step's pitch (R6) */
     bool keys_rec;
     uint8_t keys_rec_pos;

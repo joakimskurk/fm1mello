@@ -6,6 +6,7 @@ K1-K4's labels with their default values. Regenerate with the extractor (uimap.c
 | Screen | Page | Button | Layer | Strip B0..B10 | K1 · K2 · K3 · K4 |
 |---|---|---|---|---|---|
 | <img src="../screens/home.png" width="96" alt="HOME —"> | HOME | HOME | — | `- + MUT RST CLR F B < R UNDO RNDMZR` | CUTOFF 3264HZ · DECAY 180MS · SPACE 24% · DRIVE 0% |
+| <img src="../screens/home-macros.png" width="96" alt="HOME MACROS"> | HOME | hold EDIT | MACROS | `- + MUT RST CLR F B < R UNDO RNDMZR` | each knob picks what it turns (CUTOFF, RES, DECAY, ATTACK, RELEASE, SPACE, DRIVE, DELAY, FDBK, REVERB, SIZE, LFO HZ, LFO AMT, PWM, NOISE, DETUNE, OSC 2, FM, SAT, MODENV, SUB LVL, LEAD, BASS, CHORD, DRUMS, SWING) |
 | <img src="../screens/step-trig.png" width="96" alt="STEP TRIG"> | STEP | SEQ | TRIG | `SKIP F B < R UNDO RNDMZR` | PITCH +0 · PULSE 1 · RATCH 1 · GATE SINGLE |
 | <img src="../screens/step-note.png" width="96" alt="STEP NOTE"> | STEP | SEQ | NOTE | `SKIP F B < R UNDO RNDMZR` | OCT +0 · PROB 100% · SAMP 1 · WAVE SND |
 | <img src="../screens/step-flags.png" width="96" alt="STEP FLAGS"> | STEP | SEQ | FLAGS | `SKIP F B < R UNDO RNDMZR` | ACCENT OFF · SUB OFF · SLIDE OFF · SKIP OFF |

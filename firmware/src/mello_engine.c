@@ -1290,6 +1290,7 @@ void mello_engine_init(MelloEngine *e, const MelloProject *project, uint32_t see
     mello_sound_defaults(&e->sound);
     mello_sample_defaults(&e->sample);
     mello_fx_defaults(&e->fx);
+    mello_macros_defaults(&e->macros);
     e->visible_slot_count = 8u;
     e->active_slot = -1;
     e->queued_slot = -1;
@@ -2503,6 +2504,22 @@ void mello_engine_sample_set_config(MelloEngine *e, const MelloSampleConfig *c)
 void mello_engine_fx_set_config(MelloEngine *e, const MelloFxConfig *c)
 {
     if (e && c) e->fx = sanitize_fx_config(*c);
+}
+
+void mello_macros_defaults(MelloMacroConfig *c)
+{
+    if (!c) return;
+    c->id[0] = MELLO_MACRO_CUTOFF;
+    c->id[1] = MELLO_MACRO_DECAY;
+    c->id[2] = MELLO_MACRO_SPACE;
+    c->id[3] = MELLO_MACRO_DRIVE;
+}
+
+void mello_engine_macros_set(MelloEngine *e, const MelloMacroConfig *c)
+{
+    uint8_t k;
+    if (!e || !c) return;
+    for (k = 0u; k < 4u; ++k) e->macros.id[k] = c->id[k] < MELLO_MACRO_COUNT ? c->id[k] : (uint8_t)k;
 }
 
 void mello_engine_set_randomize_mask(MelloEngine *e, uint16_t mask)

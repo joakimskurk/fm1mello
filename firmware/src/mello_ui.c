@@ -285,6 +285,7 @@ void mello_ui_set_page(MelloUi *ui, MelloUiPage page)
     ui->step_pitch_mode = false;
     ui->held_step = MELLO_UI_NO_STEP;
     ui->keys_mode = ui->keys_rec = false;
+    ui->macro_mode = false;
     mark_full(ui);
 }
 
@@ -1102,31 +1103,173 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
     if (ui->page == MELLO_UI_SEQ_SLOTSEQ || ui->page == MELLO_UI_SLOTS) persistent_dirty(ui, now_ms);
 }
 
-/* HOME's K1-K4 with no step held: CUTOFF, DECAY (release follows in proportion), SPACE (reverb wet, delay at half:
- * the defaults 24/12 sit on that line), DRIVE. Live while playing; each detent counts. */
+/* HOME's K1-K4 with no step held: the four macros (MelloMacroConfig; by default the HTML's CUTOFF, DECAY with the
+ * release following in proportion, SPACE as reverb wet with the delay at half, DRIVE). Live while playing; each
+ * detent counts. The list is the performance parameters that are not already on a black key or an encoder. */
+static char *put_u32(char *p, uint32_t v);
+static char *put_i32(char *p, int32_t v);
+static char *copy_s(char *p, const char *s);
+static void value_ms(char *b, uint32_t ms);
+static void value_cutoff(char *b, uint16_t cut);
+static void value_pct(char *b, uint32_t permille);
+static void value_millihz(char *b, uint32_t mhz);
+
+static const char *macro_name(uint8_t id)
+{
+    static const char *n[MELLO_MACRO_COUNT] = {
+        "CUTOFF", "RES",    "DECAY",   "ATTACK",  "RELEASE", "SPACE", "DRIVE",  "DELAY", "FDBK",
+        "REVERB", "SIZE",   "LFO HZ",  "LFO AMT", "PWM",     "NOISE", "DETUNE", "OSC 2", "FM",
+        "SAT",    "MODENV", "SUB LVL", "LEAD",    "BASS",    "CHORD", "DRUMS",  "SWING"};
+    return id < MELLO_MACRO_COUNT ? n[id] : "?";
+}
+
+static void macro_value(const MelloEngine *e, uint8_t id, char *b)
+{
+    const MelloSoundConfig *s = &e->sound;
+    const MelloFxConfig *f = &e->fx;
+    switch (id) {
+    case MELLO_MACRO_CUTOFF: value_cutoff(b, s->filter_cut); break;
+    case MELLO_MACRO_RES: value_pct(b, s->filter_res); break;
+    case MELLO_MACRO_DECAY: value_ms(b, s->decay_ms); break;
+    case MELLO_MACRO_ATTACK: value_ms(b, s->attack_ms); break;
+    case MELLO_MACRO_RELEASE: value_ms(b, s->release_ms); break;
+    case MELLO_MACRO_SPACE:
+    case MELLO_MACRO_REVERB: value_pct(b, f->reverb_wet); break;
+    case MELLO_MACRO_DRIVE: value_pct(b, f->dist_amount); break;
+    case MELLO_MACRO_DELAY: value_pct(b, f->delay_wet); break;
+    case MELLO_MACRO_FEEDBACK: value_pct(b, f->delay_feedback); break;
+    case MELLO_MACRO_SIZE: value_pct(b, f->reverb_size); break;
+    case MELLO_MACRO_LFO_RATE: value_millihz(b, s->lfo_rate_millihz); break;
+    case MELLO_MACRO_LFO_DEPTH: value_pct(b, s->lfo_depth); break;
+    case MELLO_MACRO_PWM: value_pct(b, s->pwm_permille); break;
+    case MELLO_MACRO_NOISE: value_pct(b, s->noise_level); break;
+    case MELLO_MACRO_DETUNE: copy_s(put_u32(b, ((uint32_t)s->detune * 60u + 500u) / 1000u), " CT"); break;
+    case MELLO_MACRO_OSC2_MIX: value_pct(b, s->osc2_mix); break;
+    case MELLO_MACRO_FM: value_pct(b, s->fm_amount); break;
+    case MELLO_MACRO_SAT: value_pct(b, s->saturation); break;
+    case MELLO_MACRO_MOD_ENV:
+        copy_s(put_i32(b, (s->menv_amount + (s->menv_amount < 0 ? -5 : 5)) / 10), "%");
+        break;
+    case MELLO_MACRO_SUB_LEVEL: value_pct(b, s->follower_sub_level); break;
+    case MELLO_MACRO_LEAD: value_pct(b, s->lead_level); break;
+    case MELLO_MACRO_BASS: value_pct(b, e->sub.level); break;
+#if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_MACRO_CHORD: value_pct(b, e->chord.level); break;
+#endif
+    case MELLO_MACRO_DRUMS: value_pct(b, e->drums.level); break;
+    case MELLO_MACRO_SWING: value_pct(b, e->drums.swing); break;
+    default: copy_s(b, "-"); break;
+    }
+}
+
+static uint16_t macro_step(uint16_t v, int16_t delta, int32_t lo, int32_t hi) /* permille-like: 10 a detent */
+{
+    return (uint16_t)clamp_i32((int32_t)v + delta * 10, lo, hi);
+}
+static uint16_t macro_time(uint16_t v, int16_t delta, int32_t lo, int32_t hi,
+                           int32_t least) /* ~5% a detent */
+{
+    int32_t step = (int32_t)v / 20 > least ? (int32_t)v / 20 : least;
+    return (uint16_t)clamp_i32((int32_t)v + delta * step, lo, hi);
+}
+
+static void adjust_macro(MelloUi *ui, uint8_t id, int16_t delta)
+{
+    MelloEngine *e = eng(ui);
+    if (id <= MELLO_MACRO_RELEASE || (id >= MELLO_MACRO_LFO_RATE && id <= MELLO_MACRO_LEAD)) {
+        MelloSoundConfig c = e->sound;
+        switch (id) {
+        case MELLO_MACRO_CUTOFF: c.filter_cut = macro_step(c.filter_cut, delta, 0, 1000); break;
+        case MELLO_MACRO_RES: c.filter_res = macro_step(c.filter_res, delta, 0, 1000); break;
+        case MELLO_MACRO_DECAY: {
+            int32_t d = c.decay_ms, nd = macro_time(c.decay_ms, delta, 5, 1000, 5);
+            c.release_ms = (uint16_t)clamp_i32((int32_t)c.release_ms * nd / (d ? d : 1), 5, 2000);
+            c.decay_ms = (uint16_t)nd;
+            break;
+        }
+        case MELLO_MACRO_ATTACK: c.attack_ms = macro_time(c.attack_ms, delta, 1, 500, 1); break;
+        case MELLO_MACRO_RELEASE: c.release_ms = macro_time(c.release_ms, delta, 5, 2000, 5); break;
+        case MELLO_MACRO_LFO_RATE: /* the LFO comes on when its macro is turned, else the knob is silent */
+            c.lfo_rate_millihz = macro_time(c.lfo_rate_millihz, delta, 8, 20000, 8);
+            c.lfo_on = true;
+            break;
+        case MELLO_MACRO_LFO_DEPTH:
+            c.lfo_depth = macro_step(c.lfo_depth, delta, 0, 1000);
+            c.lfo_on = true;
+            break;
+        case MELLO_MACRO_PWM: c.pwm_permille = macro_step(c.pwm_permille, delta, 50, 950); break;
+        case MELLO_MACRO_NOISE: c.noise_level = macro_step(c.noise_level, delta, 0, 1000); break;
+        case MELLO_MACRO_DETUNE: c.detune = macro_step(c.detune, delta, 0, 1000); break;
+        case MELLO_MACRO_OSC2_MIX: c.osc2_mix = macro_step(c.osc2_mix, delta, 0, 1000); break;
+        case MELLO_MACRO_FM: c.fm_amount = macro_step(c.fm_amount, delta, 0, 1000); break;
+        case MELLO_MACRO_SAT: c.saturation = macro_step(c.saturation, delta, 0, 1000); break;
+        case MELLO_MACRO_MOD_ENV:
+            c.menv_amount = (int16_t)clamp_i32((int32_t)c.menv_amount + delta * 20, -1000, 1000);
+            break;
+        case MELLO_MACRO_SUB_LEVEL:
+            c.follower_sub_level = macro_step(c.follower_sub_level, delta, 0, 1000);
+            break;
+        case MELLO_MACRO_LEAD: c.lead_level = macro_step(c.lead_level, delta, 0, 1000); break;
+        default: break;
+        }
+        mello_engine_sound_set_config(e, &c);
+    } else if (id <= MELLO_MACRO_SIZE) {
+        MelloFxConfig f = e->fx;
+        switch (id) {
+        case MELLO_MACRO_SPACE:
+            f.reverb_wet = macro_step(f.reverb_wet, delta, 0, 1000);
+            f.delay_wet = (uint16_t)(f.reverb_wet / 2u);
+            break;
+        case MELLO_MACRO_DRIVE: f.dist_amount = macro_step(f.dist_amount, delta, 0, 1000); break;
+        case MELLO_MACRO_DELAY: f.delay_wet = macro_step(f.delay_wet, delta, 0, 1000); break;
+        case MELLO_MACRO_FEEDBACK: f.delay_feedback = macro_step(f.delay_feedback, delta, 0, 950); break;
+        case MELLO_MACRO_REVERB: f.reverb_wet = macro_step(f.reverb_wet, delta, 0, 1000); break;
+        case MELLO_MACRO_SIZE: f.reverb_size = macro_step(f.reverb_size, delta, 0, 1000); break;
+        default: break;
+        }
+        mello_engine_fx_set_config(e, &f);
+    } else if (id == MELLO_MACRO_BASS) {
+        MelloSubConfig c = e->sub;
+        c.level = macro_step(c.level, delta, 0, 1000);
+        mello_engine_sub_set_config(e, &c);
+#if MELLO_FEATURE_CHORD_MACHINE
+    } else if (id == MELLO_MACRO_CHORD) {
+        MelloChordConfig c = e->chord;
+        c.level = macro_step(c.level, delta, 0, 1000);
+        mello_engine_chord_set_config(e, &c);
+#endif
+    } else if (id == MELLO_MACRO_DRUMS || id == MELLO_MACRO_SWING) {
+        MelloDrumConfig c = e->drums;
+        if (id == MELLO_MACRO_DRUMS)
+            c.level = macro_step(c.level, delta, 0, 1000);
+        else
+            c.swing = macro_step(c.swing, delta, 0, 1000);
+        mello_engine_drums_set_config(e, &c);
+    }
+    mark_edit(ui);
+}
+
 static void adjust_home_macro(MelloUi *ui, uint8_t knob, int16_t delta)
 {
     MelloEngine *e = eng(ui);
-    if (knob == 0u || knob == 1u) {
-        MelloSoundConfig c = e->sound;
-        if (knob == 0u)
-            c.filter_cut = (uint16_t)clamp_i32((int32_t)c.filter_cut + delta * 10, 0, 1000);
-        else {
-            int32_t d = c.decay_ms, step = d / 20 > 5 ? d / 20 : 5, nd = clamp_i32(d + delta * step, 5, 1000);
-            c.release_ms = (uint16_t)clamp_i32((int32_t)c.release_ms * nd / (d ? d : 1), 5, 2000);
-            c.decay_ms = (uint16_t)nd;
-        }
-        mello_engine_sound_set_config(e, &c);
-    } else {
-        MelloFxConfig f = e->fx;
-        if (knob == 2u) {
-            f.reverb_wet = (uint16_t)clamp_i32((int32_t)f.reverb_wet + delta * 10, 0, 1000);
-            f.delay_wet = (uint16_t)(f.reverb_wet / 2u);
-        } else
-            f.dist_amount = (uint16_t)clamp_i32((int32_t)f.dist_amount + delta * 10, 0, 1000);
-        mello_engine_fx_set_config(e, &f);
+    if (!ui->macro_mode) {
+        adjust_macro(ui, e->macros.id[knob & 3u], delta);
+        return;
     }
-    mark_edit(ui);
+    { /* MACROS: the knob picks what it will turn, round the list */
+        MelloMacroConfig m = e->macros;
+        uint8_t id = m.id[knob & 3u];
+        do id = wrap_u8((int32_t)id + (delta > 0 ? 1 : -1), MELLO_MACRO_COUNT);
+#if MELLO_FEATURE_CHORD_MACHINE
+        while (0);
+#else
+        while (id == MELLO_MACRO_CHORD);
+#endif
+        m.id[knob & 3u] = id;
+        mello_engine_macros_set(e, &m);
+        mark_edit(ui);
+        ui->dirty |= MELLO_UI_DIRTY_FOOTER;
+    }
 }
 
 static void adjust_home(MelloUi *ui, uint8_t knob, int16_t delta)
@@ -2658,10 +2801,9 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
             mark_edit(ui);
             ui->dirty |= MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_LEDS;
         } else if (ui->page == MELLO_UI_HOME) {
-            ui->keys_mode = !ui->keys_mode; /* KEYS: the keys are a keyboard */
-            ui->keys_rec = false;
-            ui->keys_rec_pos = 0u;
-            mark_full(ui);
+            ui->edit_down =
+                true; /* a tap = KEYS (or out of MACROS), held = MACROS: decided in the poll below */
+            ui->edit_down_ms = now_ms;
         }
     }
     if ((pressed & bit_u32(MELLO_UI_BTN_REC)) && ui->page == MELLO_UI_HOME && ui->keys_mode) {
@@ -2800,6 +2942,27 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
         } else if ((int32_t)(now_ms - ui->save_down_ms) >= 700) {
             ui->save_down = false; /* held: the pattern slots */
             mello_ui_set_page(ui, MELLO_UI_SLOTS);
+        }
+    }
+    if (ui->edit_down) { /* EDIT on HOME: let go = KEYS on or off (or out of MACROS); held half a second = MACROS */
+        if (ui->page != MELLO_UI_HOME)
+            ui->edit_down = false;
+        else if (!(held_buttons & bit_u32(MELLO_UI_BTN_EDIT)) ||
+                 (released_buttons & bit_u32(MELLO_UI_BTN_EDIT))) {
+            ui->edit_down = false;
+            if (ui->macro_mode)
+                ui->macro_mode = false;
+            else {
+                ui->keys_mode = !ui->keys_mode; /* KEYS: the keys are a keyboard */
+                ui->keys_rec = false;
+                ui->keys_rec_pos = 0u;
+            }
+            mark_full(ui);
+        } else if ((int32_t)(now_ms - ui->edit_down_ms) >= 500) {
+            ui->edit_down = false;
+            ui->macro_mode = true;
+            ui->keys_mode = ui->keys_rec = false;
+            mark_full(ui);
         }
     }
     perf_poll(ui); /* before the presses: REPEAT held + a white key */
@@ -3531,8 +3694,9 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
             o->text(o->ctx, x, 7, (int16_t)(196 - x), 0, layer, UI_BRIGHT, 0);
         }
     }
-    p = copy_s(b, ui->page == MELLO_UI_HOME && ui->keys_mode ? (ui->keys_rec ? "HOME REC" : "HOME KEYS")
-                                                             : domain_name(ui));
+    p = copy_s(b, ui->page == MELLO_UI_HOME && ui->keys_mode    ? (ui->keys_rec ? "HOME REC" : "HOME KEYS")
+                  : ui->page == MELLO_UI_HOME && ui->macro_mode ? "HOME MACROS"
+                                                                : domain_name(ui));
 #if MELLO_FEATURE_CHORD_MACHINE
     if (e && ui->page == MELLO_UI_HOME && !ui->keys_mode && e->chord.on && ui->transport->running &&
         e->chord_voiced_slot < e->chord.length) { /* HOME: the chord sounding, after the page's name */
@@ -4403,6 +4567,10 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
         o->text(o->ctx, 4, 172, 232, 0, "EDIT: A KEY SETS THE PITCH", UI_GOLD, 1);
         return;
     }
+    if (ui->page == MELLO_UI_HOME && ui->macro_mode) { /* MACROS: the knobs pick, the keys are as on HOME */
+        o->text(o->ctx, 4, 172, 232, 0, "MACROS: TURN A KNOB TO PICK", UI_GOLD, 1);
+        return;
+    }
     if (ui->page == MELLO_UI_HOME && ui->keys_mode) { /* every key is a note now: say what a key does */
         char b[40], *q;
         q = copy_s(b, ui->keys_rec ? "REC: STEP " : ui->transport->running ? "KEYS: ROOT " : "KEYS: PLAY ");
@@ -4765,15 +4933,11 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
     case MELLO_UI_HOME: {
         uint8_t si = ui->selected_step < MELLO_MAX_STEPS ? ui->selected_step : 0u;
         MelloStep *s = &e->project.steps[si];
-        if (ui->held_step == MELLO_UI_NO_STEP) {
-            l[0] = "CUTOFF";
-            value_cutoff(v[0], e->sound.filter_cut);
-            l[1] = "DECAY";
-            value_ms(v[1], e->sound.decay_ms);
-            l[2] = "SPACE";
-            value_pct(v[2], e->fx.reverb_wet);
-            l[3] = "DRIVE";
-            value_pct(v[3], e->fx.dist_amount);
+        if (ui->held_step == MELLO_UI_NO_STEP) { /* the four macros, whatever they are set to */
+            for (k = 0u; k < 4u; ++k) {
+                l[k] = macro_name(e->macros.id[k]);
+                macro_value(e, e->macros.id[k], v[k]);
+            }
             break;
         }
         l[0] = "PITCH";
@@ -6240,7 +6404,7 @@ static uint32_t calc_button_leds(MelloUi *ui)
     uint32_t m = pb <= MELLO_UI_BTN_REC ? bit_u32(pb) : 0u;
     MelloEngine *e = eng(ui);
     if (ui->transport && ui->transport->running) m |= bit_u32(MELLO_UI_BTN_PLAY);
-    if (ui->page == MELLO_UI_HOME && ui->keys_mode) m |= bit_u32(MELLO_UI_BTN_EDIT);
+    if (ui->page == MELLO_UI_HOME && (ui->keys_mode || ui->macro_mode)) m |= bit_u32(MELLO_UI_BTN_EDIT);
     if (ui->page == MELLO_UI_SEQ_STEP && ui->step_pitch_mode) m |= bit_u32(MELLO_UI_BTN_EDIT);
     if (ui->page == MELLO_UI_RANDOM && ui->random_edit) m |= bit_u32(MELLO_UI_BTN_EDIT);
     if (ui->page == MELLO_UI_HOME && ui->keys_rec) m |= bit_u32(MELLO_UI_BTN_REC);

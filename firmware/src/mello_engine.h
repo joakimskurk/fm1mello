@@ -625,6 +625,43 @@ typedef struct {
     uint16_t mask; /* MELLO_RAND_* */
 } MelloRandomizeConfig;
 
+/* HOME's four knobs: what each one turns, picked on HOME with EDIT held (DECISIONS.md "HOME's knobs are yours").
+ * Live parameters only, nothing the black keys or the panel's encoders already do (transpose, mutate, restart,
+ * clear, the performance holds, undo, the roll, the tempo, the intensity). The order is the knob's. */
+typedef enum {
+    MELLO_MACRO_CUTOFF = 0,
+    MELLO_MACRO_RES,
+    MELLO_MACRO_DECAY, /* the release follows in proportion (the HTML's DECAY macro) */
+    MELLO_MACRO_ATTACK,
+    MELLO_MACRO_RELEASE,
+    MELLO_MACRO_SPACE, /* reverb wet, the delay at half (the HTML's SPACE macro) */
+    MELLO_MACRO_DRIVE,
+    MELLO_MACRO_DELAY,
+    MELLO_MACRO_FEEDBACK,
+    MELLO_MACRO_REVERB,
+    MELLO_MACRO_SIZE,
+    MELLO_MACRO_LFO_RATE,
+    MELLO_MACRO_LFO_DEPTH,
+    MELLO_MACRO_PWM,
+    MELLO_MACRO_NOISE,
+    MELLO_MACRO_DETUNE,
+    MELLO_MACRO_OSC2_MIX,
+    MELLO_MACRO_FM,
+    MELLO_MACRO_SAT,
+    MELLO_MACRO_MOD_ENV,
+    MELLO_MACRO_SUB_LEVEL,
+    MELLO_MACRO_LEAD,
+    MELLO_MACRO_BASS,
+    MELLO_MACRO_CHORD,
+    MELLO_MACRO_DRUMS,
+    MELLO_MACRO_SWING,
+    MELLO_MACRO_COUNT
+} MelloMacroId;
+
+typedef struct {
+    uint8_t id[4]; /* MelloMacroId for K1..K4 */
+} MelloMacroConfig;
+
 /* Compact slot copy. Explicit bytes rather than C bitfields keeps the representation bounded. */
 typedef struct {
     int8_t pitch;
@@ -851,6 +888,7 @@ typedef struct {
     MelloSoundConfig sound;
     MelloSampleConfig sample;
     MelloFxConfig fx;
+    MelloMacroConfig macros; /* HOME's K1-K4 (not in a slot: how you play, not what) */
     MelloPulseModState last_mod;
 
     /* Undo for RANDOM and CLEAR: what the pattern was before the last one (mello_engine_undo_swap). */
@@ -1015,6 +1053,8 @@ void mello_engine_chord_name(const MelloEngine *engine, uint8_t chord_step, char
 void mello_engine_sound_set_config(MelloEngine *engine, const MelloSoundConfig *config);
 void mello_engine_sample_set_config(MelloEngine *engine, const MelloSampleConfig *config);
 void mello_engine_fx_set_config(MelloEngine *engine, const MelloFxConfig *config);
+void mello_macros_defaults(MelloMacroConfig *config); /* CUTOFF, DECAY, SPACE, DRIVE: the HTML's four */
+void mello_engine_macros_set(MelloEngine *engine, const MelloMacroConfig *config);
 /* The worst case the chip must carry (ROADMAP B1; tests/bench/cpu_bench.c, a -DMELLO_STRESS firmware): every part
  * on and busy at once: ratchets on every step, the lead with unison 4, OSC 2 with FM, noise and saturation, the LFO,
  * the sub on BASS SEQ with RES and ENV, four chord voices held with chorus, the drums on every step with rolls,

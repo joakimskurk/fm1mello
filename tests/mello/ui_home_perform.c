@@ -246,6 +246,7 @@ int main(void)
         t.running = false;
         mello_transport_set_event_sink(&t, sink, 0);
         mello_ui_input(&u, 0u, 30000u, edit, 0u, edit, 0u, e);
+        mello_ui_input(&u, 0u, 30050u, 0u, edit, 0u, 0u, e); /* a tap: KEYS on the release (held = MACROS) */
         if (!u.keys_mode) return fail("EDIT on HOME did not enter KEYS");
         sunk_n = 0u;
         mello_ui_set_held_notes(&u, key);

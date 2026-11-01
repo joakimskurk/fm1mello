@@ -735,6 +735,19 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   91040 of 98304. A fifth slot needs 32 KiB of pool (the delay's 1.49 s is the only thing that size) and flash
   that no map lists (0xE5000..0xFC000 is unlisted in Felucca's): not without a unit.
 
+## HOME's knobs are yours (2026-11-01)
+
+The HTML's four macros (CUTOFF, DECAY, SPACE, DRIVE) are HOME's K1-K4 by default, and they stay the default. But a
+front screen is where you play, and what you want under your hand differs by set: the user asked to choose. EDIT
+tapped on HOME is KEYS already, so EDIT held half a second is MACROS: each knob then picks, round a list, what it
+will turn, and a tap of EDIT leaves (EDIT's tap waits for the release now, like SAVE's). The list is the live
+parameters that make sense in a performance and are not already somewhere on the panel: nothing the black keys do
+(transpose, MUTATE, RESTART, CLEAR, FILL, BASS MUTE, REVERSE, REPEAT, UNDO, RNDMZR), nothing the encoders do (tempo,
+intensity, the slot). Picking turns nothing; the LFO comes on when its macro is first turned, since a silent knob
+is worse than a switch flipped. The choice is the project's, in its own storage section (SEC_MACROS) so an older
+firmware skips it and a record without it gives the four, and not a slot's: how you play, not what. The map's text
+rows come from the extractor, which does not know MACROS: its row is by hand until the extractor learns it.
+
 ## The status line counts beats, not steps (2026-11-01)
 
 While playing, the status line used to read the sequence's step of its length (`15/16`). The user's point: a step can

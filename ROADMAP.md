@@ -97,6 +97,9 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       scripted tour of the panel and writes 77 PNGs to `docs/screens/`; the UI map gets a `Screen` column keyed on
       its Page and Layer, and the README opens with a first tour in nine of them. The host keeps the splash up for
       1.5 s like the target, so it is pictured too. Regenerate with the map after any UI change.
+- [x] D5. HOME's knobs are yours: EDIT held on HOME is MACROS, each of K1-K4 picks what it turns from 26 live
+      parameters (none a black key's or an encoder's); saved with the project in SEC_MACROS. The status line counts
+      the beats before RESET, not the sequence's steps.
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, D1-D2, first flash and C4.
 

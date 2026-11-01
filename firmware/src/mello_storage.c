@@ -12,7 +12,9 @@ enum {
     SEC_GRIT = 7,
     SEC_MOD = 8,
     SEC_DRUMS = 9,
-    SEC_BASS = 10
+    SEC_BASS = 10,
+    SEC_MACROS =
+        11 /* HOME's K1-K4: which parameter each turns (an unknown section is skipped by older firmware) */
 };
 
 enum {
@@ -26,8 +28,10 @@ enum {
     SECVER_GRIT = 4, /* 4: MIX's LEAD */
     SECVER_MOD = 3,
     SECVER_DRUMS = 1,
-    SECVER_BASS = 1
+    SECVER_BASS = 1,
+    SECVER_MACROS = 1
 };
+#define MACROS_WIRE_SIZE 4u
 
 #define SAMPLE_WIRE_SIZE   83u
 #define SNAPSHOT_WIRE_SIZE 528u
@@ -918,6 +922,8 @@ static bool encode_payload(Writer *w, const MelloEngine *e)
     encode_drums(w, &e->drums);
     section_header(w, SEC_BASS, SECVER_BASS, BASS_WIRE_SIZE);
     encode_bass(w, &e->bass);
+    section_header(w, SEC_MACROS, SECVER_MACROS, MACROS_WIRE_SIZE);
+    for (i = 0u; i < 4u; ++i) wr_u8(w, e->macros.id[i]);
     for (i = 0u; i < MELLO_MAX_SLOTS; ++i)
         if (e->slots[i].valid) valid_count++;
     section_header(w, SEC_SLOTS, SECVER_SLOTS, 1u + (uint32_t)valid_count * SLOT_WIRE_SIZE);
@@ -1019,6 +1025,13 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             memset(&snap, 0, sizeof(snap));
             if (len != SNAPSHOT_WIRE_SIZE || !decode_snapshot(&r, &snap)) return false;
             if (apply && e && !mello_engine_restore_working(e, &snap)) return false;
+        } else if (id == SEC_MACROS && ver == SECVER_MACROS) {
+            MelloMacroConfig m;
+            uint8_t k;
+            if (len != MACROS_WIRE_SIZE) return false;
+            for (k = 0u; k < 4u; ++k)
+                if (!rd_u8(&r, &m.id[k])) return false;
+            if (apply && e) mello_engine_macros_set(e, &m);
         } else if (id == SEC_FX && ver >= 1u && ver <= SECVER_FX) {
             MelloFxConfig fx;
             memset(&fx, 0, sizeof(fx));

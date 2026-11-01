@@ -24,7 +24,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f28.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f29.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -33,7 +33,7 @@ splash shows the version at boot.
 
 ## A first tour
 
-Nine screens, drawn by the firmware itself (`make screens`): what you see, and what to do.
+Ten screens, drawn by the firmware itself (`make screens`): what you see, and what to do.
 
 | | |
 |---|---|
@@ -42,6 +42,7 @@ Nine screens, drawn by the firmware itself (`make screens`): what you see, and w
 | <img src="docs/screens/home-playing.png" width="240" alt="HOME, playing"> | **PLAY.** The playing step is bright, the LED blinks on the beat and the status line counts the beats to the RESET (`21/32`: the 21st sixteenth of the two bars; with RESET on FREE, the step of the sequence). SELECT is the tempo (the number top right), PRESETS the pattern slot. |
 | <img src="docs/screens/home-rolled.png" width="240" alt="HOME after a roll"> | **RNDMZR**, the last black key. A tap rolls a new sequence from what the RANDOM page's mask allows; UNDO, the key before it, takes the roll back (and again puts it forward). Hold RNDMZR for the RANDOM page. |
 | <img src="docs/screens/home-held-step.png" width="240" alt="A step held"> | **Hold a white key.** That step's pitch, pulses, ratchet and gate come onto K1-K4, its flags (SKIP, ACC, SLD, SUB) onto the first black keys. A tap mutes or unmutes the step. |
+| <img src="docs/screens/home-macros.png" width="240" alt="HOME, MACROS"> | **Hold EDIT.** MACROS: now each knob picks what it turns, from the performance parameters (RES, ATTACK, RELEASE, DELAY, REVERB, LFO, NOISE, the levels, SWING and more). Tap EDIT to leave; the choice is saved with the project. |
 | <img src="docs/screens/step-trig.png" width="240" alt="SEQ > STEP"> | **SEQ.** The STEP page: the picked step's values, the picture drawn from them. SELECT turns the layers (TRIG, NOTE, FLAGS, SEQ); SEQ again goes on to SEGMENT, LOOP CYCLE and SLOT SEQ. With EDIT on, a white key sets the step's pitch. |
 | <img src="docs/screens/sound-osc-filt.png" width="240" alt="ENV > SOUND"> | **ENV.** The lead's sound: the wave, PWM, cutoff and resonance first, the envelope, follower, grit, second oscillator and the rest on SELECT. INIT (B1) puts the sound back. ENV again: the sample layer. |
 | <img src="docs/screens/drums-voice.png" width="240" alt="ARP > DRUMS"> | **ARP**, three times: the drums. Four voices on a 16-step grid; VOX picks the voice, a white key puts its hit on or off, ON (B0) turns the kit on. CHORD and BASS are ARP's pages before it. |
@@ -66,7 +67,7 @@ The FM-1's panel is printed, so its names are the firmware's names. What each co
 | **OCT- / OCT+** | The step bank where there are more than 16 (HOME, STEP), the octave in KEYS. |
 | **PLAY** | Start and stop. The LED blinks on the beat. |
 | **SAVE** | Saves the project ("SAVED" on the status line). Held: the pattern slots. |
-| **EDIT** | The page's mode: KEYS on HOME (the keys become a keyboard), the pitch mode on STEP. |
+| **EDIT** | The page's mode: KEYS on HOME (the keys become a keyboard), the pitch mode on STEP. Held on HOME: MACROS, where each of K1-K4 picks what it turns. |
 | **REC** | In KEYS: step record, each key writes the next step. |
 | **MASTER** (the knob) | The output level, in hardware. |
 
@@ -110,7 +111,11 @@ lands where it would have been. They are never saved or undone.
 ## HOME
 
 Sixteen steps as bars (height = pitch, dim = off, the playing one bright), the segments A-D over them in their
-colours. K1-K4 are the four macros, live while playing: CUTOFF, DECAY, SPACE (delay and reverb send) and DRIVE.
+colours. K1-K4 are the four macros, live while playing: CUTOFF, DECAY, SPACE (delay and reverb send) and DRIVE to
+begin with. Hold EDIT for MACROS and turn a knob to give it another parameter (RES, ATTACK, RELEASE, DELAY, FDBK,
+REVERB, SIZE, LFO HZ and LFO AMT, PWM, NOISE, DETUNE, OSC 2, FM, SAT, MODENV, SUB LVL, the LEAD, BASS, CHORD and
+DRUMS levels, SWING); a tap of EDIT leaves, and the choice is saved with the project. Nothing on the list is a black
+key's or an encoder's job.
 SELECT is the tempo, ALGORITHM the randomizer's intensity (LOW, MED, HIGH, MUSICAL), PRESETS the pattern slot.
 Hold a white key to edit that step on the knobs; tap it to mute or unmute it. RNDMZR rolls what the RANDOM page's
 mask says (by default the first nine targets); UNDO takes it back.
@@ -181,6 +186,7 @@ K1-K4 with their default values.
 | Page | Button | Layer | Strip B0..B10 | K1 · K2 · K3 · K4 |
 |---|---|---|---|---|
 | HOME | HOME | — | `- + MUT RST CLR F B < R UNDO RNDMZR` | CUTOFF 3264HZ · DECAY 180MS · SPACE 24% · DRIVE 0% |
+| HOME | hold EDIT | MACROS | `- + MUT RST CLR F B < R UNDO RNDMZR` | each knob picks what it turns (CUTOFF, RES, DECAY, ATTACK, RELEASE, SPACE, DRIVE, DELAY, FDBK, REVERB, SIZE, LFO HZ, LFO AMT, PWM, NOISE, DETUNE, OSC 2, FM, SAT, MODENV, SUB LVL, LEAD, BASS, CHORD, DRUMS, SWING) |
 | STEP | SEQ | TRIG | `SKIP F B < R UNDO RNDMZR` | PITCH +0 · PULSE 1 · RATCH 1 · GATE SINGLE |
 | STEP | SEQ | NOTE | `SKIP F B < R UNDO RNDMZR` | OCT +0 · PROB 100% · SAMP 1 · WAVE SND |
 | STEP | SEQ | FLAGS | `SKIP F B < R UNDO RNDMZR` | ACCENT OFF · SUB OFF · SLIDE OFF · SKIP OFF |
