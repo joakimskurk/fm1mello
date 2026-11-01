@@ -760,6 +760,17 @@ Measured over 300 rolls of 16 steps (random_musical): a phrase spanned 4.9 scale
 and reached the octave above in 41 rolls; now 7.1, 4.8 and 135, while strong steps still play 95%, weak 40%, and the
 melody moves 2.0 scale steps a note against MED's 4.65. The test holds the floor at a span of 7 and 4.5 notes.
 
+**v2.1, the same day.** The user heard the sound examples as "a looped 8-step": with A A' A B, A B A B' and the
+two halves A A', the first cell came back word for word at step 9 in most rolls and A' was a transposition, so
+the two halves of the bar sounded alike. Now the forms are A A' B C, A B A' C, A B C A' (A late or not at all) and,
+less often, A A' A B and A B A B'; two halves are always A B. A' and B' are developments in one of three ways: a
+sequence (the line moved), an inversion (mirrored about its first note), or a displacement (the rhythm a step
+later), so the answer is recognisably A and still not A again; and an answer cell may anticipate its middle beat
+(a syncopation) when the step before it rests. Over 300 rolls A is back at step 9 in 75, the second half never
+repeats the first, the span is 8.3 and the distinct notes 5.4; the test keeps the return between 30 and 150 and
+the repeat at most 15. The bar itself still loops every 16 steps, as a bar does: a longer melody is LENGTH 32,
+where MUSICAL writes four cells of eight.
+
 ## Black ground (2026-11-01)
 
 The user found the screen busy: the HTML's five green tones (ground #040E08, two panels, lines, dim and mid text)

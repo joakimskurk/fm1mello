@@ -108,7 +108,23 @@ int main(void)
         med_motion += motion(16u);
     }
     printf("300 rolls: the first beat back at step 9 in %u\n", back);
-    CHECK(back >= 180u, "the first beat came back at step 9 in only %u rolls of 300", back);
+    /* v2.1: A comes back word for word in two forms of five (feedback: "a looped 8-step"), so sometimes, not mostly;
+     * and the second half is never the first half again */
+    CHECK(back >= 30u && back <= 150u, "the first beat came back at step 9 in %u rolls of 300", back);
+    {
+        unsigned same_half = 0u, i;
+        for (s = 1u; s <= 300u; ++s) {
+            unsigned alike = 1u;
+            roll(s, 16u, MELLO_RAND_DEFAULT, MELLO_RANDOMIZE_MUSICAL);
+            for (i = 0u; i < 8u && alike; ++i)
+                alike = e.project.steps[i].gate == e.project.steps[i + 8u].gate &&
+                        (e.project.steps[i].gate == MELLO_GATE_REST ||
+                         e.project.steps[i].pitch == e.project.steps[i + 8u].pitch);
+            same_half += alike;
+        }
+        printf("300 rolls: the second half repeats the first in %u\n", same_half);
+        CHECK(same_half <= 15u, "the second half repeats the first in %u rolls of 300", same_half);
+    }
     { /* MUSICAL v2 (DECISIONS.md "A melody, not a walk"): a phrase uses the range and more than a handful of notes.
        * Over 300 rolls: the mean span (highest to lowest sounding note, octave field counted) and the mean count of
        * distinct notes, and how many rolls reach into the octave above. */
@@ -168,21 +184,28 @@ int main(void)
         puts("PITCH only: the rhythm stays; UNDO restores the roll");
     }
 
-    for (s = 1u; s <= 50u; ++s) { /* 12 steps: cells of 3; 10: one cell, still home at the end */
-        static const uint8_t lens[2] = {12u, 10u};
-        uint8_t k;
-        for (k = 0u; k < 2u; ++k) {
-            int last;
-            roll(s, lens[k], MELLO_RAND_DEFAULT, MELLO_RANDOMIZE_MUSICAL);
-            last = last_played(lens[k]);
-            CHECK(last >= 0 && e.project.steps[last].pitch == home, "%u steps, seed %u: ends on %d", lens[k],
-                  (unsigned)s, last >= 0 ? e.project.steps[last].pitch : -1);
-            if (k == 0u)
-                CHECK(!memcmp(&e.project.steps[0], &e.project.steps[6], 3u * sizeof(MelloStep)),
-                      "12 steps, seed %u: the A cell does not come back", (unsigned)s);
+    {
+        unsigned a_back = 0u;
+        for (s = 1u; s <= 50u; ++s) { /* 12 steps: cells of 3; 10: one cell, still home at the end */
+            static const uint8_t lens[2] = {12u, 10u};
+            uint8_t k;
+            for (k = 0u; k < 2u; ++k) {
+                int last;
+                roll(s, lens[k], MELLO_RAND_DEFAULT, MELLO_RANDOMIZE_MUSICAL);
+                last = last_played(lens[k]);
+                CHECK(last >= 0 && e.project.steps[last].pitch == home, "%u steps, seed %u: ends on %d",
+                      lens[k], (unsigned)s, last >= 0 ? e.project.steps[last].pitch : -1);
+                if (k == 0u)
+                    a_back += !memcmp(&e.project.steps[0], &e.project.steps[6], 3u * sizeof(MelloStep));
+            }
         }
+        /* the forms with A back in the third cell are two of five */
+        CHECK(a_back >= 5u && a_back <= 30u, "12 steps: the A cell came back in %u rolls of 50", a_back);
+        printf("12 steps in cells of 3 (A back in the third cell in %u of 50), 10 steps as one cell: both "
+               "end on "
+               "the root\n",
+               a_back);
     }
-    puts("12 steps in cells of 3, 10 steps as one cell: both end on the root");
 
 #if MELLO_FEATURE_CHORD_MACHINE
     for (s = 1u; s <= 50u; ++s) {

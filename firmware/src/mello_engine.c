@@ -2968,6 +2968,11 @@ static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, in
         if (m == 0u && chance_permille(&e->gen_rng, 200u)) st->probability = prob_from_hundredths(70u);
         st->sample_slot = m == 2u ? slot[0] : (chance_permille(&e->gen_rng, 250u) ? slot[1] : 0u);
     }
+    if (!down && cl >= 4u && c[2].gate != MELLO_GATE_REST && c[1].gate == MELLO_GATE_REST &&
+        chance_permille(&e->gen_rng, 300u)) { /* an answer's syncopation: the middle beat anticipated */
+        c[1] = c[2];
+        c[2].gate = MELLO_GATE_REST, c[2].accent = c[2].sub = false, c[2].sample_slot = 0u;
+    }
     for (o = 0u; o + 1u < cl;
          ++o) /* slides into the weak steps that follow a note, a long note before a rest */
         if (c[o].gate != MELLO_GATE_REST) {
@@ -2982,15 +2987,26 @@ static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, in
 /* A' from A (and B' from B): the same rhythm, flags and samples, the line moved by shift scale degrees (a sequence,
  * as a tune answers itself a third up or a step down); strong steps snapped back onto chord tones, a note pushed
  * past the top taken an octave up on the octave field, one below the bottom reflected. */
-static void mus_develop(MelloStep *dst, const MelloStep *src, uint8_t cl, int32_t shift, uint8_t lo,
-                        uint8_t pmax, uint8_t n, uint8_t t3, uint8_t t5)
+/* how: 0 a sequence (the line moved), 1 an inversion (the line mirrored about its first note, then moved), 2 a
+ * displacement (the rhythm a step later, the line moved), so the answer is recognisably A and still not A again. */
+static void mus_develop(MelloStep *dst, const MelloStep *src, uint8_t cl, int32_t shift, uint8_t how,
+                        uint8_t lo, uint8_t pmax, uint8_t n, uint8_t t3, uint8_t t5)
 {
     uint8_t o;
+    int32_t axis = 0;
+    for (o = 0u; o < cl; ++o)
+        if (src[o].gate != MELLO_GATE_REST) {
+            axis = (int32_t)src[o].pitch + (src[o].octave > 0 ? (int32_t)n : 0);
+            break;
+        }
     for (o = 0u; o < cl; ++o) {
         int32_t d;
-        dst[o] = src[o];
-        if (src[o].gate == MELLO_GATE_REST) continue;
-        d = (int32_t)src[o].pitch + (src[o].octave > 0 ? (int32_t)n : 0) + shift;
+        const MelloStep *s = &src[how == 2u ? (o + cl - 1u) % cl : o];
+        dst[o] = *s;
+        if (s->gate == MELLO_GATE_REST) continue;
+        d = (int32_t)s->pitch + (s->octave > 0 ? (int32_t)n : 0);
+        if (how == 1u) d = axis - (d - axis);
+        d += shift;
         if (d < (int32_t)lo) d = (int32_t)lo + ((int32_t)lo - d);
         if (mus_metric(o) == 2u) d = mus_snap(d, pmax + n, n, t3, t5);
         if (d > (int32_t)pmax + (int32_t)n) d = (int32_t)pmax + (int32_t)n;
@@ -3016,9 +3032,12 @@ static void mus_end(MelloStep *c, uint8_t cl, uint8_t how, uint8_t home, uint8_t
 static void randomize_musical(MelloEngine *e)
 {
     /* Forms: cell ids 0 A, 1 A', 2 B, 3 B', 4 C; and their chance in permille. */
-    static const uint8_t forms[4][4] = {{0, 1, 0, 2}, {0, 2, 0, 3}, {0, 0, 0, 2}, {0, 2, 0, 4}},
-                         halves[2][2] = {{0, 1}, {0, 2}};
-    static const uint16_t form_w[4] = {350u, 300u, 150u, 200u};
+    /* Forms (v2.1, feedback 2026-11-01: "sounds like a looped 8-step"): A comes back word for word in two forms of
+     * five, and late or not at all in the others; the answer develops A or brings new material. Two halves are
+     * always A B, a motif and a contrasting answer, never A and its transposition. */
+    static const uint8_t forms[5][4] = {{0, 1, 2, 4}, {0, 2, 1, 4}, {0, 2, 4, 1}, {0, 1, 0, 2}, {0, 2, 0, 3}},
+                         halves[2][2] = {{0, 2}, {0, 2}};
+    static const uint16_t form_w[5] = {250u, 250u, 200u, 150u, 150u};
     static const uint8_t base_of[5] = {0, 0, 1, 1, 2};
     MelloStep tmp[MELLO_MAX_STEPS];
     uint16_t mask, smask[MELLO_MAX_STEPS];
@@ -3041,14 +3060,14 @@ static void randomize_musical(MelloEngine *e)
     hi = pmax; /* the whole span; a cell heading higher takes the octave field (mus_cell) */
     len = e->project.seq_len ? e->project.seq_len : 16u;
     if (len > MELLO_MAX_STEPS) len = MELLO_MAX_STEPS;
-    if (len % 16u == 0u && chance_permille(&e->gen_rng, 400u))
+    if (len % 16u == 0u && chance_permille(&e->gen_rng, 250u))
         cl = (uint8_t)(len / 2u), cells = 2u;
     else if (len >= 8u && len % 4u == 0u)
         cl = (uint8_t)(len / 4u), cells = 4u;
     else
         cl = len, cells = 1u;
     r = rng_bounded(&e->gen_rng, 1000u);
-    while (f < 3u && r >= form_w[f]) r -= form_w[f++];
+    while (f < 4u && r >= form_w[f]) r -= form_w[f++];
     if (cells == 2u) f = (uint8_t)(f & 1u);
     density = (int16_t)((int32_t)rng_bounded(&e->gen_rng, 3u) * 150 - 150); /* sparse, as is, busy */
     slot[0] = chance_permille(&e->gen_rng, 400u)
@@ -3075,7 +3094,9 @@ static void randomize_musical(MelloEngine *e)
                 uint8_t base = id == 1u ? first[0] : first[1];
                 int32_t shift = reg - contour[ct][id - 1u];
                 if (base == 255u) base = first[0];
-                mus_develop(c, &tmp[base * cl], cl, shift, lo, pmax, n, t3, t5);
+                r = rng_bounded(&e->gen_rng, 1000u);
+                mus_develop(c, &tmp[base * cl], cl, shift, r < 450u ? 0u : (r < 750u ? 1u : 2u), lo, pmax, n,
+                            t3, t5);
             } else if (first[b] == 255u) { /* A from home, B and C from a chord tone at their register */
                 int32_t start = (int32_t)home + reg, target = start;
                 uint8_t o;
