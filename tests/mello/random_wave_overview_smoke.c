@@ -37,7 +37,8 @@ static void fill_cb(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint1
     }
     if (y == 163 && h == 1) ratchet_marks++;
     if ((y == 165 || y == 168) && h == 1) event_marks++;
-    if (y == 50 && h == 98 && x >= 8 && x < 232) { /* a HOME lane panel (draw_home_step) */
+    if (y == 46 && h == 108 && x >= 8 &&
+        x < 232) { /* a HOME step's column (draw_home_step clears it first) */
         home_columns++;
         if (w > 7) bounds = 1;
     }

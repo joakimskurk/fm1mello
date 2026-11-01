@@ -3225,15 +3225,15 @@ static void ui_slider(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, 
                       uint16_t max_value, uint16_t colour)
 {
     int16_t tx;
-    (void)colour; /* the HTML's thumbs are all its green ring; the colour is the value's text */
-    ui_round_fill(o, x, (int16_t)(y + 1), w, 4, UI_TRACK);
-    o->fill(o->ctx, (int16_t)(x + 1), (int16_t)(y + 1), (int16_t)(w - 2), 1, UI_LINE); /* the track's edge */
+    /* Black ground: the track a grey hairline, the thumb in the value's colour (the HTML's were all green; green is
+     * the sequence's now) */
+    ui_round_fill(o, x, (int16_t)(y + 2), w, 2, UI_LINE);
     if (!max_value) return;
     if (value > max_value) value = max_value;
     tx = (int16_t)(x + ((int32_t)(w - 6) * value) / max_value);
-    o->fill(o->ctx, (int16_t)(tx + 1), y, 4, 6, UI_ACC);
-    o->fill(o->ctx, tx, (int16_t)(y + 1), 6, 4, UI_ACC);
-    o->fill(o->ctx, (int16_t)(tx + 2), (int16_t)(y + 2), 2, 2, UI_PANEL);
+    o->fill(o->ctx, (int16_t)(tx + 1), y, 4, 6, colour);
+    o->fill(o->ctx, tx, (int16_t)(y + 1), 6, 4, colour);
+    o->fill(o->ctx, (int16_t)(tx + 2), (int16_t)(y + 2), 2, 2, UI_BLACK);
 }
 /* A label as the HTML sets them: uppercase, a pixel between letters (9 px a character; plain when it does not fit). */
 static void ui_spaced(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, const char *t, uint16_t c,
@@ -3561,7 +3561,13 @@ static void draw_home_step(MelloUi *ui, const MelloUiDrawOps *o, uint8_t i)
     seg = ui_segment_colour(segment);
     active = ui->transport->running && ui->transport->display_step == i;
     selected = ui->selected_step == i && (ui->held_step != MELLO_UI_NO_STEP || !ui->transport->running);
-    if (active) o->fill(o->ctx, x, 46, w, 2, UI_WHITE); /* the playhead's cap over the playing step */
+    /* the cap: this step's piece of its segment's line (bright for the picked step's segment), white under the
+     * playhead */
+    o->fill(o->ctx, x, 46, w, 2,
+            active ? UI_WHITE
+                   : (segment == ui_segment_for_step(&e->project, ui->selected_step)
+                          ? seg
+                          : ui_mix(seg, UI_BLACK, 150)));
     if (selected) { /* the picked step's lane: a faint tint and its segment's frame; the others are the ground */
         ui_round_fill(o, x, lane_y, w, lane_h, ui_mix(UI_PANEL, seg, 24));
         ui_round_frame(o, x, lane_y, w, lane_h, seg);
@@ -3622,12 +3628,11 @@ static void draw_home(MelloUi *ui, const MelloUiDrawOps *o)
         x = (int16_t)(8 + ((uint32_t)bs * 224u) / vn);
         x2 = (int16_t)(8 + ((uint32_t)be * 224u) / vn - 2);
         c = ui_segment_colour(i);
-        /* the segment: its letter, and under it a thin line in its colour (after the text, whose box would
-         * cover it), bright where the picked step is */
+        /* the segment's letter; the line under it is the steps' caps (draw_home_step), so a step's redraw keeps
+         * its piece of the line */
         b[0] = (char)('A' + i);
         b[1] = 0;
         o->text(o->ctx, x, 30, (int16_t)(x2 - x + 1), 0, b, i == focus_seg ? UI_BRIGHT : c, 1);
-        o->fill(o->ctx, x, 43, (int16_t)(x2 - x + 1), 2, i == focus_seg ? c : ui_mix(c, UI_BLACK, 150));
     }
     for (i = 0u; i < ui_step_overview_count(&e->project); ++i) draw_home_step(ui, o, i);
     {
@@ -3752,8 +3757,7 @@ static uint16_t ui_text_len(const char *s);
 static void ui_section(MelloUi *ui, const MelloUiDrawOps *o, int16_t y, const char *title, uint16_t accent)
 {
     const char *layer = layer_name(ui);
-    ui_round_fill(o, 4, y, 232, (int16_t)(169 - y), UI_PANEL);
-    ui_round_frame(o, 4, y, 232, (int16_t)(169 - y), ui_mix(accent, UI_BLACK, 150));
+    /* Black ground: no card. The title alone, spaced, in the page's colour; the content sits on the ground. */
     ui_spaced(o, 10, (int16_t)(y + 3), 222, title, accent, 0);
     (void)layer;
 }
@@ -4441,7 +4445,7 @@ static void footer_pair(const MelloUiDrawOps *o, uint8_t k, const char *label, c
         compact[7] = 0;
         shown = compact;
     }
-    o->fill(o->ctx, x, 188, 60, 32, UI_BLACK);
+    o->fill(o->ctx, x, 188, 60, 33, UI_BLACK);      /* to 220: the value row (205) ends there */
     o->fill(o->ctx, x, 188, 60, 1, UI_LINE);        /* the hairline over the footer */
     if (k) o->fill(o->ctx, x, 191, 1, 27, UI_LINE); /* a hairline between the columns */
     ui_spaced(o, (int16_t)(x + 2), 189, 56, label, UI_DIM, 1);
@@ -5698,8 +5702,6 @@ static void draw_env_panel(MelloUi *ui, const MelloUiDrawOps *o)
 {
     MelloEngine *e = eng(ui);
     if (!e) return;
-    ui_round_fill(o, 4, 31, 232, 138, UI_PANEL);
-    ui_round_frame(o, 4, 31, 232, 138, ui_mix(UI_GOLD, UI_BLACK, 150));
     draw_env_curve(o, &e->sound, 12, 35, 216, 58); /* the same body as every layer: the picture, four rows */
     draw_value_rows(ui, o, 100);
 }
@@ -5967,9 +5969,7 @@ static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o)
         draw_env_panel(ui, o);
         return;
     }
-    ui_round_fill(o, 4, 31, 232, 138, UI_PANEL);
-    ui_round_frame(o, 4, 31, 232, 138, ui_mix(accent, UI_BLACK, 150));
-    draw_layer_picture(ui, o, 10, 35, 220, 58, accent);
+    draw_layer_picture(ui, o, 10, 35, 220, 58, accent); /* black ground: the picture on the ground, no card */
     draw_value_rows(ui, o, 100);
 }
 
@@ -6002,8 +6002,9 @@ static void draw_status(MelloUi *ui, const MelloUiDrawOps *o)
     uint8_t sv = save_state(ui);
     static const char *sw[5] = {"", "SAVED", "EDITED", "NOSAVE", "FULL"};
     static const uint16_t sc[5] = {UI_DIM, UI_ACC, UI_CORAL, UI_RED, UI_RED};
-    o->fill(o->ctx, 0, 220, 240, 20, UI_BLACK);
-    o->fill(o->ctx, 0, 220, 240, 1, UI_LINE);
+    o->fill(o->ctx, 0, 221, 240, 19,
+            UI_BLACK); /* from 221: row 220 is the footer's (its value row ends there) */
+    o->fill(o->ctx, 0, 221, 240, 1, UI_LINE);
     if (e) { /* the key (R2: it left the header for the path): the HTML's title line, "C minor" */
         static const char *n[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
         static const char *sc_name[MELLO_SCALE_COUNT] = {"CHROM",  "MINOR", "DORIAN", "PHRYG",

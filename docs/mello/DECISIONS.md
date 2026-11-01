@@ -747,8 +747,12 @@ routine moves; the body stops at row 170 and the footer's text rows are 189 and 
 white and the layer in the page's colour (HOME: `HOME > A` with the segment in its colour); the tempo is green only
 while playing. The functional colours and the segment colours are untouched. HOME first: segment lines under the
 letters, bars in their segment's full colour (the playing one white-capped and white-topped, the picked one framed),
-the keys' strip as quiet cells with the label in its colour. The other pages' bodies keep their cards until each is
-redrawn. Mockups: the design canvas of 2026-11-01.
+the keys' strip as quiet cells with the label in its colour. Then every other page: the cards went (ui_section and
+the parameter panels draw the title and the picture on the ground), the sliders' tracks are a grey hairline and
+their thumbs take the value's colour (they were all green). The four value rows stay under each picture: the mockups
+dropped them for the footer's numbers, but on the layers whose body is nothing but those values (GLOBAL MIDI, the
+sample's trim) the body would be empty, and a slider is the one picture a value has. Mockups: the design canvas of
+2026-11-01; the result is the manual's screens.
 
 ## HOME's knobs are yours (2026-11-01)
 
