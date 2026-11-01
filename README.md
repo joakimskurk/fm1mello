@@ -8,6 +8,8 @@ port of [SkurkyMello](reference/skurkymello.html), the browser instrument, which
 feel, and it is built on [Dinghy](https://github.com/zvenson/dinghy) 0.3 by zvenson (with 0.4's MIDI IN on the TRS
 jack) and, under that, the Felucca / SLOOP platform.
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-skurk-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/skurk)
+
 > **Status: tested on emulators, not yet on an FM-1.** Every package runs in
 > [fm1-emu](https://github.com/joakimeriksson/fm1-emu) and its web emulator; the first install on real hardware
 > follows [docs/mello/FIRST_FLASH.md](docs/mello/FIRST_FLASH.md). Every flash can brick a unit: hold OCT- while
@@ -24,7 +26,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f42.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f43.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -69,7 +71,7 @@ The FM-1's panel is printed, so its names are the firmware's names. What each co
 | **PLAY** | Start and stop. The LED blinks on the beat. |
 | **SAVE** | Saves the project ("SAVED" on the status line). Held: the pattern slots. |
 | **EDIT** | The page's mode: KEYS on HOME (the keys become a keyboard, lit where the scale has a tone), the pitch mode on STEP. Held on HOME: MACROS, where each of K1-K4 picks what it turns. |
-| **REC** | In KEYS: what the keys write, SEQ, BASS, CHORD, then off. Stopped, each key writes the next step; playing, the step under the clock. |
+| **REC** | In KEYS: what the keys write, SEQ, BASS, CHORD, then off. Stopped, each key writes the next step; playing, the step under the clock. SEL writes a rest. |
 | **MASTER** (the knob) | The output level, in hardware. |
 
 The header reads where you are as `BUTTON > PAGE > LAYER` (`ARP > DRUMS > KIT`), the status line the key, the beat
@@ -125,9 +127,10 @@ mask says (by default the first nine targets); UNDO takes it back.
 scale are lit and the others dark, on the LEDs and in the strip; a dark key still plays, rounded to the nearest lit
 one (CHROMATIC lights them all). Playing, a key is the new root. REC then cycles what the keys write: SEQ, BASS,
 CHORD, off. Stopped, each key writes the next step from step 1 (a chord chain grows as you play it; hold a second
-key over the first for the shape: a second SUS2, a fourth SUS4, a fifth POWER, a seventh SEVENTH). Playing, a key
-writes the step under the clock, or the next one past half a pulse, so a line goes down pass by pass. UNDO takes
-the whole recording back.
+key over the first for the shape: a second SUS2, a fourth SUS4, a fifth POWER, a seventh SEVENTH; under the first for
+the inversion: the third, the fifth). SEL writes a rest. A key held long makes a held note, or a glide on the bass.
+Playing, a key writes the step under the clock, or the next one past half a pulse, and a key kept down carries on
+over the next steps, so a line goes down pass by pass. UNDO takes the whole recording back.
 
 ## The sections
 
@@ -330,7 +333,7 @@ The FM-1's screen, large, on a computer, tablet or phone: install [FM-1 Mirror](
 (free; Mac, Windows, Linux, Android), plug the FM-1 in over USB and open the app. SkurkyMello speaks its messages:
 while the app asks (a short SysEx about once a second) the firmware sends every row it paints over the same USB MIDI
 connection, in colour, and stops three seconds after the app goes quiet, so with nobody asking it sends nothing and
-playing is unaffected. A new viewer gets the whole screen, zone by zone, in well under a second. Nothing to set up on
+playing is unaffected. A new viewer gets the whole screen, zone by zone. Nothing to set up on
 the FM-1. The protocol and the encoder are Patrick F. Kellogg's (MIT, `firmware/src/screen_mirror.c`); the glue is
 `mirror.c`, and `make test` checks, on the host, that the screen rebuilt from the messages is the screen, pixel for
 pixel.
@@ -392,6 +395,12 @@ reference/skurkymello.html     the original: the reference for sound and feel
 docs/mello/                    DECISIONS.md, UI_MAP.md, CONTROL_GRAMMAR.md, UI_ICEBERG.md, FIRST_FLASH.md
 docs/screens/                  every page of the firmware as a picture, drawn by the host build (make screens)
 ```
+
+## Support
+
+SkurkyMello is free. If it gives you music, you can [buy me a coffee](https://buymeacoffee.com/skurk).
+
+<a href="https://buymeacoffee.com/skurk"><img src="docs/buymeacoffee.png" width="160" alt="Buy Me a Coffee: QR code to buymeacoffee.com/skurk"></a>
 
 ## Upstream and licence
 

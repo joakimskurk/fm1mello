@@ -128,7 +128,7 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       chain restarts with RESET, so the chords land on the one. Package 0.5-f39.
 - [x] D14. Record it yourself (DECISIONS): the key rule (a note off the scale rounds to the nearest on it, the
       keyboard lit by the scale) and REC in KEYS cycling SEQ, BASS, CHORD: step record stopped, on the clock
-      playing, one UNDO. Package 0.5-f41.
+      playing, one UNDO. Package 0.5-f41; rests on SEL, long keys, held notes and inversions in 0.5-f43.
 - [x] D15. Big screen (DECISIONS): the screen over USB MIDI to FM-1 Mirror, in its MIT protocol and encoder, the
       rows taken at the LCD, a paced repaint through the UI's dirty flags, checked pixel for pixel on the host.
       Unverified on the device. Package 0.5-f42.

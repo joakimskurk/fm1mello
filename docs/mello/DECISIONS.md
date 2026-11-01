@@ -765,8 +765,8 @@ section attribute and a `sm_pending()` added under the same licence) is in the t
 - **The host.** tests/host.c has the same hooks and writes the SysEx to a file; `tests/mirror_check.sh` (in
   `make test`) decodes it back into a screen and compares with the screen shot at the same moment: 0 of 57600
   pixels differ after a hello, and after a page change and PLAY. `screen_mirror` tests the encoder and the pacing.
-  The emulator has no USB MIDI, so the device itself is unverified until someone with an FM-1 and the app tries
-  it; the message format is checked byte for byte against the reference's own test vectors.
+  The emulator has no USB MIDI, so the device itself and the time a full repaint takes are unmeasured until someone
+  with an FM-1 and the app tries it; the message format is checked byte for byte against the reference's own test vectors.
 
 ## Record it yourself (2026-11-01)
 
@@ -795,8 +795,16 @@ rather than a new page appearing:
   fifth POWER, a seventh SEVENTH, a third the plain triad.
 - **Playing: on the clock.** A key writes the step under the clock, or the next one once more than half a pulse
   has gone (the transport's next pulse deadline against now), for the sequence, the bass line (its own clock) and
-  the chord sounding. The loop goes round, so you lay a line down pass by pass; HOLD over several steps is not
-  recorded yet.
+  the chord sounding. The loop goes round, so you lay a line down pass by pass.
+- **Rests, long keys, inversions (the same day).** Every key is a note here, so the rest is on SEL while REC is on
+  (the proposal said a black key, which would have taken a note away): the sequence's step rests, the bass step goes
+  off, and a chain of chords has no rests. Stopped, a key held 300 ms makes its step a held note (SEQ, gate HOLD) or
+  a glide into the next (BASS). Playing, a key kept down carries on as the clock reaches each next step: the bass
+  steps are tied by GLIDE, legato; the sequence's are the same note with gate HOLD and SLD, which the lead attacks
+  again on each step, since a note in this sequencer cannot outlast its step without changing the step's
+  PULSES and so the phrase's length. A chord's second key lower than the first is its inversion: a third under the
+  root the first, a fifth the second, a seventh SEVENTH in the third. A third key's fifth over a third leaves the
+  triad a triad.
 - **One UNDO.** REC's first press takes the undo snapshot, so UNDO after a recording gives back the sequence, the
   bass and the chords as they were.
 - **What did not change.** The black keys' places, OCT-/OCT+ moving the keyboard, the macros, saving. With REC off,

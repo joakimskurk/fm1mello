@@ -159,7 +159,13 @@ typedef struct {
                                 clock is */
     uint8_t keys_rec_last;      /* the slot the last chord went to, for a second key held: its shape */
     uint8_t keys_rec_last_midi; /* and the key that wrote it */
-    uint8_t audition_key;       /* the key playing the lead, 0xFF none */
+    /* The key that wrote the last step, while it stays down: stopped, held long it makes that step a held note (SEQ:
+     * gate HOLD) or a glide (BASS); playing, the clock reaching the next step carries the note on to it. */
+    uint8_t rec_key; /* 0xFF none */
+    uint8_t rec_key_pos;
+    uint32_t rec_key_ms;
+    bool rec_key_long;
+    uint8_t audition_key; /* the key playing the lead, 0xFF none */
     uint8_t audition_note;
     bool audition_release;
     int8_t keys_octave; /* KEYS: OCT-/OCT+ move the keyboard, -2..+2 */

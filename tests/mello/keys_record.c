@@ -220,6 +220,35 @@ int main(void)
     CHECK(mello_resolve_step_midi(&e->project, &e->project.steps[1]) != 67u, "step 2 is no longer G4");
     CHECK(!e->bass.on, "the bass line is off again");
 
+#if MELLO_FEATURE_CHORD_MACHINE
+    { /* a lower second key is an inversion; C Eb G together is a triad, not a power chord */
+        tap_button(MELLO_UI_BTN_REC);                          /* SEQ */
+        tap_button(MELLO_UI_BTN_REC);                          /* BASS */
+        tap_button(MELLO_UI_BTN_REC);                          /* CHORD, from slot 1 */
+        key(19u);                                              /* C5 */
+        mello_ui_set_held_notes(&ui, (1u << 19) | (1u << 10)); /* Eb4 under it */
+        in(0u, 0u, 0u, 1u << 10);
+        mello_ui_set_held_notes(&ui, 0u);
+        CHECK(e->chord.steps[0].inversion == 1u, "the third under the root: inversion 1 (%u)",
+              e->chord.steps[0].inversion);
+        key(19u);                                              /* C5, the second chord */
+        mello_ui_set_held_notes(&ui, (1u << 19) | (1u << 14)); /* G4 under it */
+        in(0u, 0u, 0u, 1u << 14);
+        mello_ui_set_held_notes(&ui, 0u);
+        CHECK(e->chord.steps[1].inversion == 2u, "the fifth under the root: inversion 2 (%u)",
+              e->chord.steps[1].inversion);
+        key(7u);                                              /* C4, the third chord */
+        mello_ui_set_held_notes(&ui, (1u << 7) | (1u << 10)); /* Eb4 */
+        in(0u, 0u, 0u, 1u << 10);
+        mello_ui_set_held_notes(&ui, (1u << 7) | (1u << 10) | (1u << 14)); /* and G4 */
+        in(0u, 0u, 0u, 1u << 14);
+        mello_ui_set_held_notes(&ui, 0u);
+        CHECK(e->chord.steps[2].shape == MELLO_CHORD_TRIAD, "C Eb G held: a triad (%d)",
+              e->chord.steps[2].shape);
+        tap_button(MELLO_UI_BTN_REC); /* off */
+    }
+#endif
+
     /* playing, REC > SEQ: a key writes the step under the clock, or the next one past half a pulse */
     {
         uint32_t pulse_us = 60000000u / e->project.bpm / 4u, us;
@@ -251,6 +280,71 @@ int main(void)
         CHECK(mello_resolve_step_midi(&e->project, &e->project.steps[which]) == 67u, "and it is G4");
         CHECK(t.running, "the transport kept running");
         printf("playing: the key landed on step %u with the clock at %u\n", which + 1u, at + 1u);
+    }
+
+    { /* stopped: SEL is a rest, a long key a held note (SEQ) or a glide (BASS) */
+        mello_project_defaults(&p);
+        mello_transport_init(&t, &p, 1u, midi, NULL);
+        mello_ui_init(&ui, &t, &st);
+        e = &t.engine;
+        tap_button(MELLO_UI_BTN_EDIT);
+        tap_button(MELLO_UI_BTN_REC); /* SEQ */
+        key(7u);
+        tap_button(MELLO_UI_BTN_SEL);
+        CHECK(e->project.steps[1].gate == MELLO_GATE_REST && ui.keys_rec_pos == 2u,
+              "SEL writes a rest and moves on (gate %d, next %u)", e->project.steps[1].gate,
+              ui.keys_rec_pos + 1u);
+        CHECK(ui.page == MELLO_UI_HOME, "SEL stays on HOME while recording");
+        mello_ui_set_held_notes(&ui, 1u << 14);
+        in(0u, 0u, 0u, 1u << 14);
+        for (i = 0u; i < 8u; ++i) in(0u, 0u, 0u, 0u); /* 400 ms */
+        mello_ui_set_held_notes(&ui, 0u);
+        in(0u, 0u, 0u, 0u);
+        CHECK(e->project.steps[2].gate == MELLO_GATE_HOLD, "a long key: a held note (%d)",
+              e->project.steps[2].gate);
+        key(9u);
+        CHECK(e->project.steps[3].gate != MELLO_GATE_HOLD, "a short key is not");
+        tap_button(MELLO_UI_BTN_REC); /* BASS */
+        key(7u);
+        tap_button(MELLO_UI_BTN_SEL);
+        CHECK(!e->bass.steps[1].on, "SEL: a bass rest");
+        mello_ui_set_held_notes(&ui, 1u << 14);
+        in(0u, 0u, 0u, 1u << 14);
+        for (i = 0u; i < 8u; ++i) in(0u, 0u, 0u, 0u);
+        mello_ui_set_held_notes(&ui, 0u);
+        in(0u, 0u, 0u, 0u);
+        CHECK(e->bass.steps[2].glide, "a long bass key: a glide");
+    }
+
+    { /* playing: a key kept down carries the note on to the steps the clock reaches */
+        uint32_t pulse_us = 60000000u / e->project.bpm / 4u, us, end;
+        uint8_t first;
+        int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
+        mello_project_defaults(&p);
+        for (i = 0u; i < 16u; ++i) p.steps[i].pitch = 0, p.steps[i].octave = 0;
+        mello_transport_init(&t, &p, 1u, midi, NULL);
+        mello_ui_init(&ui, &t, &st);
+        e = &t.engine;
+        tap_button(MELLO_UI_BTN_EDIT);
+        tap_button(MELLO_UI_BTN_REC);
+        mello_transport_start(&t, ms * 1000u);
+        us = ms * 1000u;
+        for (end = us + 4u * pulse_us + pulse_us / 4u; us < end; us += 1000u)
+            mello_transport_poll_ahead(&t, us, MELLO_TRANSPORT_LOOKAHEAD_US);
+        mello_ui_set_held_notes(&ui, 1u << 14);
+        mello_ui_input(&ui, us, us / 1000u, 0u, 0u, 0u, 1u << 14, enc);
+        first = ui.rec_key_pos;
+        for (end = us + 3u * pulse_us; us < end; us += 1000u) {
+            mello_transport_poll_ahead(&t, us, MELLO_TRANSPORT_LOOKAHEAD_US);
+            mello_ui_input(&ui, us, us / 1000u, 0u, 0u, 0u, 0u, enc);
+        }
+        mello_ui_set_held_notes(&ui, 0u);
+        CHECK(ui.rec_key_pos != first, "the note moved on with the clock (still step %u)", first + 1u);
+        CHECK(e->project.steps[first].gate == MELLO_GATE_HOLD, "the first step is held");
+        CHECK(mello_resolve_step_midi(&e->project, &e->project.steps[(first + 1u) % 16u]) == 67u &&
+                  e->project.steps[(first + 1u) % 16u].gate == MELLO_GATE_HOLD &&
+                  e->project.steps[(first + 1u) % 16u].slide,
+              "the next step is the same note, held and slid into");
     }
 
     printf("PASS: the key rule rounds and lights the scale; REC cycles SEQ, BASS, CHORD; stopped it steps, "

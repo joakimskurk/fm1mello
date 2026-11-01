@@ -257,6 +257,7 @@ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage
     ui->dot_trail[0] = ui->dot_trail[1] = -1;
     ui->held_step = MELLO_UI_NO_STEP;
     ui->audition_key = 0xFFu;
+    ui->rec_key = 0xFFu;
     ui->seen_sub_x_pos = -2;
 #if MELLO_FEATURE_CHORD_MACHINE
     ui->seen_chord_pos = 0xFFu;
@@ -895,6 +896,14 @@ static MelloChordShape shape_for_interval(uint8_t lo, uint8_t hi)
 }
 #endif
 
+static void rec_key_down(MelloUi *ui, uint8_t note_index, uint8_t pos, uint32_t now_us)
+{
+    ui->rec_key = note_index;
+    ui->rec_key_pos = pos;
+    ui->rec_key_ms = now_us / 1000u;
+    ui->rec_key_long = false;
+}
+
 /* A key in KEYS mode. Note keys run F3 (MIDI 53) .. G5. Playing without REC: the key is the new root. Otherwise the
  * key rule first: a note off the scale rounds to the nearest on it (CHROMATIC: as played); then REC writes it where
  * its target is (the next step stopped, the clock's step playing), and stopped it sounds the lead. */
@@ -933,6 +942,7 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
         b.on = true;
         mello_engine_bass_set_config(e, &b);
         if (!running) ui->keys_rec_pos = (uint8_t)((pos + 1u) % len);
+        rec_key_down(ui, note_index, pos, now_us);
         mark_edit(ui);
         ui->dirty |= MELLO_UI_DIRTY_BODY;
     }
@@ -946,9 +956,19 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
             ui->keys_rec_pos == (uint8_t)((ui->keys_rec_last + 1u) % MELLO_CHORD_MAX_STEPS) &&
             ui->keys_rec_last < c.length) {
             /* a second key over the first: the shape of the chord just written */
-            uint8_t lo = ui->keys_rec_last_midi < midi ? ui->keys_rec_last_midi : midi,
-                    hi = ui->keys_rec_last_midi < midi ? midi : ui->keys_rec_last_midi;
-            c.steps[ui->keys_rec_last].shape = shape_for_interval(lo, hi);
+            MelloChordStep *cs = &c.steps[ui->keys_rec_last];
+            uint8_t root = ui->keys_rec_last_midi;
+            uint8_t d = (uint8_t)(((int32_t)midi - (int32_t)root + 120) % 12);
+            bool third = d == 3u || d == 4u, fifth = d >= 6u && d <= 8u;
+            if (midi < root && third)
+                cs->inversion = 1u; /* the third under the root: the first inversion */
+            else if (midi < root && fifth)
+                cs->inversion = 2u; /* the fifth under the root: the second */
+            else if (midi < root && d >= 10u) {
+                cs->shape = MELLO_CHORD_SEVENTH; /* the seventh under the root: the third inversion */
+                cs->inversion = 3u;
+            } else if (!(d == 7u && (others & (others - 1u)))) /* a third key's fifth completes a triad */
+                cs->shape = shape_for_interval(root, midi);
         } else {
             uint8_t pos = running ? (e->chord_voiced_slot < len ? e->chord_voiced_slot
                                                                 : (uint8_t)(e->chord_chain_pos % len))
@@ -979,9 +999,10 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
         s->pitch = found.pitch;
         s->octave = found.octave;
         s->skip = false;
-        if (s->gate == MELLO_GATE_REST) s->gate = MELLO_GATE_SINGLE;
+        if (s->gate == MELLO_GATE_REST || s->gate == MELLO_GATE_HOLD) s->gate = MELLO_GATE_SINGLE;
         ui->selected_step = pos;
         if (!running) ui->keys_rec_pos = (uint8_t)((pos + 1u) % len);
+        rec_key_down(ui, note_index, pos, now_us);
         rebuild(ui);
         mark_edit(ui);
     }
@@ -991,6 +1012,90 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
         ui->audition_note = midi;
         audition(ui, midi, true, now_us);
     }
+}
+
+/* SEL while recording: a rest where the next key would have gone. A chain of chords has no rests. */
+static void rec_rest(MelloUi *ui, uint32_t now_us)
+{
+    MelloEngine *e = eng(ui);
+    bool running;
+    if (!e) return;
+    running = ui->transport->running;
+    if (ui->keys_rec_target == MELLO_UI_REC_BASS) {
+        MelloBassConfig b = e->bass;
+        uint8_t len = b.length ? b.length : 1u;
+        uint8_t pos = running ? rec_live_pos(ui, now_us, (uint8_t)((e->bass_pos + len - 1u) % len), len)
+                              : (uint8_t)(ui->keys_rec_pos % len);
+        b.steps[pos].on = false;
+        mello_engine_bass_set_config(e, &b);
+        if (!running) ui->keys_rec_pos = (uint8_t)((pos + 1u) % len);
+    } else if (ui->keys_rec_target == MELLO_UI_REC_SEQ) {
+        uint8_t len = e->project.seq_len ? e->project.seq_len : 1u;
+        uint8_t pos = running ? rec_live_pos(ui, now_us, ui->transport->display_step, len)
+                              : (uint8_t)(ui->keys_rec_pos % len);
+        e->project.steps[pos].gate = MELLO_GATE_REST;
+        ui->selected_step = pos;
+        if (!running) ui->keys_rec_pos = (uint8_t)((pos + 1u) % len);
+        rebuild(ui);
+    } else
+        return;
+    ui->rec_key = 0xFFu;
+    mark_edit(ui);
+    ui->dirty |= MELLO_UI_DIRTY_BODY;
+}
+
+/* While the writing key stays down. Stopped, past REC_LONG_MS: a held note (SEQ) or a glide (BASS). Playing, the
+ * clock reaching the next step carries the note on: the same note there, tied to the one before. */
+#define REC_LONG_MS 300u
+static void rec_key_poll(MelloUi *ui, uint32_t now_ms)
+{
+    MelloEngine *e = eng(ui);
+    bool bass;
+    uint8_t len, next, cur;
+    if (ui->rec_key == 0xFFu) return;
+    if (!e || !ui->keys_rec || ui->keys_rec_target == MELLO_UI_REC_CHORD ||
+        !(ui->held_notes & bit_u32(ui->rec_key))) {
+        ui->rec_key = 0xFFu;
+        return;
+    }
+    bass = ui->keys_rec_target == MELLO_UI_REC_BASS;
+    len = bass ? e->bass.length : e->project.seq_len;
+    if (!len) len = 1u;
+    if (!ui->transport->running) {
+        if (ui->rec_key_long || now_ms - ui->rec_key_ms < REC_LONG_MS) return;
+        ui->rec_key_long = true;
+        if (bass) {
+            MelloBassConfig b = e->bass;
+            b.steps[ui->rec_key_pos % MELLO_BASS_STEPS].glide = true;
+            mello_engine_bass_set_config(e, &b);
+        } else {
+            e->project.steps[ui->rec_key_pos % MELLO_MAX_STEPS].gate = MELLO_GATE_HOLD;
+            rebuild(ui);
+        }
+        mark_edit(ui);
+        return;
+    }
+    next = (uint8_t)((ui->rec_key_pos + 1u) % len);
+    cur = bass ? (uint8_t)((e->bass_pos + len - 1u) % len) : ui->transport->display_step;
+    if (cur != next || next == ui->rec_key_pos) return;
+    if (bass) {
+        MelloBassConfig b = e->bass;
+        b.steps[next] = b.steps[ui->rec_key_pos];
+        b.steps[next].glide = false;
+        b.steps[ui->rec_key_pos].glide = true;
+        mello_engine_bass_set_config(e, &b);
+    } else {
+        MelloStep *from = &e->project.steps[ui->rec_key_pos], *to = &e->project.steps[next];
+        from->gate = MELLO_GATE_HOLD;
+        to->pitch = from->pitch;
+        to->octave = from->octave;
+        to->skip = false;
+        to->gate = MELLO_GATE_HOLD;
+        to->slide = true;
+        rebuild(ui);
+    }
+    ui->rec_key_pos = next;
+    mark_edit(ui);
 }
 
 static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t held_buttons,
@@ -2949,7 +3054,12 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
      * depends on history; pressed again on its own page it goes to the next layer. */
     /* R1: the printed button is the section; from elsewhere it opens the section's first page, pressed again it
      * goes to the next (section_next). SELECT is the layer, ALGORITHM the page. */
-    if (pressed & bit_u32(MELLO_UI_BTN_SEL)) open_page(ui, MELLO_UI_KEY_SCALE);
+    if (pressed & bit_u32(MELLO_UI_BTN_SEL)) {
+        if (ui->page == MELLO_UI_HOME && ui->keys_mode && ui->keys_rec)
+            rec_rest(ui, now_us); /* recording: SEL is the rest (every key is a note) */
+        else
+            open_page(ui, MELLO_UI_KEY_SCALE);
+    }
     if (pressed & bit_u32(MELLO_UI_BTN_FX)) section_next(ui, MELLO_UI_BTN_FX, 1);
     if (pressed & bit_u32(MELLO_UI_BTN_LFO)) section_next(ui, MELLO_UI_BTN_LFO, 1);
     if (pressed & bit_u32(MELLO_UI_BTN_ARP)) section_next(ui, MELLO_UI_BTN_ARP, 1);
@@ -3102,6 +3212,7 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
     perf_poll(ui); /* before the presses: REPEAT held + a white key */
     for (i = 0u; i < 27u; ++i)
         if (note_pressed & bit_u32(i)) handle_note_press(ui, now_us, now_ms, held_buttons, i);
+    rec_key_poll(ui, now_ms);
     perf_poll(ui);
     if (encoder_delta) adjust_knobs(ui, encoder_delta, now_us, now_ms);
     if (ui->rndmzr_down) { /* RNDMZR: let go = roll now; held half a second = the RANDOM page */
