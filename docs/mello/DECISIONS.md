@@ -722,9 +722,13 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   slots, the loader's screen, store.h; none of it is wanted here, and dinghy.c is wholly ours. Taken: midi_uart.c
   as upstream has it, FELUCCA_UART 1 and its five hunks in platform.c (include, the 2 kHz poll the timer owes,
   the init before TIMER5, midi_get's 2 for cable 1). The app did not change: the transport already follows F8 /
-  FA / FB / FC in SLAVE and takes notes however they arrive. Proof: the parser on the host (midi_uart_parser);
-  the UART itself only by upstream's units (Felucca Salt, 0.4), since no FM-1 is at hand and fm1-emu's notes do
-  not mention UART1. RAM: +192 B (the 128-byte ring and the parser's state).
+  FA / FB / FC in SLAVE; notes in are not played (the sequencer is the player, as in the HTML). Proof: the parser
+  on the host (midi_uart_parser), and the whole UART path in fm1-emu: its MIDI input is the jack (UART1 at
+  31250 baud, `--keys 'T:midi:bf6e01'`), and a 2 976-byte sample record sent that way, 1 706 messages 2 ms
+  apart, was erased into staging, written, copied into slot 1 and read back (FM1_FLASH_TRACE). The web emulator
+  feeds MIDI the same way, so f28 is the first package to hear MIDI there. Before f28 the emulators' MIDI never
+  reached SkurkyMello: it had only the USB ring. The pins (PH8) are proven on hardware by upstream's units
+  (Felucca Salt, 0.4). RAM: +192 B (the 128-byte ring and the parser's state).
 - **Room for samples.** Flash: slots 0xC0000..0xDFFFF (4 x 32 KiB), staging 0xB8000..0xBFFFF, the project banks
   0x98000..0xB7FFF; the OTA area 0xE0000..0xE4FFF and the settings sector 0xFC000 are Dinghy's. Pool (336 KiB):
   delay 128 KiB, reverb 48 KiB, the four slots' compressed data 128 KiB, canvases; 17 KiB free. RAM .data+.bss

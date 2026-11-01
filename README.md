@@ -239,10 +239,12 @@ its own after an edit once the sequencer stops; two banks with checksums, so a c
 last edit. SAVE held opens the slots: LOAD a slot onto the sequence, RENAME it with the keys; PRESETS on HOME queues
 a slot for the next bar. 64 slots, all full, fit the bank.
 
-MIDI in comes over USB and over the FM-1's TRS jack (Dinghy 0.4's parser: notes, controllers, clock and transport;
-SysEx only over USB); MIDI out goes over USB. Clock in (GLOBAL > CLOCK, SYNC) follows either, notes in play the
-lead on its channel, notes out go for the lead and the bass on their channels (NOTE OUT) and for the drums on
-channel 10 as General MIDI.
+MIDI in comes over USB and over the FM-1's TRS jack (Dinghy 0.4's parser: channel messages, clock and transport;
+SysEx only over USB); MIDI out goes over USB. With SYNC set to SLAVE (GLOBAL > CLOCK) the sequencer follows clock,
+start, continue and stop from either input; notes in are not played (the sequencer is the player). Notes out go for
+the lead and the bass on their channels (NOTE OUT) and for the drums on channel 10 as General MIDI. In the emulators
+MIDI arrives through the jack: fm1-emu's `--keys 'T:midi:903c64'` and the web emulator's MIDI in both feed UART1, so
+from 0.5-f28 on SkurkyMello hears them.
 
 ### Samples
 
@@ -259,11 +261,18 @@ python3 tools/fm1_samples.py clear --slot 1
 
 The tool mixes to mono, resamples, encodes, and sends the slot's flash record as it will lie in flash; the FM-1
 answers after START and END, and a transfer takes a second or two. The record goes to a staging area first, so a
-cut transfer never damages what the slot had. With an emulator nothing comes back: add `--no-ack`, and pick the
-MIDI port the emulator listens to with `--port` (fm1-emu and the web emulator take the computer's MIDI inputs; on
-macOS an IAC bus does). The protocol is plain channel messages on MIDI channel 16 (CC 110 to 114 and 120 / 121,
-poly aftertouch for the data: `tools/fm1_samples.py --help`), not SysEx, so keep other gear off channel 16 while
-sending. `pack` writes the record to a file and `decode` turns one back into a WAV.
+cut transfer never damages what the slot had. With the web emulator nothing comes back: add `--no-ack`, and pick
+the MIDI port it listens to with `--port` (it takes the computer's MIDI inputs; on macOS an IAC bus does). For
+fm1-emu on the command line, `emu-keys` prints the whole transfer as its `--keys` script:
+
+```sh
+python3 tools/fm1_samples.py emu-keys kick.wav --slot 0 > keys.txt
+fm1-emu --fwsc skurkymello.fwsc --ms 8000 --keys "$(cat keys.txt)"
+```
+
+The protocol is plain channel messages on MIDI channel 16 (CC 110 to 114 and 120 / 121, poly aftertouch for the
+data: `tools/fm1_samples.py --help`), not SysEx, so keep other gear off channel 16 while sending. `pack` writes the
+record to a file and `decode` turns one back into a WAV.
 
 Where the room is: the four slots are 0xC0000 to 0xDFFFF in flash with the 32 KiB staging area under them at
 0xB8000, below that the two 64 KiB project banks. In RAM the slots' compressed data (4 x 32 KiB) live in the

@@ -8,6 +8,7 @@
   fm1_samples.py query --slot N [--port NAME]
   fm1_samples.py pack SOUND.wav --slot N -o RECORD.bin [the same sound options]
   fm1_samples.py decode RECORD.bin -o SOUND.wav
+  fm1_samples.py emu-keys SOUND.wav --slot N [--at MS] [--pace MS]   the transfer as fm1-emu's --keys script
   fm1_samples.py ports
 
 The firmware (firmware/src/mello_sample.c) speaks plain channel messages on MIDI channel 16, not SysEx,
@@ -25,8 +26,9 @@ of 132 bytes (predictor, step index, pad, 128 bytes of nibbles, low nibble first
 CRC. A slot is 32 KiB: 247 blocks, 63 232 samples, 2.87 s. The WAV is mixed to mono and resampled to
 22 050 Hz here (a box filter, then linear interpolation); the device plays it at any pitch.
 
-Emulators (fm1-emu, the web emulator) take MIDI in but send nothing back: --no-ack waits a fixed time
-instead of the ACKs. Exit codes: 0 ok, 2 usage / a bad file, 3 no port, 4 the device said ERROR, 5 timeout.
+Emulators (fm1-emu, the web emulator) take MIDI in through the emulated TRS jack and send nothing back: --no-ack
+waits a fixed time instead of the ACKs; emu-keys writes the transfer for fm1-emu's command line
+(fm1-emu --fwsc F.fwsc --ms 8000 --keys "$(cat keys.txt)"). Exit codes: 0 ok, 2 usage / a bad file, 3 no port, 4 the device said ERROR, 5 timeout.
 """
 import argparse
 import binascii
@@ -421,6 +423,22 @@ def cmd_decode(a):
     print("%s: slot %d %r, %d samples -> %s" % (a.record, r["slot"], r["name"], len(pcm), a.output))
 
 
+def cmd_emu_keys(a):
+    """fm1-emu --keys: 'T:midi:HEX' entries, START at --at, a message every --pace ms, END 200 ms after the last"""
+    pcm, name = sound_from_args(a)
+    rec = make_record(pcm, a.slot, name)
+    digits = pack_7bit(rec)
+    t = a.at
+    keys = ["%d:midi:bf%02x%02x" % (t, CC_START, a.slot)]
+    t += 100
+    for i in range(0, len(digits), 2):
+        keys.append("%d:midi:af%02x%02x" % (t, digits[i], digits[i + 1]))
+        t += a.pace
+    keys.append("%d:midi:bf%02x00" % (t + 200, CC_END))
+    print(",".join(keys))
+    print("# %d messages, END at %d ms: run with --ms %d or more" % (len(keys), t + 200, t + 1200), file=sys.stderr)
+
+
 def cmd_ports(a):
     try:
         import mido
@@ -471,6 +489,11 @@ def main(argv=None):
     s.add_argument("record")
     s.add_argument("-o", "--output", required=True)
     s.set_defaults(fn=cmd_decode)
+    s = sub.add_parser("emu-keys", help="the transfer as fm1-emu's --keys script (no MIDI port needed)")
+    sound(s)
+    s.add_argument("--at", type=int, default=2000, help="ms at which START goes (default 2000: after the splash)")
+    s.add_argument("--pace", type=float, default=2.0, help="ms between messages (default 2: under 31250 baud)")
+    s.set_defaults(fn=cmd_emu_keys)
     s = sub.add_parser("ports", help="list MIDI ports")
     s.set_defaults(fn=cmd_ports)
 

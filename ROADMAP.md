@@ -85,7 +85,10 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       cycle, a flipped digit refused, the Python encoder against the C decoder.
 - [x] D2. MIDI IN on the TRS jack, from Dinghy 0.4 as a cherry-pick (midi_uart.c, its hunks in platform.c): clock,
       transport and notes from the jack land in the same ring as USB. Parser tested on the host
-      (`midi_uart_parser`); the jack itself is proven on hardware by upstream only, fm1-emu may not model UART1.
+      (`midi_uart_parser`), and the jack in fm1-emu, whose MIDI input is UART1: a whole sample transfer sent as
+      `--keys 'T:midi:...'` landed in slot 1 (staging erased and written, the slot erased, copied and read back,
+      seen in FM1_FLASH_TRACE). The web emulator's MIDI in is the jack too, so SkurkyMello hears it from f28 on.
+      The pins themselves (PH8, the TRS wiring) are proven on hardware by upstream only.
 - D3. Room for samples, as it stands: flash 4 x 32 KiB slots + 32 KiB staging (0xB8000..0xDFFFF), the pool 17 KiB
       free with the four slots' compressed data in it, RAM 7.3 KiB free. A fifth slot would need 32 KiB of pool
       (the delay line is 128 KiB for 1.49 s) and a flash sector range: 0xE5000..0xFC000 is unlisted in Felucca's
