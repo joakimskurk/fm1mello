@@ -703,6 +703,34 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   there (as bank 0's), the first save after an upgrade goes under it in bank 0 when it fits, and a save erases only
   the sectors its record needs (fewer erases, less wear), so the old record outlives it.
 
+## Samples over MIDI, and the TRS jack (2026-11-01)
+
+- **Samples go in as channel messages, not SysEx.** The transfer (mello_sample.c) uses CC 110-114 on channel 16 for
+  START / END / ABORT / CLEAR / QUERY, CC 120 / 121 back as ACK / ERROR, and poly aftertouch for the data: two
+  7-bit digits a message, eight digits to seven bytes. Dinghy's usb.c assembles SysEx only up to the six-byte soft
+  keys and drops the rest, so SysEx would have meant changing a Dinghy file and a second parser; channel messages
+  reach the app through the ring that already exists, from USB and (now) the jack alike, and an emulator's MIDI
+  input carries them too. The cost: channel 16 must be free of other gear while a sample goes in. The payload is
+  the flash record exactly as it will lie in the slot, so the device verifies it with the CRCs it checks at boot
+  anyway, and writes it to the staging area first: a cut transfer leaves the old sample.
+- **The host tool is plain Python.** tools/fm1_samples.py needs only mido (the installer's dependency) and the
+  standard library: WAV in (8 to 32-bit, stereo mixed down), a box filter and linear interpolation down to
+  22 050 Hz, the IMA encoder matching mello_sample_decode_block nibble for nibble, 16 messages then 1 ms of pause
+  so the device's 256-byte page writes keep up with the 64-packet ring. A pluck of 2.3 s is 14 825 messages, 33 dB
+  SNR back (4-bit ADPCM). The test feeds the tool's own record through the firmware's parser.
+- **TRS MIDI IN as a cherry-pick from Dinghy 0.4, not a merge.** 0.4 is 2 000 lines: the SMK-37 board, blobs and
+  slots, the loader's screen, store.h; none of it is wanted here, and dinghy.c is wholly ours. Taken: midi_uart.c
+  as upstream has it, FELUCCA_UART 1 and its five hunks in platform.c (include, the 2 kHz poll the timer owes,
+  the init before TIMER5, midi_get's 2 for cable 1). The app did not change: the transport already follows F8 /
+  FA / FB / FC in SLAVE and takes notes however they arrive. Proof: the parser on the host (midi_uart_parser);
+  the UART itself only by upstream's units (Felucca Salt, 0.4), since no FM-1 is at hand and fm1-emu's notes do
+  not mention UART1. RAM: +192 B (the 128-byte ring and the parser's state).
+- **Room for samples.** Flash: slots 0xC0000..0xDFFFF (4 x 32 KiB), staging 0xB8000..0xBFFFF, the project banks
+  0x98000..0xB7FFF; the OTA area 0xE0000..0xE4FFF and the settings sector 0xFC000 are Dinghy's. Pool (336 KiB):
+  delay 128 KiB, reverb 48 KiB, the four slots' compressed data 128 KiB, canvases; 17 KiB free. RAM .data+.bss
+  91040 of 98304. A fifth slot needs 32 KiB of pool (the delay's 1.49 s is the only thing that size) and flash
+  that no map lists (0xE5000..0xFC000 is unlisted in Felucca's): not without a unit.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

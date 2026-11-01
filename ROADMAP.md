@@ -77,7 +77,21 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       of values is gone. HOME, MIX, DOT, EVOLVE and RANDOM keep their own bodies (DECISIONS.md "One body").
 - [ ] C4. A short hand checklist on the FM-1 (with the first flash, below).
 
-Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, first flash and C4.
+**D. Ins and outs (2026-11-01)**
+- [x] D1. Samples from the computer. The firmware took them over USB-MIDI since the sample engine (CC 110-114 on
+      channel 16, poly aftertouch for the data) but nothing on the computer spoke it. `tools/fm1_samples.py` sends a
+      WAV into a slot (mono, 22 050 Hz, IMA ADPCM, the record with its CRCs, ACKs after START and END; `--no-ack`
+      for the emulators), and `sample_transfer_roundtrip` is the transfer's first test: 33 dB SNR back, a power
+      cycle, a flipped digit refused, the Python encoder against the C decoder.
+- [x] D2. MIDI IN on the TRS jack, from Dinghy 0.4 as a cherry-pick (midi_uart.c, its hunks in platform.c): clock,
+      transport and notes from the jack land in the same ring as USB. Parser tested on the host
+      (`midi_uart_parser`); the jack itself is proven on hardware by upstream only, fm1-emu may not model UART1.
+- D3. Room for samples, as it stands: flash 4 x 32 KiB slots + 32 KiB staging (0xB8000..0xDFFFF), the pool 17 KiB
+      free with the four slots' compressed data in it, RAM 7.3 KiB free. A fifth slot would need 32 KiB of pool
+      (the delay line is 128 KiB for 1.49 s) and a flash sector range: 0xE5000..0xFC000 is unlisted in Felucca's
+      map and not to be touched without a unit to try it on.
+
+Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, D1-D2, first flash and C4.
 
 ## Earlier: feedback from playing 0.5 (2026-10-30)
 
@@ -273,6 +287,6 @@ simple (Phase 3's iceberg).
 
 ## Phase 4: validate, then grow
 
-`docs/mello/HARDWARE_VALIDATION_CHECKLIST.md` on a unit. Then: Dinghy 0.4 (TRS MIDI, clock), Undo Last Random,
-new engines. Before the first public release: confirm the package identity (`FM-1_970`; Dinghy's docs list 97N for
+`docs/mello/HARDWARE_VALIDATION_CHECKLIST.md` on a unit. Then: the rest of Dinghy 0.4 as needed (its TRS MIDI IN
+is in since 2026-11-01), Undo Last Random, new engines. Before the first public release: confirm the package identity (`FM-1_970`; Dinghy's docs list 97N for
 zp12) on the Firmware Hub.

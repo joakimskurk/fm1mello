@@ -5,8 +5,8 @@ voice with filter, grit and a second oscillator, a bass with its own sequencer, 
 a sample layer, delay, reverb, distortion, a dot-matrix and an evolving-register modulator, a randomizer with undo,
 performance keys, 64 pattern slots and a loop cycle, all on the FM-1's keys, knobs and 240 x 240 screen. It is a
 port of [SkurkyMello](reference/skurkymello.html), the browser instrument, which stays the reference for sound and
-feel, and it is built on [Dinghy](https://github.com/zvenson/dinghy) 0.3 by zvenson and, under that, the Felucca /
-SLOOP platform.
+feel, and it is built on [Dinghy](https://github.com/zvenson/dinghy) 0.3 by zvenson (with 0.4's MIDI IN on the TRS
+jack) and, under that, the Felucca / SLOOP platform.
 
 > **Status: tested on emulators, not yet on an FM-1.** Every package runs in
 > [fm1-emu](https://github.com/joakimeriksson/fm1-emu) and its web emulator; the first install on real hardware
@@ -24,7 +24,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f27.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f28.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -131,7 +131,7 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   FM, unison with detune), a second oscillator with sync and FM, saturation, a MOD envelope, velocity and key
   tracking. INIT (B1) puts the sound back.
 - **The sample layer** (ENV > SAMPLE). Four slots of user samples, per step or fixed, with pitch, trim, loop and an
-  envelope.
+  envelope. Samples come in from the computer over USB-MIDI with `tools/fm1_samples.py` (below).
 - **DOT** (LFO > DOT). Five 4 x 4 matrices read along a route (horizontal, spiral, random, walk ...) at the
   sequence's pace: accents, ratchets, the sub, and two MOD lanes that shape a sound parameter with an attack and a
   release.
@@ -239,9 +239,35 @@ its own after an edit once the sequencer stops; two banks with checksums, so a c
 last edit. SAVE held opens the slots: LOAD a slot onto the sequence, RENAME it with the keys; PRESETS on HOME queues
 a slot for the next bar. 64 slots, all full, fit the bank.
 
-MIDI over USB: clock in (GLOBAL > CLOCK, SYNC), notes out for the lead and the bass on their channels (NOTE OUT)
-and the drums on channel 10 as General MIDI, notes in on the lead's channel, and user samples in over the
-firmware's own USB-MIDI transfer (mello_sample.h; a host tool for it is not in this repository yet).
+MIDI in comes over USB and over the FM-1's TRS jack (Dinghy 0.4's parser: notes, controllers, clock and transport;
+SysEx only over USB); MIDI out goes over USB. Clock in (GLOBAL > CLOCK, SYNC) follows either, notes in play the
+lead on its channel, notes out go for the lead and the bass on their channels (NOTE OUT) and for the drums on
+channel 10 as General MIDI.
+
+### Samples
+
+Four slots of 32 KiB in flash, each a mono sound at 22 050 Hz as IMA ADPCM, up to 2.87 s; the SAMPLE page shows a
+slot's name, and a step or the whole layer plays it at any pitch. A WAV goes into a slot from the computer, over
+USB-MIDI, while the sequencer is stopped:
+
+```sh
+python3 tools/fm1_samples.py send kick.wav --slot 0 --name KICK
+python3 tools/fm1_samples.py send choir.wav --slot 1 --start 1.5 --length 2.5 --normalize
+python3 tools/fm1_samples.py query --slot 1          # loaded or empty
+python3 tools/fm1_samples.py clear --slot 1
+```
+
+The tool mixes to mono, resamples, encodes, and sends the slot's flash record as it will lie in flash; the FM-1
+answers after START and END, and a transfer takes a second or two. The record goes to a staging area first, so a
+cut transfer never damages what the slot had. With an emulator nothing comes back: add `--no-ack`, and pick the
+MIDI port the emulator listens to with `--port` (fm1-emu and the web emulator take the computer's MIDI inputs; on
+macOS an IAC bus does). The protocol is plain channel messages on MIDI channel 16 (CC 110 to 114 and 120 / 121,
+poly aftertouch for the data: `tools/fm1_samples.py --help`), not SysEx, so keep other gear off channel 16 while
+sending. `pack` writes the record to a file and `decode` turns one back into a WAV.
+
+Where the room is: the four slots are 0xC0000 to 0xDFFFF in flash with the 32 KiB staging area under them at
+0xB8000, below that the two 64 KiB project banks. In RAM the slots' compressed data (4 x 32 KiB) live in the
+336 KiB pool next to the delay and reverb lines (17 KiB of it is free); the audio callback decodes block by block.
 
 ## Work on it
 
@@ -292,16 +318,18 @@ firmware/src/mello_ui.*        pages, keys, pictures
 firmware/src/mello_storage.*   projects in flash (A/B banks with CRC)
 firmware/src/mello_sample.*    user samples
 firmware/src/platform.c, hal/  Dinghy's platform, as close to upstream as possible
+firmware/src/midi_uart.c       Dinghy 0.4's MIDI IN on the TRS jack, as upstream has it
 tests/mello/                   host tests;  tests/bench/  the CPU bench;  tests/parity/  the HTML parity
-tools/emu_cpu.sh, fm1_install.py, build.py
+tools/fm1_samples.py (WAVs into the sample slots), fm1_install.py, emu_cpu.sh, build.py
 reference/skurkymello.html     the original: the reference for sound and feel
 docs/mello/                    DECISIONS.md, UI_MAP.md, CONTROL_GRAMMAR.md, UI_ICEBERG.md, FIRST_FLASH.md
 ```
 
 ## Upstream and licence
 
-`main` is a fork of Dinghy at `d44df7d` (0.3); `git remote upstream` points there. The Mello changes to Dinghy's own
-files are small and listed in `git log -- firmware/src/platform.c firmware/src/gfx.c tools/build.py`. Package
+`main` is a fork of Dinghy at `d44df7d` (0.3) with 0.4's TRS MIDI IN taken over (`midi_uart.c` and its hunks in
+`platform.c`); `git remote upstream` points there. The Mello changes to Dinghy's own files are small and listed in
+`git log -- firmware/src/platform.c firmware/src/midi_uart.c firmware/src/gfx.c tools/build.py`. Package
 identity: `FM-1_970`.
 
 GPL-3.0-only, as Dinghy. See [LICENSING.md](LICENSING.md) for who made what.
