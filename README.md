@@ -1,7 +1,7 @@
 # SkurkyMello for the M-VAVE FM-1
 
 This started as an HTML project where I tried to build my dream sequencer, inspired by the way I work on my modular
-synth. It has since become the prototype I use most. The FM-1 version is my first attempt at porting an idea to actual
+synth. After working on it for a few months it has since become the prototype I use most. The FM-1 version is my first attempt at porting an idea to actual
 firmware, so please be kind.
 
 This is a melody-focused firmware. The main sequencer is its heart. The chords and drums were only added for the FM-1
