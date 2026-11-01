@@ -306,6 +306,10 @@ static void app_main(void)
                                      !mt.running && mello_audio_is_silent(&audio));
 #endif
 
+        { /* Big screen: a new viewer wants everything; rows the queue had no room for want their zone again */
+            uint16_t md = mirror_take_dirty();
+            if (md) ui.dirty |= md == MIRROR_DIRTY_ALL ? MELLO_UI_DIRTY_ALL : md;
+        }
         if (mello_ui_dirty(&ui) & MELLO_UI_DIRTY_LEDS) mello_ui_sync_leds(&ui, &draw);
 
         /* At most 50 Hz UI service. Dirty regions mean this is not a 240x240 redraw loop. */

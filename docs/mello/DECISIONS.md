@@ -735,6 +735,39 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   91040 of 98304. A fifth slot needs 32 KiB of pool (the delay's 1.49 s is the only thing that size) and flash
   that no map lists (0xE5000..0xFC000 is unlisted in Felucca's): not without a unit.
 
+## Big screen (2026-11-01)
+
+The user asked for "big screen": FM-1 Mirror (Patrick F. Kellogg, github.com/pfkellogg/fm1-mirror) shows the FM-1's
+1.54-inch screen large on a computer, tablet or phone, for anyone who cannot read it, if the firmware sends its
+screen over the USB MIDI connection it already has. The protocol is his and MIT licensed, so the right thing was to
+speak it exactly rather than invent another: the app sends `F0 7D 'F' 'S' 00 F7` about once a second (`01`: and
+send everything), the FM-1 answers each painted row as `F0 7D 'F' 'S' 01 row col {count colour}... F7`, row and
+column as two 7-bit bytes, each run a count of at most 127 and the RGB565 colour in three 7-bit bytes, a message at
+most 70 bytes, and it stops 3 s after the last hello. His firmware-neutral encoder (`screen_mirror.c`, MIT, with a
+section attribute and a `sm_pending()` added under the same licence) is in the tree as it is; the glue is ours:
+
+- **Where the rows come from.** This firmware has no framebuffer (the UI draws dirty regions through a small
+  canvas), so the rows are taken where the LCD gets them: `lcd_fill` and `lcd_blit` hand every write to
+  `mirror_fill` and `mirror_blit_swapped`, which turn the byte-swapped canvas back into native colours a row at a
+  time. With nobody asking the hooks return at once. This is a change to Dinghy's `lcd.c`, two lines, said so in
+  the commit.
+- **Where the hello comes from.** The USB's SysEx parser (usb.c, in the 2 kHz USB interrupt) sets a flag for the
+  main loop, which `platform_poll` turns into the mirror's hello; the hello is not an updater frame. The rows go
+  out through the updater's SysEx ring (`usb_mirror_send`, non-blocking: "busy" when the ring is short of room or
+  the updater is sending), which the USB interrupt drains ahead of note output, as the updater's frames do.
+- **Room, and pacing.** The queue is 16 KB in the pool (17 KB were free; RAM has 7 KB), and a page is more than
+  that, so a repaint is paced: a full request paints one zone at a time (header, status, footer, body), each once
+  the queue has drained, which the UI's own dirty flags make easy (`mirror_take_dirty` is OR-ed into them in the
+  main loop). A row the queue cannot take waits up to 40 ms for the interrupt to take some; a row still lost asks
+  for its zone again once the queue is empty. An app that stopped reading gets no waiting for a second. The
+  wait is the one place the mirror can hold the main loop, and only with a viewer attached during a repaint
+  that overflows 16 KB; the audio runs in its own interrupt.
+- **The host.** tests/host.c has the same hooks and writes the SysEx to a file; `tests/mirror_check.sh` (in
+  `make test`) decodes it back into a screen and compares with the screen shot at the same moment: 0 of 57600
+  pixels differ after a hello, and after a page change and PLAY. `screen_mirror` tests the encoder and the pacing.
+  The emulator has no USB MIDI, so the device itself is unverified until someone with an FM-1 and the app tries
+  it; the message format is checked byte for byte against the reference's own test vectors.
+
 ## Record it yourself (2026-11-01)
 
 The user: "we must be able to record steps into the main sequence, the bass and the chords by hand, with the full

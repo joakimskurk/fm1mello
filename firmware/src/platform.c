@@ -28,6 +28,7 @@ enum { ENC_SELECT = 0, ENC_ALGORITHM = 1, ENC_KNOB1 = 2, ENC_KNOB2 = 3, ENC_KNOB
 #else
 #define FM1_SECTION(s) __attribute__((section(s)))
 #endif
+#include "mirror.h"                             /* Big screen: the LCD's writes mirrored over USB MIDI (mirror.c) */
 #ifdef DINGHY_HOST
 #include "../../tests/host.c"                  /* on a computer: a fake FM-1 (tests/host.c) */
 #else
@@ -58,6 +59,10 @@ static volatile uint32_t fm1_ms;                /* milliseconds since power-on (
 
 #define RING_PUBLISH() __asm__ volatile("" ::: "memory")
 #include "libc.c"
+#define SM_BUFFER_ATTR FM1_SECTION(".pool")     /* the mirror's 16 KB queue in the pool, beside the delay and the reverb */
+#define MIRROR_NOW() fm1_ms
+#include "screen_mirror.c"                      /* MIT, Patrick F. Kellogg: the rows as SysEx */
+#include "mirror.c"
 #include "lcd.c"
 #define CV_MAX (240u * 32u)                     /* Mello: FONT_L is the tallest canvas user */
 #include "gfx.c"
@@ -279,6 +284,12 @@ static void platform_poll(void)
     fm1_wdt_feed();
     usb_retry(fm1_ms);
     ota_service();
+    if (usb.mirror_hello) {                     /* Big screen: the app asked for the screen */
+        uint8_t h = usb.mirror_hello;
+        usb.mirror_hello = 0;
+        mirror_hello(h == 2u);
+    }
+    mirror_poll(fm1_ms, usb_mirror_send);
     if (usb.ota_req) {
         usb.ota_req = 0;
         if (flash_ok)

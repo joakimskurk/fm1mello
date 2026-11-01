@@ -24,7 +24,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f41.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f42.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -323,6 +323,17 @@ record to a file and `decode` turns one back into a WAV.
 Where the room is: the four slots are 0xC0000 to 0xDFFFF in flash with the 32 KiB staging area under them at
 0xB8000, below that the two 64 KiB project banks. In RAM the slots' compressed data (4 x 32 KiB) live in the
 336 KiB pool next to the delay and reverb lines (17 KiB of it is free); the audio callback decodes block by block.
+
+### Big screen
+
+The FM-1's screen, large, on a computer, tablet or phone: install [FM-1 Mirror](https://github.com/pfkellogg/fm1-mirror)
+(free; Mac, Windows, Linux, Android), plug the FM-1 in over USB and open the app. SkurkyMello speaks its messages:
+while the app asks (a short SysEx about once a second) the firmware sends every row it paints over the same USB MIDI
+connection, in colour, and stops three seconds after the app goes quiet, so with nobody asking it sends nothing and
+playing is unaffected. A new viewer gets the whole screen, zone by zone, in well under a second. Nothing to set up on
+the FM-1. The protocol and the encoder are Patrick F. Kellogg's (MIT, `firmware/src/screen_mirror.c`); the glue is
+`mirror.c`, and `make test` checks, on the host, that the screen rebuilt from the messages is the screen, pixel for
+pixel.
 
 ## Work on it
 

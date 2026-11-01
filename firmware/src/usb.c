@@ -138,6 +138,7 @@ static struct {
     uint8_t sx_len, sx_on;
     volatile uint8_t uboot_req;
     volatile uint8_t ota_req;    /* F0 22 24 35 7F F7: M-UPGRADE upgrade command (FELUCCA_OTA) */
+    volatile uint8_t mirror_hello; /* F0 7D 'F' 'S' 00/01 F7: FM-1 Mirror asks for the screen (1; 2: all of it) */
     uint8_t rx_pend;             /* EP1 OUT packet seen, not yet taken (the MIDI ring was too full) */
     uint32_t rx_held, rx_bad;    /* packets held back (NAK) for room, malformed events ignored */
 } usb;
@@ -710,6 +711,12 @@ static void sysex_byte(uint8_t b)
             ok = usb.sysex[i] == UBOOT_KEY[i];
         if (ok)
             usb.uboot_req = 1;
+        else if (usb.sx_len == 6u && usb.sysex[1] == 0x7D && usb.sysex[2] == 'F' && usb.sysex[3] == 'S') {
+            usb.mirror_hello = (uint8_t)(1u + (usb.sysex[4] == 1u));   /* Big screen (mirror.c), not a frame */
+#if FELUCCA_OTA
+            sx_collect = 0;
+#endif
+        }
 #if FELUCCA_OTA
         else if (usb.sx_len == 6u && usb.sysex[1] == 0x22 && usb.sysex[2] == 0x24 && usb.sysex[3] == 0x35 &&
                  usb.sysex[4] == 0x7F)
@@ -851,6 +858,27 @@ static int ota_wire_send(const uint8_t *p, uint32_t n)   /* F0..F7 -> USB-MIDI S
         i += k;
     }
     sx_busy = 0;
+    return 0;
+}
+/* Big screen (mirror.c): one SysEx message into the same ring, without waiting: -2 when the ring is short of room
+ * or the updater is sending (the mirror tries again next pass), -1 with no host (it stops until the next hello). */
+static int usb_mirror_send(const uint8_t *p, unsigned n)
+{
+    uint32_t i = 0, need = (n + 2u) / 3u;
+    if (!*(volatile uint8_t *)&usb.config)
+        return -1;
+    if (sx_busy || sx_open || SXQ - (so_w - so_r) < need)
+        return -2;
+    while (i < n) {
+        uint32_t k = n - i >= 3u ? 3u : n - i, pkt;
+        uint32_t cin = k == 3u && i + 3u < n ? 4u : k == 3u ? 7u : 4u + k;
+        pkt = cin | (uint32_t)p[i] << 8 | (k > 1u ? (uint32_t)p[i + 1] << 16 : 0u) |
+              (k > 2u ? (uint32_t)p[i + 2] << 24 : 0u);
+        sx_out_q[so_w % SXQ] = pkt;
+        RING_PUBLISH();
+        so_w++;
+        i += k;
+    }
     return 0;
 }
 static int ota_frame_get(const uint8_t **p, uint32_t *n)

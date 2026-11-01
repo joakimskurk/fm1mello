@@ -129,6 +129,9 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
 - [x] D14. Record it yourself (DECISIONS): the key rule (a note off the scale rounds to the nearest on it, the
       keyboard lit by the scale) and REC in KEYS cycling SEQ, BASS, CHORD: step record stopped, on the clock
       playing, one UNDO. Package 0.5-f41.
+- [x] D15. Big screen (DECISIONS): the screen over USB MIDI to FM-1 Mirror, in its MIT protocol and encoder, the
+      rows taken at the LCD, a paced repaint through the UI's dirty flags, checked pixel for pixel on the host.
+      Unverified on the device. Package 0.5-f42.
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, D1-D2, first flash and C4.
 

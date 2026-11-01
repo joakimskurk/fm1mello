@@ -1,7 +1,8 @@
 # SkurkyMello: the everyday commands. The firmware itself is built by ./build.sh (see README.md).
 .PHONY: test sanitize bench host screens parity reference format format-check clean
-test:            ## Mello host tests (tests/mello), seconds, no FM-1 or toolchain needed
+test:            ## Mello host tests (tests/mello) and the Big screen check, seconds, no FM-1 or toolchain needed
 	sh tests/run_mello.sh
+	sh tests/mirror_check.sh
 sanitize:        ## the same tests with UBSan and ASan: any signed overflow or bad access fails
 	MELLO_TEST_CFLAGS="-g -fsanitize=undefined,address -fno-sanitize-recover=undefined" sh tests/run_mello.sh
 bench:           ## where the audio's time goes on this computer: the default pattern, the worst case, one part out at a time

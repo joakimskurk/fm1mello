@@ -34,12 +34,18 @@ static int32_t host_enc[8];
 static int32_t fm1_enc_take(uint32_t e) { int32_t d = host_enc[e & 7u]; host_enc[e & 7u] = 0; return d; }
 static void fm1_led_key(uint32_t id, int on) { (void)id; (void)on; }
 
+/* Big screen on the host: the same encoder and glue as the FM-1's (platform.c's other branch) */
+#define MIRROR_NOW() fm1_ms
+#include "screen_mirror.c"
+#include "mirror.c"
+
 /* the screen: 240 x 240 RGB565, as the ST7789 gets it (gfx.c sends the bytes swapped) */
 static uint16_t fb[240 * 240];
 static void lcd_sync(void) {}
 static void lcd_fill(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint16_t c)
 {
     uint32_t i, j;
+    mirror_fill(x, y, w, h, c);
     for (j = y; j < y + h && j < 240u; j++)
         for (i = x; i < x + w && i < 240u; i++)
             fb[j * 240u + i] = c;
@@ -47,6 +53,7 @@ static void lcd_fill(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint16_t c)
 static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint16_t *px)
 {
     uint32_t i, j;
+    mirror_blit_swapped(x, y, w, h, px);
     for (j = 0; j < h; j++)
         for (i = 0; i < w; i++)
             if (x + i < 240u && y + j < 240u) {
@@ -121,6 +128,7 @@ static void read_script(const char *path)
         else if (!strcmp(what, "btn")) { sscanf(line, "%*u %*s %d", &e.btn); }
         else if (!strcmp(what, "enc")) { sscanf(line, "%*u %*s %d %d", &e.enc, &e.delta); }
         else if (!strcmp(what, "shot")) { e.btn = -2; }
+        else if (!strcmp(what, "hello")) { sscanf(line, "%*u %*s %u", &a); e.btn = a ? -4 : -3; }   /* FM-1 Mirror asks (1: for all) */
         else if (!strcmp(what, "hold")) { sscanf(line, "%*u %*s %d", &e.btn); e.btn += 100; }
         else if (!strcmp(what, "release")) { sscanf(line, "%*u %*s %d", &e.btn); e.btn += 200; }
         else if (!strcmp(what, "midi")) { sscanf(line, "%*u %*s %i %u %u", (int *)&a, &b, &c); e.st = (uint8_t)a; e.d1 = (uint8_t)b; e.d2 = (uint8_t)c; }
@@ -133,6 +141,20 @@ static void read_script(const char *path)
 }
 
 static const char *host_out = "build/host/dinghy";
+
+/* Big screen on the host: every SysEx message the mirror sends goes to OUT.syx (tests/mirror_check.sh decodes it) */
+static int host_mirror_send(const uint8_t *m, unsigned n)
+{
+    static FILE *f;
+    if (!f) {
+        char name[512];
+        snprintf(name, sizeof name, "%s.syx", host_out);
+        if (!(f = fopen(name, "wb"))) return -1;
+    }
+    fwrite(m, 1, n, f);
+    fflush(f);
+    return 0;
+}
 static int16_t *wav;
 static uint32_t wav_n;
 
@@ -183,6 +205,8 @@ static void platform_poll(void)                 /* one call = one millisecond */
             host_enc[script[step].enc & 7] += script[step].delta;
         else if (script[step].btn == -2)
             write_ppm(fm1_ms);
+        else if (script[step].btn == -3 || script[step].btn == -4)
+            mirror_hello(script[step].btn == -4);
         else if (script[step].btn >= 200)
             fm1_in.buttons &= ~(1u << (script[step].btn - 200));
         else if (script[step].btn >= 100) {
@@ -200,6 +224,7 @@ static void platform_poll(void)                 /* one call = one millisecond */
         }
         step++;
     }
+    mirror_poll(fm1_ms, host_mirror_send);
     owed += FS;                                 /* the frames this millisecond is worth, in blocks as the ISR renders */
     while (owed >= 1000u * HALF_FRAMES) {
         uint32_t i;
