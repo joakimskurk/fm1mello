@@ -361,4 +361,6 @@ docs/screens/                  every page of the firmware as a picture, drawn by
 `git log -- firmware/src/platform.c firmware/src/midi_uart.c firmware/src/gfx.c tools/build.py`. Package
 identity: `FM-1_970`.
 
-GPL-3.0-only, as Dinghy. See [LICENSING.md](LICENSING.md) for who made what.
+The firmware is GPL-3.0-only, as Dinghy: ship it, and ship its source. The original instrument
+(`reference/skurkymello.html`) and the design record (`docs/mello/`) are not free: read them, keep them unchanged in a
+clone, nothing more. [LICENSING.md](LICENSING.md) has who made what and the exact terms.
