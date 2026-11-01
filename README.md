@@ -1,5 +1,20 @@
 # SkurkyMello for the M-VAVE FM-1
 
+This started as an HTML project where I tried to build my dream sequencer, inspired by the way I work on my modular
+synth. It has since become the prototype I use most. The FM-1 version is my first attempt at porting an idea to actual
+firmware, so please be kind.
+
+This is a melody-focused firmware. The main sequencer is its heart. The chords and drums were only added for the FM-1
+version, and I actually prefer using it without them.
+
+Scope creep got the better of me, by the way, so there are a lot of menus on a very small screen. Sorry about that!
+
+Anyway, enjoy.
+
+*— joakimskurk*
+
+## What it is
+
 A generative step sequencer and synth as a firmware for the M-VAVE FM-1: a 16-step sequence with segments, a lead
 voice with filter, grit and a second oscillator, a bass with its own sequencer, a chord layer, a four-voice drum kit,
 a sample layer, delay, reverb, distortion, a dot-matrix and an evolving-register modulator, a randomizer with undo,
