@@ -34,9 +34,14 @@ static MelloAudio audio;
 static bool audio_ready;
 static bool last_running;
 static MelloSampleBank sample_bank;
+#ifdef DINGHY_HOST
+#define POOL_SECTION /* plain statics on the host: the delay and the reverb render there too (2026-11-01) */
+#else
+#define POOL_SECTION __attribute__((section(".pool")))
+#endif
+static int16_t audio_delay_pool[MELLO_AUDIO_DELAY_SAMPLES] POOL_SECTION;
+static int16_t audio_reverb_pool[MELLO_AUDIO_REVERB_SAMPLES] POOL_SECTION;
 #ifndef DINGHY_HOST
-static int16_t audio_delay_pool[MELLO_AUDIO_DELAY_SAMPLES] __attribute__((section(".pool")));
-static int16_t audio_reverb_pool[MELLO_AUDIO_REVERB_SAMPLES] __attribute__((section(".pool")));
 static uint8_t sample_pool0[MELLO_SAMPLE_DATA_MAX] __attribute__((section(".pool")));
 static uint8_t sample_pool1[MELLO_SAMPLE_DATA_MAX] __attribute__((section(".pool")));
 static uint8_t sample_pool2[MELLO_SAMPLE_DATA_MAX] __attribute__((section(".pool")));
@@ -228,12 +233,8 @@ static void app_main(void)
     mello_ui_attach_sample_bank(&ui, &sample_bank);
 #endif
 
-#ifndef DINGHY_HOST
     mello_audio_init(&audio, audio_delay_pool, MELLO_AUDIO_DELAY_SAMPLES, audio_reverb_pool,
                      MELLO_AUDIO_REVERB_SAMPLES);
-#else
-    mello_audio_init(&audio, 0, 0u, 0, 0u);
-#endif
     mello_audio_attach_sample_bank(&audio, &sample_bank);
     mello_audio_set_config(&audio, &mt.engine.sound, &mt.engine.fx, &mt.engine.sub, &mt.engine.sample);
     mello_audio_set_mod_routing(&audio, &mt.engine.modr);
