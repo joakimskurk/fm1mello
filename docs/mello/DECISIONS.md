@@ -735,6 +735,17 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   91040 of 98304. A fifth slot needs 32 KiB of pool (the delay's 1.49 s is the only thing that size) and flash
   that no map lists (0xE5000..0xFC000 is unlisted in Felucca's): not without a unit.
 
+## The status line counts beats, not steps (2026-11-01)
+
+While playing, the status line used to read the sequence's step of its length (`15/16`). The user's point: a step can
+take several clock pulses (PULSE), so the step number says nothing about where in the phrase you are, and what matters
+is the place in the length before RESET. Now, with RESET set, it counts the beats of that length in clock pulses
+(`21/32` for 2 BAR: the engine's pulse count modulo its loop length, the thing the reset itself is timed on), and the
+step is left to the bright bar on HOME and the cursor on STEP. Past 99 beats (8 BAR) the field is six characters, so
+it reads bar.beat/bars (`7.13/8`). With RESET on FREE there is no phrase to count, and the step of the length stays.
+Stopped, the length in steps (`16 ST`) as before. The HTML has no master reset and no such counter: a firmware
+decision.
+
 ## Pictures in the manual (2026-11-01)
 
 The README's tour and every row of the UI map show the screen as a picture. The pictures are not photographs, not

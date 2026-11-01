@@ -39,7 +39,7 @@ Nine screens, drawn by the firmware itself (`make screens`): what you see, and w
 |---|---|
 | <img src="docs/screens/splash.png" width="240" alt="The splash"> | **Switch on.** The splash shows the version while the project loads from flash. Then HOME. |
 | <img src="docs/screens/home.png" width="240" alt="HOME"> | **HOME.** Sixteen steps as bars: the height is the pitch, the note is written on the bar, the segments A-D sit over them in their colours. The strip under the bars is what the black keys do here; the footer is the four macros on K1-K4. The status line reads the key, the step and the slot. |
-| <img src="docs/screens/home-playing.png" width="240" alt="HOME, playing"> | **PLAY.** The playing step is bright, the LED blinks on the beat and the status line counts the steps. SELECT is the tempo (the number top right), PRESETS the pattern slot. |
+| <img src="docs/screens/home-playing.png" width="240" alt="HOME, playing"> | **PLAY.** The playing step is bright, the LED blinks on the beat and the status line counts the beats to the RESET (`21/32`: the 21st sixteenth of the two bars; with RESET on FREE, the step of the sequence). SELECT is the tempo (the number top right), PRESETS the pattern slot. |
 | <img src="docs/screens/home-rolled.png" width="240" alt="HOME after a roll"> | **RNDMZR**, the last black key. A tap rolls a new sequence from what the RANDOM page's mask allows; UNDO, the key before it, takes the roll back (and again puts it forward). Hold RNDMZR for the RANDOM page. |
 | <img src="docs/screens/home-held-step.png" width="240" alt="A step held"> | **Hold a white key.** That step's pitch, pulses, ratchet and gate come onto K1-K4, its flags (SKIP, ACC, SLD, SUB) onto the first black keys. A tap mutes or unmutes the step. |
 | <img src="docs/screens/step-trig.png" width="240" alt="SEQ > STEP"> | **SEQ.** The STEP page: the picked step's values, the picture drawn from them. SELECT turns the layers (TRIG, NOTE, FLAGS, SEQ); SEQ again goes on to SEGMENT, LOOP CYCLE and SLOT SEQ. With EDIT on, a white key sets the step's pitch. |
@@ -70,8 +70,8 @@ The FM-1's panel is printed, so its names are the firmware's names. What each co
 | **REC** | In KEYS: step record, each key writes the next step. |
 | **MASTER** (the knob) | The output level, in hardware. |
 
-The header reads where you are as `BUTTON > PAGE > LAYER` (`ARP > DRUMS > KIT`), the status line the key, the step
-and the slot, and the save state: SAVED, EDITED (written when the sequencer stops), NOSAVE (the flash holds a newer
+The header reads where you are as `BUTTON > PAGE > LAYER` (`ARP > DRUMS > KIT`), the status line the key, the beat
+(of the beats before RESET; the step when RESET is FREE) and the slot, and the save state: SAVED, EDITED (written when the sequencer stops), NOSAVE (the flash holds a newer
 firmware's project) or FULL (the project does not fit).
 
 ### The black keys, the same on every page

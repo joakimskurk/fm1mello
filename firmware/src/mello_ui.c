@@ -5832,10 +5832,31 @@ static void draw_status(MelloUi *ui, const MelloUiDrawOps *o)
         (void)copy_s(p, sc_name[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR]);
         o->text(o->ctx, 4, 222, 72, 0, b, UI_GOLD, 0);
     }
-    if (ui->transport->running && ui->transport->display_step != 0xFFu) { /* the step of the length */
-        p = put_u32(b, (uint32_t)ui->transport->display_step + 1u);
-        p = copy_s(p, "/");
-        put_u32(p, e ? e->project.seq_len : 0u);
+    if (ui->transport->running && ui->transport->display_step != 0xFFu) {
+        if (e && e->project.master_len > 0u && e->loop_pulse_length > 0u) {
+            /* RESET set: the beat of the beats before the reset ("21/32"), counted in clock pulses, not in the
+             * sequence's steps (a step can take several pulses). The pulse sounding is the one the engine counted
+             * last. Past 99 beats (8 BAR) the field is too narrow, so bar.beat/bars ("7.13/8"). */
+            uint32_t len = e->loop_pulse_length,
+                     pulse = e->absolute_pulse ? (e->absolute_pulse - 1u) % len : 0u;
+            if (len < 100u) {
+                p = put_u32(b, pulse + 1u);
+                p = copy_s(p, "/");
+                put_u32(p, len);
+            } else {
+                uint32_t pos = pulse * (uint32_t)e->project.clock_div; /* in sixteenths */
+                p = put_u32(b, pos / 16u + 1u);
+                *p++ = '.';
+                if (pos % 16u < 9u) *p++ = '0';
+                p = put_u32(p, pos % 16u + 1u);
+                p = copy_s(p, "/");
+                put_u32(p, ((uint32_t)e->project.master_len + 15u) / 16u);
+            }
+        } else { /* FREE: the step of the length */
+            p = put_u32(b, (uint32_t)ui->transport->display_step + 1u);
+            p = copy_s(p, "/");
+            put_u32(p, e ? e->project.seq_len : 0u);
+        }
     } else { /* stopped: the length */
         p = put_u32(b, e ? e->project.seq_len : 0u);
         (void)copy_s(p, " ST");
