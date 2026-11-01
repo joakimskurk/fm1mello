@@ -22,6 +22,7 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       PLAY, so the splash does not dilute it) and mello_engine_stress, the worst case (everything on at once).
       0.5-f19, playing: the default pattern 77 M instructions/s = 32% of the chip, the worst case 179 M/s = 75%;
       0.5-f27 (after B3's second round): 75.9 M/s = 32% and 169.6 M/s = 71%, silence 4.8 M/s = 2% (f19: 60).
+      0.5-f40 (HARMONY, the kick, DUCK, the chord routes): 76.7 M/s = 32.0% and 174.2 M/s = 72.6%, silence 4.9 M/s.
       In silence the interrupts took 60 M/s more: 55 of them were the render running through the silence (its
       early return compared two arrays' addresses, never equal; fixed in f24, silence costs ~5 M/s = 2%: the
       timer with the key scan, 2.5 in silence and ~12 while playing with LEDs lit). The emulator
