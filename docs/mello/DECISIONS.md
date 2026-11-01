@@ -766,6 +766,13 @@ saved sounds different:
   first chord falls on the one. The polymetric case the user liked, three chords over two bars, still works:
   a chain whose length does not meet the reset keeps its own round and realigns when it does.
 
+**The default chain, the same day.** A chain made by hand started as the arpeggio's: HOLD 2 by triggers, so the
+chords ran away from the bar unless you went to the GRID layer first. Now a fresh chain is four chords at HOLD 8 on
+the clock chain: two chords a bar at 16 steps, on the one, whatever the lead rests. The arpeggio is still there
+(MODE ARP, HOLD down to 2 if you want a chord a beat). Saved projects keep their chain; the progression roll still
+treats a HOLD of 2 or less as "the old default" and sets 8. HOME's header reads `HOME > A` with the chord sounding
+after the segment, in the chords' colour, instead of the chord in the segment's place.
+
 MED and HIGH roll progressions too now, through the same walk MUSICAL uses (roll_progression), HIGH with more colour
 and its voicings thrown wide: four random degrees with random holds was the one place the randomizer still threw
 dice. LOW still nudges what is there. The pattern masks keep their own randomization. Stored in SEC_CHORD version
@@ -938,7 +945,8 @@ parameters that make sense in a performance and are not already somewhere on the
 intensity, the slot). Picking turns nothing; the LFO comes on when its macro is first turned, since a silent knob
 is worse than a switch flipped. The choice is the project's, in its own storage section (SEC_MACROS) so an older
 firmware skips it and a record without it gives the four, and not a slot's: how you play, not what. The map's text
-rows come from the extractor, which does not know MACROS: its row is by hand until the extractor learns it.
+rows are kept by hand with the code, as every row is (the planned extractor was never written; the
+mapping tests pin the rows instead), and `make screens` supplies the pictures.
 
 ## The status line counts beats, not steps (2026-11-01)
 

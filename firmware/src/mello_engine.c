@@ -1067,8 +1067,10 @@ void mello_chord_defaults(MelloChordConfig *c)
         c->steps[i].inversion = 0u;
         c->steps[i].octave = -1;
         c->steps[i].spread = 1u;
-        c->steps[i].hold = 2u;
+        c->steps[i].hold = 8u; /* eight sixteenths on the clock chain: two chords a bar (2026-11-01, was 2 by
+                                * triggers, the arpeggio's; DECISIONS "Harmony as the spine") */
     }
+    c->chain = MELLO_CHORD_CHAIN_STEPS;
     c->grid_cells = 0x8888u;
     c->grid_mode = MELLO_DOT_HORIZONTAL;
     c->grid_length = 16u;

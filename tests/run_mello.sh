@@ -53,5 +53,10 @@ for n in $NAMES; do
     run "$n" "" ""
     case " $FEATURE_OFF " in *" $n "*) run "$n" "_chord_off" "-DMELLO_FEATURE_CHORD_MACHINE=0" ;; esac
 done
-[ "$FAILED" = 0 ] && echo "all Mello host tests passed"
+if [ "$FAILED" = 0 ]; then
+    echo "all Mello host tests passed"
+else    # loud, and last, so a run read through tail cannot pass for green
+    grep -l '^FAIL' "$OUT"/*.txt 2>/dev/null | sed 's|.*/||; s|\.txt$||; s|^|  red: |'
+    echo "MELLO HOST TESTS FAILED"
+fi
 exit "$FAILED"

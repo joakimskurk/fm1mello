@@ -3694,7 +3694,7 @@ static void draw_sequence_playhead(MelloUi *ui, const MelloUiDrawOps *o)
 static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
 {
     MelloEngine *e = eng(ui);
-    char b[32], status[12], *p;
+    char b[32], status[12], *p, chord_name[8] = "";
     uint16_t accent = ui_page_accent(ui);
     o->fill(o->ctx, 0, 0, 240, 30, UI_BLACK);
     /* R2: BUTTON > PAGE > LAYER, the printed button first, so the screen says which button you pressed and what its
@@ -3723,17 +3723,13 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
                   : ui->page == MELLO_UI_HOME && ui->macro_mode ? "HOME MACROS"
                                                                 : domain_name(ui));
 #if MELLO_FEATURE_CHORD_MACHINE
-    if (e && ui->page == MELLO_UI_HOME && !ui->keys_mode && e->chord.on && ui->transport->running &&
-        e->chord_voiced_slot < e->chord.length) { /* HOME: the chord sounding, after the page's name */
-        char cn[8];
-        mello_engine_chord_name(e, e->chord_voiced_slot, cn);
-        *p++ = ' ';
-        p = copy_s(p, cn);
-    } else
+    if (e && ui->page == MELLO_UI_HOME && !ui->keys_mode && !ui->macro_mode && e->chord.on &&
+        ui->transport->running && e->chord_voiced_slot < e->chord.length)
+        mello_engine_chord_name(e, e->chord_voiced_slot,
+                                chord_name); /* HOME: the chord sounding, after the segment */
 #endif
-        if (e && !ui->keys_mode &&
-            (ui->page == MELLO_UI_HOME || ui->page == MELLO_UI_SEQ_STEP ||
-             ui->page == MELLO_UI_SEQ_SEGMENT)) {
+    if (e && !ui->keys_mode && !ui->macro_mode &&
+        (ui->page == MELLO_UI_HOME || ui->page == MELLO_UI_SEQ_STEP || ui->page == MELLO_UI_SEQ_SEGMENT)) {
         uint8_t seg = ui->page == MELLO_UI_SEQ_SEGMENT ? ui->selected_segment
                                                        : ui_segment_for_step(&e->project, ui->selected_step);
         *p++ = ' ';
@@ -3741,12 +3737,13 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
         *p = 0;
     }
     if (ui->page == MELLO_UI_HOME) {
-        if (ui->keys_mode || ui->macro_mode || b[4] != ' ' || b[6] != 0) /* a mode, or the chord: one line */
+        if (ui->keys_mode || ui->macro_mode) /* a mode: one line in the page's colour */
             o->text(o->ctx, 4, 7, 188, 0, b, accent, 0);
-        else { /* HOME > A: the page in white, the segment in its colour */
+        else { /* HOME > A: the page in white, the segment in its colour, then the chord sounding in the chords' */
             o->text(o->ctx, 4, 7, 32, 0, "HOME", UI_WHITE, 0);
             o->text(o->ctx, 36, 7, 24, 0, " > ", UI_DIM, 0);
             o->text(o->ctx, 60, 7, 8, 0, b + 5, ui_segment_colour((uint8_t)(b[5] - 'A')), 0);
+            if (chord_name[0]) o->text(o->ctx, 76, 7, 64, 0, chord_name, UI_CHORD, 0);
         }
     }
     /* the HTML's "● PLAYING": a dot lit while playing, then the tempo */
