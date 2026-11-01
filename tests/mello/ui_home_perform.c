@@ -272,7 +272,10 @@ int main(void)
             mello_ui_set_held_notes(&u, 0u);
             if (mello_resolve_step_midi(&t.engine.project, &t.engine.project.steps[1]) != 48u)
                 return fail("step-record did not write C3 an octave down");
-            mello_ui_input(&u, 0u, 30330u, rec, 0u, rec, 0u, e); /* REC off: play */
+            { /* REC cycles SEQ, BASS, CHORD, then off (2026-11-01): round to off */
+                uint32_t rt = 30330u, guard = 0u;
+                while (u.keys_rec && guard++ < 4u) mello_ui_input(&u, 0u, rt += 2u, rec, 0u, rec, 0u, e);
+            }
             mello_ui_input(&u, 0u, 30340u, up, 0u, up, 0u, e);
             mello_ui_input(&u, 0u, 30350u, up, 0u, up, 0u, e); /* OCT+ twice: C5 */
             sunk_n = 0u;

@@ -81,7 +81,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 
 | Page | A white key |
 |---|---|
-| HOME | Tap: the step on or off. Hold: the step's values on K1-K4, the first four black keys its flags. EDIT (KEYS): a keyboard. |
+| HOME | Tap: the step on or off. Hold: the step's values on K1-K4, the first four black keys its flags. EDIT (KEYS): a keyboard, lit by the scale; REC cycles what it writes (SEQ, BASS, CHORD). |
 | STEP | Picks the step (a tap toggles it too); EDIT on: a key sets its pitch. |
 | SEGMENT | Cuts or joins a segment at that step; SEL held: picks the segment. |
 | LOOP CYCLE | Picks a loop position (the first eight keys); off, auditions it. |

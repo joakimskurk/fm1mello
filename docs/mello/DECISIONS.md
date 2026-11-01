@@ -735,6 +735,40 @@ The 0.5 feedback round left 800 bytes of RAM, a storage bank that silently stopp
   91040 of 98304. A fifth slot needs 32 KiB of pool (the delay's 1.49 s is the only thing that size) and flash
   that no map lists (0xE5000..0xFC000 is unlisted in Felucca's): not without a unit.
 
+## Record it yourself (2026-11-01)
+
+The user: "we must be able to record steps into the main sequence, the bass and the chords by hand, with the full
+keyboard: a record mode of its own. Free in chromatic, quantized within the set root and scale; in chromatic every
+key is lit, in a key the keys that are not active go dark. It must be as good as it can be and break nothing in the
+design." KEYS (EDIT on HOME) was already a chromatic keyboard with a step record for the sequence, so the mode grows
+rather than a new page appearing:
+
+- **The key rule, everywhere.** A note off the project's scale rounds to the nearest note on it, the smaller way,
+  down on a tie; CHROMATIC leaves it as played. It is one function (`mello_scale_quantize`) and the keyboard shows
+  it: the LEDs light the scale's keys in every octave and leave the others dark, and the strip draws the 27 keys as
+  cells, lit or dark, the root in gold (red while recording), black keys short. Chords and the bass were never off
+  the scale (they are degrees); the lead's steps are degrees too, so the rounding happens at the keys, before a
+  note is written or sounded. Playing without REC a key is still the new root, any root.
+- **REC cycles the target.** In KEYS, REC goes SEQ, BASS, CHORD, then off, and the header reads `REC > SEQ`,
+  `REC > BASS` or `REC > CHORD` in red. One button, three parts, and the parts stay apart: the chords are their own
+  thing and the bass has its own line, as the user wants it; nothing follows anything but the loop cycle. (The
+  proposal said the target would follow the page you came from; KEYS is HOME's mode, so a cycle on REC is the
+  honest version of that.)
+- **Stopped: step record.** Each key writes the next step and moves on, from step 1, round the length. SEQ: the
+  step's pitch and octave (a rest becomes a note). BASS: the step on, its tone (the scale's degree; in CHROMATIC
+  through the minor scale's seven, since the sub's tones are diatonic) and its octave from the root. CHORD: the
+  slot's degree and octave, and the chain is as long as you have played (a recording of three keys is three
+  chords); a second key held over the first names the shape by its interval: a second is SUS2, a fourth SUS4, a
+  fifth POWER, a seventh SEVENTH, a third the plain triad.
+- **Playing: on the clock.** A key writes the step under the clock, or the next one once more than half a pulse
+  has gone (the transport's next pulse deadline against now), for the sequence, the bass line (its own clock) and
+  the chord sounding. The loop goes round, so you lay a line down pass by pass; HOLD over several steps is not
+  recorded yet.
+- **One UNDO.** REC's first press takes the undo snapshot, so UNDO after a recording gives back the sequence, the
+  bass and the chords as they were.
+- **What did not change.** The black keys' places, OCT-/OCT+ moving the keyboard, the macros, saving. With REC off,
+  KEYS is exactly what it was. Test: keys_record.
+
 ## Harmony as the spine (2026-11-01)
 
 The user, after the progressions: "improve the chords much more deeply; they must talk with everything else, in all

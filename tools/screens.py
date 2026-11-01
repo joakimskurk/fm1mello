@@ -105,6 +105,13 @@ def the_tour():
     t.hold(EDIT, 700)  # EDIT held: MACROS, the knobs pick what they turn
     t.shot("home-macros", "HOME", "MACROS", "EDIT held on HOME: MACROS, each knob picks its parameter")
     t.btn(EDIT)
+    t.btn(EDIT)  # tapped: KEYS (its own shot comes later, playing)
+    t.btn(REC)  # REC > SEQ
+    t.shot("home-rec", "HOME", "REC", "REC in KEYS: the keys write the sequence; again BASS, again CHORD")
+    t.btn(REC)
+    t.btn(REC)
+    t.btn(REC)  # round to off
+    t.btn(EDIT)  # out of KEYS
 
     # SEQ: STEP, SEGMENT, LOOP CYCLE, SLOT SEQ
     t.btn(SEQ)
@@ -181,7 +188,7 @@ def the_tour():
     t.shot("home-held-step", None, None, "A white key held: that step's pitch, pulses, ratchet and gate on the knobs")
     t.keys_down(0)
     t.btn(EDIT)
-    t.shot("home-keys", None, None, "EDIT on HOME: KEYS, the white keys play and transpose")
+    t.shot("home-keys", None, None, "EDIT on HOME: KEYS, the keys lit where the scale has a tone; playing, a key is the root")
     t.btn(EDIT)
     t.btn(SEQ)
     t.shot("step-playing", None, None, "SEQ > STEP while playing")

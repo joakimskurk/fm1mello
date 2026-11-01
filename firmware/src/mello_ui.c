@@ -287,6 +287,7 @@ void mello_ui_set_page(MelloUi *ui, MelloUiPage page)
     ui->step_pitch_mode = false;
     ui->held_step = MELLO_UI_NO_STEP;
     ui->keys_mode = ui->keys_rec = false;
+    ui->keys_rec_target = MELLO_UI_REC_SEQ;
     ui->macro_mode = false;
     mark_full(ui);
 }
@@ -853,14 +854,59 @@ static void step_for_midi(MelloEngine *e, uint8_t midi, MelloStep *out)
         }
 }
 
-/* A key in KEYS mode. Note keys run F3 (MIDI 53) .. G5. */
+/* REC in KEYS, playing (DECISIONS "Record it yourself"): where a key lands, the step under the clock, or the next one
+ * once more than half the pulse has gone. */
+static uint8_t rec_live_pos(const MelloUi *ui, uint32_t now_us, uint8_t cur, uint8_t len)
+{
+    const MelloTransport *t = ui->transport;
+    uint32_t left = t->next_pulse_us - now_us, period = t->pulse_base_us ? t->pulse_base_us : 1u;
+    if (!len) return 0u;
+    if ((int32_t)left < 0)
+        left = 0u; /* the pulse is due: the next step */
+    else if (left > period)
+        left = period;
+    return (uint8_t)((left * 2u <= period ? cur + 1u : cur) % len);
+}
+
+/* The key's place in the scale: its octave from the root (floor) and the index of its pitch class among the scale's
+ * tones (0 when it is not one, which a quantized note never is). */
+static void key_in_scale(const MelloEngine *e, MelloScale scale, uint8_t midi, int32_t *oct, uint8_t *idx)
+{
+    const int8_t *tones;
+    uint8_t n = mello_scale_tones(scale, &tones), i;
+    int32_t rel = (int32_t)midi - (int32_t)e->project.root_note, pc;
+    *oct = rel >= 0 ? rel / 12 : -((11 - rel) / 12);
+    pc = rel - *oct * 12;
+    *idx = 0u;
+    for (i = 0u; i < n; ++i)
+        if (tones[i] == pc) *idx = i;
+}
+
+#if MELLO_FEATURE_CHORD_MACHINE
+/* A second key held over the first: the interval names the shape (DECISIONS "Record it yourself"). */
+static MelloChordShape shape_for_interval(uint8_t lo, uint8_t hi)
+{
+    uint8_t d = (uint8_t)(((int32_t)hi - (int32_t)lo + 120) % 12);
+    if (d == 1u || d == 2u) return MELLO_CHORD_SUS2;
+    if (d == 5u) return MELLO_CHORD_SUS4;
+    if (d == 7u) return MELLO_CHORD_POWER;
+    if (d >= 10u) return MELLO_CHORD_SEVENTH;
+    return MELLO_CHORD_TRIAD;
+}
+#endif
+
+/* A key in KEYS mode. Note keys run F3 (MIDI 53) .. G5. Playing without REC: the key is the new root. Otherwise the
+ * key rule first: a note off the scale rounds to the nearest on it (CHROMATIC: as played); then REC writes it where
+ * its target is (the next step stopped, the clock's step playing), and stopped it sounds the lead. */
 static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
 {
     MelloEngine *e = eng(ui);
     int32_t m = 53 + (int32_t)note_index + 12 * ui->keys_octave; /* OCT-/OCT+ move the keyboard */
     uint8_t midi = (uint8_t)(m < 12 ? 12 : m > 108 ? 108 : m);
+    bool running;
     if (!e) return;
-    if (ui->transport->running && !ui->keys_rec) {
+    running = ui->transport->running;
+    if (running && !ui->keys_rec) {
         e->project.root_note = (uint8_t)(midi < 24u   ? 24u
                                          : midi > 83u ? 83u
                                                       : midi); /* the key is the new root */
@@ -869,18 +915,77 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
         ui->dirty |= MELLO_UI_DIRTY_HEADER;
         return;
     }
-    if (ui->keys_rec && ui->keys_rec_pos < e->project.seq_len) {
-        MelloStep *s = &e->project.steps[ui->keys_rec_pos], found;
+    midi = mello_scale_quantize(e->project.scale, e->project.root_note, midi);
+    if (ui->keys_rec && ui->keys_rec_target == MELLO_UI_REC_BASS) {
+        MelloBassConfig b = e->bass;
+        uint8_t len = b.length ? b.length : 1u, idx;
+        uint8_t pos = running ? rec_live_pos(ui, now_us, (uint8_t)((e->bass_pos + len - 1u) % len), len)
+                              : (uint8_t)(ui->keys_rec_pos % len);
+        int32_t oct;
+        /* the sub's tones are the scale's seven; CHROMATIC writes through the minor scale's */
+        bool chromatic = e->project.scale == MELLO_SCALE_CHROMATIC;
+        key_in_scale(e, chromatic ? MELLO_SCALE_MINOR : e->project.scale,
+                     chromatic ? mello_scale_quantize(MELLO_SCALE_MINOR, e->project.root_note, midi) : midi,
+                     &oct, &idx);
+        b.steps[pos].on = true;
+        b.steps[pos].tone = (uint8_t)(idx > MELLO_SUB_TONE_SEVENTH ? MELLO_SUB_TONE_SEVENTH : idx);
+        b.steps[pos].octave = (int8_t)clamp_i32(oct, -2, 2);
+        b.on = true;
+        mello_engine_bass_set_config(e, &b);
+        if (!running) ui->keys_rec_pos = (uint8_t)((pos + 1u) % len);
+        mark_edit(ui);
+        ui->dirty |= MELLO_UI_DIRTY_BODY;
+    }
+#if MELLO_FEATURE_CHORD_MACHINE
+    else if (ui->keys_rec && ui->keys_rec_target == MELLO_UI_REC_CHORD) {
+        MelloChordConfig c = e->chord;
+        uint8_t len = c.length ? c.length : 1u, idx;
+        uint32_t others = ui->held_notes & ~bit_u32(note_index);
+        int32_t oct;
+        if (!running && others &&
+            ui->keys_rec_pos == (uint8_t)((ui->keys_rec_last + 1u) % MELLO_CHORD_MAX_STEPS) &&
+            ui->keys_rec_last < c.length) {
+            /* a second key over the first: the shape of the chord just written */
+            uint8_t lo = ui->keys_rec_last_midi < midi ? ui->keys_rec_last_midi : midi,
+                    hi = ui->keys_rec_last_midi < midi ? midi : ui->keys_rec_last_midi;
+            c.steps[ui->keys_rec_last].shape = shape_for_interval(lo, hi);
+        } else {
+            uint8_t pos = running ? (e->chord_voiced_slot < len ? e->chord_voiced_slot
+                                                                : (uint8_t)(e->chord_chain_pos % len))
+                                  : (uint8_t)(ui->keys_rec_pos % MELLO_CHORD_MAX_STEPS);
+            key_in_scale(e, e->project.scale, midi, &oct, &idx);
+            c.steps[pos].degree = idx;
+            c.steps[pos].octave =
+                (int8_t)clamp_i32(oct - 1, -2, 2); /* at the root's octave: -1, the default */
+            if (!running) {
+                c.length = (uint8_t)(pos + 1u); /* the chain is what you have played */
+                ui->keys_rec_last = pos;
+                ui->keys_rec_last_midi = midi;
+                ui->keys_rec_pos = (uint8_t)((pos + 1u) % MELLO_CHORD_MAX_STEPS);
+            }
+        }
+        c.on = true;
+        mello_engine_chord_set_config(e, &c);
+        mark_edit(ui);
+        ui->dirty |= MELLO_UI_DIRTY_BODY;
+    }
+#endif
+    else if (ui->keys_rec) { /* SEQ */
+        uint8_t len = e->project.seq_len ? e->project.seq_len : 1u;
+        uint8_t pos = running ? rec_live_pos(ui, now_us, ui->transport->display_step, len)
+                              : (uint8_t)(ui->keys_rec_pos % len);
+        MelloStep *s = &e->project.steps[pos], found;
         step_for_midi(e, midi, &found);
         s->pitch = found.pitch;
         s->octave = found.octave;
         s->skip = false;
-        ui->selected_step = ui->keys_rec_pos;
-        ui->keys_rec_pos = (uint8_t)((ui->keys_rec_pos + 1u) % e->project.seq_len);
+        if (s->gate == MELLO_GATE_REST) s->gate = MELLO_GATE_SINGLE;
+        ui->selected_step = pos;
+        if (!running) ui->keys_rec_pos = (uint8_t)((pos + 1u) % len);
         rebuild(ui);
         mark_edit(ui);
     }
-    if (!ui->transport->running) {
+    if (!running) {
         if (ui->audition_key != 0xFFu) audition(ui, ui->audition_note, false, now_us);
         ui->audition_key = note_index;
         ui->audition_note = midi;
@@ -2821,8 +2926,23 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
         }
     }
     if ((pressed & bit_u32(MELLO_UI_BTN_REC)) && ui->page == MELLO_UI_HOME && ui->keys_mode) {
-        ui->keys_rec = !ui->keys_rec; /* step-record from step 1 */
-        ui->keys_rec_pos = 0u;
+        /* REC cycles what the keys write: SEQ, BASS, CHORD, then off; a recording is one UNDO */
+#if MELLO_FEATURE_CHORD_MACHINE
+        const uint8_t last = MELLO_UI_REC_CHORD;
+#else
+        const uint8_t last = MELLO_UI_REC_BASS;
+#endif
+        if (!ui->keys_rec) {
+            MelloEngine *e = eng(ui);
+            if (e) mello_engine_undo_snapshot(e);
+            ui->keys_rec = true;
+            ui->keys_rec_target = MELLO_UI_REC_SEQ;
+        } else if (ui->keys_rec_target < last)
+            ui->keys_rec_target++;
+        else
+            ui->keys_rec = false;
+        ui->keys_rec_pos = 0u; /* from step 1 */
+        ui->keys_rec_last = 0u;
         mark_full(ui);
     }
     /* Page buttons (UI_ICEBERG.md): from elsewhere a button opens its page on the first layer, so the screen never
@@ -3719,7 +3839,11 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
                     0); /* the layer in the page's colour */
         }
     }
-    p = copy_s(b, ui->page == MELLO_UI_HOME && ui->keys_mode    ? (ui->keys_rec ? "HOME REC" : "HOME KEYS")
+    p = copy_s(b, ui->page == MELLO_UI_HOME && ui->keys_mode
+                      ? (ui->keys_rec ? (ui->keys_rec_target == MELLO_UI_REC_BASS    ? "REC > BASS"
+                                         : ui->keys_rec_target == MELLO_UI_REC_CHORD ? "REC > CHORD"
+                                                                                     : "REC > SEQ")
+                                      : "HOME KEYS")
                   : ui->page == MELLO_UI_HOME && ui->macro_mode ? "HOME MACROS"
                                                                 : domain_name(ui));
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -3737,8 +3861,8 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
         *p = 0;
     }
     if (ui->page == MELLO_UI_HOME) {
-        if (ui->keys_mode || ui->macro_mode) /* a mode: one line in the page's colour */
-            o->text(o->ctx, 4, 7, 188, 0, b, accent, 0);
+        if (ui->keys_mode || ui->macro_mode) /* a mode: one line in the page's colour; recording, red */
+            o->text(o->ctx, 4, 7, 188, 0, b, ui->keys_rec ? UI_RED : accent, 0);
         else { /* HOME > A: the page in white, the segment in its colour, then the chord sounding in the chords' */
             o->text(o->ctx, 4, 7, 32, 0, "HOME", UI_WHITE, 0);
             o->text(o->ctx, 36, 7, 24, 0, " > ", UI_DIM, 0);
@@ -4602,13 +4726,31 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
         o->text(o->ctx, 4, 172, 232, 0, "MACROS: TURN A KNOB TO PICK", UI_GOLD, 1);
         return;
     }
-    if (ui->page == MELLO_UI_HOME && ui->keys_mode) { /* every key is a note now: say what a key does */
-        char b[40], *q;
-        q = copy_s(b, ui->keys_rec ? "REC: STEP " : ui->transport->running ? "KEYS: ROOT " : "KEYS: PLAY ");
-        if (ui->keys_rec) q = put_u32(q, (uint32_t)ui->keys_rec_pos + 1u);
-        q = copy_s(q, "  OCT ");
+    if (ui->page == MELLO_UI_HOME && ui->keys_mode) {
+        /* KEYS: the 27 keys as cells, a black key short; lit where the scale has a tone (every key in CHROMATIC),
+         * the root in gold (red while recording), the rest dark: the key rule on the screen as on the LEDs. Then
+         * the step the next key writes, and the keyboard's octave. */
+        const MelloEngine *e = eng(ui);
+        const int8_t *tones = 0;
+        uint8_t n = e ? mello_scale_tones(e->project.scale, &tones) : 0u,
+                root = e ? e->project.root_note : 0u, i;
+        char b[12], *q;
+        for (i = 0u; i < 27u; ++i) {
+            uint8_t rel = (uint8_t)((53u + i + 120u - root) % 12u), k;
+            bool in = n >= 12u, black = black_key_position(i) >= 0;
+            uint16_t col;
+            for (k = 0u; k < n && !in; ++k) in = tones[k] == (int8_t)rel;
+            col = rel == 0u ? (ui->keys_rec ? UI_RED : UI_GOLD) : in ? (black ? UI_DIM : UI_MID) : UI_PANEL;
+            o->fill(o->ctx, (int16_t)(2 + i * 6), 172, 5, black ? 7 : 14, col);
+        }
+        q = b;
+        if (ui->keys_rec) {
+            q = put_u32(q, (uint32_t)ui->keys_rec_pos + 1u);
+            *q++ = ' ';
+        }
+        q = copy_s(q, "OCT");
         (void)put_i32(q, ui->keys_octave);
-        o->text(o->ctx, 4, 172, 232, 0, b, ui->keys_rec ? UI_RED : UI_GOLD, 1);
+        o->text(o->ctx, 166, 172, 70, 0, b, ui->keys_rec ? UI_RED : UI_DIM, 2);
         return;
     }
     {
@@ -6360,9 +6502,16 @@ static uint32_t calc_key_leds(MelloUi *ui)
     uint8_t i;
     if (!e) return 0u;
     if (ui->page == MELLO_UI_HOME && ui->keys_mode) {
-        /* KEYS: the root lit on the keyboard (F3 = MIDI 53 .. G5), in every octave the keys reach. */
-        for (i = 0u; i < 27u; ++i)
-            if ((53u + i) % 12u == e->project.root_note % 12u) mask |= bit_u32(i);
+        /* KEYS: the scale's tones lit on the keyboard (F3 = MIDI 53 .. G5), the rest dark; CHROMATIC lights
+         * every key: the key rule (DECISIONS "Record it yourself"). */
+        const int8_t *tones;
+        uint8_t n = mello_scale_tones(e->project.scale, &tones), k;
+        for (i = 0u; i < 27u; ++i) {
+            uint8_t rel = (uint8_t)((53u + i + 120u - e->project.root_note) % 12u);
+            bool in = n >= 12u;
+            for (k = 0u; k < n && !in; ++k) in = tones[k] == (int8_t)rel;
+            if (in) mask |= bit_u32(i);
+        }
     } else if (ui->page == MELLO_UI_HOME) {
         /* The steps of this bank: lit = on; the playhead flips its key, so it runs across them. */
         uint8_t base = (uint8_t)(ui->step_bank * 16u), at = ui->transport->display_step;

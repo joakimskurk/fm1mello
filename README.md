@@ -24,7 +24,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f40.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f41.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -42,6 +42,7 @@ Ten screens, drawn by the firmware itself (`make screens`): what you see, and wh
 | <img src="docs/screens/home-playing.png" width="240" alt="HOME, playing"> | **PLAY.** The playing step is bright, the LED blinks on the beat and the status line counts the beats to the RESET (`21/32`: the 21st sixteenth of the two bars; with RESET on FREE, the step of the sequence). SELECT is the tempo (the number top right), PRESETS the pattern slot. |
 | <img src="docs/screens/home-rolled.png" width="240" alt="HOME after a roll"> | **RNDMZR**, the last black key. A tap rolls a new sequence from what the RANDOM page's mask allows; UNDO, the key before it, takes the roll back (and again puts it forward). Hold RNDMZR for the RANDOM page. |
 | <img src="docs/screens/home-held-step.png" width="240" alt="A step held"> | **Hold a white key.** That step's pitch, pulses, ratchet and gate come onto K1-K4, its flags (SKIP, ACC, SLD, SUB) onto the first black keys. A tap mutes or unmutes the step. |
+| <img src="docs/screens/home-rec.png" width="240" alt="REC in KEYS"> | **Tap EDIT, then REC.** The keys are a keyboard, lit where the scale has a tone, and REC picks what they write: the sequence, the bass line or the chords. Stopped, each key is the next step; playing, the step under the clock. |
 | <img src="docs/screens/home-macros.png" width="240" alt="HOME, MACROS"> | **Hold EDIT.** MACROS: now each knob picks what it turns, from the performance parameters (RES, ATTACK, RELEASE, DELAY, REVERB, LFO, NOISE, the levels, SWING and more). Tap EDIT to leave; the choice is saved with the project. |
 | <img src="docs/screens/step-trig.png" width="240" alt="SEQ > STEP"> | **SEQ.** The STEP page: the picked step's values, the picture drawn from them. SELECT turns the layers (TRIG, NOTE, FLAGS, SEQ); SEQ again goes on to SEGMENT, LOOP CYCLE and SLOT SEQ. With EDIT on, a white key sets the step's pitch. |
 | <img src="docs/screens/sound-osc-filt.png" width="240" alt="ENV > SOUND"> | **ENV.** The lead's sound: the wave, PWM, cutoff and resonance first, the envelope, follower, grit, second oscillator and the rest on SELECT. INIT (B1) puts the sound back. ENV again: the sample layer. |
@@ -67,8 +68,8 @@ The FM-1's panel is printed, so its names are the firmware's names. What each co
 | **OCT- / OCT+** | The step bank where there are more than 16 (HOME, STEP), the octave in KEYS. |
 | **PLAY** | Start and stop. The LED blinks on the beat. |
 | **SAVE** | Saves the project ("SAVED" on the status line). Held: the pattern slots. |
-| **EDIT** | The page's mode: KEYS on HOME (the keys become a keyboard), the pitch mode on STEP. Held on HOME: MACROS, where each of K1-K4 picks what it turns. |
-| **REC** | In KEYS: step record, each key writes the next step. |
+| **EDIT** | The page's mode: KEYS on HOME (the keys become a keyboard, lit where the scale has a tone), the pitch mode on STEP. Held on HOME: MACROS, where each of K1-K4 picks what it turns. |
+| **REC** | In KEYS: what the keys write, SEQ, BASS, CHORD, then off. Stopped, each key writes the next step; playing, the step under the clock. |
 | **MASTER** (the knob) | The output level, in hardware. |
 
 The header reads where you are as `BUTTON > PAGE > LAYER` (`ARP > DRUMS > KIT`), the status line the key, the beat
@@ -119,6 +120,14 @@ key's or an encoder's job.
 SELECT is the tempo, ALGORITHM the randomizer's intensity (LOW, MED, HIGH, MUSICAL), PRESETS the pattern slot.
 Hold a white key to edit that step on the knobs; tap it to mute or unmute it. RNDMZR rolls what the RANDOM page's
 mask says (by default the first nine targets); UNDO takes it back.
+
+**KEYS and REC.** Tap EDIT and the 27 keys are a keyboard, F3 to G5, OCT-/OCT+ moving it. The keys of the project's
+scale are lit and the others dark, on the LEDs and in the strip; a dark key still plays, rounded to the nearest lit
+one (CHROMATIC lights them all). Playing, a key is the new root. REC then cycles what the keys write: SEQ, BASS,
+CHORD, off. Stopped, each key writes the next step from step 1 (a chord chain grows as you play it; hold a second
+key over the first for the shape: a second SUS2, a fourth SUS4, a fifth POWER, a seventh SEVENTH). Playing, a key
+writes the step under the clock, or the next one past half a pulse, so a line goes down pass by pass. UNDO takes
+the whole recording back.
 
 ## The sections
 

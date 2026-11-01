@@ -126,6 +126,9 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       them, moved to the chord sounding), DRIFT (one chord changes each pass round the chain, within DEPTH, home
       kept) and DEPTH; MED and HIGH roll progressions too; a rolled progression runs on the clock chain and the
       chain restarts with RESET, so the chords land on the one. Package 0.5-f39.
+- [x] D14. Record it yourself (DECISIONS): the key rule (a note off the scale rounds to the nearest on it, the
+      keyboard lit by the scale) and REC in KEYS cycling SEQ, BASS, CHORD: step record stopped, on the clock
+      playing, one UNDO. Package 0.5-f41.
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, D1-D2, first flash and C4.
 

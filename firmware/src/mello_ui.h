@@ -153,8 +153,13 @@ typedef struct {
     uint32_t edit_down_ms;
     bool step_pitch_mode; /* STEP's EDIT: the white keys set the picked step's pitch (R6) */
     bool keys_rec;
-    uint8_t keys_rec_pos;
-    uint8_t audition_key; /* the key playing the lead, 0xFF none */
+    uint8_t
+        keys_rec_target; /* REC in KEYS cycles what the keys write: 1 SEQ, 2 BASS, 3 CHORD (MelloUiRecTarget) */
+    uint8_t keys_rec_pos; /* the next step (or chord slot) written, stopped; playing, the keys write where the
+                                clock is */
+    uint8_t keys_rec_last;      /* the slot the last chord went to, for a second key held: its shape */
+    uint8_t keys_rec_last_midi; /* and the key that wrote it */
+    uint8_t audition_key;       /* the key playing the lead, 0xFF none */
     uint8_t audition_note;
     bool audition_release;
     int8_t keys_octave; /* KEYS: OCT-/OCT+ move the keyboard, -2..+2 */
@@ -213,6 +218,8 @@ typedef struct {
     uint8_t home_old_step;
     uint8_t home_new_step;
 } MelloUi;
+
+typedef enum { MELLO_UI_REC_SEQ = 1, MELLO_UI_REC_BASS = 2, MELLO_UI_REC_CHORD = 3 } MelloUiRecTarget;
 
 void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage);
 void mello_ui_attach_sample_bank(MelloUi *ui, MelloSampleBank *bank);
