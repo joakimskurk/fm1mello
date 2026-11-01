@@ -245,12 +245,8 @@ static void app_main(void)
     audio_ready = true;
     last_running = mt.running;
 
-#ifndef DINGHY_HOST
     while ((uint32_t)(fm1_micros() - splash_us) < 1500000u)
-        platform_poll(); /* the splash for 1.5 s at least */
-#else
-    (void)splash_us;
-#endif
+        platform_poll(); /* the splash for 1.5 s at least (on the host too: tools/screens.py pictures it) */
     mello_ui_render(&ui, &draw);
     mello_ui_sync_leds(&ui, &draw);
 
