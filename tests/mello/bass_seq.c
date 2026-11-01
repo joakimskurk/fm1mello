@@ -137,7 +137,7 @@ int main(void)
         MelloBassConfig b;
         MelloEvent ev;
         int32_t out[2 * 441], peak = 0;
-        int32_t env_before, env_after;
+        int32_t env_before = 0, env_after = 0;
         unsigned blk, k;
         mello_sound_defaults(&s);
         s.osc_wave = MELLO_WAVE_OFF;

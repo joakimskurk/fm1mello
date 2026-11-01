@@ -1843,10 +1843,10 @@ static int32_t chord_root_shift(const MelloEngine *e, MelloScale scale);
 #endif
 static uint8_t resolve_sub_midi(const MelloEngine *e, uint8_t x_tone, int8_t x_octave)
 {
-    int32_t root, midi;
-    MelloScale scale;
-    int8_t lc_oct, lc_pitch, lc_sub_transpose;
-    uint8_t base_tone;
+    int32_t root = 60, midi;
+    MelloScale scale = MELLO_SCALE_MINOR;
+    int8_t lc_oct = 0, lc_pitch = 0, lc_sub_transpose = 0;
+    uint8_t base_tone = 0u;
     current_loop_context(e, &root, &scale, &lc_oct, &lc_pitch, &base_tone, &lc_sub_transpose);
     midi =
         root + (int32_t)sub_tone_offset(scale, base_tone) + (int32_t)sub_tone_offset(scale, x_tone) +

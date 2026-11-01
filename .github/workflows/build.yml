@@ -19,5 +19,5 @@ jobs:
     with:
       build: |
         if [ "$GITHUB_REF_TYPE" = tag ]; then ./build.sh --release "${GITHUB_REF_NAME#v}"; else ./build.sh; fi
-      test: sh tests/run_mello.sh && sh tests/run_host.sh
+      test: sh tests/run_mello.sh && sh tests/run_host.sh && sh tests/mirror_check.sh
       packages: build/skurkymello-*.fwsc

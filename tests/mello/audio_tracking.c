@@ -80,7 +80,7 @@ int main(void)
     s.key_track = 1000u;
     lo = play(&s, 48u, 91u, 5u);
     hi = play(&s, 72u, 91u, 5u);
-    CHECK(hi - lo >= 258u && hi - lo <= 264u, "KEY TRACK 100%% is not 10.9 permille a semitone (%u)",
+    CHECK(hi - lo >= 258 && hi - lo <= 264, "KEY TRACK 100%% is not 10.9 permille a semitone (%u)",
           hi - lo);
     CHECK(play(&s, 60u, 91u, 5u) == plain, "KEY TRACK moved C4");
 

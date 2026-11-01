@@ -26,7 +26,9 @@ FEATURE_OFF="ui_visual_smoke control_grammar_smoke chord_final_acceptance audio_
 run() {    # name, binary suffix, extra flags
     bin="$OUT/$1$2"
     # shellcheck disable=SC2086
-    "$CC" -std=c11 -O1 -Wall -Wextra -Werror $EXTRA $3 $(defines "$1") -Ifirmware/src "tests/mello/$1.c" $SRC -o "$bin"
+    if ! "$CC" -std=c11 -O1 -Wall -Wextra -Werror $EXTRA $3 $(defines "$1") -Ifirmware/src "tests/mello/$1.c" $SRC -o "$bin" -lm; then
+        echo "FAIL $1$2 (does not compile)"; FAILED=1; return 0   # the other tests still run
+    fi
     if (cd "$OUT" && "./$1$2" >"$1$2.txt" 2>&1); then
         echo "PASS $1$2"
     else
