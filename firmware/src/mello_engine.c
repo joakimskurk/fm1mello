@@ -4335,6 +4335,31 @@ const char *mello_event_type_name(MelloEventType type)
     }
 }
 
+uint8_t mello_scale_tones(MelloScale scale, const int8_t **tones)
+{
+    const ScaleDef *sd = &SCALES[scale < MELLO_SCALE_COUNT ? scale : MELLO_SCALE_MINOR];
+    if (tones) *tones = sd->v;
+    return sd->n;
+}
+
+uint8_t mello_scale_quantize(MelloScale scale, uint8_t root, uint8_t midi)
+{
+    const ScaleDef *sd = &SCALES[scale < MELLO_SCALE_COUNT ? scale : MELLO_SCALE_MINOR];
+    int32_t rel = ((int32_t)midi - (int32_t)root) % 12, best = 0, best_d = 99;
+    uint8_t i;
+    if (sd->n >= 12u) return midi;
+    if (rel < 0) rel += 12;
+    for (i = 0u; i < sd->n; ++i) { /* the nearest tone, down on a tie (d <= 6 goes down) */
+        int32_t d = rel - sd->v[i], up = 12 - d, dist = d <= 6 ? d : up;
+        if (d < 0) d += 12, up = 12 - d, dist = d <= 6 ? d : up;
+        if (dist < best_d || (dist == best_d && d <= 6 && best > 0)) {
+            best_d = dist;
+            best = d <= 6 ? -d : up; /* the move: down by d, or up by 12 - d */
+        }
+    }
+    return clamp_u8_i32((int32_t)midi + best, 12u, 108u);
+}
+
 const char *mello_scale_name(MelloScale scale)
 {
     if (scale >= MELLO_SCALE_COUNT) scale = MELLO_SCALE_MINOR;

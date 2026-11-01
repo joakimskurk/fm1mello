@@ -1102,6 +1102,11 @@ uint32_t mello_pulse_ticks(const MelloProject *project);
 uint8_t mello_resolve_step_midi(const MelloProject *project, const MelloStep *step);
 const char *mello_event_type_name(MelloEventType type);
 const char *mello_scale_name(MelloScale scale);
+/* The scale's tones as semitones from the root (0 first), and how many: the key rule every part follows (a note off
+ * the scale rounds to the nearest on it, the smaller way; CHROMATIC has all twelve). */
+uint8_t mello_scale_tones(MelloScale scale, const int8_t **tones);
+/* `midi` moved to the nearest note of the scale on `root`, the smaller way, down on a tie; unchanged in CHROMATIC. */
+uint8_t mello_scale_quantize(MelloScale scale, uint8_t root, uint8_t midi);
 
 #ifdef __cplusplus
 }
