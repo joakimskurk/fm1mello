@@ -107,7 +107,8 @@ bank that silently stops saving, CPU never measured on the chip since 0.5-f3. In
       leaps answered by a step back, A' and B' as developments, the whole range and the octave above. Span 4.9 to
       7.1 scale steps, distinct notes 3.8 to 4.8, over 300 rolls. v2.1: forms with A back late or not at all,
       developments by sequence, inversion or displacement, syncopated answers; span 8.3, notes 5.4, the second
-      half never the first again. Package 0.5-f32.
+      half never the first again. Package 0.5-f32. v2.2: rhythm motifs from a library (3+3+2 figures, offbeat
+      answers), cross-rhythm accents, more ratchets, slides and chance notes, octave leaps. Package 0.5-f33.
 
 Order: A1, B1, C1 (and C2's decisions), then B2-B4 and C3 in turns, B5, D1-D2, first flash and C4.
 

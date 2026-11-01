@@ -771,6 +771,17 @@ repeats the first, the span is 8.3 and the distinct notes 5.4; the test keeps th
 the repeat at most 15. The bar itself still loops every 16 steps, as a bar does: a longer melody is LENGTH 32,
 where MUSICAL writes four cells of eight.
 
+**v2.2, the same day: "not complex enough".** What was plain was the rhythm: every note a sixteenth, rests by
+chance, no figure to hold on to. Now a cell's rhythm is a motif from a library (bit a step): for cells of four
+`x.xx`, `xx.x`, `x..x`, `xxxx`, `x.x.`, `xx..` for the motif and `.xxx`, `.x.x`, `.xx.`, `xxx.` among the
+answer's; for cells of eight the 3+3+2 figures `x..x..x.`, `x.xx.xx.`, `xx.xx.x.`, `x.x.x.xx` and their offbeat
+answers; sixteen is two eights. A weak step flips one time in ten, a busy roll adds a hit and a sparse one takes one
+away, so the motif is a family, not a stamp. On top: a cross-rhythm of accents every third step in a third of the
+cells, ratchets on weak steps twice as often, slides into weak steps four times in ten, chance notes on a quarter
+of the weak and medium steps (60% and 75%) so the loop differs from round to round, and one leap in five an
+octave. Measured: span 8.6, distinct notes 5.3, the octave above in 174 rolls, strong steps 77%, weak 53% (the
+floor is now 65% weak), motion 2.2 against MED's 4.65. Cells of odd length (12 steps as three) keep the chances.
+
 ## Black ground (2026-11-01)
 
 The user found the screen busy: the HTML's five green tones (ground #040E08, two panels, lines, dim and mid text)

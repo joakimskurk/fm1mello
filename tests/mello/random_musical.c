@@ -163,8 +163,9 @@ int main(void)
            "%u.%02u)\n",
            strong_on * 100u / strong_n, weak_on * 100u / weak_n, mus_motion / 30000u,
            mus_motion / 300u % 100u, med_motion / 30000u, med_motion / 300u % 100u);
-    CHECK(strong_on * 100u / strong_n > 75u && weak_on * 100u / weak_n < 50u, "strong %u/%u, weak %u/%u",
-          strong_on, strong_n, weak_on, weak_n);
+    CHECK(strong_on * 100u / strong_n > 75u && weak_on * 100u / weak_n < 65u, "strong %u/%u, weak %u/%u",
+          strong_on, strong_n, weak_on,
+          weak_n); /* v2.2's rhythm motifs put more on the weak steps: under 65% */
     CHECK(mus_motion * 10u < med_motion * 6u, "MUSICAL moves %u, MED %u", mus_motion, med_motion);
 
     { /* the mask: PITCH only leaves the rhythm as it was */

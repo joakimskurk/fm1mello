@@ -2908,21 +2908,57 @@ static uint8_t mus_snap(int32_t d, uint8_t pmax, uint8_t n, uint8_t t3, uint8_t 
  * and then by a leap of a fourth to a sixth that the next note answers with a step back the other way (the oldest
  * rule of melody), and never the same note three times. Strong steps still land on chord tones; weak steps pass
  * between them. A note pushed past the range goes up an octave (the octave field) rather than bouncing back. */
+/* v2.2 (feedback: "not complex enough"): a cell's rhythm is a motif from a library (bit o = step o plays; 3+3+2
+ * figures, syncopations, a denser or an offbeat answer), varied by a flipped weak step now and then; 0 falls back
+ * to the play chances (cells of odd lengths). */
+static uint16_t mus_rhythm(MelloEngine *e, uint8_t cl, bool down, int16_t density)
+{
+    static const uint16_t four_down[6] = {13u, 11u, 9u, 15u, 5u, 3u}, /* x.xx xx.x x..x xxxx x.x. xx.. */
+        four_answer[6] = {13u, 14u, 10u, 11u, 6u, 7u},                /* x.xx .xxx .x.x xx.x .xx. xxx. */
+        eight_down[7] = {73u, 109u, 91u, 213u, 153u, 87u, 81u}, /* x..x..x. x.xx.xx. xx.xx.x. x.x.x.xx ... */
+        eight_answer[7] = {90u, 221u, 150u, 109u, 73u, 91u, 213u}; /* .x.xx.x. x.xxx.xx .xx.x..x ... */
+    uint16_t r;
+    if (cl == 4u)
+        r = down ? four_down[rng_bounded(&e->gen_rng, 6u)] : four_answer[rng_bounded(&e->gen_rng, 6u)];
+    else if (cl == 8u)
+        r = down ? eight_down[rng_bounded(&e->gen_rng, 7u)] : eight_answer[rng_bounded(&e->gen_rng, 7u)];
+    else if (cl == 16u)
+        r = (uint16_t)(eight_down[rng_bounded(&e->gen_rng, 7u)] |
+                       (eight_answer[rng_bounded(&e->gen_rng, 7u)] << 8));
+    else
+        return 0u;
+    if (density > 0 && cl >= 8u)
+        r |= (uint16_t)(1u << (1u + 2u * rng_bounded(&e->gen_rng, cl / 2u)));               /* busy */
+    if (density < 0) r &= (uint16_t)~(1u << (1u + 2u * rng_bounded(&e->gen_rng, cl / 2u))); /* sparse */
+    return r;
+}
+
 static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, int32_t target, uint8_t lo,
                      uint8_t hi, uint8_t pmax, uint8_t n, uint8_t t3, uint8_t t5, int16_t density,
                      const uint8_t slot[2], bool down)
 {
     static const uint16_t play[3] = {420u, 680u, 880u}; /* weak, medium, strong */
     uint8_t o, hits = 0u, same = 0u;
+    uint16_t rhythm = mus_rhythm(e, cl, down, density);
+    bool cross =
+        chance_permille(&e->gen_rng, 350u); /* accents every third step: a cross-rhythm over the bar */
     int32_t d = start, before = -99, last_leap = 0, lo32 = lo,
             hi32 = (int32_t)hi + (int32_t)n; /* an octave of headroom */
     for (o = 0u; o < cl; ++o) {
         MelloStep *st = &c[o];
         uint8_t m = mus_metric(o);
         int32_t p = o ? (int32_t)play[m] + density : (down ? 1000 : 920 + density), prev = d;
+        bool plays;
         st->pulses = 1u, st->ratchet = 1u, st->skip = false, st->octave = 0, st->slide = false;
         st->probability = 65535u;
-        if (!chance_permille(&e->gen_rng, (uint16_t)(p < 0 ? 0 : p))) {
+        if (rhythm) {
+            plays = (rhythm >> o) & 1u;
+            if (m == 0u && chance_permille(&e->gen_rng, 100u))
+                plays = !plays; /* a weak step flipped: variety */
+            if (o == 0u && down) plays = true;
+        } else
+            plays = chance_permille(&e->gen_rng, (uint16_t)(p < 0 ? 0 : p));
+        if (!plays) {
             st->gate = MELLO_GATE_REST, st->accent = st->sub = false, st->sample_slot = 0u;
             continue;
         }
@@ -2942,8 +2978,10 @@ static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, in
                 d += dir;
             else if (r < 65u)
                 d += 2 * dir;
-            else if (r < 85u) { /* a leap of a fourth, fifth or sixth, to a chord tone */
-                int32_t leap = (int32_t)(3u + rng_bounded(&e->gen_rng, 3u)) * dir;
+            else if (
+                r <
+                85u) { /* a leap of a fourth, fifth or sixth to a chord tone; one leap in five an octave */
+                int32_t leap = (r >= 82u ? (int32_t)n : (int32_t)(3u + rng_bounded(&e->gen_rng, 3u))) * dir;
                 d = mus_snap(d + leap, pmax + n, n, t3, t5);
                 last_leap = d - prev;
             } else if (same >= 1u) /* a repeat, but never three alike */
@@ -2962,10 +3000,12 @@ static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, in
         } else
             st->pitch = (int8_t)d;
         st->gate = m == 0u && chance_permille(&e->gen_rng, 200u) ? MELLO_GATE_MULTI : MELLO_GATE_SINGLE;
-        st->accent = chance_permille(&e->gen_rng, m == 2u ? 400u : 120u);
+        st->accent = cross ? o % 3u == 0u : chance_permille(&e->gen_rng, m == 2u ? 400u : 120u);
         st->sub = chance_permille(&e->gen_rng, d % n == 0 ? 550u : 80u);
-        if (m == 0u && chance_permille(&e->gen_rng, 60u)) st->ratchet = 2u;
-        if (m == 0u && chance_permille(&e->gen_rng, 200u)) st->probability = prob_from_hundredths(70u);
+        if (m == 0u && chance_permille(&e->gen_rng, 140u)) st->ratchet = 2u; /* a ratchet on a weak step */
+        if (m != 2u &&
+            chance_permille(&e->gen_rng, 250u)) /* a chance note: the loop varies from round to round */
+            st->probability = prob_from_hundredths(m == 0u ? 60u : 75u);
         st->sample_slot = m == 2u ? slot[0] : (chance_permille(&e->gen_rng, 250u) ? slot[1] : 0u);
     }
     if (!down && cl >= 4u && c[2].gate != MELLO_GATE_REST && c[1].gate == MELLO_GATE_REST &&
@@ -2979,7 +3019,7 @@ static void mus_cell(MelloEngine *e, MelloStep *c, uint8_t cl, uint8_t start, in
             if (c[o + 1u].gate == MELLO_GATE_REST)
                 c[o].gate = chance_permille(&e->gen_rng, 300u) ? MELLO_GATE_HOLD : c[o].gate;
             else if (!mus_metric((uint8_t)(o + 1u)))
-                c[o + 1u].slide = chance_permille(&e->gen_rng, 300u);
+                c[o + 1u].slide = chance_permille(&e->gen_rng, 400u);
         }
     if (!hits) c[0].gate = MELLO_GATE_SINGLE, c[0].pitch = (int8_t)start;
 }
