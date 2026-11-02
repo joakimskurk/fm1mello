@@ -45,8 +45,12 @@ the work itself, and they stay their author's.
 | What | Licence | Where |
 | --- | --- | --- |
 | Terminus font 8x16 (ter-u16n), rendered into `firmware/gen/felucca_font.h` | SIL OFL 1.1 | `assets/fonts/Terminus-LICENSE.txt` |
-| FM-1 screen mirror (`firmware/src/screen_mirror.c`, `screen_mirror.h`): the Big screen encoder and its SysEx protocol, by Patrick F. Kellogg | MIT | the files' headers; <https://github.com/pfkellogg/fm1_open> (branch `screen-out`, `screen_mirror/`, commit `681857d`) |
+| FM-1 screen mirror (`firmware/src/screen_mirror.c`, `screen_mirror.h`): the Big screen encoder and its SysEx protocol, by Patrick F. Kellogg | MIT | `firmware/src/screen_mirror-LICENSE.txt`; <https://github.com/pfkellogg/fm1_open> (branch `screen-out`, `screen_mirror/`, commit `681857d`) |
 | JieLi AC79 SDK: `uboot.boot`, `cfg_tool.bin`, `eq_cfg_hw.bin` are read from your SDK checkout at build time and placed in the package; no SDK files are in this tree | Apache-2.0 | <https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK> |
+
+A firmware package you share contains Kellogg's encoder and the Terminus font, so it goes with `LICENSE`,
+`firmware/src/screen_mirror-LICENSE.txt` and `assets/fonts/Terminus-LICENSE.txt`: a release attaches all three next
+to the package and links its source, as the GPL, MIT and OFL ask.
 
 ## The logo
 

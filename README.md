@@ -417,6 +417,21 @@ SkurkyMello is free. If it gives you music, you can [buy me a coffee](https://bu
 
 <a href="https://buymeacoffee.com/skurk"><img src="docs/buymeacoffee.png" width="160" alt="Buy Me a Coffee: QR code to buymeacoffee.com/skurk"></a>
 
+## Credits
+
+SkurkyMello stands on other people's work. Thank you all:
+
+- **[Dinghy](https://github.com/zvenson/dinghy)** by zvenson: the app framework, the host mode and the TRS MIDI IN.
+- **[Felucca](https://github.com/hugelton/Felucca)** by Leo Kuroshita (@kurogedelic), Hügelton Instruments: the
+  platform under Dinghy (HAL, loader, USB, the build tools).
+- **[SLOOP](https://github.com/isod89/sloop-fm1)** by isod89: its changes to that platform.
+- **[FM-1 Mirror](https://github.com/pfkellogg/fm1-mirror)** by Patrick F. Kellogg: the Big screen protocol and its
+  encoder (MIT).
+- **[fm1-emu](https://github.com/joakimeriksson/fm1-emu)** by Joakim Eriksson: the emulator every package is tested in.
+- **Terminus** by Dimitar Toshkov Zhekov: the screen font (SIL OFL 1.1).
+
+The code was written with Claude (Anthropic) as a coding assistant; the commits say so in their trailers.
+
 ## Upstream and licence
 
 `main` is a fork of Dinghy at `d44df7d` (0.3) with 0.4's TRS MIDI IN taken over (`midi_uart.c` and its hunks in
