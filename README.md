@@ -5,7 +5,7 @@ synth. After working on it for a few months it has since become the prototype I 
 firmware, so please be kind.
 
 This is a melody-focused firmware. The main sequencer is its heart. The chords and drums were only added for the FM-1
-version, and I actually prefer using it without them.
+version, and I personally actually prefer using it without them.
 
 Scope creep got the better of me, by the way, so there are a lot of menus on a very small screen. Sorry about that!
 
