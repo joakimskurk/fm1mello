@@ -12,6 +12,7 @@ Scope creep got the better of me, by the way, so there are a lot of menus on a v
 Anyway, enjoy.
 
 *— joakimskurk*
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-skurk-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/skurk)
 
 ## What it is
 
@@ -22,8 +23,6 @@ performance keys, 64 pattern slots and a loop cycle, all on the FM-1's keys, kno
 port of [SkurkyMello](reference/skurkymello.html), the browser instrument, which stays the reference for sound and
 feel, and it is built on [Dinghy](https://github.com/zvenson/dinghy) 0.3 by zvenson (with 0.4's MIDI IN on the TRS
 jack) and, under that, the Felucca / SLOOP platform.
-
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-skurk-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/skurk)
 
 > **Status: tested on emulators, not yet on an FM-1.** Every package runs in
 > [fm1-emu](https://github.com/joakimeriksson/fm1-emu) and its web emulator; the first install on real hardware
