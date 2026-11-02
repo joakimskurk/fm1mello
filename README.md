@@ -11,7 +11,7 @@ Scope creep got the better of me, by the way, so there are a lot of menus on a v
 
 Anyway, enjoy.
 
-*— joakimskurk*
+*- Joakim*
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-skurk-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/skurk)
 
