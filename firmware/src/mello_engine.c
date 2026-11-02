@@ -1884,7 +1884,8 @@ static uint8_t resolve_sub_midi(const MelloEngine *e, uint8_t x_tone, int8_t x_o
 #if MELLO_FEATURE_CHORD_MACHINE
         (e->chord.on && e->chord.sub_root ? chord_root_shift(e, scale) : 0) +
 #endif
-        ((int32_t)e->project.global_octave + (int32_t)lc_oct + (int32_t)e->sub.octave + (int32_t)x_octave) *
+        /* the bass sounds an octave under its OCT (ROADMAP E9): OCT -1, the default, is two octaves under the root */
+        ((int32_t)e->project.global_octave + (int32_t)lc_oct + (int32_t)e->sub.octave + (int32_t)x_octave - 1) *
             12 +
         (int32_t)lc_pitch + (int32_t)lc_sub_transpose;
     /* the tones' offsets are added as semitones and the chord's root shift too: the sum can leave the scale (a 6th

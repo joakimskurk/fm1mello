@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (C) 2026 joakimskurk */
-/* One key that always holds (ROADMAP E1). The key now is the KEY page's root and
+/* One key that always holds (ROADMAP E1) and the bass an octave down (E9). The key now is the KEY page's root and
  * scale, the loop step's KEY / SCALE where they are not FOLLOW, ROOT+ moving the tonic. TRANS and BASS TR are
  * semitones whose result is rounded into the key in their direction (+1 in C minor: C to D, Eb to F; -1: D to C),
  * so ROOT+ and TRANS no longer sound the same. Over every scale but CHROMATIC, every root and a spread of ROOT+,
  * TRANS, BASS TR, KEY, SCALE and the loop step's SUB tone, no lead, bass or chord note leaves the key now. CHROMATIC
- * transposes by plain semitones. */
+ * transposes by plain semitones. The bass at OCT -1 sounds two octaves under the root. */
 #include <stdio.h>
 #include <string.h>
 
@@ -144,6 +144,7 @@ int main(void)
 {
     static const int8_t offsets[] = {-2, 0, 3}, trans[] = {-5, -1, 0, 1, 2, 7}, sub_trs[] = {-3, 0, 1, 4};
     unsigned total = 0u, off_total = 0u, sc, r, a, b, c;
+    uint8_t note, bass_note;
 
     /* TRANS rounds in its direction: C minor, C4 = 60 */
     CHECK(lead_note(MELLO_SCALE_MINOR, 60u, 0, 0, 1) == 62u, "C +1 in C minor is D (%u)",
@@ -180,6 +181,16 @@ int main(void)
         mello_engine_key_now(&e, &kr, &ks);
         CHECK(kr == 69u && ks == MELLO_SCALE_DORIAN, "KEY A, SCALE DORIAN: the key now is A dorian (%u, %d)", kr,
               (int)ks);
+    }
+
+    /* the bass an octave down: OCT -1 (the default), the root tone at octave 0 is two octaves under C4 */
+    {
+        Loop l = {0, -1, -1, 0, 0, MELLO_SUB_TONE_ROOT};
+        unsigned n, off;
+        start(MELLO_SCALE_MINOR, 60u, 0, &l, true, false);
+        CHECK(e.sub.octave == -1, "the bass's default OCT is -1 (%d)", e.sub.octave);
+        run(2u, &n, &off, &note, &bass_note);
+        CHECK(bass_note == 36u, "the bass's root at OCT -1 is C2 = 36 (%u)", bass_note);
     }
 
     /* every scale but CHROMATIC, every root, a spread of the loop step's settings: no note off the key now */

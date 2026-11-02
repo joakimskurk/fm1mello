@@ -1061,6 +1061,13 @@ rounded into the key; the global key and root lead, unless CHROMATIC or a loop s
 - Test: key_system (exact notes, the key now, and a sweep of every scale, root and loop setting: about a million
   lead, bass and chord notes, none off the key; without the rounding 43% were).
 
+## The bass an octave lower (2026-11-02)
+
+"Too bright, even at OCT -1." OCT -1 put the bass one octave under the root (C3, 131 Hz at C4). The bass voice
+(BASS's modes, BASS SEQ, DRONE) now sounds an octave lower with the same OCT values: OCT -1 is C2, 65 Hz. The floor
+stays at MIDI 12. Projects saved earlier drop an octave too, which is the point. The follower (the lead's
+sub-oscillator, with its own OCT) stays where it was.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.
