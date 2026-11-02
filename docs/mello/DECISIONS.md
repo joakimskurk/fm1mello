@@ -1045,6 +1045,22 @@ is always of the code it sits next to, and a UI change regenerates them in the s
 host keeps the splash up for 1.5 s like the target does (it used to skip it), which `make host`'s first default shot
 now shows. Pillow is not needed: the PNG writer is zlib and struct.
 
+## One key that always holds (2026-11-02)
+
+The product owner, playing LOOP CYCLE: ROOT+ and TRANS did the same, a changed root showed nowhere, and the bass
+could not be transposed within the key. Both added semitones to the finished note, so they were the same; TRANS and
+BASS TR left the key; the bass added two scale offsets as semitones and could leave the scale. Decided: "always
+rounded into the key; the global key and root lead, unless CHROMATIC or a loop step that is not FOLLOW."
+- **The key now** (`mello_engine_key_now`): the KEY page's root and scale, the loop step's KEY and SCALE where they
+  are not FOLLOW, ROOT+ moving the tonic. The status line's key, KEYS' rounding, its strip and the keys' lights read
+  it; what KEYS records is the same place in the project's key, which the loop step moves as it moves the rest.
+- **ROOT+ moves the key, TRANS the line within it.** TRANS and BASS TR stay in semitones, and the note they land on is
+  rounded into the key now in their direction (+1 in C minor: C to D, Eb to F; -1: D to C), so no two neighbouring
+  notes collapse into one and a line keeps its shape. The bass's summed tones and the chord's root shift take the
+  nearest tone of the key. CHROMATIC: semitones, unrounded. The chord's POWER fifth stays a fifth.
+- Test: key_system (exact notes, the key now, and a sweep of every scale, root and loop setting: about a million
+  lead, bass and chord notes, none off the key; without the rounding 43% were).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

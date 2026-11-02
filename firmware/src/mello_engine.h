@@ -1107,6 +1107,8 @@ const char *mello_scale_name(MelloScale scale);
 uint8_t mello_scale_tones(MelloScale scale, const int8_t **tones);
 /* `midi` moved to the nearest note of the scale on `root`, the smaller way, down on a tie; unchanged in CHROMATIC. */
 uint8_t mello_scale_quantize(MelloScale scale, uint8_t root, uint8_t midi);
+/* The key sounding now: the KEY page's root and scale, changed by the loop step where it is not FOLLOW (ROADMAP E1). */
+void mello_engine_key_now(const MelloEngine *engine, uint8_t *root, MelloScale *scale);
 
 #ifdef __cplusplus
 }

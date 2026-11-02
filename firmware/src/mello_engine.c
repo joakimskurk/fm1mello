@@ -1769,6 +1769,37 @@ static void current_loop_context(const MelloEngine *e, int32_t *root_out, MelloS
     if (sub_transpose_out) *sub_transpose_out = mello_loop_cycle_sub_transpose(lc);
 }
 
+/* The key now (ROADMAP E1): the KEY page's root and scale, changed by the loop step only where its KEY or SCALE is not
+ * FOLLOW, ROOT+ moving the tonic. Everything that plays or shows a key reads it. */
+void mello_engine_key_now(const MelloEngine *e, uint8_t *root_out, MelloScale *scale_out)
+{
+    int32_t root = 60;
+    MelloScale scale = MELLO_SCALE_MINOR;
+    if (e) current_loop_context(e, &root, &scale, NULL, NULL, NULL, NULL);
+    if (root_out) *root_out = clamp_u8_i32(root, 12u, 108u);
+    if (scale_out) *scale_out = scale;
+}
+
+/* A note rounded into the key (ROADMAP E1): a transpose is in semitones, and what it lands on off the scale moves on
+ * in the transpose's direction to the next tone of the scale (+1 in C minor: C to D; -1: D to C), so two notes never
+ * collapse into one; dir 0 takes the nearest tone (down on a tie). CHROMATIC: as it is. */
+static uint8_t key_round(MelloScale scale, int32_t root, int32_t midi, int32_t dir)
+{
+    const ScaleDef *sd = &SCALES[scale < MELLO_SCALE_COUNT ? scale : MELLO_SCALE_MINOR];
+    int32_t m = midi;
+    uint8_t k, i;
+    if (sd->n >= 12u) return clamp_u8_i32(midi, 12u, 108u);
+    if (!dir)
+        return mello_scale_quantize(scale, (uint8_t)((root % 12 + 12) % 12 + 12),
+                                    clamp_u8_i32(midi, 12u, 108u));
+    for (k = 0u; k < 12u; ++k, m += dir > 0 ? 1 : -1) {
+        int32_t rel = ((m - root) % 12 + 12) % 12;
+        for (i = 0u; i < sd->n; ++i)
+            if (sd->v[i] == rel) return clamp_u8_i32(m, 12u, 108u);
+    }
+    return clamp_u8_i32(midi, 12u, 108u);
+}
+
 #if MELLO_FEATURE_CHORD_MACHINE
 /* HARMONY's FOLLOW: the note moved to the nearest tone of the chord sounding (any octave), the smaller way; ties go
  * down. Nothing moves when no chord has sounded yet. */
@@ -1823,7 +1854,7 @@ static uint8_t resolve_engine_step_midi_mod(const MelloEngine *e, const MelloSte
             (int32_t)extra_octave) *
                12 +
            (int32_t)lc_pitch;
-    return clamp_u8_i32(midi, 12u, 108u);
+    return lc_pitch ? key_round(scale, root, midi, lc_pitch) : clamp_u8_i32(midi, 12u, 108u);
 }
 
 static int8_t sub_tone_offset(MelloScale scale, uint8_t tone)
@@ -1856,6 +1887,9 @@ static uint8_t resolve_sub_midi(const MelloEngine *e, uint8_t x_tone, int8_t x_o
         ((int32_t)e->project.global_octave + (int32_t)lc_oct + (int32_t)e->sub.octave + (int32_t)x_octave) *
             12 +
         (int32_t)lc_pitch + (int32_t)lc_sub_transpose;
+    /* the tones' offsets are added as semitones and the chord's root shift too: the sum can leave the scale (a 6th
+     * over a 3rd in C minor is B), so it is rounded into the key, in the transpose's direction when there is one */
+    midi = key_round(scale, root, midi, (int32_t)lc_pitch + (int32_t)lc_sub_transpose);
     return clamp_u8_i32(midi, 12u, 96u);
 }
 
@@ -3666,7 +3700,7 @@ static uint8_t chord_scale_degree_midi(const MelloEngine *e, uint8_t degree, int
     oct = d / sd->n;
     midi = root + sd->v[idx] + oct * 12 +
            ((int32_t)e->project.global_octave + (int32_t)lc_oct + (int32_t)octave) * 12 + (int32_t)lc_pitch;
-    return clamp_u8_i32(midi, 12u, 108u);
+    return lc_pitch ? key_round(scale, root, midi, lc_pitch) : clamp_u8_i32(midi, 12u, 108u);
 }
 uint8_t mello_engine_resolve_chord_notes(const MelloEngine *e, uint8_t chord_step,
                                          uint8_t out[MELLO_CHORD_MAX_VOICES])

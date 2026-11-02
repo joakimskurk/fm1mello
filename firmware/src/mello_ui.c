@@ -911,7 +911,7 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
 {
     MelloEngine *e = eng(ui);
     int32_t m = 53 + (int32_t)note_index + 12 * ui->keys_octave; /* OCT-/OCT+ move the keyboard */
-    uint8_t midi = (uint8_t)(m < 12 ? 12 : m > 108 ? 108 : m);
+    uint8_t midi = (uint8_t)(m < 12 ? 12 : m > 108 ? 108 : m), heard;
     bool running;
     if (!e) return;
     running = ui->transport->running;
@@ -924,7 +924,18 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
         ui->dirty |= MELLO_UI_DIRTY_HEADER;
         return;
     }
-    midi = mello_scale_quantize(e->project.scale, e->project.root_note, midi);
+    {
+        /* the key rule against the key sounding now (ROADMAP E1): the note is rounded into it and heard so; what
+         * is written is the same place in the project's key, which the loop step then moves as it moves the rest */
+        uint8_t kr;
+        MelloScale ks;
+        mello_engine_key_now(e, &kr, &ks);
+        heard = mello_scale_quantize(ks, kr, midi);
+        midi = kr == e->project.root_note && ks == e->project.scale
+                   ? heard
+                   : mello_scale_quantize(e->project.scale, e->project.root_note,
+                                          (uint8_t)clamp_i32((int32_t)heard - kr + e->project.root_note, 12, 108));
+    }
     if (ui->keys_rec && ui->keys_rec_target == MELLO_UI_REC_BASS) {
         MelloBassConfig b = e->bass;
         uint8_t len = b.length ? b.length : 1u, idx;
@@ -1009,8 +1020,8 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
     if (!running) {
         if (ui->audition_key != 0xFFu) audition(ui, ui->audition_note, false, now_us);
         ui->audition_key = note_index;
-        ui->audition_note = midi;
-        audition(ui, midi, true, now_us);
+        ui->audition_note = heard;
+        audition(ui, heard, true, now_us);
     }
 }
 
@@ -4843,9 +4854,11 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
          * the step the next key writes, and the keyboard's octave. */
         const MelloEngine *e = eng(ui);
         const int8_t *tones = 0;
-        uint8_t n = e ? mello_scale_tones(e->project.scale, &tones) : 0u,
-                root = e ? e->project.root_note : 0u, i;
+        uint8_t root = 60u, n, i;
+        MelloScale ks = MELLO_SCALE_MINOR;
         char b[12], *q;
+        mello_engine_key_now(e, &root, &ks); /* the key sounding (ROADMAP E1) */
+        n = e ? mello_scale_tones(ks, &tones) : 0u;
         for (i = 0u; i < 27u; ++i) {
             uint8_t rel = (uint8_t)((53u + i + 120u - root) % 12u), k;
             bool in = n >= 12u, black = black_key_position(i) >= 0;
@@ -6286,9 +6299,12 @@ static void draw_status(MelloUi *ui, const MelloUiDrawOps *o)
         static const char *sc_name[MELLO_SCALE_COUNT] = {"CHROM",  "MINOR", "DORIAN", "PHRYG",
                                                          "LYDIAN", "MIXO",  "PENTA",  "mPENT",
                                                          "DIM",    "WHOLE", "AUG",    "MAJOR"};
-        p = copy_s(b, n[e->project.root_note % 12u]);
+        uint8_t kr;
+        MelloScale ks;
+        mello_engine_key_now(e, &kr, &ks); /* the key sounding, the loop step's where it sets one (ROADMAP E1) */
+        p = copy_s(b, n[kr % 12u]);
         p = copy_s(p, " ");
-        (void)copy_s(p, sc_name[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR]);
+        (void)copy_s(p, sc_name[ks < MELLO_SCALE_COUNT ? ks : MELLO_SCALE_MINOR]);
         o->text(o->ctx, 4, 222, 72, 0, b, UI_MID, 0);
     }
     if (ui->transport->running && ui->transport->display_step != 0xFFu) {
@@ -6616,9 +6632,12 @@ static uint32_t calc_key_leds(MelloUi *ui)
         /* KEYS: the scale's tones lit on the keyboard (F3 = MIDI 53 .. G5), the rest dark; CHROMATIC lights
          * every key: the key rule (DECISIONS "Record it yourself"). */
         const int8_t *tones;
-        uint8_t n = mello_scale_tones(e->project.scale, &tones), k;
+        uint8_t kr, n, k;
+        MelloScale ks;
+        mello_engine_key_now(e, &kr, &ks); /* the key sounding (ROADMAP E1) */
+        n = mello_scale_tones(ks, &tones);
         for (i = 0u; i < 27u; ++i) {
-            uint8_t rel = (uint8_t)((53u + i + 120u - e->project.root_note) % 12u);
+            uint8_t rel = (uint8_t)((53u + i + 120u - kr) % 12u);
             bool in = n >= 12u;
             for (k = 0u; k < n && !in; ++k) in = tones[k] == (int8_t)rel;
             if (in) mask |= bit_u32(i);
