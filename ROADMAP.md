@@ -19,15 +19,17 @@ the scale LEDs read `project.root_note` and `project.scale` only, never the loop
 Work:
 - one "key now" (root and scale, the loop step's KEY / ROOT+ / SCALE applied) that the lead, bass, chords, KEYS,
   record, the scale LEDs and the header all read;
-- ROOT moves the key: the tonic and the scale move together, and the header shows the key that is sounding
-  ("D MINOR" while a loop step plays in D);
-- TRANS becomes diatonic: scale steps within the key now (+1 in C minor: C to D, Eb to F), so the line moves and stays
-  in the key; BASS TR the same for the bass alone; CHROMATIC scale = semitones, as now;
+- the global KEY page's root and scale lead; a loop step changes them only where its KEY or SCALE is not FOLLOW,
+  and ROOT+ moves the key (the tonic and the scale together); the screen shows the key that is sounding ("D MINOR"
+  while a loop step plays in D);
+- TRANS and BASS TR stay in semitones and the result is always rounded into the key now, in the direction of the
+  transpose (+1 in C minor: C to D, Eb to F; -1: D to C), so no two notes a semitone apart collapse into one and a
+  transposed line never leaves the key; CHROMATIC: semitones, unrounded;
 - the bass's tone sums become scale-degree sums, and every note that leaves the engine (lead, bass, drone, chord
   tones, HARMONY's FOLLOW, the chord's SUB root) passes one final quantize to the key now, unless CHROMATIC;
 - a test that walks every scale, root, ROOT+, TRANS and BASS TR and finds no note off the key, and that ROOT+ and
   TRANS differ.
-Decide: TRANS in scale steps (recommended) or kept chromatic with the result rounded into the key.
+Decided 2026-11-02: always rounded into the key; the global key and root lead unless CHROMATIC or a loop step that is not FOLLOW.
 
 **E2. The performance keys act on every part.** Heard: REVERSE, FILL and the others should take everything with them.
 Found: FILL, REVERSE and REPEAT act on the lead's sequence only (its pulse history, `perf_hist`); the drums, BASS SEQ
@@ -43,8 +45,9 @@ Found: today header, body, black-key strip, K1-K4, status line ("C MINOR 15/32")
 to the status line in R2 (DECISIONS "One thread"): this reverses that part.
 Work: the header carries the path and, on the right, the key now and the count (BPM moves to GLOBAL's CLOCK picture and
 the readout); then the body, K1-K4, and the strip last. Every page and layer moves with it: the zones' geometry,
-the paced repaint for Big screen, `make screens`, UI_MAP.md, the README. Decide: from a mock-up of HOME and one
-parameter page before the code (the header has room for the path or for the key on the longest paths, not both:
+the paced repaint for Big screen, `make screens`, UI_MAP.md, the README. Sketches sent 2026-11-02 (A: two lines on top, the
+status line moved up; B: one line on top, path and key, tempo and save state off the main screen, the picture 18 px
+taller). Decide A or B (the header has room for the path or for the key on the longest paths, not both:
 "ENV > SOUND > OSC/FILT" is 22 of 30 characters).
 
 **E4. The chords sit behind.** Heard: too loud and too open by default; they should comp in the background.
@@ -81,7 +84,8 @@ only while it sounds. Then the choice:
   tones as arpeggios and broken chords chosen by rules (up, down, the top note held, chord tones on the beats,
   passing tones between), through the delay; the harmony engine stays (the chain, progressions, NEXT, FOLLOW,
   DRIFT, the bass on the chord's root). About 12-15% of the worst case and ~1.5 KB back; the pads are gone.
-Decide: (a) or (b).
+Decided 2026-11-02: (b), SUB MELLO; the chord synth's code stays in the repository behind
+MELLO_FEATURE_CHORD_MACHINE, off in the build, in case it is useful later.
 
 **E7. EVOLVE: what GATE does, and seeing what it moves.** Heard: EVOLVE seems to make ratchets; it should show it is
 working on what it moves (routed to NOISE FM, the GRIT picture should move).
@@ -90,8 +94,10 @@ on every pulse of the step) when the register's bit is set, SINGLE when it is no
 that is heard as ratchets, and it also plays rests. Nothing modulated is shown anywhere: no value travels back from
 the audio to the screen.
 Work: (1) say what it does: the route is RETRIG on the screen, and the EVOLVE picture marks the steps it re-gates;
-Decide: GATE kept as the HTML's re-gate (named) or made what most expect, an open / closed gate (play or rest) with
-the re-gate as a second route; its default on or off. (2) The modulation made visible: the audio keeps each
+Proposed 2026-11-02 (the product owner heard GATE as the note's length): GATE becomes LENGTH, the
+register's value making each note shorter or longer (gate time 25-100% of the step, at DEPTH), on by default at 35%,
+so EVOLVE's default is heard as phrasing and never adds an attack; RETRIG (the HTML's re-gate, MULTI / SINGLE) is
+its own route, off by default. A departure from the HTML, into DECISIONS when accepted. (2) The modulation made visible: the audio keeps each
 destination's current offset (11 x 2 bytes, written once a block), the UI reads it ~30 times a second, and a
 modulated value's slider shows a second, moving thumb (the GRIT layer's NOISE FM row, CUT on OSC/FILT, the drums'
 D.TUNE ...), on every page where that value is.
@@ -101,15 +107,17 @@ marked by going dark; it must be consistent.
 Found: every page uses on / off only and marks the playhead by flipping its key (`calc_key_leds`): it goes dark on a
 lit step and lights on a dark one, so it reads differently from step to step. The black keys are never lit (but in
 KEYS). The HAL has three levels (lit, glow, backlight) that the UI does not use.
-Work, one rule on every page: what is set = glow, the playhead = lit, empty = dark; black keys lit while their
-function is on (a held performance key, MUTE, REC, ON on the page) and glowing where they have a function. The
+Work, one rule on every page, where the light says what a key is (sketch sent 2026-11-02): lit = now, active or
+held (the playhead, a function that is on, the note being played, the root in KEYS); glow = set or there (a step that
+plays, a key that has a function, a scale tone in KEYS); dark = nothing. The
 emulator shows the levels; checked on the FM-1 at the first flash.
 
 **E9. The bass an octave lower.** Heard: too bright, even at OCT -1.
 Found: OCT -1 puts the bass one octave under the key's root: C3, 131 Hz, at the default root C4; the follower
 sub is one octave under the lead (up to C5).
-Work: the bass voice (BASS, BASS SEQ, DRONE, and the follower) sounds an octave lower inside the synth, with the same
-OCT values on the screen: OCT -1 = C2, 65 Hz; the floor stays at MIDI 12. Projects saved earlier drop an octave,
+Work: the bass voice (BASS, BASS SEQ, DRONE) sounds an octave lower inside the synth, with the same OCT values on the
+screen: OCT -1 = C2, 65 Hz; the floor stays at MIDI 12. The follower is the lead's sub-oscillator, an octave under
+the lead with its own OCT (-2 .. 0), and stays. Projects saved earlier drop an octave,
 which is the point. ROLL on BASS keeps its notes in reach of the new range.
 
 **E10. MUSICAL with more rhythm, or two MUSICALs.** Wanted: rests, several hits on a step, more complexity.
