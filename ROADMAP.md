@@ -3,6 +3,146 @@
 From the October 2026 review ([docs/review-2026-10/REVIEW.md](docs/review-2026-10/REVIEW.md)): keep the model,
 sequencer and storage; rewrite the sound to match the HTML, rebuild HOME as an instrument. One phase at a time.
 
+## Next: the 2026-11-02 list (E1-E12)
+
+Twelve points from playing 0.5-f43 in the emulators, some raised before and lost on the way. Each says what was
+heard, what the code does (checked 2026-11-02), and the work. "Decide" marks a choice for the product owner before
+the work starts. Order of work at the end.
+
+**E1. Key, root and transpose: one system that always holds.** Heard: on LOOP CYCLE, ROOT+ and TRANS do the same
+thing; a changed root is not shown anywhere; the bass cannot be transposed within the key.
+Found: `current_loop_context` (mello_engine.c) adds ROOT+ (`root_offset`) to the root and TRANS (`pitch`) to the
+finished note: both are plain semitones on the result, so they sound the same for the lead, the bass and the chords.
+TRANS and BASS TR are chromatic, so a +1 leaves the key. The bass adds two scale offsets (the loop's SUB tone and the
+step's tone) as semitones, which can land off the scale (6th + 3rd in C minor is B). The header, KEYS' quantize and
+the scale LEDs read `project.root_note` and `project.scale` only, never the loop step's KEY / ROOT+ / SCALE.
+Work:
+- one "key now" (root and scale, the loop step's KEY / ROOT+ / SCALE applied) that the lead, bass, chords, KEYS,
+  record, the scale LEDs and the header all read;
+- ROOT moves the key: the tonic and the scale move together, and the header shows the key that is sounding
+  ("D MINOR" while a loop step plays in D);
+- TRANS becomes diatonic: scale steps within the key now (+1 in C minor: C to D, Eb to F), so the line moves and stays
+  in the key; BASS TR the same for the bass alone; CHROMATIC scale = semitones, as now;
+- the bass's tone sums become scale-degree sums, and every note that leaves the engine (lead, bass, drone, chord
+  tones, HARMONY's FOLLOW, the chord's SUB root) passes one final quantize to the key now, unless CHROMATIC;
+- a test that walks every scale, root, ROOT+, TRANS and BASS TR and finds no note off the key, and that ROOT+ and
+  TRANS differ.
+Decide: TRANS in scale steps (recommended) or kept chromatic with the result rounded into the key.
+
+**E2. The performance keys act on every part.** Heard: REVERSE, FILL and the others should take everything with them.
+Found: FILL, REVERSE and REPEAT act on the lead's sequence only (its pulse history, `perf_hist`); the drums, BASS SEQ
+and the chord chain run on their own clocks and do not hear them. SUB MUTE is the bass only, as named.
+Work: each part's step goes into the history with the lead's pulse, and REVERSE / REPEAT replay all of them (drums,
+bass, chords); FILL: the drums get their rolls and every step's hit, the bass every step, the chords re-strike;
+letting go lands every part where it would have been, as the lead already does. Test: a held REPEAT 4 loops the
+drums' and the bass's events too, and the parts are in step after release.
+
+**E3. The screen, top to bottom: where you are, the picture, K1-K4, then the black keys.** Wanted: the black keys'
+strip at the very bottom (nearest the keys), K1-K4 above it, the key and the count at the top.
+Found: today header, body, black-key strip, K1-K4, status line ("C MINOR 15/32") last. The key went from the header
+to the status line in R2 (DECISIONS "One thread"): this reverses that part.
+Work: the header carries the path and, on the right, the key now and the count (BPM moves to GLOBAL's CLOCK picture and
+the readout); then the body, K1-K4, and the strip last. Every page and layer moves with it: the zones' geometry,
+the paced repaint for Big screen, `make screens`, UI_MAP.md, the README. Decide: from a mock-up of HOME and one
+parameter page before the code (the header has room for the path or for the key on the longest paths, not both:
+"ENV > SOUND > OSC/FILT" is 22 of 30 characters).
+
+**E4. The chords sit behind.** Heard: too loud and too open by default; they should comp in the background.
+Found: LEVEL 32%, CUT ~1 kHz opened to ~2.8 kHz by ENV 38% at every chord, SPACE 100% (all of it to the delay and
+the reverb, which makes them bigger still), CHORUS 60%.
+Work: new defaults about 3 dB down (LEVEL 32% -> 23%), CUT ~800 Hz, ENV 38% -> 22%, SPACE 100% -> 60%; rendered
+against the lead before and after (RMS and the spectrum above 1 kHz) and by ear. Projects saved earlier keep theirs.
+
+**E5. Noise in the reverb (heard in the emulators, not on an FM-1 yet).**
+Found: the reverb itself is clean where time does not matter. Rendered on this computer (one note, WET 0 / 24% /
+100%), the tail decays smoothly to -97 dBFS, the 16-bit lines' last bit, when the send stops. 0.5-f43 in fm1-emu's
+batch run (`--wav`, PLAY at 1.6 s, STOP at 3.6 s, the default WET 24%) is the same: no jumps, no rising noise, the
+tail at -67 dB 0.3 s after STOP, -92 dB at 1.4 s. What differs in the live emulators is real time: the emulator's
+README says an interpreted run "may not" keep up with heavy firmwares and the sound then stutters, and the reverb is
+the second most costly part of the worst case (20.6%, make bench). So the noise is most likely the live emulator
+falling behind while the reverb runs. To confirm: a recording of the noise from the emulator it was heard in, and the
+same with WET at 0 and with fm1-live at `--mhz 160`; on the FM-1 at the first flash (C4).
+Work if that is the cause: nothing in the firmware has to change for the device, but E6's savings help the emulator
+too, and the reverb's network can rest when its WET and tail are silent (it does) and run lighter at low WET. If a
+recording shows noise in the firmware's own output: the tail's last bits (dither, or wider lines in the pool).
+
+**E6. Room: CPU and RAM, and what to do with the chords.** Asked: obvious savings that do not change sound or
+function; willing to drop or simplify the chord layer for a "sub mello" that plays chord tones as arpeggios,
+picked by rules, with the delay making it chord-like.
+Found (make bench, worst case 25.3 ms a second of audio here; on the chip 72.6% by instruction count, the budget
+60%): the drums 27%, the reverb 21%, the lead 20% (unison 10, OSC 2 7), the chords 18.5% (their chorus 7), the
+bass 8%, the follower 7%. The chord layer holds ~2 KB of RAM (four copies of its 176 B config, 768 B of voices, the
+0.5 KB chorus line); RAM is 6.6 KB free, the pool 1.3 KB.
+Work, no change to sound or function: the key scan's LED pulses (~5% of the chip while playing, a HAL file:
+`fm1_input_tick`'s 4 us spin per dim LED); the chord config's undo and pending copies (~0.5 KB); a voice's chorus
+only while it sounds. Then the choice:
+- (a) keep the chords, cheaper: two voices' filters shared, the chorus off by default (7% back);
+- (b) recommended: replace the chord synth with SUB MELLO, one voice like the follower: it plays the chord chain's
+  tones as arpeggios and broken chords chosen by rules (up, down, the top note held, chord tones on the beats,
+  passing tones between), through the delay; the harmony engine stays (the chain, progressions, NEXT, FOLLOW,
+  DRIFT, the bass on the chord's root). About 12-15% of the worst case and ~1.5 KB back; the pads are gone.
+Decide: (a) or (b).
+
+**E7. EVOLVE: what GATE does, and seeing what it moves.** Heard: EVOLVE seems to make ratchets; it should show it is
+working on what it moves (routed to NOISE FM, the GRIT picture should move).
+Found: EVOLVE's GATE route is on by default (35%) and, as in the HTML, turns a step's gate into MULTI (a new attack
+on every pulse of the step) when the register's bit is set, SINGLE when it is not: on steps with several pulses
+that is heard as ratchets, and it also plays rests. Nothing modulated is shown anywhere: no value travels back from
+the audio to the screen.
+Work: (1) say what it does: the route is RETRIG on the screen, and the EVOLVE picture marks the steps it re-gates;
+Decide: GATE kept as the HTML's re-gate (named) or made what most expect, an open / closed gate (play or rest) with
+the re-gate as a second route; its default on or off. (2) The modulation made visible: the audio keeps each
+destination's current offset (11 x 2 bytes, written once a block), the UI reads it ~30 times a second, and a
+modulated value's slider shows a second, moving thumb (the GRIT layer's NOISE FM row, CUT on OSC/FILT, the drums'
+D.TUNE ...), on every page where that value is.
+
+**E8. The keys' lights: one rule.** Heard: after PLAY all the steps light, then after a round the playing step is
+marked by going dark; it must be consistent.
+Found: every page uses on / off only and marks the playhead by flipping its key (`calc_key_leds`): it goes dark on a
+lit step and lights on a dark one, so it reads differently from step to step. The black keys are never lit (but in
+KEYS). The HAL has three levels (lit, glow, backlight) that the UI does not use.
+Work, one rule on every page: what is set = glow, the playhead = lit, empty = dark; black keys lit while their
+function is on (a held performance key, MUTE, REC, ON on the page) and glowing where they have a function. The
+emulator shows the levels; checked on the FM-1 at the first flash.
+
+**E9. The bass an octave lower.** Heard: too bright, even at OCT -1.
+Found: OCT -1 puts the bass one octave under the key's root: C3, 131 Hz, at the default root C4; the follower
+sub is one octave under the lead (up to C5).
+Work: the bass voice (BASS, BASS SEQ, DRONE, and the follower) sounds an octave lower inside the synth, with the same
+OCT values on the screen: OCT -1 = C2, 65 Hz; the floor stays at MIDI 12. Projects saved earlier drop an octave,
+which is the point. ROLL on BASS keeps its notes in reach of the new range.
+
+**E10. MUSICAL with more rhythm, or two MUSICALs.** Wanted: rests, several hits on a step, more complexity.
+Found over 300 rolls of 16 steps: rests 41%, HOLD 8%, MULTI 4%, ratchets 4.6%, slides 5.5%; never a step of more
+than one pulse, never a chance note (PRB is not in the default mask, so MUSICAL's chance notes never appear).
+Work: MUSICAL as it is, and a second one, GROOVE (RANDOM's INT, after MUSICAL): ratchets as rolls into the phrase's
+ends and on offbeats (15-25% of notes), ties over two pulses, ghost notes as chance notes whatever the mask says,
+a rest that answers each figure; the test measures each figure's share, as random_musical does now.
+
+**E11. Sends per part, and a delay that keeps time.** Heard: everything goes to the effects, or nothing; each part
+needs its own reverb and delay send; the delay's divisions are lacking; the delay needs a low cut.
+Found: the lead, the bass and the samples are one bus through the lead's filter and distortion, and that bus is sent
+with one WET to the delay and one to the reverb: the bass cannot be kept out of the reverb. The chords and the
+drums have one SPACE each, to both effects at once. The delay is mono, 1.49 s at most: at 80 BPM 2N (1.5 s) is cut
+short without a word, and 4D at under 61 BPM; there is no 16D, 32N, 2D, 2T or a bar. LO CUT exists (FX > DELAY
+SEND, K3, 12 dB an octave, OFF by default), so the work there is to find it (and perhaps on by default at 120 Hz).
+Work: REV and DLY per part (LEAD, BASS, CHORD or SUB MELLO, DRUMS, SAMPLE) on MIX's second layer, the effects' own
+WET as their return; the bass leaves the lead's filter and distortion (it has its own filter and DRIVE since BASS's
+FILTER layer; HOME's CUTOFF stops sweeping the bass: a change from the HTML, into DECISIONS); the delay: 32N, 16D,
+2T, 2D and 1 BAR, a ping-pong option, and a division that does not fit says so (shown dim and played as the longest
+that fits) or the line runs at half rate (2.97 s, its tone filter already cuts what that loses). A test per send.
+
+**E12. K1-K4: the same place for the same thing.** Wanted: CUTOFF where people expect it, K1, on every part.
+Found: CUT is K3 on the lead's OSC/FILT, K2 on BASS's TONE (with RES on another layer, FILTER), K1 on CHORD's
+FILTER; the drums' TONE is K3; WAVE takes the lead's K1.
+Work: every voice's first layer is the same: K1 CUT, K2 RES, K3 the envelope's DECAY or ENV, K4 LEVEL (lead,
+bass, chord or SUB MELLO, the drums' voice with TONE as its cut; the sampler has no filter and keeps LEVEL first); WAVE and the rest go to the second layer;
+the control contracts (tests) hold the rule. With E3 and E8, one UI round: screens, UI_MAP, README after it.
+
+Order of work: E1 and E9 (notes in the wrong key or octave are bugs), E7's naming, E4 (defaults); then E6's choice,
+since E11 and E12 depend on which parts there are; E11; E2; E12, E3 and E8 as one UI round; E7's moving thumbs;
+E10; E5 confirmed on the device. Each lands as its own package and test, with DECISIONS updated.
+
 ## Now: one thread, and room to run (2026-10-31)
 
 The 0.5 feedback round added a lot fast: drums, BASS SEQ, MIX, chords' NEXT, glitch, swing. Two weaknesses came with it.
