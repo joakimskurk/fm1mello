@@ -9,7 +9,7 @@ Twelve points from playing 0.5-f43 in the emulators, some raised before and lost
 heard, what the code does (checked 2026-11-02), and the work. "Decide" marks a choice for the product owner before
 the work starts. Order of work at the end.
 
-**E1. Key, root and transpose: one system that always holds.** Heard: on LOOP CYCLE, ROOT+ and TRANS do the same
+**E1. Key, root and transpose: one system that always holds.** Done 2026-11-03 (key_system, package 0.5-f44). Heard: on LOOP CYCLE, ROOT+ and TRANS do the same
 thing; a changed root is not shown anywhere; the bass cannot be transposed within the key.
 Found: `current_loop_context` (mello_engine.c) adds ROOT+ (`root_offset`) to the root and TRANS (`pitch`) to the
 finished note: both are plain semitones on the result, so they sound the same for the lead, the bass and the chords.
@@ -112,7 +112,7 @@ held (the playhead, a function that is on, the note being played, the root in KE
 plays, a key that has a function, a scale tone in KEYS); dark = nothing. The
 emulator shows the levels; checked on the FM-1 at the first flash.
 
-**E9. The bass an octave lower.** Heard: too bright, even at OCT -1.
+**E9. The bass an octave lower.** Done 2026-11-03 (package 0.5-f44). Heard: too bright, even at OCT -1.
 Found: OCT -1 puts the bass one octave under the key's root: C3, 131 Hz, at the default root C4; the follower
 sub is one octave under the lead (up to C5).
 Work: the bass voice (BASS, BASS SEQ, DRONE) sounds an octave lower inside the synth, with the same OCT values on the
