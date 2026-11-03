@@ -36,27 +36,27 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/bass-play.png" width="96" alt="BASS PLAY"> | BASS | ARP | PLAY | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
 | <img src="../screens/bass-seq.png" width="96" alt="BASS SEQ"> | BASS | ARP | SEQ | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
 | <img src="../screens/bass-step.png" width="96" alt="BASS STEP"> | BASS | ARP | STEP | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
-| <img src="../screens/bass-voice.png" width="96" alt="BASS VOICE"> | BASS | ARP | VOICE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | LEVEL 42% · WAVE SINE · DECAY 160MS · RELEASE 120MS |
-| <img src="../screens/bass-tone.png" width="96" alt="BASS TONE"> | BASS | ARP | TONE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | GLIDE 20MS · CUT 242.0HZ · DRIVE 0% · OCT -1 |
-| <img src="../screens/bass-filter.png" width="96" alt="BASS FILTER"> | BASS | ARP | FILTER | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | RES 0% · ENV 0% · F.DEC 300MS · ACCENT 50% |
+| <img src="../screens/bass-filter.png" width="96" alt="BASS FILTER"> | BASS | ARP | FILTER | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | CUT 242.0HZ · RES 0% · ENV 0% · LEVEL 42% |
+| <img src="../screens/bass-voice.png" width="96" alt="BASS VOICE"> | BASS | ARP | VOICE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | WAVE SINE · DECAY 160MS · RELEASE 120MS · DRIVE 0% |
+| <img src="../screens/bass-tone.png" width="96" alt="BASS TONE"> | BASS | ARP | TONE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | GLIDE 20MS · OCT -1 · F.DEC 300MS · ACCENT 50% |
 | <img src="../screens/chord-play.png" width="96" alt="CHORD PLAY"> | CHORD | ARP | PLAY | `ON BASS POLY PERF MUT UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
 | <img src="../screens/chord-chord.png" width="96" alt="CHORD CHORD"> | CHORD | ARP | CHORD | `ON BASS POLY PERF MUT UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
 | <img src="../screens/chord-voicing.png" width="96" alt="CHORD VOICING"> | CHORD | ARP | VOICING | `ON BASS POLY PERF MUT UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
 | <img src="../screens/chord-grid.png" width="96" alt="CHORD GRID"> | CHORD | ARP | GRID | `ON BASS POLY PERF MUT UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
 | <img src="../screens/chord-pattern.png" width="96" alt="CHORD PATTERN"> | CHORD | ARP | PATTERN | `ON BASS POLY PERF MUT UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
-| <img src="../screens/chord-tone.png" width="96" alt="CHORD TONE"> | CHORD | ARP | TONE | `ON BASS POLY PERF MUT UNDO RNDMZR` | WAVE SAW · — · — · LEVEL 18% |
-| <img src="../screens/chord-filter.png" width="96" alt="CHORD FILTER"> | CHORD | ARP | FILTER | `ON BASS POLY PERF MUT UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LINK OFF |
+| <img src="../screens/chord-filter.png" width="96" alt="CHORD FILTER"> | CHORD | ARP | FILTER | `ON BASS POLY PERF MUT UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LEVEL 18% |
+| <img src="../screens/chord-tone.png" width="96" alt="CHORD TONE"> | CHORD | ARP | TONE | `ON BASS POLY PERF MUT UNDO RNDMZR` | WAVE SAW · — · LINK OFF · — |
 | <img src="../screens/chord-motion.png" width="96" alt="CHORD MOTION"> | CHORD | ARP | MOTION | `ON BASS POLY PERF MUT UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
 | <img src="../screens/chord-amp.png" width="96" alt="CHORD AMP"> | CHORD | ARP | AMP | `ON BASS POLY PERF MUT UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
 | <img src="../screens/chord-harmony.png" width="96" alt="CHORD HARMONY"> | CHORD | ARP | HARMONY | `ON BASS POLY PERF MUT UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
 | <img src="../screens/global-clock.png" width="96" alt="GLOBAL CLOCK"> | GLOBAL | GLO | CLOCK | `TAP RST2 PERF MUT UNDO RNDMZR` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | <img src="../screens/global-midi.png" width="96" alt="GLOBAL MIDI"> | GLOBAL | GLO | MIDI | `TAP RST2 PERF MUT UNDO RNDMZR` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | <img src="../screens/global-groove.png" width="96" alt="GLOBAL GROOVE"> | GLOBAL | GLO | GROOVE | `TAP RST2 PERF MUT UNDO RNDMZR` | SWING 0% · — · — · — |
-| <img src="../screens/sound-osc-filt.png" width="96" alt="SOUND OSC/FILT"> | SOUND | ENV | OSC/FILT | `INIT PERF MUT UNDO RNDMZR` | WAVE SAW · PWM 50% · CUT 3264HZ · RES 20% |
+| <img src="../screens/sound-filter.png" width="96" alt="SOUND FILTER"> | SOUND | ENV | FILTER | `INIT PERF MUT UNDO RNDMZR` | CUT 3264HZ · RES 20% · DECAY 180MS · LEVEL 100% |
+| <img src="../screens/sound-osc.png" width="96" alt="SOUND OSC"> | SOUND | ENV | OSC | `INIT PERF MUT UNDO RNDMZR` | WAVE SAW · PWM 50% · SLIDE 50MS · MASTER 75% |
 | <img src="../screens/sound-amp-env.png" width="96" alt="SOUND AMP ENV"> | SOUND | ENV | AMP ENV | `INIT PERF MUT UNDO RNDMZR` | ATTACK 5MS · DECAY 180MS · SUSTAIN 40% · RELEASE 120MS |
 | <img src="../screens/sound-lfo.png" width="96" alt="SOUND LFO"> | SOUND | ENV | LFO | `INIT PERF MUT UNDO RNDMZR` | LFO OFF · RATE 2.00HZ · DEPTH 35% · TARGET FILTER |
 | <img src="../screens/sound-follower.png" width="96" alt="SOUND FOLLOWER"> | SOUND | ENV | FOLLOWER | `INIT PERF MUT UNDO RNDMZR` | SUBOSC ON · LEVEL 22% · OCT -1 · WAVE SINE |
-| <img src="../screens/sound-level.png" width="96" alt="SOUND LEVEL"> | SOUND | ENV | LEVEL | `INIT PERF MUT UNDO RNDMZR` | SLIDE 50MS · MASTER 75% · — · — |
 | <img src="../screens/sound-grit.png" width="96" alt="SOUND GRIT"> | SOUND | ENV | GRIT | `INIT PERF MUT UNDO RNDMZR` | NOISE 0% · N.FM 0% · UNISON 1 · DETUNE 0 CT |
 | <img src="../screens/sound-osc-2.png" width="96" alt="SOUND OSC 2"> | SOUND | ENV | OSC 2 | `INIT PERF MUT UNDO RNDMZR` | WAVE OFF · SEMI +0 ST · FINE +7 CT · MIX 0% |
 | <img src="../screens/sound-character.png" width="96" alt="SOUND CHARACTER"> | SOUND | ENV | CHARACTER | `INIT PERF MUT UNDO RNDMZR` | SYNC OFF · FM 0% · SAT 0% · FILTER LP |
@@ -71,7 +71,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/sample-pitch.png" width="96" alt="SAMPLE PITCH"> | SAMPLE | ENV | PITCH | `ON PERF MUT UNDO RNDMZR` | COARSE +0 · FINE +0 · LEVEL 70% · DIST 0% |
 | <img src="../screens/sample-trim.png" width="96" alt="SAMPLE TRIM"> | SAMPLE | ENV | TRIM | `ON PERF MUT UNDO RNDMZR` | START 0% · END 100% · TRACK ON · LOOP OFF |
 | <img src="../screens/sample-envelope.png" width="96" alt="SAMPLE ENVELOPE"> | SAMPLE | ENV | ENVELOPE | `ON PERF MUT UNDO RNDMZR` | ATTACK 5MS · DECAY 120MS · SUSTAIN 70% · RELEASE 150MS |
-| <img src="../screens/drums-voice.png" width="96" alt="DRUMS VOICE"> | DRUMS | ARP | VOICE | `ON VOX ACC ROLL P M UNDO RNDMZR` | TUNE 40% · DECAY 174MS · TONE 10% · LEVEL 90% |
+| <img src="../screens/drums-voice.png" width="96" alt="DRUMS VOICE"> | DRUMS | ARP | VOICE | `ON VOX ACC ROLL P M UNDO RNDMZR` | TONE 25% · TUNE 40% · DECAY 335MS · LEVEL 90% |
 | <img src="../screens/drums-step.png" width="96" alt="DRUMS STEP"> | DRUMS | ARP | STEP | `ON VOX ACC ROLL P M UNDO RNDMZR` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | <img src="../screens/drums-vary.png" width="96" alt="DRUMS VARY"> | DRUMS | ARP | VARY | `ON VOX ACC ROLL P M UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
 | <img src="../screens/drums-kit.png" width="96" alt="DRUMS KIT"> | DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · — · LEVEL 70% |

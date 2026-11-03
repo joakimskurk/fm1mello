@@ -62,7 +62,7 @@ Ten screens, drawn by the firmware itself (`make screens`): what you see, and wh
 | <img src="docs/screens/home-rec.png" width="240" alt="REC in KEYS"> | **Tap EDIT, then REC.** The keys are a keyboard, lit where the scale has a tone, and REC picks what they write: the sequence, the bass line or the chords. Stopped, each key is the next step; playing, the step under the clock. |
 | <img src="docs/screens/home-macros.png" width="240" alt="HOME, MACROS"> | **Hold EDIT.** MACROS: now each knob picks what it turns, from the performance parameters (RES, ATTACK, RELEASE, DELAY, REVERB, LFO, NOISE, the levels, SWING and more). Tap EDIT to leave; the choice is saved with the project. |
 | <img src="docs/screens/step-trig.png" width="240" alt="SEQ > STEP"> | **SEQ.** The STEP page: the picked step's values, the picture drawn from them. SELECT turns the layers (TRIG, NOTE, FLAGS, SEQ); SEQ again goes on to SEGMENT, LOOP CYCLE and SLOT SEQ. With EDIT on, a white key sets the step's pitch. |
-| <img src="docs/screens/sound-osc-filt.png" width="240" alt="ENV > SOUND"> | **ENV.** The lead's sound: the wave, PWM, cutoff and resonance first, the envelope, follower, grit, second oscillator and the rest on SELECT. INIT (B1) puts the sound back. ENV again: the sample layer. |
+| <img src="docs/screens/sound-filter.png" width="240" alt="ENV > SOUND"> | **ENV.** The lead's sound: cutoff, resonance, decay and level first (K1-K4 so on every voice), the wave and PWM on OSC, the envelope, follower, grit, second oscillator and the rest on SELECT. INIT (B1) puts the sound back. ENV again: the sample layer. |
 | <img src="docs/screens/drums-voice.png" width="240" alt="ARP > DRUMS"> | **ARP**, three times: the drums. Four voices on a 16-step grid; VOX picks the voice, a white key puts its hit on or off, ON (B0) turns the kit on. CHORD and BASS are ARP's pages before it. |
 | <img src="docs/screens/mix.png" width="240" alt="GLO > MIX"> | **GLO.** The mix: lead, bass, chords and drums on the knobs, a mute under each (LD, BS, CH, DR). SAVE writes the project to flash; the status line says SAVED. |
 
@@ -163,7 +163,7 @@ Each section is a button. Press it again (or turn ALGORITHM) for its next page; 
 | Button | Pages | Layers |
 |---|---|---|
 | **SEQ** | STEP · SEGMENT · LOOP CYCLE · SLOT SEQ | STEP: TRIG, NOTE, FLAGS, SEQ · LOOP CYCLE: STEP, HARM, LOOP |
-| **ENV** | SOUND · SAMPLE | SOUND: OSC/FILT, AMP ENV, LFO, FOLLOWER, LEVEL, GRIT, OSC 2, CHARACTER, MOD ENV, TRACKING · SAMPLE: MAIN, PITCH, TRIM, ENVELOPE |
+| **ENV** | SOUND · SAMPLE | SOUND: FILTER, OSC, OSC 2, CHARACTER, GRIT, MOD ENV, TRACKING, AMP ENV, FOLLOWER, LFO · SAMPLE: MAIN, PITCH, TRIM, ENVELOPE |
 | **LFO** | LFO · DOT · EVOLVE | DOT: the five matrices ACCENT, MOD 1, MOD 2, RATCHET, SUB · EVOLVE: MAIN, ROUTES, DEPTH, SOUND |
 | **FX** | DISTORTION · DELAY · REVERB | DELAY: SEND, CONFIG · REVERB: ROOM, RETURNS |
 | **ARP** | CHORD · BASS · DRUMS | CHORD: PLAY, CHORD, VOICING, GRID, PATTERN, TONE, FILTER, MOTION, AMP · BASS: PLAY, SEQ, STEP, VOICE, TONE, FILTER · DRUMS: VOICE, STEP, VARY, KIT, DIST |
@@ -277,27 +277,27 @@ K1-K4 with their default values.
 | BASS | ARP | PLAY | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
 | BASS | ARP | SEQ | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
 | BASS | ARP | STEP | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
-| BASS | ARP | VOICE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | LEVEL 42% · WAVE SINE · DECAY 160MS · RELEASE 120MS |
-| BASS | ARP | TONE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | GLIDE 20MS · CUT 242.0HZ · DRIVE 0% · OCT -1 |
-| BASS | ARP | FILTER | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | RES 0% · ENV 0% · F.DEC 300MS · ACCENT 50% |
+| BASS | ARP | FILTER | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | CUT 242.0HZ · RES 0% · ENV 0% · LEVEL 42% |
+| BASS | ARP | VOICE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | WAVE SINE · DECAY 160MS · RELEASE 120MS · DRIVE 0% |
+| BASS | ARP | TONE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | GLIDE 20MS · OCT -1 · F.DEC 300MS · ACCENT 50% |
 | CHORD | ARP | PLAY | `ON BASS POLY PERF MUT UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
 | CHORD | ARP | CHORD | `ON BASS POLY PERF MUT UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
 | CHORD | ARP | VOICING | `ON BASS POLY PERF MUT UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
 | CHORD | ARP | GRID | `ON BASS POLY PERF MUT UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
 | CHORD | ARP | PATTERN | `ON BASS POLY PERF MUT UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
-| CHORD | ARP | TONE | `ON BASS POLY PERF MUT UNDO RNDMZR` | WAVE SAW · — · — · LEVEL 18% |
-| CHORD | ARP | FILTER | `ON BASS POLY PERF MUT UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LINK OFF |
+| CHORD | ARP | FILTER | `ON BASS POLY PERF MUT UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LEVEL 18% |
+| CHORD | ARP | TONE | `ON BASS POLY PERF MUT UNDO RNDMZR` | WAVE SAW · — · LINK OFF · — |
 | CHORD | ARP | MOTION | `ON BASS POLY PERF MUT UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
 | CHORD | ARP | AMP | `ON BASS POLY PERF MUT UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
 | CHORD | ARP | HARMONY | `ON BASS POLY PERF MUT UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
 | GLOBAL | GLO | CLOCK | `TAP RST2 PERF MUT UNDO RNDMZR` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | GLOBAL | GLO | MIDI | `TAP RST2 PERF MUT UNDO RNDMZR` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | GLOBAL | GLO | GROOVE | `TAP RST2 PERF MUT UNDO RNDMZR` | SWING 0% · — · — · — |
-| SOUND | ENV | OSC/FILT | `INIT PERF MUT UNDO RNDMZR` | WAVE SAW · PWM 50% · CUT 3264HZ · RES 20% |
+| SOUND | ENV | FILTER | `INIT PERF MUT UNDO RNDMZR` | CUT 3264HZ · RES 20% · DECAY 180MS · LEVEL 100% |
+| SOUND | ENV | OSC | `INIT PERF MUT UNDO RNDMZR` | WAVE SAW · PWM 50% · SLIDE 50MS · MASTER 75% |
 | SOUND | ENV | AMP ENV | `INIT PERF MUT UNDO RNDMZR` | ATTACK 5MS · DECAY 180MS · SUSTAIN 40% · RELEASE 120MS |
 | SOUND | ENV | LFO | `INIT PERF MUT UNDO RNDMZR` | LFO OFF · RATE 2.00HZ · DEPTH 35% · TARGET FILTER |
 | SOUND | ENV | FOLLOWER | `INIT PERF MUT UNDO RNDMZR` | SUBOSC ON · LEVEL 22% · OCT -1 · WAVE SINE |
-| SOUND | ENV | LEVEL | `INIT PERF MUT UNDO RNDMZR` | SLIDE 50MS · MASTER 75% · — · — |
 | SOUND | ENV | GRIT | `INIT PERF MUT UNDO RNDMZR` | NOISE 0% · N.FM 0% · UNISON 1 · DETUNE 0 CT |
 | SOUND | ENV | OSC 2 | `INIT PERF MUT UNDO RNDMZR` | WAVE OFF · SEMI +0 ST · FINE +7 CT · MIX 0% |
 | SOUND | ENV | CHARACTER | `INIT PERF MUT UNDO RNDMZR` | SYNC OFF · FM 0% · SAT 0% · FILTER LP |
@@ -312,7 +312,7 @@ K1-K4 with their default values.
 | SAMPLE | ENV | PITCH | `ON PERF MUT UNDO RNDMZR` | COARSE +0 · FINE +0 · LEVEL 70% · DIST 0% |
 | SAMPLE | ENV | TRIM | `ON PERF MUT UNDO RNDMZR` | START 0% · END 100% · TRACK ON · LOOP OFF |
 | SAMPLE | ENV | ENVELOPE | `ON PERF MUT UNDO RNDMZR` | ATTACK 5MS · DECAY 120MS · SUSTAIN 70% · RELEASE 150MS |
-| DRUMS | ARP | VOICE | `ON VOX ACC ROLL P M UNDO RNDMZR` | TUNE 40% · DECAY 174MS · TONE 10% · LEVEL 90% |
+| DRUMS | ARP | VOICE | `ON VOX ACC ROLL P M UNDO RNDMZR` | TONE 25% · TUNE 40% · DECAY 335MS · LEVEL 90% |
 | DRUMS | ARP | STEP | `ON VOX ACC ROLL P M UNDO RNDMZR` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | DRUMS | ARP | VARY | `ON VOX ACC ROLL P M UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
 | DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · — · LEVEL 70% |

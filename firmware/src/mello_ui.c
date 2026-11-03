@@ -2318,6 +2318,8 @@ static void adjust_sound(MelloUi *ui, uint8_t knob, int16_t delta)
             c.slide_ms = (uint16_t)clamp_i32((int32_t)c.slide_ms + delta * 5, 0, 300);
         else if (knob == 1u)
             c.master_level = (uint16_t)clamp_i32((int32_t)c.master_level + delta * 10, 0, 1000);
+        else if (knob == 2u) /* the lead's LEVEL (MIX's LEAD), for G6's first layer */
+            c.lead_level = (uint16_t)clamp_i32((int32_t)c.lead_level + delta * 10, 0, 1000);
     }
     mello_engine_sound_set_config(e, &c);
     mark_edit(ui);
@@ -2536,7 +2538,7 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
         /* OSC, OSC 2, CHARACTER, GRIT, MOD ENV, AMP ENV, FOLLOWER, LEVEL: the LFO (subpage 2) is MOD's, reached
          * with the LFO button. Phase 5's layers (subpages 5-8) came later and sit after OSC, before the HTML's. */
         {
-            static const uint8_t order[9] = {0u, 6u, 7u, 5u, 8u, 9u, 1u, 3u, 4u};
+            static const uint8_t order[9] = {0u, 4u, 6u, 7u, 5u, 8u, 9u, 1u, 3u}; /* FILTER, OSC first (G6) */
             uint8_t i;
             if (ui->sound_subpage == 2u) return;
             for (i = 0u; i < 9u && order[i] != ui->sound_subpage; ++i) {
@@ -2643,6 +2645,104 @@ static int16_t accelerate(MelloUi *ui, uint8_t encoder, int16_t d, uint32_t now_
     return d;
 }
 
+/* G6 (CONTROL_GRAMMAR, ROADMAP F11): a voice's first sound layer is K1 CUT, K2 RES, K3 DECAY or ENV, K4 LEVEL, the
+ * rest on the next. Where a page's parameters sit on other layers than that, a layer is shown through this table:
+ * each knob's layer and knob in the page's own code (0xFF: a blank knob). The footer, the knobs, the readout and the
+ * colours all go through it, so the code for each parameter stays where it was. */
+typedef struct {
+    uint8_t page, layer, src_layer[4], src_knob[4];
+} KnobMap;
+static const KnobMap KNOB_MAPS[] = {
+    /* the lead: FILTER (was OSC/FILT) CUT RES DECAY LEVEL; OSC (was LEVEL) WAVE PWM SLIDE MASTER */
+    {MELLO_UI_SOUND_RESERVED, 0u, {0u, 0u, 1u, 4u}, {2u, 3u, 1u, 2u}},
+    {MELLO_UI_SOUND_RESERVED, 4u, {0u, 0u, 4u, 4u}, {0u, 1u, 0u, 1u}},
+    /* the bass: FILTER CUT RES ENV LEVEL; VOICE WAVE DECAY RELEASE DRIVE; TONE GLIDE OCT F.DEC ACCENT */
+    {MELLO_UI_SUB, 3u, {4u, 5u, 5u, 3u}, {1u, 0u, 1u, 0u}},
+    {MELLO_UI_SUB, 4u, {3u, 3u, 3u, 4u}, {1u, 2u, 3u, 2u}},
+    {MELLO_UI_SUB, 5u, {4u, 4u, 5u, 5u}, {0u, 3u, 2u, 3u}},
+#if MELLO_FEATURE_CHORD_MACHINE
+    /* the chords: FILTER CUT RES ENV LEVEL; TONE WAVE CHORUS LINK */
+    {MELLO_UI_CHORD, 5u, {6u, 6u, 6u, 5u}, {0u, 1u, 2u, 3u}},
+    {MELLO_UI_CHORD, 6u, {5u, 5u, 6u, 0u}, {0u, 1u, 3u, 0xFFu}},
+#endif
+    /* the drums' voice: TONE (its cut) TUNE DECAY LEVEL */
+    {MELLO_UI_DRUMS, 0u, {0u, 0u, 0u, 0u}, {2u, 0u, 1u, 3u}},
+};
+static uint8_t *layer_field(MelloUi *ui)
+{
+    switch (ui->page) {
+    case MELLO_UI_SOUND_RESERVED: return &ui->sound_subpage;
+    case MELLO_UI_SUB: return &ui->sub_subpage;
+#if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_UI_CHORD: return &ui->chord_subpage;
+#endif
+    case MELLO_UI_DRUMS: return &ui->drum_subpage;
+    default: return 0;
+    }
+}
+static const KnobMap *knob_map(MelloUi *ui)
+{
+    uint8_t *f = layer_field(ui), i;
+    if (!f || ui->perform) return 0;
+    for (i = 0u; i < sizeof KNOB_MAPS / sizeof KNOB_MAPS[0]; ++i)
+        if (KNOB_MAPS[i].page == (uint8_t)ui->page && KNOB_MAPS[i].layer == *f) return &KNOB_MAPS[i];
+    return 0;
+}
+static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24]);
+static bool knob_norm_raw(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max);
+static uint16_t knob_colour_raw(MelloUi *ui, uint8_t k);
+/* K1-K4's labels and values on the current page and layer, through G6's table. */
+static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
+{
+    const KnobMap *m = knob_map(ui);
+    uint8_t *f, saved, k;
+    if (!m) {
+        footer_texts_raw(ui, l, v);
+        return;
+    }
+    f = layer_field(ui), saved = *f;
+    for (k = 0u; k < 4u; ++k) {
+        const char *tl[4];
+        char tv[4][24];
+        if (m->src_knob[k] == 0xFFu) {
+            l[k] = "";
+            copy_s(v[k], "-");
+            continue;
+        }
+        *f = m->src_layer[k];
+        footer_texts_raw(ui, tl, tv);
+        l[k] = tl[m->src_knob[k]];
+        copy_s(v[k], tv[m->src_knob[k]]);
+    }
+    *f = saved;
+}
+static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
+{
+    const KnobMap *m = knob_map(ui);
+    uint8_t *f, saved;
+    bool r;
+    if (!m) return knob_norm_raw(ui, k, val, max);
+    if (m->src_knob[k & 3u] == 0xFFu) return false;
+    f = layer_field(ui), saved = *f;
+    *f = m->src_layer[k & 3u];
+    r = knob_norm_raw(ui, m->src_knob[k & 3u], val, max);
+    *f = saved;
+    return r;
+}
+static uint16_t knob_colour(MelloUi *ui, uint8_t k)
+{
+    const KnobMap *m = knob_map(ui);
+    uint8_t *f, saved;
+    uint16_t c;
+    if (!m || m->src_knob[k & 3u] == 0xFFu) return knob_colour_raw(ui, k);
+    f = layer_field(ui), saved = *f;
+    *f = m->src_layer[k & 3u];
+    c = knob_colour_raw(ui, m->src_knob[k & 3u]);
+    *f = saved;
+    return c;
+}
+static void adjust_one(MelloUi *ui, uint8_t k, int16_t d, uint32_t now_us, uint32_t now_ms);
+
 static void adjust_knobs(MelloUi *ui, const int16_t enc_in[MELLO_UI_ENCODER_COUNT], uint32_t now_us,
                          uint32_t now_ms)
 {
@@ -2701,9 +2801,29 @@ static void adjust_knobs(MelloUi *ui, const int16_t enc_in[MELLO_UI_ENCODER_COUN
         ui->dirty |= before;
     for (k = 0u; k < 4u; ++k) {
         int16_t d = enc[MELLO_UI_ENC_KNOB1 + k];
+        const KnobMap *km = knob_map(ui);
+        uint8_t *lf = layer_field(ui), saved = lf ? *lf : 0u, kk = k;
         if (!d) continue;
         before = ui->dirty;
         ui->dirty = 0u;
+        if (km) { /* G6: the knob's parameter lives on another of the page's layers */
+            if (km->src_knob[k] == 0xFFu) {
+                ui->dirty = before;
+                continue;
+            }
+            *lf = km->src_layer[k];
+            kk = km->src_knob[k];
+        }
+        adjust_one(ui, kk, d, now_us, now_ms);
+        if (km) *lf = saved;
+        if (ui->dirty) show_readout(ui, (uint8_t)(k + 1u), now_ms);
+        ui->dirty |= before;
+    }
+}
+
+static void adjust_one(MelloUi *ui, uint8_t k, int16_t d, uint32_t now_us, uint32_t now_ms)
+{
+    {
         switch (ui->page) {
         case MELLO_UI_HOME: adjust_home(ui, k, d); break;
         case MELLO_UI_SEQ_STEP: adjust_step(ui, k, d); break;
@@ -2727,8 +2847,6 @@ static void adjust_knobs(MelloUi *ui, const int16_t enc_in[MELLO_UI_ENCODER_COUN
         case MELLO_UI_MIX: adjust_mix(ui, k, d); break;
         default: break;
         }
-        if (ui->dirty) show_readout(ui, (uint8_t)(k + 1u), now_ms);
-        ui->dirty |= before;
     }
 }
 
@@ -5230,7 +5348,7 @@ static void value_millihz(char *b, uint32_t mhz)
 }
 
 /* Where K1-K4's value sits in its range, for the readout's slider: false where the control is a list or switch. */
-static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
+static bool knob_norm_raw(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
 {
     MelloEngine *e = eng(ui);
     uint32_t v = 0u, m = 1000u;
@@ -5267,6 +5385,7 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 13: v = c->follower_sub_level; break;
         case 16: v = c->slide_ms, m = 300u; break;
         case 17: v = c->master_level; break;
+        case 18: v = c->lead_level; break;
         case 20: v = c->noise_level; break;
         case 21: v = c->noise_fm; break;
         case 22: v = (uint32_t)c->unison - 1u, m = MELLO_UNISON_MAX - 1u; break;
@@ -5453,7 +5572,7 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
 }
 
 /* K1-K4's labels and values on the current page and layer: the footer and the readout both show these. */
-static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
+static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
 {
     MelloEngine *e = eng(ui);
     uint8_t k;
@@ -6004,7 +6123,8 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             value_ms(v[0], e->sound.slide_ms);
             l[1] = "MASTER";
             value_pct(v[1], e->sound.master_level);
-            copy_s(v[2], "-");
+            l[2] = "LEVEL";
+            value_pct(v[2], e->sound.lead_level);
             copy_s(v[3], "-");
         }
         break;
@@ -6167,7 +6287,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
 
 /* The colour of K1-K4's value: the page's, except where the HTML colours each control: HOME's macros by domain and
  * the envelope's A D S R letters. */
-static uint16_t knob_colour(MelloUi *ui, uint8_t k)
+static uint16_t knob_colour_raw(MelloUi *ui, uint8_t k)
 {
     static const uint16_t macro[4] = {UI_CYAN, UI_GOLD, UI_ACC, UI_CORAL};
     static const uint16_t adsr[4] = {UI_GOLD, UI_CORAL, UI_CYAN, UI_PURPLE};
@@ -6691,9 +6811,9 @@ static const char *layer_name(const MelloUi *ui)
                       *slots[2] = {"LOAD", "RENAME"},
                       *dot[5] = {"ACCENT", "MOD 1", "RATCHET", "SUB", "MOD 2"},
                       *dsh[2] = {"SHAPE 1", "SHAPE 2"}, *tm[4] = {"MAIN", "ROUTES", "DEPTH", "SOUND"},
-                      *sub[6] = {"PLAY", "SEQ", "STEP", "VOICE", "TONE", "FILTER"},
+                      *sub[6] = {"PLAY", "SEQ", "STEP", "FILTER", "VOICE", "TONE"}, /* G6 (KNOB_MAPS) */
                       *glo[3] = {"CLOCK", "MIDI", "GROOVE"}, *mix[3] = {"LEVEL", "DELAY", "REVERB"},
-                      *snd[10] = {"OSC/FILT", "AMP ENV", "LFO",       "FOLLOWER", "LEVEL",
+                      *snd[10] = {"FILTER",   "AMP ENV", "LFO",       "FOLLOWER", "OSC",
                                   "GRIT",     "OSC 2",   "CHARACTER", "MOD ENV",  "TRACKING"},
                       *fx[5] = {0, "SEND", "CONFIG", "ROOM", "RETURNS"}, /* within the FX pages */
         *smp[4] = {"MAIN", "PITCH", "TRIM", "ENVELOPE"};
@@ -6716,8 +6836,8 @@ static const char *layer_name(const MelloUi *ui)
     case MELLO_UI_SAMPLE_RESERVED: return smp[ui->sample_subpage % 4u];
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD: {
-        static const char *chd[CHORD_LAYERS] = {"PLAY", "CHORD",  "VOICING", "GRID", "PATTERN",
-                                                "TONE", "FILTER", "MOTION",  "AMP",  "HARMONY"};
+        static const char *chd[CHORD_LAYERS] = {"PLAY",   "CHORD", "VOICING", "GRID", "PATTERN",
+                                                "FILTER", "TONE",  "MOTION",  "AMP",  "HARMONY"}; /* G6 */
         return chd[ui->chord_subpage % CHORD_LAYERS];
     }
 #endif

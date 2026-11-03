@@ -113,9 +113,9 @@ static void verify_select_is_layer_algorithm_is_page(void)
         setup(&pb, &tb, &sb, &b, cases[i].page);
         turn(&a, MELLO_UI_ENC_SELECT, +1);
         turn(&b, MELLO_UI_ENC_ALGORITHM, +1);
-        /* SOUND's second layer is OSC 2, subpage 6 (Phase 5's layers came later, and sit after OSC). */
+        /* SOUND's second layer is OSC, subpage 4 (G6: FILTER, then OSC, then Phase 5's from OSC 2). */
         if (cases[i].layers > 1u && cases[i].page != MELLO_UI_AUDIO_FX &&
-            layer(&a, cases[i].page) != (cases[i].page == MELLO_UI_SOUND_RESERVED ? 6u : 1u))
+            layer(&a, cases[i].page) != (cases[i].page == MELLO_UI_SOUND_RESERVED ? 4u : 1u))
             fail(cases[i].name, "layer encoder baseline mismatch");
         if (cases[i].layers == 1u && layer(&a, cases[i].page) != 0u)
             fail(cases[i].name, "single-layer page unexpectedly moved");

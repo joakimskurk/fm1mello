@@ -65,10 +65,10 @@ int main(void)
     mello_ui_set_page(&u, MELLO_UI_SOUND_RESERVED);
     render(&u);
 
-    turn(&u, 1000u, MELLO_UI_ENC_KNOB3, 1); /* SOUND / OSC: K3 = cutoff */
-    if (u.readout != 3u) return fail("K3 on SOUND gave no readout");
+    turn(&u, 1000u, MELLO_UI_ENC_KNOB1, 1); /* SOUND / FILTER: K1 = cutoff (G6) */
+    if (u.readout != 1u) return fail("K1 on SOUND gave no readout");
     render(&u);
-    if (!body_has("ENV > SOUND > OSC/FILT")) return fail("readout does not say where"); /* R2: the path */
+    if (!body_has("ENV > SOUND > FILTER")) return fail("readout does not say where"); /* R2: the path */
     {
         unsigned i, big = 0u;
         for (i = 0u; i < seen_n; ++i)
@@ -76,14 +76,14 @@ int main(void)
         if (!big) return fail("readout does not name the cutoff");
     }
 
-    turn(&u, 2000u, MELLO_UI_ENC_KNOB3, 0); /* 1.0 s later: still there */
-    if (u.readout != 3u) return fail("readout went too early");
-    turn(&u, 2300u, MELLO_UI_ENC_KNOB1, 0); /* 1.3 s after the detent: gone, and the body comes back */
+    turn(&u, 2000u, MELLO_UI_ENC_KNOB1, 0); /* 1.0 s later: still there */
+    if (u.readout != 1u) return fail("readout went too early");
+    turn(&u, 2300u, MELLO_UI_ENC_KNOB2, 0); /* 1.3 s after the detent: gone, and the body comes back */
     if (u.readout || !(u.dirty & MELLO_UI_DIRTY_BODY)) return fail("readout did not go");
 
     turn(&u, 3000u, MELLO_UI_ENC_SELECT, 1); /* SELECT: the layer, by name */
     render(&u);
-    if (u.readout != MELLO_UI_READOUT_LAYER || !body_has("OSC 2")) return fail("SELECT shows no layer");
+    if (u.readout != MELLO_UI_READOUT_LAYER || !body_has("OSC")) return fail("SELECT shows no layer");
 
     mello_ui_set_page(&u, MELLO_UI_RANDOM); /* a page change drops it */
     if (u.readout) return fail("readout survived a page change");

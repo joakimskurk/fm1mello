@@ -1200,6 +1200,23 @@ as the lead.
 
 Test: rec_pages (each page's take, its sound, UNDO, the ends of a take; the drums' voices, same-step keys and locks).
 
+## K1-K4 the same on every voice (2026-11-03)
+
+CONTROL_GRAMMAR's G6 (ROADMAP E12, F11). CUT was K3 on the lead's OSC/FILT, K2 on BASS's TONE (RES on FILTER), K1 on
+CHORD's FILTER, and the drums' TONE K3. Now each voice's first sound layer is K1 CUT, K2 RES, K3 DECAY or ENV, K4
+LEVEL, and the rest moves to the next:
+
+- the lead: FILTER (was OSC/FILT) CUT RES DECAY LEVEL (the lead's level, MIX's LEAD); OSC (was LEVEL, now second on
+  SELECT) WAVE PWM SLIDE MASTER;
+- the bass: FILTER CUT RES ENV LEVEL; VOICE WAVE DECAY RELEASE DRIVE; TONE GLIDE OCT F.DEC ACCENT;
+- the chords: FILTER CUT RES ENV LEVEL; TONE WAVE CHORUS LINK;
+- the drums' voice: TONE (their cut) TUNE DECAY LEVEL; the sampler keeps LEVEL first (no filter).
+
+Done as a table in front of the pages' own code (KNOB_MAPS in mello_ui.c): each knob of a mapped layer names the
+layer and knob where the parameter's code is, and the footer, the knobs, the readout and the colours all go through
+it. The layers' pictures are still drawn by their own index. Test: rotary_mapping_parity (labels and handlers),
+ui_readout.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

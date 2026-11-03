@@ -143,7 +143,7 @@ def the_tour():
     # ENV: SOUND (SELECT's order; the LFO layer belongs to the LFO button), then SAMPLE
     t.btn(ENV)
     layers(t, "sound", "SOUND",
-           ["OSC/FILT", "OSC 2", "CHARACTER", "GRIT", "MOD ENV", "TRACKING", "AMP ENV", "FOLLOWER", "LEVEL"])
+           ["FILTER", "OSC", "OSC 2", "CHARACTER", "GRIT", "MOD ENV", "TRACKING", "AMP ENV", "FOLLOWER"])
     t.btn(ENV)
     layers(t, "sample", "SAMPLE", ["MAIN", "PITCH", "TRIM", "ENVELOPE"])
 
@@ -166,9 +166,9 @@ def the_tour():
     # ARP: CHORD, BASS, DRUMS
     t.btn(ARP)
     layers(t, "chord", "CHORD",
-           ["PLAY", "CHORD", "VOICING", "GRID", "PATTERN", "TONE", "FILTER", "MOTION", "AMP", "HARMONY"])
+           ["PLAY", "CHORD", "VOICING", "GRID", "PATTERN", "FILTER", "TONE", "MOTION", "AMP", "HARMONY"])
     t.btn(ARP)
-    layers(t, "bass", "BASS", ["PLAY", "SEQ", "STEP", "VOICE", "TONE", "FILTER"])
+    layers(t, "bass", "BASS", ["PLAY", "SEQ", "STEP", "FILTER", "VOICE", "TONE"])
     t.btn(ARP)
     layers(t, "drums", "DRUMS", ["VOICE", "STEP", "VARY", "KIT", "DIST"])
 

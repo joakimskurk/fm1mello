@@ -24,20 +24,20 @@ int main(void)
     mello_ui_init(&ui, &transport, &storage);
 
     mello_ui_set_page(&ui, MELLO_UI_SUB);
-    ui.sub_subpage = 3u;
+    ui.sub_subpage = 4u; /* VOICE (G6): K1 WAVE */
     transport.engine.sub.wave = MELLO_WAVE_SINE;
-    turn(&ui, MELLO_UI_ENC_KNOB2, 1);
+    turn(&ui, MELLO_UI_ENC_KNOB1, 1);
     if (transport.engine.sub.wave != MELLO_WAVE_TRIANGLE) return 1;
-    turn(&ui, MELLO_UI_ENC_KNOB2, 1);
+    turn(&ui, MELLO_UI_ENC_KNOB1, 1);
     if (transport.engine.sub.wave != MELLO_WAVE_SQUARE) return 2;
-    turn(&ui, MELLO_UI_ENC_KNOB2, 1);
+    turn(&ui, MELLO_UI_ENC_KNOB1, 1);
     if (transport.engine.sub.wave != MELLO_WAVE_SAW) return 3;
-    turn(&ui, MELLO_UI_ENC_KNOB2, 1);
+    turn(&ui, MELLO_UI_ENC_KNOB1, 1);
     if (transport.engine.sub.wave != MELLO_WAVE_SINE) return 4;
-    turn(&ui, MELLO_UI_ENC_KNOB2, -1);
+    turn(&ui, MELLO_UI_ENC_KNOB1, -1);
     if (transport.engine.sub.wave != MELLO_WAVE_SAW) return 5;
     transport.engine.sub.wave = MELLO_WAVE_PULSE;
-    turn(&ui, MELLO_UI_ENC_KNOB2, 1);
+    turn(&ui, MELLO_UI_ENC_KNOB1, 1);
     if (transport.engine.sub.wave != MELLO_WAVE_SINE) return 6;
 
     mello_ui_set_page(&ui, MELLO_UI_SOUND_RESERVED);
@@ -54,7 +54,7 @@ int main(void)
     turn(&ui, MELLO_UI_ENC_KNOB4, -1);
     if (transport.engine.sound.follower_sub_wave != MELLO_WAVE_SAW) return 11;
 
-    ui.sound_subpage = 0u;
+    ui.sound_subpage = 4u; /* OSC (G6): K1 WAVE */
     transport.engine.sound.osc_wave = MELLO_WAVE_SINE;
     turn(&ui, MELLO_UI_ENC_KNOB1, 1);
     if (transport.engine.sound.osc_wave != MELLO_WAVE_PULSE) {
