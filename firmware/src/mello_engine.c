@@ -987,7 +987,7 @@ static void bass_tick(MelloEngine *e, uint8_t pulses, uint8_t main_step)
     const MelloBassStep *s = &b->steps[st];
     e->bass_step = (int8_t)st;
     e->bass_pos = (uint8_t)((st + 1u) % b->length);
-    if (s->on && !e->perf.sub_mute) {
+    if ((s->on || e->perf.fill) && !e->perf.sub_mute) { /* FILL: every step of the line */
         uint32_t pt = mello_pulse_ticks(&e->project), len = pt * pulses, dur;
         uint8_t note = resolve_sub_midi(e, s->tone, s->octave);
         dur = s->glide
@@ -1015,8 +1015,10 @@ static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
         const MelloDrumLock *l = &d->lock[v][st];
         uint8_t n = l->ratchet < 1u ? 1u : l->ratchet > 4u ? 4u : l->ratchet;
-        if (!(d->hits[v] & (1u << st))) continue;
-        if (d->voice[v].chance < 1000u && !chance_permille(&e->drum_rng, d->voice[v].chance)) continue;
+        bool roll = e->perf.fill && (v == MELLO_DRUM_SNARE || v == MELLO_DRUM_GLITCH); /* FILL: a roll on each step */
+        if (!(d->hits[v] & (1u << st)) && !roll) continue;
+        if (!roll && d->voice[v].chance < 1000u && !chance_permille(&e->drum_rng, d->voice[v].chance)) continue;
+        if (roll && n < 2u) n = 2u;
         for (r = 0u; r < n; ++r) {
             MelloEvent ev;
             memset(&ev, 0, sizeof(ev));
@@ -2579,14 +2581,18 @@ static void perf_fill_buffer(MelloEngine *e, uint8_t mode, uint8_t n)
     e->perf_buf_n = 0u;
     e->perf_buf_pos = 0u;
     if (mode == 1u) {
-        for (i = 1u; i < have; ++i)
-            e->perf_buf[e->perf_buf_n++] =
-                e->perf_hist[(uint8_t)(e->perf_hist_w + MELLO_PERF_HISTORY - 1u - i) % MELLO_PERF_HISTORY];
+        for (i = 1u; i < have; ++i) {
+            uint8_t k = (uint8_t)((e->perf_hist_w + MELLO_PERF_HISTORY - 1u - i) % MELLO_PERF_HISTORY);
+            e->perf_parts_buf[e->perf_buf_n] = e->perf_parts_hist[k];
+            e->perf_buf[e->perf_buf_n++] = e->perf_hist[k];
+        }
     } else {
         if (n > have) n = have;
-        for (i = 0u; i < n; ++i)
-            e->perf_buf[e->perf_buf_n++] =
-                e->perf_hist[(uint8_t)(e->perf_hist_w + MELLO_PERF_HISTORY - n + i) % MELLO_PERF_HISTORY];
+        for (i = 0u; i < n; ++i) {
+            uint8_t k = (uint8_t)((e->perf_hist_w + MELLO_PERF_HISTORY - n + i) % MELLO_PERF_HISTORY);
+            e->perf_parts_buf[e->perf_buf_n] = e->perf_parts_hist[k];
+            e->perf_buf[e->perf_buf_n++] = e->perf_hist[k];
+        }
     }
 }
 
@@ -4103,10 +4109,11 @@ static int32_t chord_root_shift(const MelloEngine *e, MelloScale scale)
 bool mello_engine_advance_pulse(MelloEngine *e)
 {
     MelloRuntimeSegment *seg;
-    MelloPulseEntry pe;
+    MelloPulseEntry pe, real_pe;
+    MelloPerfParts pp = {0u, 0u, 0u, 0u, 0u};
     MelloStep *s;
     bool pass, did_wrap, matrix_accent = false, matrix_sub = false, tm_gate_sub = false,
-                         has_gate_override = false;
+                         has_gate_override = false, replay = false;
     uint8_t ratchet_add = 0u, eff_ratchet, main_note;
     MelloGateMode gate_override = MELLO_GATE_SINGLE, eff_gate;
     uint16_t dot_mod[MELLO_DOT_MOD_LANES];
@@ -4137,6 +4144,13 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     /* The performance keys: the sequence's own pulse goes into the history, and REVERSE / REPEAT play theirs. The
      * sequence's place moves on below as always, so letting go is in time. */
     e->perf_hist[e->perf_hist_w] = pe;
+    {
+        MelloPerfParts *h = &e->perf_parts_hist[e->perf_hist_w]; /* (the chord's, after its clock, below) */
+        h->drum = e->drum_pos, h->bass = e->bass_pos;
+#if MELLO_FEATURE_CHORD_MACHINE
+        h->chord_pos = e->chord_chain_pos, h->chord_arp = e->chord_arp_pos, h->chord_pattern = e->chord_pattern_pos;
+#endif
+    }
     e->perf_hist_w = (uint8_t)((e->perf_hist_w + 1u) % MELLO_PERF_HISTORY);
     if (e->perf_hist_n < MELLO_PERF_HISTORY) e->perf_hist_n++;
     if (e->perf_mode && !e->perf_buf_n) perf_fill_buffer(e, e->perf_mode, e->perf_mode_len);
@@ -4152,7 +4166,10 @@ bool mello_engine_advance_pulse(MelloEngine *e)
                    false, true);
         e->drone_open = false;
     }
+    real_pe = pe;
     if (e->perf_mode && e->perf_buf_n) {
+        replay = true;
+        pp = e->perf_parts_buf[e->perf_buf_pos];
         pe = e->perf_buf[e->perf_buf_pos];
         e->perf_buf_pos = (uint8_t)((e->perf_buf_pos + 1u) % e->perf_buf_n);
     }
@@ -4220,12 +4237,28 @@ bool mello_engine_advance_pulse(MelloEngine *e)
             fire = true;
         else
             fire = step_start;
+        if (e->perf.fill && step_start) /* FILL: the chords struck again on every step */
+            fire = true;
         /* STEP-mode harmony advances only at logical step boundaries; its arp/pattern clock may tick inside the step.
          * CHAIN STEPS and SEG move it by their clock instead (chord_chain_clock), before the step's triggers. */
         if (e->chord.on && e->chord.chain != MELLO_CHORD_CHAIN_TRIG) {
+            uint8_t real_pos, real_arp, real_pat;
+            MelloPerfParts *h =
+                &e->perf_parts_hist[(uint8_t)((e->perf_hist_w + MELLO_PERF_HISTORY - 1u) % MELLO_PERF_HISTORY)];
             chord_chain_clock(e, &pe);
+            h->chord_pos = e->chord_chain_pos; /* the chord this pulse plays, after the clock */
+            if (e->perf.fill && step_start && e->chord.mode == MELLO_CHORD_HOLD && e->chord_chain_hold) {
+                e->chord_chain_hold = 0u; /* FILL: HOLD's chord again on each step */
+                chord_trigger(e, &pe, false);
+            }
+            real_pos = e->chord_chain_pos, real_arp = e->chord_arp_pos, real_pat = e->chord_pattern_pos;
+            if (replay) /* REVERSE / REPEAT: the chord, arpeggio and pattern of the pulse replayed */
+                e->chord_chain_pos = pp.chord_pos, e->chord_arp_pos = pp.chord_arp,
+                e->chord_pattern_pos = pp.chord_pattern;
             if (fire && e->chord.mode != MELLO_CHORD_HOLD) chord_trigger(e, &pe, false);
-        } else if (fire)
+            if (replay) /* the chain keeps its own time underneath */
+                e->chord_chain_pos = real_pos, e->chord_arp_pos = real_arp, e->chord_pattern_pos = real_pat;
+        } else if (fire) /* CHAIN TRIG: the chain moves by its triggers, which REVERSE / REPEAT replay as they come */
             chord_trigger(e, &pe, e->chord.trigger == MELLO_CHORD_TRIGGER_GRID ? true : step_start);
     }
 #endif
@@ -4265,7 +4298,14 @@ bool mello_engine_advance_pulse(MelloEngine *e)
 
     /* BASS SEQ: a step every pulse (its own clock), or with FOLLOW at each of the sequence's steps; while on, the
      * sub's own MODE waits. */
-    if (e->bass.on && e->sub.on && (!e->bass.follow || pe.pulse_index == 0u))
+    if (replay && e->bass.on && e->sub.on && e->bass.length) { /* REVERSE / REPEAT: the line's step of then */
+        uint8_t real = e->bass_pos;
+        e->bass_pos = pp.bass;
+        if (!e->bass.follow || pe.pulse_index == 0u)
+            bass_tick(e, e->bass.follow ? (uint8_t)pe.total_pulses : 1u, pe.step_index);
+        e->bass_pos = (!e->bass.follow || real_pe.pulse_index == 0u) ? (uint8_t)((real + 1u) % e->bass.length)
+                                                                      : real; /* its own time underneath */
+    } else if (e->bass.on && e->sub.on && (!e->bass.follow || pe.pulse_index == 0u))
         bass_tick(e, e->bass.follow ? (uint8_t)pe.total_pulses : 1u, pe.step_index);
     /* Dedicated sub is independent of main probability/gate and evaluates only at step start. */
     if (pe.pulse_index == 0u && e->sub.on && !e->bass.on) {
@@ -4322,7 +4362,14 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     /* DRUMS: a step every pulse (its own clock: the sequence's skips, long steps and REVERSE / REPEAT do not stop
      * it), or with FOLLOW at each of the sequence's steps. */
     pulse_ticks = mello_pulse_ticks(&e->project);
-    if (!e->drums.follow || pe.pulse_index == 0u) drums_tick(e, pulse_ticks);
+    if (replay && e->drums.on && e->drums.length) { /* REVERSE / REPEAT: the drums' step of then */
+        uint8_t real = e->drum_pos;
+        e->drum_pos = pp.drum;
+        if (!e->drums.follow || pe.pulse_index == 0u) drums_tick(e, pulse_ticks);
+        e->drum_pos = (!e->drums.follow || real_pe.pulse_index == 0u) ? (uint8_t)((real + 1u) % e->drums.length)
+                                                                       : real; /* its own time underneath */
+    } else if (!e->drums.follow || pe.pulse_index == 0u)
+        drums_tick(e, pulse_ticks);
     e->swing_off = 0u; /* the loop's and the slots' events stay on the grid */
     next_tick = e->now_tick + pulse_ticks;
     e->absolute_pulse++;

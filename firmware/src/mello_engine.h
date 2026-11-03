@@ -414,6 +414,11 @@ typedef struct {
 
 /* HOME's performance keys, held (DECISIONS.md "Performance keys"). */
 #define MELLO_PERF_HISTORY 64u
+/* Where the other parts were at a pulse in the history, so REVERSE / REPEAT replay them too (ROADMAP E2 / F3). */
+typedef struct {
+    uint8_t drum, bass;                           /* the drums' and BASS SEQ's next step */
+    uint8_t chord_pos, chord_arp, chord_pattern; /* the chain's chord, its arpeggio's and pattern's place */
+} MelloPerfParts;
 typedef struct {
     bool fill;          /* every step plays (chance and rests aside), ratchets doubled */
     bool sub_mute;      /* the bass under the lead (dedicated and follower sub) */
@@ -937,6 +942,7 @@ typedef struct {
      * its own place all along; REVERSE and REPEAT play from perf_buf instead, so letting go lands in time. */
     MelloPerf perf;
     MelloPulseEntry perf_hist[MELLO_PERF_HISTORY]; /* the last pulses of the sequence, oldest overwritten */
+    MelloPerfParts perf_parts_hist[MELLO_PERF_HISTORY], perf_parts_buf[MELLO_PERF_HISTORY]; /* the other parts' */
     uint8_t perf_hist_w;
     uint8_t perf_hist_n;
     MelloPulseEntry perf_buf[MELLO_PERF_HISTORY]; /* what REVERSE / REPEAT play, in order, round and round */
