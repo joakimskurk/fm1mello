@@ -1249,6 +1249,16 @@ shorter than it); a cheaper timing (no reads once the pulse is over) gave nothin
 glow reads against lit is to be checked on an FM-1 (F24). Tests: ui_home_perform (steps glow, the playhead lit),
 keys_record (scale tones glow, the root lit).
 
+## Modulation seen moving (2026-11-03)
+
+ROADMAP E7 (2), F14. EVOLVE, DOT and the LFO moved a value without the screen showing it. The audio now keeps what
+modulation does to each destination at the end of a block (MelloAudio.mod_view, permille of the destination's range,
+11 values, written once a block, never read back by the audio); the UI looks at it every 66 ms (~15 times a second,
+paced by its own tick, so the UI's state does not depend on the clock) and redraws the body only when a thumb on the
+page moved. A value row whose parameter is a modulation destination draws a second, white, thin thumb where the value
+is now; none when nothing moves it, so a still page looks as before. Which row is which destination is found from
+the row's label on the page (CUT, RES, NOISE, FM, ...), one table. Test: mod_view.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

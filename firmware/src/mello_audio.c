@@ -2434,6 +2434,13 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
          * mix; a route with a negative depth pulls them the other way from the lead */
         a->chord_mod_cut = (int16_t)(mods ? clamp32(dmod[MELLO_DEST_CHORD_CUT], -1000, 1000) : 0);
         a->chord_mod_level = (int16_t)(mods ? clamp32(dmod[MELLO_DEST_CHORD_LEVEL], -1000, 1000) : 0);
+        if (i + 1u == frames) { /* the block's last sample: what the screen shows (F14) */
+            uint8_t d;
+            for (d = 0u; d < MELLO_DEST_COUNT; ++d)
+                a->mod_view[d] = (int16_t)(mods ? clamp32(dmod[d], -1000, 1000) : 0);
+            a->mod_view[MELLO_DEST_CUTOFF] = (int16_t)clamp32(a->c_cut_off, -1000, 1000);
+            a->mod_view[MELLO_DEST_RES] = (int16_t)clamp32(a->c_res_off, -1000, 1000);
+        }
         if (a->menv_stage == 1u) {
             a->menv_q24 += a->menv_step;
             if (a->menv_q24 >= 1 << 24) a->menv_q24 = 1 << 24, a->menv_stage = 2u;

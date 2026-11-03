@@ -139,6 +139,10 @@ typedef struct {
     uint16_t held_black;     /* HOME: the black keys held now (bit = B0..B10), for the strip's names */
     /* PERFORM (G4, ROADMAP F4): B5 PERF tapped opens it until PERF or a page button (1), held while held (2); the
      * white keys are then 16 performance actions on every part */
+    /* F14: the audio's modulation now, and what of it the value rows last drew */
+    const int16_t *mod_view;
+    int16_t mod_drawn[4];
+    uint16_t mod_ticks; /* mello_ui_tick's calls since the last look (the main loop's: one a millisecond) */
     uint8_t perform;
     uint32_t perform_down_ms;
     uint16_t perform_was; /* its white keys held at the last input, to redraw them when that changes */
@@ -259,6 +263,8 @@ void mello_ui_set_held_notes(MelloUi *ui, uint32_t notes);
 /* The chip's audio load, permille of real time the audio interrupt takes (dinghy.c measures it; ROADMAP B1): the
  * GLOBAL page shows it as CPU. 0 = unknown (the host). */
 void mello_ui_set_audio_load(MelloUi *ui, uint16_t permille);
+/* What modulation does to each MelloModDest now (MelloAudio.mod_view): the value rows' second thumbs (ROADMAP F14). */
+void mello_ui_set_mod_view(MelloUi *ui, const int16_t *view);
 void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pressed_buttons,
                     uint32_t released_buttons, uint32_t held_buttons, uint32_t note_pressed,
                     const int16_t encoder_delta[MELLO_UI_ENCODER_COUNT]);

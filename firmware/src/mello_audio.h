@@ -271,6 +271,9 @@ typedef struct {
     int32_t dist_tone_s[2][4]; /* distTone: lowpass -24 = two biquads */
     MelloDotLane dot_lane[MELLO_DOT_MOD_LANES];
     int16_t tm_value;        /* EVOLVE's register value at the last pulse, centred */
+    /* What modulation does to each MelloModDest now, permille of its range (CUTOFF and RES with the LFO, the MOD
+     * envelope and EVOLVE's filter in), as of the block's last sample: the screen's second thumbs (ROADMAP F14) */
+    int16_t mod_view[MELLO_DEST_COUNT];
     int16_t chord_mod_cut;   /* the chords' share of the routes this block: C.CUT, permille of CUT's range */
     int16_t chord_mod_level; /* C.LEVEL, permille: -1000 silent .. +1000 twice */
     int32_t duck_env;        /* DUCK: the kick's sidechain envelope, Q24, falling over ~160 ms */

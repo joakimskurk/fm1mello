@@ -239,6 +239,7 @@ static void app_main(void)
     mello_ui_attach_sample_bank(&ui, &sample_bank);
 #endif
 
+    mello_ui_set_mod_view(&ui, audio.mod_view); /* F14: the second thumbs */
     mello_audio_init(&audio, audio_delay_pool, MELLO_AUDIO_DELAY_SAMPLES, audio_reverb_pool,
                      MELLO_AUDIO_REVERB_SAMPLES);
     mello_audio_attach_sample_bank(&audio, &sample_bank);

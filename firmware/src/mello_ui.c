@@ -3456,6 +3456,10 @@ static void perf_poll(MelloUi *ui, uint32_t now_ms)
     mello_engine_set_perf(e, &p);
 }
 
+void mello_ui_set_mod_view(MelloUi *ui, const int16_t *view)
+{
+    if (ui) ui->mod_view = view;
+}
 void mello_ui_set_audio_load(MelloUi *ui, uint16_t permille)
 {
     if (!ui || ui->audio_load == permille) return;
@@ -3545,12 +3549,27 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
     }
 }
 
+static int8_t knob_dest(MelloUi *ui, uint8_t k);
 void mello_ui_tick(MelloUi *ui)
 {
     MelloEngine *e;
     uint8_t run, step_changed, other_changed, dynamic_body = 1u;
     if (!ui || !ui->transport) return;
     e = &ui->transport->engine;
+    if (ui->mod_view && !ui->readout && !ui->perform && ++ui->mod_ticks >= 66u) {
+        /* F14: at most 15 times a second (the main loop ticks once a millisecond), the body again where a modulated
+         * value's thumb has moved */
+        uint8_t k;
+        ui->mod_ticks = 0u;
+        for (k = 0u; k < 4u; ++k) {
+            int8_t d = knob_dest(ui, k);
+            int16_t m = d > 0 ? ui->mod_view[d] : 0, was = ui->mod_drawn[k];
+            if (m - was > 8 || was - m > 8 || (m == 0) != (was == 0)) {
+                ui->mod_drawn[k] = m;
+                ui->dirty |= MELLO_UI_DIRTY_BODY;
+            }
+        }
+    }
     run = ui->transport->running ? 1u : 0u;
     step_changed = ui->seen_step != ui->transport->display_step;
     other_changed =
@@ -4359,6 +4378,44 @@ static void ui_pill(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, co
  * as the footer and the readout (footer_texts). */
 /* The four knobs as rows, one body on every page (C2): from y, 17 pixels each: the knob's label (the footer's) in
  * the dim, its slider, its value in its colour at the right; a list's or a switch's value in a pill instead. */
+/* Two labels the same (the target's libc has no strcmp). */
+static bool ui_text_eq(const char *a, const char *b)
+{
+    while (*a && *a == *b) ++a, ++b;
+    return *a == *b;
+}
+/* The modulation destination a knob's parameter is (F14), by its label on the page: -1 for none. */
+static int8_t knob_dest(MelloUi *ui, uint8_t k)
+{
+    char v[4][24];
+    const char *l[4], *n;
+    footer_texts(ui, l, v);
+    n = l[k & 3u];
+    if (!n) return -1;
+    if (ui->page == MELLO_UI_SOUND_RESERVED) {
+        if (ui_text_eq(n, "CUT")) return MELLO_DEST_CUTOFF;
+        if (ui_text_eq(n, "RES")) return MELLO_DEST_RES;
+        if (ui_text_eq(n, "DECAY")) return MELLO_DEST_DECAY;
+        if (ui_text_eq(n, "PWM")) return MELLO_DEST_PWM;
+        if (ui_text_eq(n, "NOISE")) return MELLO_DEST_NOISE;
+        if (ui_text_eq(n, "N.FM")) return MELLO_DEST_NOISE_FM;
+        if (ui_text_eq(n, "DETUNE")) return MELLO_DEST_DETUNE;
+        if (ui_text_eq(n, "FM")) return MELLO_DEST_FM;
+        if (ui_text_eq(n, "SAT")) return MELLO_DEST_SAT;
+    } else if (ui->page == MELLO_UI_DRUMS) {
+        if (ui_text_eq(n, "TUNE")) return MELLO_DEST_DRUM_TUNE;
+        if (ui_text_eq(n, "DECAY") && ui->drum_subpage == 0u) return MELLO_DEST_DRUM_DECAY;
+        if (ui_text_eq(n, "CRUSH") && ui->drum_subpage == 2u) return MELLO_DEST_DRUM_CRUSH;
+        if (ui_text_eq(n, "DRIVE")) return MELLO_DEST_DRUM_DRIVE;
+#if MELLO_FEATURE_CHORD_MACHINE
+    } else if (ui->page == MELLO_UI_CHORD) {
+        if (ui_text_eq(n, "CUT")) return MELLO_DEST_CHORD_CUT;
+        if (ui_text_eq(n, "LEVEL")) return MELLO_DEST_CHORD_LEVEL;
+#endif
+    }
+    return -1;
+}
+
 static void draw_value_rows(MelloUi *ui, const MelloUiDrawOps *o, int16_t y)
 {
     char v[4][24];
@@ -4371,7 +4428,15 @@ static void draw_value_rows(MelloUi *ui, const MelloUiDrawOps *o, int16_t y)
         if (!v[k][0] || (v[k][0] == '-' && !v[k][1])) continue; /* an empty knob: no row */
         ui_spaced(o, 10, ry, 64, l[k], UI_DIM, 0);
         if (knob_norm(ui, k, &nv, &nm)) {
+            int8_t d = knob_dest(ui, k);
             ui_slider(o, 78, (int16_t)(ry + 5), 92, nv, nm, c);
+            if (d > 0 && ui->mod_view && ui->mod_view[d] && nm) { /* F14: where modulation has it now, a white thumb */
+                int32_t mv = (int32_t)nv + (int32_t)ui->mod_view[d] * nm / 1000;
+                int16_t tx;
+                mv = mv < 0 ? 0 : mv > nm ? nm : mv;
+                tx = (int16_t)(78 + ((int32_t)(92 - 6) * mv) / nm);
+                o->fill(o->ctx, (int16_t)(tx + 2), (int16_t)(ry + 5), 2, 6, UI_WHITE);
+            }
             o->text(o->ctx, 174, ry, 56, 0, v[k], c, 2);
         } else {
             int16_t pw = (int16_t)(vw + 8);

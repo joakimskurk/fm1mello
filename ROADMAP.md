@@ -67,7 +67,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F11 | K1-K4 the same on every voice (E12, G6). Done 2026-11-03 (0.5-f54) | 2026-11-02, 12 |
 | F12 | The screen in its new order (E3, G7). Done 2026-11-03 (0.5-f54) | 2026-11-02, 3 |
 | F13 | The lights by one rule (E8, G5). Done 2026-11-03 (0.5-f55); the glow costs 2 points of the chip | 2026-11-02, 8 |
-| F14 | EVOLVE, DOT and the LFO seen moving: a second thumb on the modulated value (E7 (2)) | 2026-11-02, 7 |
+| F14 | EVOLVE, DOT and the LFO seen moving: a second thumb on the modulated value (E7 (2)). Done 2026-11-03 (0.5-f56) | 2026-11-02, 7 |
 | F15 | GROOVE, a second MUSICAL: rolls, ties, ghost notes, rests (E10) | 2026-11-02, 10 |
 | F16 | The reverb's noise confirmed or found (E5): a recording from the emulator, then the FM-1 | 2026-11-02, 5 |
 | F17 | Music units on the remaining pages (Phase 3) | 2026-10-29 |
@@ -207,7 +207,8 @@ register's value making each note shorter or longer (gate time 25-100% of the st
 so EVOLVE's default is heard as phrasing and never adds an attack; RETRIG (the HTML's re-gate, MULTI / SINGLE) is
 its own route, off by default. A departure from the HTML. Accepted to try 2026-11-03 and done (package 0.5-f45):
 K1 on ROUTES picks GATE OFF / LENGTH / RETRIG / BOTH, DEPTH's GATE is LENGTH's reach and RETRIG's chance, neither
-plays a rest (DECISIONS "EVOLVE's GATE: LENGTH and RETRIG", test evolve_gate). Still to do: (2) The modulation made visible: the audio keeps each
+plays a rest (DECISIONS "EVOLVE's GATE: LENGTH and RETRIG", test evolve_gate). (2), done 2026-11-03 as F14 (DECISIONS
+"Modulation seen moving"): The modulation made visible: the audio keeps each
 destination's current offset (11 x 2 bytes, written once a block), the UI reads it ~30 times a second, and a
 modulated value's slider shows a second, moving thumb (the GRIT layer's NOISE FM row, CUT on OSC/FILT, the drums'
 D.TUNE ...), on every page where that value is.
