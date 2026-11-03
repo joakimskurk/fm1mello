@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f45.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f46.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -263,8 +263,8 @@ K1-K4 with their default values.
 | CHORD | ARP | VOICING | `ON BASS F B < R UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
 | CHORD | ARP | GRID | `ON BASS F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
 | CHORD | ARP | PATTERN | `ON BASS F B < R UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
-| CHORD | ARP | TONE | `ON BASS F B < R UNDO RNDMZR` | WAVE SAW · CHORUS 60% · SPACE 100% · LEVEL 32% |
-| CHORD | ARP | FILTER | `ON BASS F B < R UNDO RNDMZR` | CUT 986.0HZ · RES 18% · ENV 38% · LINK OFF |
+| CHORD | ARP | TONE | `ON BASS F B < R UNDO RNDMZR` | WAVE SAW · CHORUS 60% · SPACE 60% · LEVEL 18% |
+| CHORD | ARP | FILTER | `ON BASS F B < R UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LINK OFF |
 | CHORD | ARP | MOTION | `ON BASS F B < R UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · STRUM 0MS · NEXT TRIG |
 | CHORD | ARP | AMP | `ON BASS F B < R UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
 | CHORD | ARP | HARMONY | `ON BASS F B < R UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |

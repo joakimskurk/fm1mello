@@ -1086,6 +1086,16 @@ note's length. A departure from the HTML, accepted to try (ROADMAP E7):
 Test: tests/mello/evolve_gate.c (the same notes as EVOLVE off, none longer, none under a quarter; RETRIG adds
 attacks and plays no rest).
 
+## The chords behind the lead (2026-11-03)
+
+The chords' defaults were loud and open: LEVEL 32%, CUT ~1 kHz opened to ~2.8 kHz by ENV 38% at every chord, SPACE
+100%. Rendered with the default project, the default chords were 3.8 dB over the lead. New defaults (ROADMAP E4):
+LEVEL 18%, CUT ~800 Hz, ENV 22%, SPACE 60%; CHORUS, RES and the envelopes as they were. Measured the same way, the
+chords now sit 2.0 dB under the lead, with 6.3% of their energy above 1 kHz (11.7% before). A held chord against a
+short lead reads louder than its RMS, which is why LEVEL went below the proposed 23%. Projects saved earlier keep
+their own values (but a save from the chords' first format, which held no voice, gets these); a new project gets
+them.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

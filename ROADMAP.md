@@ -63,6 +63,9 @@ Found: LEVEL 32%, CUT ~1 kHz opened to ~2.8 kHz by ENV 38% at every chord, SPACE
 the reverb, which makes them bigger still), CHORUS 60%.
 Work: new defaults about 3 dB down (LEVEL 32% -> 23%), CUT ~800 Hz, ENV 38% -> 22%, SPACE 100% -> 60%; rendered
 against the lead before and after (RMS and the spectrum above 1 kHz) and by ear. Projects saved earlier keep theirs.
+Done 2026-11-03 (0.5-f46): LEVEL 18% (lower than proposed: the chords hold, the lead is short, so at 23% they still
+measured level with it), CUT ~800 Hz, ENV 22%, SPACE 60%. Default project with the default chords, 100 BPM: the
+chords went from 3.8 dB over the lead to 2.0 dB under it, their energy above 1 kHz from 11.7% to 6.3%.
 
 **E5. Noise in the reverb (heard in the emulators, not on an FM-1 yet).**
 Found: the reverb itself is clean where time does not matter. Rendered on this computer (one note, WET 0 / 24% /
