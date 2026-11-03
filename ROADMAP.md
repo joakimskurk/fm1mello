@@ -27,14 +27,17 @@ for the product owner.
   page's part on every page with a sequence: HOME and STEP the lead, BASS the bass line, CHORD (or SUB MELLO) the
   chain, DRUMS the drums. The white keys are then a keyboard in the key now (OCT- / OCT+ move it); stopped, each key
   writes the next step, playing, the step under the clock; one UNDO takes the take back; REC again or PLAY's stop
-  ends it. DRUMS: white keys 1-4 are KICK, SNARE, HAT and GLITCH, the next keys the hit's locks (accent, ratchet,
+  ends it. Decided 2026-11-03: yes, REC records the page's part directly; stopped it is step by step, never the
+  note under the clock, and the playing take should be smoother than HOME's is today (to look at with F5: a note
+  just before a step lands on it, a held key ties). DRUMS: white keys 1-4 are KICK, SNARE, HAT and GLITCH, the next keys the hit's locks (accent, ratchet,
   pitch down / up). HOME's EDIT > REC stays as it is (it cycles SEQ, BASS, CHORD).
-- **G4. Performance in one place.** Decide: B5 becomes PERF. Tapped, the PERFORM page opens with its own screen
+- **G4. Performance in one place.** Decided 2026-11-03: B5 becomes PERF. Tapped, the PERFORM page opens with its own screen
   and the white keys are 16 performance actions until PERF or a page button is pressed; held, the same for as long
   as it is held. Every action acts on every part (E2). Proposed keys: FILL, REVERSE, REPEAT 1 / 2 / 4 / 8 beats,
   MUTE LEAD / BASS / CHORDS / DRUMS (latched), MUTATE, RESTART, TRANSPOSE - / +, two left free. B6 is MUTATE on every
   page (always one press away); B7 and B8 go to the pages' own keys. HOME's own keys then: decide which of - + MUT RST
   CLR stay there (they are all in PERFORM).
+- Decided 2026-11-03 as well: the order of the waves below.
 - **G5. The lights (E8).** Lit = now, active or held; glow = set or there; dark = nothing. The same on the white and
   the black keys and on every page.
 - **G6. K1-K4 (E12).** A voice's first layer is K1 CUT, K2 RES, K3 DECAY or ENV, K4 LEVEL; WAVE and the rest on the
