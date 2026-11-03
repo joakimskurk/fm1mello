@@ -113,12 +113,16 @@ The keys' lights say the same on every page: lit is what is happening now or on 
 a switch that is on), a glow is what is set or there (a step that plays, a scale tone, a black key with a function),
 dark is nothing.
 
-PERFORM's white keys, in a 4 x 4 on the screen (keys 1-4 the top row): FILL, REVERSE, REP 8, REP 4 / REP 2, REP 1,
-RESTART, MUTE LD / MUTE BS, MUTE CH, MUTE DR, MUTATE / TRANS -, TRANS +. FILL, REVERSE and the REPs act while held
-and keep time: every part's place (the sequence, the drums, the bass line, the chord chain) moves on underneath,
-so letting go lands where it would have been; REVERSE and REPEAT replay the drums, the bass line and the chords'
-figures with the lead; FILL rolls the snare, plays every step of the bass line and strikes the chords on every step.
-The MUTEs latch (MIX's). Never saved or undone.
+PERFORM's white keys are performance only, in a 4 x 4 on the screen, a row each (keys 1-4 the top row): the
+sequence (FILL, ARP, REVERSE, ACCENT), its repeats (REP 8, REP 4, REP 2, REP 1), the sound (LP SWP, HP SWP, THROW,
+WASH) and the parts' mutes (LD OFF, BS OFF, CH OFF, DR OFF). All act while held but the mutes, and keep time: every
+part's place (the sequence, the drums, the bass line, the chord chain) moves on underneath, so letting go lands
+where it would have been. FILL rolls the snare, plays every step of the bass line and strikes the chords on every
+step; ARP plays the lead's note as an arpeggio, root, third, fifth, octave; REVERSE and REPEAT replay the drums, the
+bass line and the chords' figures with the lead; ACCENT accents every note and hit. LP SWP and HP SWP sweep a filter
+over the whole mix (closed in 1.5 s, open again a quarter of a second after); THROW sends everything into the delay
+with its feedback up, WASH into the reverb, and their tails ring on when let go. The MUTEs latch (MIX's): stopped,
+at once; playing, on the next beat (framed bright until then; a second tap takes it back). Never saved or undone.
 
 ### The white keys, page by page
 

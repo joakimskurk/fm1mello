@@ -1028,7 +1028,7 @@ static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
             ev.sample_slot = v;
             /* A roll rises (2 semitones a hit, the kick's excepted) and tightens, as drill'n'bass rolls do */
             ev.note = (uint8_t)(64 + l->pitch + (v != MELLO_DRUM_KICK ? 2 * (int32_t)r : 0));
-            ev.velocity = (d->accents[v] & (1u << st)) ? 127u
+            ev.velocity = ((d->accents[v] & (1u << st)) || (e->perf.accent && !r)) ? 127u /* ACCENT: every hit */
                           : r                          ? 72u
                                                        : 96u; /* a roll's later hits softer */
             ev.drum_decay = (int8_t)(l->decay - 15 * (int32_t)r < -100 ? -100 : l->decay - 15 * (int32_t)r);
@@ -1740,6 +1740,8 @@ void mello_engine_stop(MelloEngine *e)
     if (!e) return;
     e->playing = false;
     e->queued_slot = -1;
+    e->perf.mix_mute ^= e->perf.mute_req; /* PERFORM's mutes asked for, with no beat to wait for now */
+    e->perf.mute_req = 0u;
     /* Source STOP always clears Loop Cycle hold/count. Position returns to 0 only when ON;
      * OFF freezes the selected harmonic slot across STOP/START. Slot Seq runtime is untouched. */
     e->loop_cycle_tick = 0u;
@@ -2602,7 +2604,8 @@ void mello_engine_set_perf(MelloEngine *e, const MelloPerf *p)
     if (!e || !p) return;
     len = p->repeat_len < 1u ? 1u : (p->repeat_len > 16u ? 16u : p->repeat_len);
     if (p->fill == e->perf.fill && p->sub_mute == e->perf.sub_mute && p->reverse == e->perf.reverse &&
-        p->repeat == e->perf.repeat && len == e->perf.repeat_len)
+        p->repeat == e->perf.repeat && len == e->perf.repeat_len && p->arp == e->perf.arp &&
+        p->accent == e->perf.accent && p->fx == e->perf.fx)
         return; /* nothing changed (it is called on every input) */
     e->perf = *p;
     e->perf.repeat_len = len;
@@ -4192,7 +4195,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     MelloRuntimeSegment *seg;
     MelloPulseEntry pe, real_pe;
     MelloPerfParts pp = {0u, 0u, 0u, 0u, 0u};
-    MelloStep *s;
+    MelloStep *s, arp_step;
     bool pass, did_wrap, matrix_accent = false, matrix_sub = false, tm_gate_sub = false,
                          has_gate_override = false, replay = false;
     uint8_t ratchet_add = 0u, eff_ratchet, main_note;
@@ -4255,6 +4258,16 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         e->perf_buf_pos = (uint8_t)((e->perf_buf_pos + 1u) % e->perf_buf_n);
     }
     s = &e->project.steps[pe.step_index];
+    if (e->perf.arp) { /* ARP: the step's note as an arpeggio, root, third, fifth, octave, a pulse each */
+        const ScaleDef *sd = &SCALES[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR];
+        int32_t n = sd->n, pmax = n * (int32_t)(e->project.pitch_span_oct ? e->project.pitch_span_oct : 1u) - 1,
+                off[4] = {0, 2, 4, n}, d = s->pitch + off[e->absolute_pulse % 4u];
+        arp_step = *s;
+        arp_step.gate = MELLO_GATE_SINGLE, arp_step.ratchet = 1u, arp_step.slide = false;
+        if (d > pmax) d -= n, arp_step.octave = (int8_t)(arp_step.octave + 1);
+        arp_step.pitch = (int8_t)d;
+        s = &arp_step;
+    }
     e->step_index = pe.step_index;
     e->pulse_index = pe.pulse_index;
     old_loop_ticks = e->loop_pulse_length;
@@ -4301,9 +4314,9 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         e->tm_active_index = -1;
     }
 
-    pass = e->perf.fill || probability_pass(e, s->probability); /* FILL: every step plays */
+    pass = e->perf.fill || e->perf.arp || probability_pass(e, s->probability); /* FILL, ARP: every step plays */
     eff_gate = pass ? (has_gate_override && s->gate != MELLO_GATE_REST ? gate_override : s->gate) : MELLO_GATE_REST;
-    if (e->perf.fill && eff_gate == MELLO_GATE_REST) eff_gate = MELLO_GATE_SINGLE;
+    if ((e->perf.fill || e->perf.arp) && eff_gate == MELLO_GATE_REST) eff_gate = MELLO_GATE_SINGLE;
 
     evaluate_dot_matrices(e, pe.pulse_index == 0u, &matrix_accent, &ratchet_add, &matrix_sub, dot_mod);
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -4347,7 +4360,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     if (e->perf.fill) eff_ratchet = clamp_1_8((uint8_t)(eff_ratchet * 2u)); /* FILL: twice the ratchets */
     e->last_mod.effective_gate = eff_gate;
     e->last_mod.effective_ratchet = eff_ratchet;
-    e->last_mod.effective_accent = (bool)(s->accent || matrix_accent);
+    e->last_mod.effective_accent = (bool)(s->accent || matrix_accent || e->perf.accent); /* ACCENT: all */
     e->last_mod.matrix_sub = matrix_sub;
     e->last_mod.dot_mod[0] = dot_mod[0];
     e->last_mod.dot_mod[1] = dot_mod[1];
@@ -4454,6 +4467,8 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     e->swing_off = 0u; /* the loop's and the slots' events stay on the grid */
     next_tick = e->now_tick + pulse_ticks;
     e->absolute_pulse++;
+    if (e->perf.mute_req && e->absolute_pulse % 4u == 0u) /* PERFORM's mutes come in on the beat */
+        e->perf.mix_mute ^= e->perf.mute_req, e->perf.mute_req = 0u;
     did_wrap = old_loop_ticks > 0u && (e->absolute_pulse % old_loop_ticks) == 0u;
     if (did_wrap) {
         /* Evolution waits for the loop's one: the registers and the matrices change between the loop's last pulse

@@ -1387,6 +1387,31 @@ under it and was drawn on black: a black band across PERFORM's cells, the strip'
 cell's colour) hidden behind their labels, and the same on other pages' pills and cells. fit_bg now allows two
 columns of slack each side. 78 screens change; most show the colour the code meant all along.
 
+## PERFORM: performance only (2026-11-04)
+
+The product owner: RESTART does not belong on the performance layer, only real performance things; the mutes stay,
+as they are essential, but should come in more quantized; be creative (inspiration from a small pocket synth's
+punch-in effects, no copying). PERFORM's sixteen white keys are now a row each, in the row's colour:
+
+- **The sequence** (coral): FILL, ARP, REVERSE, ACCENT. ARP plays the step's note as an arpeggio, root, third, fifth,
+  octave in the scale, a pulse each, every pulse (rests too); ACCENT accents every lead note (121, as a step's
+  accent) and drum hit (127).
+- **The repeats** (gold): REP 8, REP 4, REP 2, REP 1, as before.
+- **The sound** (cyan): LP SWP and HP SWP, a state variable filter on the whole mix whose cutoff glides while held
+  (low-pass 7.6 kHz to 200 Hz, high-pass 30 Hz to 2 kHz, closed in 1.5 s, back in a quarter of a second, a little
+  resonance at the edge, out of the path when open); THROW, everything (half level) into the delay with its
+  feedback raised towards 70%, WASH the same into the reverb, both sliding in and out over ~10 ms and working with
+  the effects' WET at 0; their tails ring on (the tail guard is kept 3 s).
+- **The parts** (red): LD OFF, BS OFF, CH OFF, DR OFF, the mutes (six letters fit a cell; MUTE LD ran into the
+  next). Latched, MIX's mutes; stopped, at once; playing, asked for and turned on
+  the next beat (every fourth pulse), framed bright until then; a second tap before the beat takes the ask back;
+  one still waiting at STOP comes in then.
+
+Gone: RESTART (the engine keeps it), MUTATE (always on B6), TRANS - and + (HOME's black keys). Never saved or undone,
+as before. The sweeps cost CPU only while they move; THROW and WASH a few multiplies while held. Tests: perform_keys
+(ARP's notes, ACCENT, a mute on the beat, the sweeps' highs and lows, THROW's and WASH's tails), ui_perf_keys.
+dinghy.c (Dinghy's file) hands the engine's held effects to the audio, as it does the mutes.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

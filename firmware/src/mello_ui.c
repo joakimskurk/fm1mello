@@ -3405,10 +3405,13 @@ static const uint8_t BLACK_KEY_NOTES[11] = {1u, 3u, 5u, 8u, 10u, 13u, 15u, 17u, 
  * input; anywhere else, in KEYS or with a step held, none are. The strip shows held keys by name. */
 /* PERFORM's white keys (G4, ROADMAP F4), as the PERFORM page draws them: FILL, REVERSE and REPEAT 8 / 4 / 2 / 1 act
  * while held; the rest on the press (the MUTEs latch, as MIX's). They act on every part (perf_parts). */
-static const char *const PERFORM_NAMES[16] = {"FILL",    "REVERSE", "REP 8",   "REP 4",   "REP 2",   "REP 1",
-                                              "RESTART", "MUTE LD", "MUTE BS", "MUTE CH", "MUTE DR", "MUTATE",
-                                              "TRANS -", "TRANS +", "",        ""};
+/* PERFORM's white keys (DECISIONS "PERFORM: performance only"), a row each: what the sequence plays, its repeats,
+ * the sound, the parts. Held, but the mutes, which latch and come in on the next beat while it plays. */
+static const char *const PERFORM_NAMES[16] = {"FILL",    "ARP",     "REVERSE", "ACCENT",  "REP 8",   "REP 4",
+                                              "REP 2",   "REP 1",   "LP SWP",  "HP SWP",  "THROW",   "WASH",
+                                              "LD OFF",  "BS OFF",  "CH OFF",  "DR OFF"}; /* (6 letters: a cell) */
 static const uint8_t PERFORM_REPEAT[4] = {8u, 4u, 2u, 1u};
+#define PERFORM_MUTE0 12u /* the first mute's key */
 static uint16_t perform_held(const MelloUi *ui)
 {
     uint16_t h = 0u;
@@ -3421,18 +3424,13 @@ static void perform_key(MelloUi *ui, uint32_t now_ms, uint8_t w)
 {
     MelloEngine *e = eng(ui);
     MelloContextAction a = {MELLO_CTX_NONE, ""};
-    if (!e || w >= 16u) return;
-    if (w >= 7u && w <= 10u) { /* the MUTEs: MIX's, latched */
-        e->perf.mix_mute ^= (uint8_t)(1u << (w - 7u));
-        ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
-        return;
-    }
-    a.verb = w == 6u    ? MELLO_CTX_PERF_RESTART
-             : w == 11u ? MELLO_CTX_MUTATE
-             : w == 12u ? MELLO_CTX_TRANSPOSE_DOWN
-             : w == 13u ? MELLO_CTX_TRANSPOSE_UP
-                        : MELLO_CTX_NONE; /* FILL .. REPEAT: held (perf_poll) */
-    run_action(ui, now_ms, &a);
+    (void)now_ms, (void)a;
+    if (!e || w < PERFORM_MUTE0 || w >= 16u) return; /* the rest are held (perf_poll) */
+    /* the MUTEs: MIX's, latched; playing, on the next beat (a second tap before it takes the ask back) */
+    if (ui->transport && ui->transport->running)
+        e->perf.mute_req ^= (uint8_t)(1u << (w - PERFORM_MUTE0));
+    else
+        e->perf.mix_mute ^= (uint8_t)(1u << (w - PERFORM_MUTE0));
     ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
 }
 
@@ -3455,15 +3453,23 @@ static void perf_poll(MelloUi *ui, uint32_t now_ms)
     if (ui->perform) wh = perform_held(ui);
     p = e->perf; /* (MIX's mutes kept) */
     p.fill = (wh & 1u) != 0u;
-    p.reverse = (wh & 2u) != 0u;
-    p.repeat = (wh & 0x3Cu) != 0u;
+    p.arp = (wh & 2u) != 0u;
+    p.reverse = (wh & 4u) != 0u;
+    p.accent = (wh & 8u) != 0u;
+    p.repeat = (wh & 0xF0u) != 0u;
+    p.fx = (uint8_t)((wh >> 8) & 0xFu); /* LP SWP, HP SWP, THROW, WASH */
     p.sub_mute = false;
     for (b = 0u; b < 4u; ++b)
-        if (wh & (1u << (2u + b))) {
+        if (wh & (1u << (4u + b))) {
             p.repeat_len = PERFORM_REPEAT[b];
             break;
         }
     if (wh != ui->perform_was) ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS, ui->perform_was = wh;
+    {
+        uint8_t m = (uint8_t)((e->perf.mix_mute & 0xFu) | (e->perf.mute_req << 4)); /* turned on the beat */
+        if (ui->perform && m != ui->perform_mutes) ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
+        ui->perform_mutes = m;
+    }
     mello_engine_set_perf(e, &p);
 }
 
@@ -4207,16 +4213,17 @@ static void draw_perform(MelloUi *ui, const MelloUiDrawOps *o)
     o->fill(o->ctx, 0, 30, 240, 141, UI_BLACK);
     ui_spaced(o, 6, 33, 228, "ON EVERY PART", UI_DIM, 0);
     for (w = 0u; w < 16u; ++w) {
+        /* a row each, in its colour: the sequence, its repeats, the sound, the parts */
+        static const uint16_t row_colour[4] = {UI_CORAL, UI_GOLD, UI_CYAN, UI_RED};
         int16_t x = (int16_t)(4 + (w % 4u) * 58), y = (int16_t)(50 + (w / 4u) * 30);
-        bool mute = w >= 7u && w <= 10u, on = (held >> w) & 1u;
-        uint16_t c = mute ? UI_RED : UI_CORAL;
-        if (mute && e) on = (e->perf.mix_mute >> (w - 7u)) & 1u;
-        if (!PERFORM_NAMES[w][0]) {
-            ui_round_frame(o, x, y, 56, 28, UI_TRACK);
-            continue;
+        bool mute = w >= PERFORM_MUTE0, on = (held >> w) & 1u, asked = false;
+        uint16_t c = row_colour[w / 4u];
+        if (mute && e) {
+            on = (e->perf.mix_mute >> (w - PERFORM_MUTE0)) & 1u;
+            asked = (e->perf.mute_req >> (w - PERFORM_MUTE0)) & 1u; /* coming in on the beat: framed bright */
         }
         ui_round_fill(o, x, y, 56, 28, on ? ui_mix(c, UI_BLACK, 110) : UI_PANEL);
-        ui_round_frame(o, x, y, 56, 28, on ? c : UI_LINE);
+        ui_round_frame(o, x, y, 56, 28, asked ? UI_BRIGHT : on ? c : UI_LINE);
         o->text(o->ctx, x, (int16_t)(y + 6), 56, 0, PERFORM_NAMES[w], on ? UI_BRIGHT : c, 1);
     }
 }
@@ -7099,7 +7106,8 @@ static void calc_key_levels(MelloUi *ui, uint32_t *lit_out, uint32_t *glow_out)
         uint16_t held = perform_held(ui);
         for (i = 0u; i < 16u; ++i) {
             if (PERFORM_NAMES[i][0]) glow |= WK(i);
-            if (((held >> i) & 1u) || (i >= 7u && i <= 10u && ((e->perf.mix_mute >> (i - 7u)) & 1u))) lit |= WK(i);
+            if (((held >> i) & 1u) || (i >= PERFORM_MUTE0 && ((e->perf.mix_mute >> (i - PERFORM_MUTE0)) & 1u)))
+                lit |= WK(i);
         }
     } else if (ui->page_rec && ui->keys_rec_target == MELLO_UI_REC_DRUMS) { /* the voices' and locks' keys */
         for (i = 0u; i < 8u; ++i) glow |= WK(i);

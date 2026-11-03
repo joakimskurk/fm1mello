@@ -16,7 +16,7 @@ defines() {
     case "$1" in
     audio_html_parity | wp_e3_reverb_v3_smoke) echo -DMELLO_REVERB_TEST_HOOK=1 ;;
     live_edit_audio_stress) echo -DMELLO_LIVE_EDIT_TEST_HOOK=1 ;;
-    drive_makeup | delay_pingpong) echo -DMELLO_OUTPUT_GAIN_Q12=4096 ;;
+    drive_makeup | delay_pingpong | perform_keys) echo -DMELLO_OUTPUT_GAIN_Q12=4096 ;;
     audio_overflow_regression | audio_grit_smoke | audio_virus_smoke | chord_voice | drum_machine | random_musical | bass_seq | step_wave | drum_routes) echo -fsanitize=undefined -fno-sanitize-recover=undefined ;;
     esac
 }

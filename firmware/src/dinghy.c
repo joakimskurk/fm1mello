@@ -165,6 +165,7 @@ static void sync_audio_config(void)
     if (!audio_ready) return;
     mello_audio_set_sub_mute(&audio, mt.engine.perf.sub_mute);
     mello_audio_set_mix_mute(&audio, mt.engine.perf.mix_mute);
+    mello_audio_set_perf_fx(&audio, mt.engine.perf.fx);
     mello_audio_drum_kit(&mt.engine.drums, &kit_now);
     mello_audio_bass_voice(&mt.engine.bass, &bass_now);
     if (memcmp(&audio.pending_config, &mt.engine.sound, sizeof audio.pending_config) ||

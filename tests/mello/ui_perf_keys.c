@@ -2,8 +2,8 @@
 /* Copyright (C) 2026 joakimskurk */
 /* Phase 3: the performance keys (DECISIONS.md "Performance keys"), since 2026-11-03 on PERFORM (G4):
  * - B5 PERF tapped opens PERFORM until PERF or a page button, held while held; its white keys: FILL and REPEAT while
- *   held (no step edited), the mutes latched, MIX's mutes kept while an action is held; B6 MUT mutates on any page;
- *   RESTART goes to step 1 at the next pulse.
+ *   held (no step edited), the mutes latched (stopped, at once; playing, on the beat: perform_keys), MIX's mutes kept
+ *   while an action is held; B6 MUT mutates on any page. (The engine's RESTART stays, off PERFORM.)
  * - FILL plays every step (chance 0 and rests too) with doubled ratchets; SUB MUTE stops new bass notes and
  *   mello_audio fades the sounding bass in ~10 ms.
  * - REVERSE plays what was heard backwards, REPEAT the last n pulses round and round; let go, the sequence is where it
@@ -63,7 +63,7 @@ static int ui_part(void)
     static MelloUi u;
     int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
     uint32_t perf = 1u << black_note(5u), mut = 1u << black_note(6u), fill = 1u << white_note(0u),
-             rep4 = 1u << white_note(3u), lead = 1u << white_note(7u);
+             rep4 = 1u << white_note(5u), lead = 1u << white_note(12u);
     MelloStep before;
     MelloStep steps[MELLO_MAX_STEPS];
     mello_project_defaults(&p);

@@ -146,6 +146,7 @@ typedef struct {
     uint8_t perform;
     uint32_t perform_down_ms;
     uint16_t perform_was; /* its white keys held at the last input, to redraw them when that changes */
+    uint8_t perform_mutes; /* the mutes and the mutes asked for, as drawn: the engine turns them on the beat */
     uint8_t perf_repeat_len; /* REPEAT's length in pulses (a white key while REPEAT is held); 0 = 4 */
     uint8_t held_step;       /* MELLO_UI_NO_STEP when none */
     uint8_t held_key;        /* its note key */

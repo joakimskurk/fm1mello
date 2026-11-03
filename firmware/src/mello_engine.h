@@ -427,7 +427,16 @@ typedef struct {
     bool repeat;        /* the last repeat_len pulses, round and round */
     uint8_t repeat_len; /* 1..16 pulses */
     uint8_t mix_mute;   /* MIX's B0-B3: bit 0 LEAD, 1 SUB, 2 CHORD, 3 PERC muted (not saved) */
+    /* PERFORM (DECISIONS "PERFORM: performance only"): */
+    bool arp;          /* the lead an arpeggio on its step's note: root, third, fifth, octave, a pulse each */
+    bool accent;       /* every lead note and drum hit accented */
+    uint8_t mute_req;  /* mutes asked for while playing: toggled into mix_mute at the next beat */
+    uint8_t fx;        /* MELLO_PERF_FX_*: the sound's held effects, for mello_audio */
 } MelloPerf;
+#define MELLO_PERF_FX_LP    1u /* LP SWEEP: the whole mix's low-pass closing while held */
+#define MELLO_PERF_FX_HP    2u /* HP SWEEP: its high-pass opening */
+#define MELLO_PERF_FX_THROW 4u /* THROW: everything into the delay, its feedback up; the tail rings on */
+#define MELLO_PERF_FX_WASH  8u /* WASH: everything into the reverb */
 
 /* DOT's MOD lanes, DOT's evolve and EVOLVE's sound routes and timing. Saved in SEC_MOD (not in the snapshot's own
  * wire format), with DOT's fifth matrix. */

@@ -317,6 +317,13 @@ typedef struct {
     int32_t delay_tone_s[2][4]; /* dlyTone */
     int32_t delay_lc[2];        /* LO CUT: two one-pole low-passes, taken away */
     int32_t delay_lc_r[2], delay_tone_r_s[2][4]; /* PING's second tap: its own LO CUT and HI CUT */
+    /* PERFORM's sound (mello_audio_set_perf_fx, MELLO_PERF_FX_*): the sweeps' places (Q20, 0 open) and their state
+     * variable filters (per channel: low, band), THROW's and WASH's sends (Q12, sliding), and a tail kept running */
+    uint8_t perf_fx;
+    uint32_t sweep_pos[2];
+    int32_t sweep_s[2][2][2];
+    int32_t throw_q12, wash_q12;
+    uint32_t perf_tail;
     int16_t *reverb_buffer;
     uint32_t reverb_capacity;
     uint32_t reverb_pos;
@@ -398,6 +405,8 @@ void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *sound, const 
 void mello_audio_set_chord_config(MelloAudio *a, const MelloChordConfig *chord);
 #endif
 void mello_audio_set_drum_config(MelloAudio *a, const MelloDrumConfig *drums);
+/* PERFORM's held sound effects (MELLO_PERF_FX_* bits); called as often as the mutes are */
+void mello_audio_set_perf_fx(MelloAudio *a, uint8_t fx);
 void mello_audio_set_bass_config(MelloAudio *a, const MelloBassConfig *bass);
 /* What of a config the audio takes (dinghy.c compares these to know when to send them). */
 void mello_audio_drum_kit(const MelloDrumConfig *drums, MelloAudioDrumKit *out);

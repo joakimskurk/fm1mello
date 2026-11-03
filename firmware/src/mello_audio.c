@@ -1955,6 +1955,11 @@ static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t d
     if (++a->delay_pos >= a->delay_capacity) a->delay_pos = 0u;
     return dl;
 }
+/* THROW raises the delay's feedback towards 70% as it slides in */
+static int32_t perf_fb(const MelloAudio *a, int32_t fb)
+{
+    return a->throw_q12 && fb < 2867 ? fb + (((2867 - fb) * a->throw_q12) >> 12) : fb;
+}
 /* The half-band filter (31 taps, Kaiser 7.5): flat to 8 kHz within 0.03 dB, -48 dB from 14 kHz. Its centre tap is
  * 1/2 and every other tap 0; these are the odd ones, Q15, nearest the centre first. */
 static const int16_t RV_HB[8] = {10269, -3020, 1401, -668, 291, -105, 27, -3};
@@ -2243,6 +2248,10 @@ void mello_audio_set_sub_mute(MelloAudio *a, bool mute)
 {
     if (a && a->sub_mute != mute) a->sub_mute = mute, a->gains_moving = true;
 }
+void mello_audio_set_perf_fx(MelloAudio *a, uint8_t fx)
+{
+    if (a) a->perf_fx = fx;
+}
 void mello_audio_set_mix_mute(MelloAudio *a, uint8_t mute_bits)
 {
     if (a && a->mix_mute != mute_bits) a->mix_mute = mute_bits, a->gains_moving = true;
@@ -2395,6 +2404,46 @@ static int32_t soft_drive(int32_t x, uint16_t amount, uint16_t character)
     if (y > lim) y = lim + ((y - lim) >> 3);
     if (y < -lim) y = -lim + ((y + lim) >> 3);
     return clamp32(y, -32767, 32767);
+}
+/* PERFORM's sweeps (DECISIONS "PERFORM: performance only"): a state variable filter on the whole mix, its cutoff
+ * gliding while the key is held, low-pass from 7.6 kHz down to 200 Hz over 1.5 s, high-pass from 30 Hz up to 2 kHz,
+ * and back in a quarter of a second when let go; open, it is out of the path. Its coefficient, 2 sin(pi fc / fs) in
+ * Q15, on an exponential 33-point table; the first eighth of the way it fades in, so it starts without a step. */
+static const int32_t SWEEP_F_Q15[2][33] = {
+    {33774, 30451, 27398, 24610, 22078, 19785, 17716, 15853, 14178, 12675, 11328, 10121, 9041, 8074, 7211, 6438, 5748,
+     5132, 4582, 4090, 3651, 3259, 2909, 2597, 2318, 2069, 1847, 1648, 1471, 1313, 1172, 1046, 934},
+    {140, 160, 182, 208, 237, 270, 308, 351, 400, 456, 520, 593, 677, 771, 880, 1003, 1144, 1304, 1487, 1695, 1933,
+     2204, 2513, 2865, 3266, 3724, 4246, 4840, 5517, 6289, 7167, 8168, 9306}};
+#define SWEEP_FULL     (1u << 20)
+#define SWEEP_UP       16u /* 1.5 s to close */
+#define SWEEP_DOWN     95u /* a quarter of a second back */
+#define SWEEP_DAMP_Q12 3277 /* 0.8: a little resonance at the edge */
+static void sweep_step(MelloAudio *a, int32_t *l, int32_t *r)
+{
+    uint8_t k;
+    for (k = 0u; k < 2u; ++k) {
+        bool held = (a->perf_fx >> k) & 1u;
+        uint32_t pos = a->sweep_pos[k], i, fr;
+        int32_t f, mixq, c;
+        pos = held ? (pos + SWEEP_UP < SWEEP_FULL ? pos + SWEEP_UP : SWEEP_FULL) : (pos > SWEEP_DOWN ? pos - SWEEP_DOWN : 0u);
+        a->sweep_pos[k] = pos;
+        if (!pos) {
+            memset(a->sweep_s[k], 0, sizeof a->sweep_s[k]);
+            continue;
+        }
+        i = pos >> 15, fr = pos & 0x7FFFu; /* 32 steps of 2^15 */
+        f = SWEEP_F_Q15[k][i] + (i < 32u ? (int32_t)(((SWEEP_F_Q15[k][i + 1u] - SWEEP_F_Q15[k][i]) * (int32_t)fr) >> 15) : 0);
+        mixq = pos >= (SWEEP_FULL >> 3) ? 4096 : (int32_t)(pos >> 5); /* faded in over the first eighth */
+        for (c = 0; c < 2; ++c) {
+            int32_t *x = c ? r : l, *s = a->sweep_s[k][c], hp, y;
+            s[0] += (int32_t)(((int64_t)f * s[1]) >> 15);                       /* low */
+            hp = *x - s[0] - (int32_t)(((int64_t)SWEEP_DAMP_Q12 * s[1]) >> 12); /* high */
+            s[1] += (int32_t)(((int64_t)f * hp) >> 15);                         /* band */
+            s[0] = clamp32(s[0], -262143, 262143), s[1] = clamp32(s[1], -262143, 262143);
+            y = k ? hp : s[0];
+            *x += (int32_t)(((int64_t)(y - *x) * mixq) >> 12);
+        }
+    }
 }
 void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t start_us, uint16_t bpm)
 {
@@ -2860,6 +2909,12 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 drums_r = q15mul(clamp32(drums_r, -65535, 65535), a->mix_gain[3]);
             drums = (drums_l + drums_r) / 2; /* what they send */
         }
+        if ((a->perf_fx & 12u) || a->throw_q12 | a->wash_q12) { /* THROW and WASH slide in and out over ~10 ms */
+            a->throw_q12 = clamp32(a->throw_q12 + ((a->perf_fx & MELLO_PERF_FX_THROW) ? 10 : -10), 0, 4096);
+            a->wash_q12 = clamp32(a->wash_q12 + ((a->perf_fx & MELLO_PERF_FX_WASH) ? 10 : -10), 0, 4096);
+            a->perf_tail = 3u * MELLO_AUDIO_FS; /* their tails ring on after: 3 s */
+        } else if (a->perf_tail)
+            a->perf_tail--;
         if (a->fx.delay_pre_dist) {
             /* PRE DIST: the delay before the distortion, so its filtered echoes are driven too (the HTML has it
              * after); what the chords and drums send to it goes there with them. */
@@ -2869,7 +2924,10 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
 #if MELLO_FEATURE_CHORD_MACHINE
             in += mul_q12(chord_mix, a->send_dly_q12[MELLO_SEND_CHORD]);
 #endif
-            int32_t dr, dl = delay_tick(a, mul_q12(in, dly_send), dly_fb, delay_q8, &dr);
+            int32_t dr, dl;
+            in = mul_q12(in, dly_send);
+            if (a->throw_q12) in += mul_q12(mix + bass + drums, a->throw_q12) / 2; /* THROW */
+            dl = delay_tick(a, in, perf_fb(a, dly_fb), delay_q8, &dr);
             /* the distortion is one channel: PING's two taps go in together, its echoes in the middle */
             mix += mul_q12(a->fx.delay_pingpong ? dl + dr : dl, dly_level);
         }
@@ -2896,7 +2954,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             /* MIX's sends (DECISIONS "A send per part"): each part's share to the delay and to the reverb, then the
              * effect's WET. The chords and drums bypass the lead's distortion, their width their own (added after
              * the delay, below). */
-            int32_t fx_dly = mul_q12(mix, a->send_dly_q12[MELLO_SEND_LEAD]) +
+            int32_t fx_all, fx_dly = mul_q12(mix, a->send_dly_q12[MELLO_SEND_LEAD]) +
                              mul_q12(bass, a->send_dly_q12[MELLO_SEND_BASS]) +
                              mul_q12(drums, a->send_dly_q12[MELLO_SEND_DRUMS]),
                     fx_rev = mul_q12(mix, a->send_rev_q12[MELLO_SEND_LEAD]) +
@@ -2906,11 +2964,17 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             fx_dly += mul_q12(chord_mix, a->send_dly_q12[MELLO_SEND_CHORD]);
             fx_rev += mul_q12(chord_mix, a->send_rev_q12[MELLO_SEND_CHORD]);
 #endif
+            fx_all = mix + bass + drums;
+#if MELLO_FEATURE_CHORD_MACHINE
+            fx_all += chord_mix;
+#endif
             mix = mul_q12(mix + bass, 3441); /* 0.84 */
             mix_l = mix;
             mix_r = mix;
             if (!a->fx.delay_pre_dist) {
-                int32_t dr, dl = delay_tick(a, mul_q12(fx_dly, dly_send), dly_fb, delay_q8, &dr);
+                int32_t dr, dl, in = mul_q12(fx_dly, dly_send);
+                if (a->throw_q12) in += mul_q12(fx_all, a->throw_q12) / 2; /* THROW: everything, at half */
+                dl = delay_tick(a, in, perf_fb(a, dly_fb), delay_q8, &dr);
                 mix_l += mul_q12(dl, dly_level);
                 mix_r += mul_q12(dr, dly_level);
             }
@@ -2920,8 +2984,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
 #endif
             mix_l += mul_q12(drums_l, 3441);
             mix_r += mul_q12(drums_r, 3441);
-            if (a->reverb_buffer && a->reverb_capacity > 1024u && (a->fx.reverb_wet || a->reverb_live)) {
-                int32_t send = mul_q12(fx_rev, rev_send), rv_l = 0, rv_r = 0;
+            if (a->reverb_buffer && a->reverb_capacity > 1024u && (a->fx.reverb_wet || a->reverb_live || a->wash_q12)) {
+                int32_t send = mul_q12(fx_rev, rev_send) + (a->wash_q12 ? mul_q12(fx_all, a->wash_q12) / 2 : 0),
+                        rv_l = 0, rv_r = 0; /* WASH: everything, at half */
                 const ToneSubBiquadCoeff *rt = &REVERB_TONE_BIQUAD_Q28[a->fx.reverb_tone / 10u];
                 int32_t tl, tr;
                 reverb_step(a, send, &rv_l, &rv_r);
@@ -2945,6 +3010,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 else if (a->reverb_live)
                     a->reverb_live--;
             }
+            if (a->perf_fx & 3u || a->sweep_pos[0] | a->sweep_pos[1]) sweep_step(a, &mix_l, &mix_r); /* the sweeps */
             /* MASTER and the output's gain, then the limiter: nothing leaves above -1 dBFS but a 3 ms attack's edge */
             mix_l = mul_q12(mul_q12(mix_l, master), MELLO_OUTPUT_GAIN_Q12);
             mix_r = mul_q12(mul_q12(mix_r, master), MELLO_OUTPUT_GAIN_Q12);
@@ -2953,8 +3019,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             mix_r = clamp32(mix_r, -32767, 32767);
         }
         if ((mix_l > TAIL_LSB || mix_l < -TAIL_LSB || mix_r > TAIL_LSB || mix_r < -TAIL_LSB) &&
-            (a->fx.delay_wet || a->fx.reverb_wet)) {
-            uint32_t guard = 0u;
+            (a->fx.delay_wet || a->fx.reverb_wet || a->perf_tail)) {
+            uint32_t guard = a->perf_tail;
             if (a->fx.delay_wet) guard = a->delay_samples * (a->fx.delay_pingpong ? 2u : 1u) + 512u;
             if (a->fx.reverb_wet) {
                 uint32_t rg = ms_samples(a->fx.reverb_decay_ms);
