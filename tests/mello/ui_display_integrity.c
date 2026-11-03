@@ -302,7 +302,7 @@ int main(void)
 
     for (page = MELLO_UI_HOME; page <= MELLO_UI_MIX; ++page) {
         for (sub = 0; sub < subcount((MelloUiPage)page); ++sub) {
-            variants = page == MELLO_UI_DOT ? 4 : page == MELLO_UI_RANDOM ? 3 : 1;
+            variants = page == MELLO_UI_DOT ? 4 : page == MELLO_UI_RANDOM ? 5 : 1;
             for (variant = 0; variant < variants; ++variant)
                 for (dir = -1; dir <= 1; ++dir) run_fixture(&audit, (MelloUiPage)page, sub, dir, variant);
         }

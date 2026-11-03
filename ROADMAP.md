@@ -68,7 +68,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F12 | The screen in its new order (E3, G7). Done 2026-11-03 (0.5-f54) | 2026-11-02, 3 |
 | F13 | The lights by one rule (E8, G5). Done 2026-11-03 (0.5-f55); the glow costs 2 points of the chip | 2026-11-02, 8 |
 | F14 | EVOLVE, DOT and the LFO seen moving: a second thumb on the modulated value (E7 (2)). Done 2026-11-03 (0.5-f56) | 2026-11-02, 7 |
-| F15 | GROOVE, a second MUSICAL: rolls, ties, ghost notes, rests (E10) | 2026-11-02, 10 |
+| F15 | GROOVE, a second MUSICAL: rolls, ties, ghost notes, rests (E10). Done 2026-11-03 (0.5-f58) | 2026-11-02, 10 |
 | F16 | The reverb's noise confirmed or found (E5): a recording from the emulator, then the FM-1 | 2026-11-02, 5 |
 | F17 | Music units on the remaining pages (Phase 3). Done 2026-11-03 (0.5-f57): KEY's ROOT a note (C4), a LOOP slot's KEY a pitch class (D); the other bare numbers are counts | 2026-10-29 |
 | F18 | HOME's own black keys once PERFORM exists (G4). Done 2026-11-03: - + RST CLR stay, MUT went to B6 | 2026-11-03, 6 |
@@ -236,7 +236,8 @@ Found over 300 rolls of 16 steps: rests 41%, HOLD 8%, MULTI 4%, ratchets 4.6%, s
 than one pulse, never a chance note (PRB is not in the default mask, so MUSICAL's chance notes never appear).
 Work: MUSICAL as it is, and a second one, GROOVE (RANDOM's INT, after MUSICAL): ratchets as rolls into the phrase's
 ends and on offbeats (15-25% of notes), ties over two pulses, ghost notes as chance notes whatever the mask says,
-a rest that answers each figure; the test measures each figure's share, as random_musical does now.
+a rest that answers each figure; the test measures each figure's share, as random_musical does now. Done
+2026-11-03 (F15, DECISIONS "GROOVE", test random_groove).
 
 **E11. Sends per part, and a delay that keeps time.** Heard: everything goes to the effects, or nothing; each part
 needs its own reverb and delay send; the delay's divisions are lacking; the delay needs a low cut.

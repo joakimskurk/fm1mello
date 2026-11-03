@@ -1265,6 +1265,26 @@ ROADMAP F17 (Phase 3's music units). The KEY page showed ROOT as a MIDI number (
 class (0-11); both are named now (C4; D), as the step pages already named their notes. The other bare numbers on the
 pages were looked at and are counts (HOLD 16, PULSES 6, SPAN 2) and stay numbers.
 
+## GROOVE (2026-11-03)
+
+ROADMAP E10, F15. Wanted: more rhythm than MUSICAL (rests, several hits on a step, more complexity). INT on the
+RANDOM page now goes LOW, MED, HIGH, MUSICAL, GROOVE. GROOVE is MUSICAL's phrase (form, melody, contour, the end on
+the root, MUSICAL's random order untouched) with a rhythm layer on each new cell, in this order:
+
+- **Ties.** A note on a beat before a rest is held over two pulses (pulses 2, HOLD) and the rest after it skipped,
+  so a bar stays a bar; now and then a tie swallows the weak note after it instead. A tie never crosses a cell.
+- **Offbeat ratchets.** An odd step that plays doubles (ratchet 2), and the step after it rests more often than not:
+  a figure and its answer.
+- **A roll in.** A cell's last note three or four times, accented (40% of motifs, 60% of answers).
+- **Ghost notes.** A weak rest between notes plays the note before it again, or a weak note becomes one: a chance
+  note at 45%, unaccented, so the loop breathes from round to round. Ghosts are written whatever the mask says about
+  chance (the default mask leaves chance alone); MUSICAL's own chance notes still follow the mask.
+
+The mask still picks what changes: without PULSES no ties, without GATE no ghosts; a tie the mask cuts in two is
+undone. Over 300 rolls of 16 steps (tests/mello/random_groove.c): 22% of the notes ratchet (MUSICAL 7%), a roll in
+in two rolls of three, a tie in two of three, ghost notes in three of five; 115 of 158 offbeat ratchets answered by
+a rest. INT is not saved, as before.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

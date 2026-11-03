@@ -150,7 +150,7 @@ begin with. Hold EDIT for MACROS and turn a knob to give it another parameter (R
 REVERB, SIZE, LFO HZ and LFO AMT, PWM, NOISE, DETUNE, OSC 2, FM, SAT, MODENV, SUB LVL, the LEAD, BASS, CHORD and
 DRUMS levels, SWING); a tap of EDIT leaves, and the choice is saved with the project. Nothing on the list is a black
 key's or an encoder's job.
-SELECT is the tempo, ALGORITHM the randomizer's intensity (LOW, MED, HIGH, MUSICAL), PRESETS the pattern slot.
+SELECT is the tempo, ALGORITHM the randomizer's intensity (LOW, MED, HIGH, MUSICAL, GROOVE), PRESETS the pattern slot.
 Hold a white key to edit that step on the knobs; tap it to mute or unmute it. RNDMZR rolls what the RANDOM page's
 mask says (by default the first nine targets); UNDO takes it back.
 
@@ -245,7 +245,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   the note length; the groove's swing. CLOCK shows the chip's measured audio load as CPU nn%.
 - **KEY** (SEL). Root, scale, global octave, pitch span.
 - **RANDOM** (hold RNDMZR). Which targets a roll touches (MASK), which follow or mirror the pitch (LINKS), how much
-  each moves (AMOUNTS); the intensity on K1. MUSICAL rolls a phrase, not noise.
+  each moves (AMOUNTS); the intensity on K1. MUSICAL rolls a phrase, not noise; GROOVE the same phrase with rolls, ties, ghost
+  notes and the rests that answer them.
 
 ## Every page's knobs and keys
 

@@ -3331,7 +3331,73 @@ static void mus_end(MelloStep *c, uint8_t cl, uint8_t how, uint8_t home, uint8_t
         }
 }
 
-static void randomize_musical(MelloEngine *e)
+/* GROOVE (ROADMAP E10 / F15): MUSICAL's cell with more rhythm on it. In order: ties (a note on a beat before a rest
+ * held over two pulses, the rest skipped, so a bar stays a bar), ratchets on the offbeats each answered by a rest, a
+ * roll into the cell's end (its last note three or four times, accented), and ghost notes (a weak rest between two
+ * notes plays the note before it again, quietly, as a chance note). Strong steps keep their chord tones; nothing
+ * plays after the cell's last note, so the phrase still ends where MUSICAL ends it. */
+#define GROOVE_GHOST_HUNDREDTHS 45u /* a ghost note's chance; MUSICAL's own chance notes are 60 and 75 */
+
+static void groove_rest(MelloStep *st)
+{
+    st->gate = MELLO_GATE_REST, st->accent = st->sub = false, st->sample_slot = 0u, st->ratchet = 1u;
+    st->probability = 65535u;
+}
+
+/* A tie must stay in its cell: a skip follows a held two-pulse note, and a two-pulse note is followed by a skip. */
+static void groove_tidy(MelloStep *c, uint8_t cl)
+{
+    uint8_t o;
+    for (o = 0u; o < cl; ++o) {
+        if (c[o].skip && (o == 0u || c[o - 1u].pulses != 2u)) c[o].skip = false;
+        if (c[o].pulses == 2u && (o + 1u >= cl || !c[o + 1u].skip)) c[o].pulses = 1u;
+    }
+}
+
+static void groove_cell(MelloEngine *e, MelloStep *c, uint8_t cl, bool down)
+{
+    uint32_t answered = 0u; /* steps that must stay rests: the answers */
+    int last = -1, o;
+    for (o = 0; o + 1 < (int)cl; ++o) /* ties */
+        if (c[o].gate != MELLO_GATE_REST && mus_metric((uint8_t)o) && !(o == 0 && down) &&
+            chance_permille(&e->gen_rng, c[o + 1].gate == MELLO_GATE_REST ? 650u : 150u)) {
+            c[o].pulses = 2u, c[o].gate = MELLO_GATE_HOLD, c[o].ratchet = 1u;
+            groove_rest(&c[o + 1]); /* held over the rest after it, or over the weak note it swallows */
+            c[o + 1].skip = true;
+            answered |= 1u << (o + 1);
+        }
+    for (o = 1; o < (int)cl; o += 2) /* offbeat ratchets, each answered by a rest */
+        if (c[o].gate != MELLO_GATE_REST && c[o].pulses == 1u && chance_permille(&e->gen_rng, 200u)) {
+            c[o].ratchet = 2u;
+            if (o + 1 < (int)cl && mus_metric((uint8_t)(o + 1)) != 2u && chance_permille(&e->gen_rng, 650u)) {
+                groove_rest(&c[o + 1]);
+                answered |= 1u << (o + 1);
+            }
+        }
+    for (o = (int)cl - 1; o >= 0; --o)
+        if (c[o].gate != MELLO_GATE_REST) {
+            last = o;
+            break;
+        }
+    if (last > 0 && c[last].pulses == 1u && chance_permille(&e->gen_rng, down ? 400u : 600u)) /* a roll in */
+        c[last].ratchet = (uint8_t)(3u + rng_bounded(&e->gen_rng, 2u)), c[last].accent = true;
+    for (o = 1; o < last; ++o) /* ghost notes on the weak rests between notes: the note before, again */
+        if (c[o].gate == MELLO_GATE_REST && !c[o].skip && !mus_metric((uint8_t)o) && !(answered & (1u << o)) &&
+            chance_permille(&e->gen_rng, 600u)) {
+            int b = o - 1;
+            while (b > 0 && c[b].gate == MELLO_GATE_REST) --b;
+            if (c[b].gate == MELLO_GATE_REST) continue;
+            c[o] = c[b];
+            c[o].gate = MELLO_GATE_SINGLE, c[o].pulses = 1u, c[o].ratchet = 1u, c[o].skip = false;
+            c[o].accent = c[o].sub = c[o].slide = false, c[o].sample_slot = 0u;
+            c[o].probability = prob_from_hundredths(GROOVE_GHOST_HUNDREDTHS);
+        } else if (c[o].gate != MELLO_GATE_REST && !mus_metric((uint8_t)o) && c[o].ratchet == 1u &&
+                   chance_permille(&e->gen_rng, 320u)) /* or a weak note made one */
+            c[o].accent = false, c[o].probability = prob_from_hundredths(GROOVE_GHOST_HUNDREDTHS);
+    groove_tidy(c, cl);
+}
+
+static void randomize_musical(MelloEngine *e, bool groove)
 {
     /* Forms: cell ids 0 A, 1 A', 2 B, 3 B', 4 C; and their chance in permille. */
     /* Forms (v2.1, feedback 2026-11-01: "sounds like a looped 8-step"): A comes back word for word in two forms of
@@ -3399,6 +3465,7 @@ static void randomize_musical(MelloEngine *e)
                 r = rng_bounded(&e->gen_rng, 1000u);
                 mus_develop(c, &tmp[base * cl], cl, shift, r < 450u ? 0u : (r < 750u ? 1u : 2u), lo, pmax, n,
                             t3, t5);
+                if (groove) groove_tidy(c, cl); /* a displaced answer may push a tie across the cell */
             } else if (first[b] == 255u) { /* A from home, B and C from a chord tone at their register */
                 int32_t start = (int32_t)home + reg, target = start;
                 uint8_t o;
@@ -3416,6 +3483,7 @@ static void randomize_musical(MelloEngine *e)
                 if (start > (int32_t)pmax + (int32_t)n) start = (int32_t)pmax + (int32_t)n;
                 mus_cell(e, c, cl, (uint8_t)(start > (int32_t)pmax ? start - n : start), target, lo, hi, pmax,
                          n, t3, t5, density, slot, b == 0u);
+                if (groove) groove_cell(e, c, cl, b == 0u);
                 if (start > (int32_t)pmax) /* the cell's first note carries the octave the start asked for */
                     for (o = 0u; o < cl; ++o)
                         if (c[o].gate != MELLO_GATE_REST) {
@@ -3454,7 +3522,20 @@ static void randomize_musical(MelloEngine *e)
         if (smask[i] & MELLO_RAND_PROB) st->probability = m->probability;
         if (smask[i] & MELLO_RAND_SAMPLE) st->sample_slot = m->sample_slot;
         if (smask[i] & MELLO_RAND_WAVE) st->wave = m->wave;
+        if (groove) {
+            if (smask[i] & MELLO_RAND_PULSES) st->pulses = m->pulses, st->skip = m->skip; /* the ties */
+            if ((smask[i] & MELLO_RAND_GATE) && m->probability == prob_from_hundredths(GROOVE_GHOST_HUNDREDTHS))
+                st->probability = m->probability; /* a ghost note is a chance note whatever the mask says */
+        }
     }
+    if (groove) /* a tie the mask cut in two (one step rolled, the next not) is no tie */
+        for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
+            bool here = (smask[i] & MELLO_RAND_PULSES) != 0u;
+            if (here && tmp[i].pulses == 2u && !(i + 1u < MELLO_MAX_STEPS && (smask[i + 1u] & MELLO_RAND_PULSES)))
+                e->project.steps[i].pulses = 1u;
+            if (here && tmp[i].skip && !(i > 0u && (smask[i - 1u] & MELLO_RAND_PULSES)))
+                e->project.steps[i].skip = false;
+        }
 #if MELLO_FEATURE_CHORD_MACHINE
     if ((mask & MELLO_RAND_CHORD) &&
         (e->modr.rnd_amount[11] >= 100u ||
@@ -3550,8 +3631,8 @@ void mello_engine_randomize_steps_intensity(MelloEngine *e, MelloRandomizeIntens
         mello_engine_randomize_steps(e);
         return;
     }
-    if (intensity == MELLO_RANDOMIZE_MUSICAL) {
-        randomize_musical(e);
+    if (intensity == MELLO_RANDOMIZE_MUSICAL || intensity == MELLO_RANDOMIZE_GROOVE) {
+        randomize_musical(e, intensity == MELLO_RANDOMIZE_GROOVE);
         return;
     }
     if (intensity > MELLO_RANDOMIZE_HIGH) intensity = MELLO_RANDOMIZE_HIGH;

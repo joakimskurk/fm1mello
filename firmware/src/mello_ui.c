@@ -2582,6 +2582,7 @@ static const char *random_intensity_name(MelloRandomizeIntensity intensity)
     return intensity == MELLO_RANDOMIZE_LOW       ? "LOW"
            : intensity == MELLO_RANDOMIZE_HIGH    ? "HIGH"
            : intensity == MELLO_RANDOMIZE_MUSICAL ? "MUSICAL"
+           : intensity == MELLO_RANDOMIZE_GROOVE  ? "GROOVE"
                                                   : "MED";
 }
 
@@ -2598,7 +2599,7 @@ static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
         return;
     }
     ui->random_intensity = (MelloRandomizeIntensity)clamp_i32(
-        (int32_t)ui->random_intensity + (delta > 0 ? 1 : -1), MELLO_RANDOMIZE_LOW, MELLO_RANDOMIZE_MUSICAL);
+        (int32_t)ui->random_intensity + (delta > 0 ? 1 : -1), MELLO_RANDOMIZE_LOW, MELLO_RANDOMIZE_GROOVE);
     mark_edit(ui);
 }
 
