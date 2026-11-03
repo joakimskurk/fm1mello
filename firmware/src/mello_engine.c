@@ -1038,11 +1038,8 @@ void mello_chord_defaults(MelloChordConfig *c)
     memset(c, 0, sizeof(*c));
     c->on = false;
     c->trigger = MELLO_CHORD_TRIGGER_STEP;
-#if MELLO_FEATURE_CHORD_POLY
-    c->mode = MELLO_CHORD_STAB;
-#else
     c->mode = MELLO_CHORD_BROKEN; /* SUB MELLO: a broken chord, the delay making it a chord */
-#endif
+    c->poly = false;
     c->length = 4u;
     c->voices = 3u;
     c->level = 180u; /* E4: was 320; the chords sit 2 dB under the default lead (RMS), 5.7 dB under before */
@@ -3924,12 +3921,10 @@ static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advanc
     memcpy(e->chord_voiced, notes, n);
     e->chord_voiced_n = n;
     strum = c->strum_ms ? ms_to_ticks(&e->project, c->strum_ms) : 0u;
-#if !MELLO_FEATURE_CHORD_POLY
-    if (c->mode == MELLO_CHORD_HOLD && n > 1u) { /* SUB MELLO holds the chord's top tone (VLEAD moves it least) */
+    if (!c->poly && c->mode == MELLO_CHORD_HOLD && n > 1u) { /* SUB MELLO holds the top tone (VLEAD: least move) */
         notes[0] = notes[n - 1u];
         n = 1u;
     }
-#endif
     if (c->mode == MELLO_CHORD_HOLD) {
         if (fresh && !advance_chain && c->chain != MELLO_CHORD_CHAIN_TRIG)
             e->chord_chain_hold = 1u; /* STEPS / SEG: sounded; the clock says when the next one is */
@@ -4011,10 +4006,8 @@ static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advanc
             mask = (uint8_t)(c->pattern_masks[e->chord_pattern_pos % pl] & ((1u << n) - 1u));
             e->chord_pattern_pos = (uint8_t)((e->chord_pattern_pos + 1u) % pl);
         }
-#if !MELLO_FEATURE_CHORD_POLY
-        if (mask & (uint8_t)(mask - 1u)) /* SUB MELLO plays one tone: STAB the top one, a PATTERN step its lowest */
+        if (!c->poly && (mask & (uint8_t)(mask - 1u))) /* SUB MELLO: one tone, STAB's top, a PATTERN step's lowest */
             mask = c->mode == MELLO_CHORD_STAB ? (uint8_t)(1u << (n - 1u)) : (uint8_t)(mask & (uint8_t)-mask);
-#endif
         /* STAB is deliberately pulse-locked: short chord hit. HOLD is the pad/background mode,
          * while ARP/PATTERN also advance on the master pulse. Harmony itself advances on steps. */
         unit_ticks = mello_pulse_ticks(&e->project);
@@ -4557,8 +4550,13 @@ void mello_engine_stress(MelloEngine *e)
 #if MELLO_FEATURE_CHORD_MACHINE
     {
         MelloChordConfig ch = e->chord;
+#ifdef MELLO_STRESS_NO_CHORD
+        ch.on = false; /* a measuring build: the worst case without the chord part, for its own price */
+#else
         ch.on = true;
+#endif
         ch.mode = MELLO_CHORD_HOLD;
+        ch.poly = true; /* the costlier voice */
         ch.trigger = MELLO_CHORD_TRIGGER_STEP;
         ch.voices = 4u;
         ch.level = 600u;

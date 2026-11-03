@@ -24,8 +24,8 @@ enum {
     SECVER_SLOT_SEQ = 1,
     SECVER_FX = 3, /* 2: the delay's LO CUT; 3: PRE DIST */
     SECVER_CHORD =
-        4,           /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading); 3: CHAIN,
-                         SUB ROOT; 4: HARMONY (FOLLOW, DRIFT, DEPTH) */
+        5,           /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading); 3: CHAIN,
+                         SUB ROOT; 4: HARMONY (FOLLOW, DRIFT, DEPTH); 5: POLY */
     SECVER_GRIT = 4, /* 4: MIX's LEAD */
     SECVER_MOD = 3,
     SECVER_DRUMS = 2, /* 2: DUCK */
@@ -42,7 +42,8 @@ enum {
 #define CHORD_WIRE_SIZE_V1 (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
 #define CHORD_WIRE_SIZE_V2 (CHORD_WIRE_SIZE_V1 + 21u)
 #define CHORD_WIRE_SIZE_V3 (CHORD_WIRE_SIZE_V2 + 2u)
-#define CHORD_WIRE_SIZE    (CHORD_WIRE_SIZE_V3 + 4u) /* v4: FOLLOW, DRIFT, DEPTH */
+#define CHORD_WIRE_SIZE_V4 (CHORD_WIRE_SIZE_V3 + 4u) /* v4: FOLLOW, DRIFT, DEPTH */
+#define CHORD_WIRE_SIZE    (CHORD_WIRE_SIZE_V4 + 1u) /* v5: POLY */
 #define GRIT_ENTRY_SIZE_V1 8u
 #define GRIT_ENTRY_SIZE_V2 26u
 #define GRIT_ENTRY_SIZE_V3 34u
@@ -665,6 +666,7 @@ static void encode_chord(Writer *w, const MelloChordConfig *c)
     wr_u8(w, c->lead_follow); /* v4 */
     wr_u16(w, c->drift);
     wr_u8(w, c->drift_depth);
+    wr_u8(w, c->poly ? 1u : 0u); /* v5 */
 }
 /* Out-of-range values are left to mello_engine_chord_set_config's sanitizer. Version 1 has no voice: c keeps the
  * defaults' (mello_chord_defaults), and its attack and release as saved. */
@@ -712,6 +714,12 @@ static bool decode_chord(Reader *r, MelloChordConfig *c, uint8_t ver)
     }
     if (ver >= 4u && (!rd_u8(r, &c->lead_follow) || !rd_u16(r, &c->drift) || !rd_u8(r, &c->drift_depth)))
         return false;
+    c->poly = true; /* before v5 the chords were the four voices */
+    if (ver >= 5u) {
+        uint8_t poly;
+        if (!rd_u8(r, &poly)) return false;
+        c->poly = poly != 0u;
+    }
     return true;
 }
 #endif
@@ -1059,6 +1067,7 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             if (len != (ver == 1u   ? CHORD_WIRE_SIZE_V1
                         : ver == 2u ? CHORD_WIRE_SIZE_V2
                         : ver == 3u ? CHORD_WIRE_SIZE_V3
+                        : ver == 4u ? CHORD_WIRE_SIZE_V4
                                     : CHORD_WIRE_SIZE) ||
                 !decode_chord(&r, &chord, ver))
                 return false;

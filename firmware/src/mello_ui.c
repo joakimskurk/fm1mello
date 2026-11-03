@@ -587,6 +587,7 @@ typedef enum {
     MELLO_CTX_BASS_SEQ,
     MELLO_CTX_CHORD_TOGGLE,
     MELLO_CTX_CHORD_SUB_ROOT, /* CHORD: the sub (and BASS SEQ) on the chord's root */
+    MELLO_CTX_CHORD_POLY,     /* CHORD: the four voices, or SUB MELLO */
     MELLO_CTX_MIX_LEAD,       /* MIX: B0-B3 mute a part (lit while it plays) */
     MELLO_CTX_MIX_SUB,
     MELLO_CTX_MIX_CHORD,
@@ -737,6 +738,7 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
 #if MELLO_FEATURE_CHORD_MACHINE
     [MELLO_UI_CHORD] = {[0] = {MELLO_CTX_CHORD_TOGGLE, "ON"},
                         [1] = {MELLO_CTX_CHORD_SUB_ROOT, "BASS"},
+                        [2] = {MELLO_CTX_CHORD_POLY, "POLY"},
                         [5] = {MELLO_CTX_PERF_FILL, "F"},
                         [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
                         [7] = {MELLO_CTX_PERF_REVERSE, "<"},
@@ -2006,9 +2008,10 @@ static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
             (uint8_t)clamp_i32((int32_t)c.pattern_length + delta, 1, MELLO_CHORD_PATTERN_STEPS);
         break;
     case 20: c.wave = step_sub_waveform(c.wave, delta); break;
-#if MELLO_FEATURE_CHORD_POLY
-    case 21: c.chorus = (uint16_t)clamp_i32((int32_t)c.chorus + delta * 10, 0, 1000); break;
-#endif
+    case 21: /* CHORUS and STRUM: the four voices' only; in SUB MELLO the knob is inert */
+        if (!c.poly) return;
+        c.chorus = (uint16_t)clamp_i32((int32_t)c.chorus + delta * 10, 0, 1000);
+        break;
     case 22: c.space = (uint16_t)clamp_i32((int32_t)c.space + delta * 10, 0, 1000); break;
     case 23: c.level = (uint16_t)clamp_i32((int32_t)c.level + delta * 10, 0, 1000); break;
     case 24: c.cut = (uint16_t)clamp_i32((int32_t)c.cut + delta * 10, 0, 1000); break;
@@ -2017,9 +2020,10 @@ static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
     case 27: c.link = delta > 0; break;
     case 28: c.fenv_attack_ms = chord_ms(c.fenv_attack_ms, delta, 1u, 2000u); break;
     case 29: c.fenv_decay_ms = chord_ms(c.fenv_decay_ms, delta, 10u, 4000u); break;
-#if MELLO_FEATURE_CHORD_POLY
-    case 30: c.strum_ms = (uint8_t)clamp_i32((int32_t)c.strum_ms + delta, 0, 60); break;
-#endif
+    case 30:
+        if (!c.poly) return;
+        c.strum_ms = (uint8_t)clamp_i32((int32_t)c.strum_ms + delta, 0, 60);
+        break;
     case 31: { /* NEXT: how the chain moves on; STEPS starts each chord at a bar (HOLD 16) */
         uint8_t was = c.chain, i;
         c.chain = (uint8_t)clamp_i32((int32_t)c.chain + (delta > 0 ? 1 : -1), MELLO_CHORD_CHAIN_TRIG,
@@ -2956,10 +2960,13 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         mark_edit(ui);
         break;
     case MELLO_CTX_CHORD_TOGGLE:
-    case MELLO_CTX_CHORD_SUB_ROOT: {
+    case MELLO_CTX_CHORD_SUB_ROOT:
+    case MELLO_CTX_CHORD_POLY: {
         MelloChordConfig c = e->chord;
         if (a->verb == MELLO_CTX_CHORD_TOGGLE)
             c.on = !c.on;
+        else if (a->verb == MELLO_CTX_CHORD_POLY)
+            c.poly = !c.poly; /* POLY: the four voices with chorus; off, SUB MELLO */
         else
             c.sub_root = !c.sub_root; /* SUB ROOT: the sub moves with the chord's root */
         mello_engine_chord_set_config(e, &c);
@@ -4761,6 +4768,7 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_MIX_PERC: return (e->perf.mix_mute >> (v - MELLO_CTX_MIX_LEAD)) & 1u ? 0 : 1;
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_CTX_CHORD_SUB_ROOT: return e->chord.sub_root ? 1 : 0;
+    case MELLO_CTX_CHORD_POLY: return e->chord.poly ? 1 : 0;
 #endif
     case MELLO_CTX_DELAY_PRE: return e->fx.delay_pre_dist ? 1 : 0;
     case MELLO_CTX_DRUM_FEED: return e->drums.feed ? 1 : 0;
@@ -5159,10 +5167,14 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 3: v = c->gate_amount, m = 1200u; break;
         case 13: v = c->grid_length, m = 16u; break;
         case 14: v = c->grid_amount; break;
-#if MELLO_FEATURE_CHORD_POLY
-        case 21: v = c->chorus; break;
-        case 30: v = c->strum_ms, m = 60u; break;
-#endif
+        case 21:
+            if (!c->poly) return false;
+            v = c->chorus;
+            break;
+        case 30:
+            if (!c->poly) return false;
+            v = c->strum_ms, m = 60u;
+            break;
         case 22: v = c->space; break;
         case 23: v = c->level; break;
         case 24: v = c->cut; break;
@@ -5567,15 +5579,9 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
                                                    {"INV", "SPREAD", "VOICES", "VLEAD"},
                                                    {"MODE", "LENGTH", "DEPTH", "FOLLOW"},
                                                    {"MASK", "LENGTH", "", ""},
-#if MELLO_FEATURE_CHORD_POLY
                                                    {"WAVE", "CHORUS", "SPACE", "LEVEL"},
                                                    {"CUT", "RES", "ENV", "LINK"},
                                                    {"F.ATK", "F.DEC", "STRUM", "NEXT"},
-#else /* SUB MELLO: one voice, no chorus, nothing to strum */
-                                                   {"WAVE", "", "SPACE", "LEVEL"},
-                                                   {"CUT", "RES", "ENV", "LINK"},
-                                                   {"F.ATK", "F.DEC", "", "NEXT"},
-#endif
                                                    {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"},
                                                    {"FOLLOW", "DRIFT", "DEPTH", ""}};
         MelloChordConfig *c = &e->chord;
@@ -5619,7 +5625,10 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             break;
         case 5:
             copy_s(v[0], wave_name(c->wave));
-            if (MELLO_FEATURE_CHORD_POLY) value_pct(v[1], c->chorus);
+            if (c->poly)
+                value_pct(v[1], c->chorus);
+            else
+                l[1] = ""; /* SUB MELLO: no chorus */
             value_pct(v[2], c->space);
             value_pct(v[3], c->level);
             break;
@@ -5632,7 +5641,10 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         case 7:
             value_ms(v[0], c->fenv_attack_ms);
             value_ms(v[1], c->fenv_decay_ms);
-            if (MELLO_FEATURE_CHORD_POLY) value_ms(v[2], c->strum_ms);
+            if (c->poly)
+                value_ms(v[2], c->strum_ms);
+            else
+                l[2] = ""; /* SUB MELLO: nothing to strum */
             copy_s(v[3], c->chain == MELLO_CHORD_CHAIN_STEPS
                              ? "STEPS"
                              : (c->chain == MELLO_CHORD_CHAIN_SEG ? "SEG" : "TRIG"));

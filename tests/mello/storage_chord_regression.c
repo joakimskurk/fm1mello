@@ -111,6 +111,7 @@ int main(void)
     c.strum_ms = 37u;
     c.link = !c.link;
     c.voice_lead = !c.voice_lead;
+    c.poly = !c.poly; /* section version 5: POLY or SUB MELLO */
     mello_engine_chord_set_config(&e, &c);
     want = e.chord;
 
@@ -144,6 +145,7 @@ int main(void)
               c.space == want.space && c.strum_ms == want.strum_ms && c.link == want.link &&
               c.voice_lead == want.voice_lead,
           "chord voice fields differ after reload");
+    CHECK(c.poly == want.poly, "POLY differs after reload");
     printf("PASS: Chord Machine settings survive a power cycle\n");
 #else
     (void)boot;

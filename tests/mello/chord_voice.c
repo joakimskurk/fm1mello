@@ -33,6 +33,7 @@ static void setup(MelloChordMode mode, bool lead, uint8_t strum)
     mello_engine_init(&e, &p, 1u);
     mello_chord_defaults(&c);
     c.on = true;
+    c.poly = true; /* the four voices (a new project's are SUB MELLO) */
     c.mode = mode;
     c.voices = 4u;
     c.voice_lead = lead;
@@ -135,6 +136,7 @@ int main(void)
         mello_sample_defaults(&sm);
         mello_chord_defaults(&c);
         c.on = true;
+        c.poly = true;
         c.voices = 4u;
         c.level = 1000u;
         c.cut = c.res = c.fenv = 1000u;

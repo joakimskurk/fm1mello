@@ -1107,29 +1107,29 @@ for frames) lost the pixel each kept beside its label and got a hairline between
 eleven keys fit. Tests: control_authoritative_mapping (verify_g1_g2), dot_orders (OFF sends nothing, the route
 moves, OFF through a power cycle).
 
-## SUB MELLO (2026-11-03)
+## SUB MELLO, or the four voices (2026-11-03)
 
-Decided 2026-11-02 (ROADMAP E6, F6): the chord synth gives way to SUB MELLO, and its code stays. The chord part's
-harmony (the chain, its progressions, MOTION's NEXT, HARMONY's FOLLOW and DRIFT, B1 BASS on the chord's root, the
-routes to C.CUT and C.LEVEL) is MELLO_FEATURE_CHORD_MACHINE, on as before; the sound is split off as
-MELLO_FEATURE_CHORD_POLY, off in the build. With it off:
+Decided 2026-11-02 (ROADMAP E6, F6): SUB MELLO in place of the chord synth, the synth's code kept. Built that way
+(0.5-f48, the synth behind a build flag), then decided again the same day: both, one per project, so a project
+chooses its chord sound and the two always fit, since both read the same chain. The chord part's harmony (the chain,
+its progressions, MOTION's NEXT, HARMONY's FOLLOW and DRIFT, B1 BASS on the chord's root, the routes to C.CUT and
+C.LEVEL) is the same for both. B2 POLY on the CHORD page picks the sound, saved with the project (SEC_CHORD version
+5; a project saved before it plays POLY, as it did):
 
-- one voice (and one more for the last note's release) through the same filter, envelopes, high-pass and SPACE,
-  with no chorus; a note as loud as one voice of a triad was, so LEVEL means what it did (default project, default
-  part: 2.9 dB under the lead, the four-voice chords were 2.0);
-- the engine plays the chord's tones one at a time: two new modes, BROKEN (low, high, middle, high of the voiced
-  chord, on every pulse; the default) and WALK (on every fourth note the chord tone nearest a step on, between them
-  a step of the scale, turning at the chord's ends); the arpeggios as they were; STAB the chord's top tone, HOLD the
-  top tone held (with VLEAD it moves least), a PATTERN step its lowest tone;
-- CHORUS and STRUM are blank on the screen and do nothing; saved values are kept for a build with the synth.
+- **SUB MELLO** (POLY off, a new project's): one voice, and one more for the last note's release, through the same
+  filter, envelopes, high-pass and SPACE, with no chorus; a note as loud as one voice of a triad, so LEVEL means the
+  same for both (default project, default part: 2.9 dB under the lead; the four voices were 2.0). The engine plays
+  the chord's tones one at a time: BROKEN (low, high, middle, high of the voiced chord on every pulse; the default
+  mode) and WALK (on every fourth note the chord tone nearest a step on, a scale step between, turning at the
+  chord's ends), new; the arpeggios as they were; STAB the top tone, HOLD the top tone held (VLEAD moves it
+  least), a PATTERN step its lowest tone. CHORUS and STRUM are blank on the screen and their knobs inert.
+- **POLY**: the four voices with chorus and STRUM as before 0.5-f48. BROKEN and WALK play single tones here too.
 
-The part keeps its name, CHORD: its page edits a chain of chords, and SUB MELLO is how they sound. Measured: the
-worst case (mello_engine_stress, fm1-emu's instruction count) from 174.2 to 163.0 M instructions a second, 72.6% to
-67.9% of the chip; the default pattern 32.2%, as before (the part is off by default); make bench on this computer,
-the part's share of the worst case from about a fifth to a few percent; RAM 640 B back (the chorus line and four
-voices; the config's copies are F7). Tests: sub_mello (one note at a time in every mode, BROKEN's figure, WALK's beats and steps,
-every note in the key, two audio voices at most); chord_voice, chord_machine_smoke and audio_event_order_smoke build
-with MELLO_FEATURE_CHORD_POLY=1, so the kept synth is still tested.
+Measured in fm1-emu (mello_engine_stress, instruction counts): the worst case without the chord part 64.7% of the
+chip, with SUB MELLO 67.9% (3.2 points), with POLY 72.6% (7.9 points); the worst case stays POLY's. The default
+pattern 32.2% (the part is off by default). RAM as before 0.5-f48 (both voices are built). Tests: sub_mello (one
+note at a time in every mode, BROKEN's figure, WALK's beats and steps, every note in the key, two voices at most,
+POLY's STAB together); storage_chord_regression (POLY through a power cycle); the four-voice tests set POLY.
 
 ## Engineering process decisions
 

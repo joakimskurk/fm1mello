@@ -120,13 +120,10 @@ typedef struct {
 } MelloAudioSubVoice;
 
 #if MELLO_FEATURE_CHORD_MACHINE
-#if MELLO_FEATURE_CHORD_POLY
-/* Voices to play from: a chord's four, and two more so a new chord does not cut the last one's release. */
+/* Voices to play from: a chord's four, and two more so a new chord does not cut the last one's release. SUB MELLO
+ * (POLY off) takes the first two: one tone at a time, and one so a new tone does not cut the last one's release. */
 #define MELLO_CHORD_AUDIO_VOICES 6u
-#else
-/* SUB MELLO: one tone at a time, and one more so a new tone does not cut the last one's release. */
-#define MELLO_CHORD_AUDIO_VOICES 2u
-#endif
+#define MELLO_SUB_MELLO_VOICES   2u
 #define MELLO_CHORD_CHORUS_LEN                                                                               \
     256u /* the chorus's delay line: it reads back 3.5 ms +- 1.8 (234 samples) at most */
 typedef struct {
@@ -149,12 +146,10 @@ typedef struct {
     int32_t hp_x1, hp_y1;
     int32_t f_q15, damp_q15; /* its coefficients, every 16 samples */
     uint8_t ctl;
-#if MELLO_FEATURE_CHORD_POLY
     int32_t chorus_depth, chorus_mix_q15; /* CHORUS: the swing in samples, and how much is wet */
     int16_t chorus_buf[MELLO_CHORD_CHORUS_LEN];
     uint16_t chorus_pos;
     uint32_t chorus_lfo;
-#endif
     /* from the config: the envelopes' rates for 16 samples (Q24), the sustain */
     int32_t k_att, k_dec, k_rel, k_fatt, k_fdec, sus_q24;
 } MelloAudioChordVoice;

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (C) 2026 joakimskurk */
-/* SUB MELLO (ROADMAP E6, DECISIONS "SUB MELLO"): the chord part sounds as one voice. In every mode no two of its
+/* SUB MELLO (ROADMAP E6, DECISIONS "SUB MELLO"): a new project's chord part sounds as one voice (POLY off; POLY on
+ * gives the four voices back, a STAB's tones together). In every mode no two of its
  * notes start together; BROKEN, the default, plays a triad low, high, middle, high; WALK has the chord's tones on the
  * beats and scale steps between; every note is in the key now; the audio never holds more than its two voices. */
 #include <stdio.h>
@@ -137,6 +138,28 @@ int main(void)
         CHECK(leaps == 0u, "WALK: %u steps between the beats were leaps", leaps);
     }
 
+    /* POLY on: the four voices again, a STAB's tones together (a new project is SUB MELLO) */
+    {
+        unsigned together = 0u;
+        uint32_t last_on = 0xFFFFFFFFu;
+        MelloChordConfig c;
+        start(MELLO_CHORD_STAB);
+        CHECK(!e.chord.poly, "a new project's chords are not SUB MELLO");
+        c = e.chord;
+        c.poly = true;
+        c.strum_ms = 0u;
+        mello_engine_chord_set_config(&e, &c);
+        for (i = 0u; i < 64u; ++i) {
+            (void)mello_engine_advance_pulse(&e);
+            while (mello_event_pop(&e, &ev))
+                if (ev.type == MELLO_EVENT_CHORD_NOTE_ON) {
+                    if (ev.tick == last_on) ++together;
+                    last_on = ev.tick;
+                }
+        }
+        CHECK(together > 4u, "POLY: a STAB's tones did not start together (%u)", together);
+    }
+
     /* the audio, through the transport: never more than its two voices, and sound */
     {
         MelloProject p;
@@ -151,7 +174,7 @@ int main(void)
         mello_audio_set_chord_config(&a, &tr.engine.chord);
         mello_transport_set_event_sink(&tr, sink, &a);
         mello_transport_start(&tr, 0u);
-        CHECK(MELLO_CHORD_AUDIO_VOICES == 2u, "SUB MELLO's audio has %u voices", MELLO_CHORD_AUDIO_VOICES);
+        CHECK(MELLO_SUB_MELLO_VOICES == 2u, "SUB MELLO takes %u voices", MELLO_SUB_MELLO_VOICES);
         for (ms = 0u; ms < 4000u; ++ms) {
             uint32_t j, fr = 44u + (ms % 10u == 0u ? 1u : 0u);
             mello_transport_poll_ahead(&tr, ms * 1000u, MELLO_TRANSPORT_LOOKAHEAD_US);

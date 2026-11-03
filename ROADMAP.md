@@ -59,7 +59,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F3 | The performance keys act on every part: drums, bass line, chords (E2) | 2026-11-02, 2; 2026-11-03, 4 |
 | F4 | PERFORM: one key opens the white keys as 16 actions, its own screen; MUTATE always on B6 (G4) | 2026-11-03, 6 |
 | F5 | REC on every page with a sequence, the drums included (G3) | 2026-11-01 (D14 did HOME); 2026-11-03, 5 |
-| F6 | SUB MELLO in place of the chord synth, its code kept behind the flag (E6). Done 2026-11-03 (0.5-f48): BROKEN and WALK, the worst case 72.6% -> 67.9% | 2026-11-02, 6 |
+| F6 | SUB MELLO in place of the chord synth, its code kept behind the flag (E6). Done 2026-11-03 (0.5-f48: BROKEN and WALK); then both, POLY on B2 picking per project (0.5-f49) | 2026-11-02, 6 |
 | F7 | Room without a change to sound: the key scan's LED pulses, the chord config's copies (E6) | 2026-11-02, 6 |
 | F8 | Sends per part to reverb and delay; the bass out of the lead's filter (E11) | 2026-11-02, 11 |
 | F9 | Delay divisions: 32N, 16D, 2T, 2D, 1 BAR, ping-pong, and an honest limit (E11) | 2026-11-02, 11 |
@@ -189,7 +189,8 @@ only while it sounds. Then the choice:
   passing tones between), through the delay; the harmony engine stays (the chain, progressions, NEXT, FOLLOW,
   DRIFT, the bass on the chord's root). About 12-15% of the worst case and ~1.5 KB back; the pads are gone.
 Decided 2026-11-02: (b), SUB MELLO; the chord synth's code stays in the repository behind
-MELLO_FEATURE_CHORD_MACHINE, off in the build, in case it is useful later.
+MELLO_FEATURE_CHORD_MACHINE, off in the build, in case it is useful later. Changed 2026-11-03: both, one per
+project (B2 POLY), DECISIONS "SUB MELLO, or the four voices".
 
 **E7. EVOLVE: what GATE does, and seeing what it moves.** Heard: EVOLVE seems to make ratchets; it should show it is
 working on what it moves (routed to NOISE FM, the GRIT picture should move).

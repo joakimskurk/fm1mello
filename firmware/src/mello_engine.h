@@ -33,13 +33,6 @@ extern "C" {
 #ifndef MELLO_FEATURE_CHORD_MACHINE
 #define MELLO_FEATURE_CHORD_MACHINE 1
 #endif
-/* SUB MELLO (ROADMAP E6, DECISIONS "SUB MELLO"): the chord part's harmony (the chain, its progressions, HARMONY's
- * FOLLOW and DRIFT, the bass on the chord's root) is MELLO_FEATURE_CHORD_MACHINE; how it sounds is one voice that
- * plays the chords' tones one at a time, unless MELLO_FEATURE_CHORD_POLY builds the four-voice synth with its chorus
- * (kept in the repository, off in the build). */
-#ifndef MELLO_FEATURE_CHORD_POLY
-#define MELLO_FEATURE_CHORD_POLY 0
-#endif
 #if MELLO_FEATURE_CHORD_MACHINE
 #define MELLO_CHORD_MAX_VOICES    4u
 #define MELLO_CHORD_MAX_STEPS     8u
@@ -635,6 +628,9 @@ typedef struct {
     uint16_t drift; /* 0..1000: at each pass of the chain, the chance that one chord changes */
     uint8_t
         drift_depth; /* 0 DEG (a function-equivalent degree), 1 SHAPE, 2 VOICE (inversion, spread, octave), 3 ALL */
+    /* POLY (2026-11-03, DECISIONS "SUB MELLO, or the four voices"): true, the chords as four voices with chorus;
+     * false, SUB MELLO, one voice playing the chord's tones one at a time (a new project's) */
+    bool poly;
 } MelloChordConfig;
 #endif
 

@@ -30,6 +30,7 @@ int main(void)
     mello_audio_init(&a, 0, 0u, 0, 0u);
     mello_chord_defaults(&chord);
     chord.on = true;
+    chord.poly = true; /* the four voices (a new project's are SUB MELLO) */
     chord.attack_ms = 1u;
     mello_audio_set_chord_config(&a, &chord);
 

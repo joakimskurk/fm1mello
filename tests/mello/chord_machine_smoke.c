@@ -56,6 +56,7 @@ int main(void)
     assert(!e.chord.on);
     c = e.chord;
     c.on = true;
+    c.poly = true; /* the four voices (a new project's are SUB MELLO) */
     c.length = 4u;
     c.voices = 4u;
     c.mode = MELLO_CHORD_STAB;
@@ -164,6 +165,7 @@ int main(void)
     fx.reverb_wet = 0u;
     fx.dist_amount = 0u;
     c.on = true;
+    c.poly = true; /* the four voices (a new project's are SUB MELLO) */
     c.voices = 4u;
     c.wave = MELLO_WAVE_TRIANGLE;
     c.level = 300u;

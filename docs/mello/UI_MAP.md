@@ -38,16 +38,16 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/bass-voice.png" width="96" alt="BASS VOICE"> | BASS | ARP | VOICE | `ON SEQ ROLL F B < R UNDO RNDMZR` | LEVEL 42% · WAVE SINE · DECAY 160MS · RELEASE 120MS |
 | <img src="../screens/bass-tone.png" width="96" alt="BASS TONE"> | BASS | ARP | TONE | `ON SEQ ROLL F B < R UNDO RNDMZR` | GLIDE 20MS · CUT 242.0HZ · DRIVE 0% · OCT -1 |
 | <img src="../screens/bass-filter.png" width="96" alt="BASS FILTER"> | BASS | ARP | FILTER | `ON SEQ ROLL F B < R UNDO RNDMZR` | RES 0% · ENV 0% · F.DEC 300MS · ACCENT 50% |
-| <img src="../screens/chord-play.png" width="96" alt="CHORD PLAY"> | CHORD | ARP | PLAY | `ON BASS F B < R UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
-| <img src="../screens/chord-chord.png" width="96" alt="CHORD CHORD"> | CHORD | ARP | CHORD | `ON BASS F B < R UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
-| <img src="../screens/chord-voicing.png" width="96" alt="CHORD VOICING"> | CHORD | ARP | VOICING | `ON BASS F B < R UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
-| <img src="../screens/chord-grid.png" width="96" alt="CHORD GRID"> | CHORD | ARP | GRID | `ON BASS F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
-| <img src="../screens/chord-pattern.png" width="96" alt="CHORD PATTERN"> | CHORD | ARP | PATTERN | `ON BASS F B < R UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
-| <img src="../screens/chord-tone.png" width="96" alt="CHORD TONE"> | CHORD | ARP | TONE | `ON BASS F B < R UNDO RNDMZR` | WAVE SAW · — · SPACE 60% · LEVEL 18% |
-| <img src="../screens/chord-filter.png" width="96" alt="CHORD FILTER"> | CHORD | ARP | FILTER | `ON BASS F B < R UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LINK OFF |
-| <img src="../screens/chord-motion.png" width="96" alt="CHORD MOTION"> | CHORD | ARP | MOTION | `ON BASS F B < R UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
-| <img src="../screens/chord-amp.png" width="96" alt="CHORD AMP"> | CHORD | ARP | AMP | `ON BASS F B < R UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
-| <img src="../screens/chord-harmony.png" width="96" alt="CHORD HARMONY"> | CHORD | ARP | HARMONY | `ON BASS F B < R UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
+| <img src="../screens/chord-play.png" width="96" alt="CHORD PLAY"> | CHORD | ARP | PLAY | `ON BASS POLY F B < R UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
+| <img src="../screens/chord-chord.png" width="96" alt="CHORD CHORD"> | CHORD | ARP | CHORD | `ON BASS POLY F B < R UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
+| <img src="../screens/chord-voicing.png" width="96" alt="CHORD VOICING"> | CHORD | ARP | VOICING | `ON BASS POLY F B < R UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
+| <img src="../screens/chord-grid.png" width="96" alt="CHORD GRID"> | CHORD | ARP | GRID | `ON BASS POLY F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
+| <img src="../screens/chord-pattern.png" width="96" alt="CHORD PATTERN"> | CHORD | ARP | PATTERN | `ON BASS POLY F B < R UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
+| <img src="../screens/chord-tone.png" width="96" alt="CHORD TONE"> | CHORD | ARP | TONE | `ON BASS POLY F B < R UNDO RNDMZR` | WAVE SAW · — · SPACE 60% · LEVEL 18% |
+| <img src="../screens/chord-filter.png" width="96" alt="CHORD FILTER"> | CHORD | ARP | FILTER | `ON BASS POLY F B < R UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LINK OFF |
+| <img src="../screens/chord-motion.png" width="96" alt="CHORD MOTION"> | CHORD | ARP | MOTION | `ON BASS POLY F B < R UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
+| <img src="../screens/chord-amp.png" width="96" alt="CHORD AMP"> | CHORD | ARP | AMP | `ON BASS POLY F B < R UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
+| <img src="../screens/chord-harmony.png" width="96" alt="CHORD HARMONY"> | CHORD | ARP | HARMONY | `ON BASS POLY F B < R UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
 | <img src="../screens/global-clock.png" width="96" alt="GLOBAL CLOCK"> | GLOBAL | GLO | CLOCK | `TAP RST2 F B < R UNDO RNDMZR` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | <img src="../screens/global-midi.png" width="96" alt="GLOBAL MIDI"> | GLOBAL | GLO | MIDI | `TAP RST2 F B < R UNDO RNDMZR` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | <img src="../screens/global-groove.png" width="96" alt="GLOBAL GROOVE"> | GLOBAL | GLO | GROOVE | `TAP RST2 F B < R UNDO RNDMZR` | SWING 0% · — · — · — |
