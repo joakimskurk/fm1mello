@@ -116,7 +116,7 @@ SELECT cycles STEP/HARM/LOOP. The first eight white keys select loop positions 1
 
 When Loop Cycle is OFF, pressing loop keys 1-8 also auditions that slot immediately by making its harmonic context current. When Loop Cycle is ON, keys 1-8 only select the slot being edited and must not jump the running playback position.
 
-`BASS TR` is a per-cycle-step semitone transpose for the dedicated sub voice only, independent from cycle lead/main `TRANS`. Range: -12..+12 semitones.
+`BASS TR` is a per-cycle-step semitone transpose for the dedicated sub voice only, independent from cycle lead/main `TRANS`. Range: -12..+12 semitones. Both land on the key's nearest tone in their direction (CHROMATIC excepted); `ROOT+` moves the key itself (DECISIONS "One key that always holds").
 
 RESET NOW resets playback position without changing the selected loop step.
 

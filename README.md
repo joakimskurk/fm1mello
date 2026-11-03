@@ -175,8 +175,11 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   chain; FREE leaves each on its own clock.
 - **Segments** (SEQ > SEGMENT). The sequence cut into up to six segments A-F, each with repeats, an order (FWD, REV,
   ping-pong, random) and a skip; EVEN spreads the cuts.
-- **Loop cycle** (SEQ > LOOP CYCLE). Up to eight steps that transpose the whole sequence, change its key or scale
-  and the bass, each held for a number of pulses: a chord progression over the loop.
+- **Loop cycle** (SEQ > LOOP CYCLE). Up to eight steps, each held for a number of pulses: a chord progression over
+  the loop. ROOT+ moves the key itself; TRANS (the lead and chords) and BASS TR (the bass) move by semitones and
+  land on the key's nearest tone in that direction, so nothing leaves the key (in C minor, C +1 is D); KEY and
+  SCALE change the key where they are not FOLLOW. The status line, KEYS and the lights show the key sounding.
+  CHROMATIC transposes by plain semitones.
 - **Slot sequence** (SEQ > SLOT SEQ). Pattern slots played in a row, each held for a number of pulses.
 - **The lead** (ENV > SOUND). Saw, square, triangle, sine or pulse through a 24 dB filter (LP, HP, BP, NOTCH), an ADSR,
   an LFO (filter, pitch, PWM, amp, and the drums), a follower sub an octave or two under it, grit (noise, noise
@@ -202,7 +205,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   round, within DEPTH (a degree of the same function, the shape, the voicing, or any), the first chord keeping
   its degree, so a long piece evolves and still comes home. RNDMZR at MED, HIGH and MUSICAL rolls a progression
   on the clock chain, so the chords change on the grid and land on the one.
-- **Bass** (ARP > BASS). The dedicated sub voice: a step, euclidean, matrix, register or drone mode, or BASS SEQ, a
+- **Bass** (ARP > BASS). The dedicated sub voice, two octaves under the key's root at its default OCT -1 (C2,
+  65 Hz, in C): a step, euclidean, matrix, register or drone mode, or BASS SEQ, a
   16-step bass line of its own with tone, octave, glide and accent per step, a resonant filter with envelope, drive.
   ROLL (B2) writes a line under the sequence as it is: roots and fifths, or the lead's chord tones, on the beats,
   walks and octave jumps between, an octave down; UNDO takes it back.
