@@ -87,7 +87,8 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
    rules table in CONTROL_GRAMMAR, G1 and G2 applied and tested (verify_g1_g2), F1 and F2 done.
 2. **The parts**: F6 SUB MELLO (it decides which parts there are), F7, then F8-F10 (a send per part needs the part
    list), then F3, F4 and F18 together (the performance actions on every part, the PERFORM page, MUTATE, HOME's keys;
-   one change to the black keys, not three).
+   one change to the black keys, not three). Done 2026-11-03 (0.5-f48 .. f52): SUB MELLO and POLY per project, F7 looked at
+   (and 3.5 KB found), the sends per part, the delay's reach, PERFORM on every part; F25 (ping-pong) left.
 3. **Record**: F5 on every sequence page, drums included, on the same keyboard and UNDO as HOME's REC.
 4. **The screen and the hands**: F11, F12, F13 and F14 as one UI round (they all move the same zones and lights), F17
    with them; screens, UI_MAP and the README once at the end.
