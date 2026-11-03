@@ -137,14 +137,14 @@ static void verify_sample_navigation(void)
     if (u.page != MELLO_UI_GLOBAL) fail("GLO", "MIX did not go on to GLOBAL");
     buttons(&u, 500u, bit_u32(MELLO_UI_BTN_GLO), 0u);
     if (u.page != MELLO_UI_MIX) fail("GLO", "GLOBAL did not go back to MIX");
-    buttons(&u, 520u, bit_u32(MELLO_UI_BTN_ARP), 0u); /* ARP: CHORD, BASS, DRUMS */
-#if MELLO_FEATURE_CHORD_MACHINE
-    if (u.page != MELLO_UI_CHORD) fail("ARP", "did not open CHORD");
+    buttons(&u, 520u, bit_u32(MELLO_UI_BTN_ARP), 0u); /* ARP: BASS, DRUMS, CHORD */
+    if (u.page != MELLO_UI_SUB) fail("ARP", "did not open BASS");
     buttons(&u, 530u, bit_u32(MELLO_UI_BTN_ARP), 0u);
-#endif
-    if (u.page != MELLO_UI_SUB) fail("ARP", "did not go on to BASS");
-    buttons(&u, 540u, bit_u32(MELLO_UI_BTN_ARP), 0u);
     if (u.page != MELLO_UI_DRUMS) fail("ARP", "BASS did not go on to DRUMS");
+#if MELLO_FEATURE_CHORD_MACHINE
+    buttons(&u, 540u, bit_u32(MELLO_UI_BTN_ARP), 0u);
+    if (u.page != MELLO_UI_CHORD) fail("ARP", "DRUMS did not go on to CHORD");
+#endif
     buttons(&u, 550u, bit_u32(MELLO_UI_BTN_FX), 0u); /* FX: DISTORTION, DELAY, REVERB */
     if (u.page != MELLO_UI_AUDIO_FX || u.fx_subpage != 0u) fail("FX", "did not open DISTORTION");
     buttons(&u, 560u, bit_u32(MELLO_UI_BTN_FX), 0u);

@@ -64,7 +64,7 @@ Ten screens, drawn by the firmware itself (`make screens`): what you see, and wh
 | <img src="docs/screens/step-trig.png" width="240" alt="SEQ > STEP"> | **SEQ.** The STEP page: the picked step's values, the picture drawn from them. SELECT turns the layers (TRIG, NOTE, FLAGS, SEQ); SEQ again goes on to SEGMENT, LOOP CYCLE and SLOT SEQ. With EDIT on, a white key sets the step's pitch. |
 | <img src="docs/screens/sound-filter.png" width="240" alt="ENV > SOUND"> | **ENV.** The lead's sound: cutoff, resonance, decay and level first (K1-K4 so on every voice), the wave and PWM on OSC, the envelope, follower, grit, second oscillator and the rest on SELECT. INIT (B1) puts the sound back. ENV again: the sample layer. |
 | <img src="docs/screens/dot-playing.png" width="240" alt="LFO > DOT, playing"> | **LFO**, twice: DOT. Five matrices (ACC, MOD 1, MOD 2, RATCH, SUB) as pills, a white key puts a cell on or off. Playing, the cell being read is framed bright with a fading trail behind it, so the route's direction shows; the cells on glow in the matrix's colour. ON (B0) switches the picked matrix. |
-| <img src="docs/screens/drums-voice.png" width="240" alt="ARP > DRUMS"> | **ARP**, three times: the drums. Four voices on a 16-step grid; VOX picks the voice, a white key puts its hit on or off, ON (B0) turns the kit on. CHORD and BASS are ARP's pages before it. |
+| <img src="docs/screens/drums-voice.png" width="240" alt="ARP > DRUMS"> | **ARP**, twice: the drums. Four voices on a 16-step grid; VOX picks the voice, a white key puts its hit on or off, ON (B0) turns the kit on. BASS is ARP's page before it, CHORD the one after. |
 | <img src="docs/screens/mix.png" width="240" alt="GLO > MIX"> | **GLO.** The mix: lead, bass, chords and drums on the knobs, a mute under each (LD, BS, CH, DR). SAVE writes the project to flash. |
 
 Every page and layer is pictured beside its row in [docs/mello/UI_MAP.md](docs/mello/UI_MAP.md).
@@ -174,7 +174,7 @@ Each section is a button. Press it again (or turn ALGORITHM) for its next page; 
 | **ENV** | SOUND · SAMPLE | SOUND: FILTER, OSC, OSC 2, CHARACTER, GRIT, MOD ENV, TRACKING, AMP ENV, FOLLOWER, LFO · SAMPLE: MAIN, PITCH, TRIM, ENVELOPE |
 | **LFO** | LFO · DOT · EVOLVE | DOT: the five matrices ACCENT, MOD 1, MOD 2, RATCHET, SUB · EVOLVE: MAIN, ROUTES, DEPTH, SOUND |
 | **FX** | DISTORTION · DELAY · REVERB | DELAY: SEND, CONFIG · REVERB: ROOM, RETURNS |
-| **ARP** | CHORD · BASS · DRUMS | CHORD: PLAY, CHORD, VOICING, GRID, PATTERN, TONE, FILTER, MOTION, AMP · BASS: PLAY, SEQ, STEP, VOICE, TONE, FILTER · DRUMS: VOICE, STEP, VARY, KIT, DIST |
+| **ARP** | BASS · DRUMS · CHORD | BASS: PLAY, SEQ, STEP, VOICE, TONE, FILTER · DRUMS: VOICE, STEP, VARY, KIT, DIST · CHORD: PLAY, CHORD, VOICING, GRID, PATTERN, TONE, FILTER, MOTION, AMP |
 | **SEL** | KEY / SCALE | |
 | **GLO** | MIX · GLOBAL | GLOBAL: CLOCK, MIDI, GROOVE |
 | hold **SAVE** | SLOTS | LOAD, RENAME |
@@ -289,16 +289,6 @@ K1-K4 with their default values.
 | BASS | ARP | FILTER | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | CUT 242.0HZ · RES 0% · ENV 0% · LEVEL 42% |
 | BASS | ARP | VOICE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | WAVE SINE · DECAY 160MS · RELEASE 120MS · DRIVE 0% |
 | BASS | ARP | TONE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | GLIDE 20MS · OCT -1 · F.DEC 300MS · ACCENT 50% |
-| CHORD | ARP | PLAY | `ON BASS POLY PERF MUT UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
-| CHORD | ARP | CHORD | `ON BASS POLY PERF MUT UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
-| CHORD | ARP | VOICING | `ON BASS POLY PERF MUT UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
-| CHORD | ARP | GRID | `ON BASS POLY PERF MUT UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
-| CHORD | ARP | PATTERN | `ON BASS POLY PERF MUT UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
-| CHORD | ARP | FILTER | `ON BASS POLY PERF MUT UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LEVEL 18% |
-| CHORD | ARP | TONE | `ON BASS POLY PERF MUT UNDO RNDMZR` | WAVE SAW · — · LINK OFF · — |
-| CHORD | ARP | MOTION | `ON BASS POLY PERF MUT UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
-| CHORD | ARP | AMP | `ON BASS POLY PERF MUT UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
-| CHORD | ARP | HARMONY | `ON BASS POLY PERF MUT UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
 | GLOBAL | GLO | CLOCK | `TAP RST2 PERF MUT UNDO RNDMZR` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | GLOBAL | GLO | MIDI | `TAP RST2 PERF MUT UNDO RNDMZR` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | GLOBAL | GLO | GROOVE | `TAP RST2 PERF MUT UNDO RNDMZR` | SWING 0% · — · — · — |
@@ -326,6 +316,16 @@ K1-K4 with their default values.
 | DRUMS | ARP | VARY | `ON VOX ACC ROLL P M UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
 | DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · — · LEVEL 70% |
 | DRUMS | ARP | DIST | `ON VOX ACC ROLL P M UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · — |
+| CHORD | ARP | PLAY | `ON BASS POLY PERF MUT UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
+| CHORD | ARP | CHORD | `ON BASS POLY PERF MUT UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
+| CHORD | ARP | VOICING | `ON BASS POLY PERF MUT UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
+| CHORD | ARP | GRID | `ON BASS POLY PERF MUT UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
+| CHORD | ARP | PATTERN | `ON BASS POLY PERF MUT UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
+| CHORD | ARP | FILTER | `ON BASS POLY PERF MUT UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LEVEL 18% |
+| CHORD | ARP | TONE | `ON BASS POLY PERF MUT UNDO RNDMZR` | WAVE SAW · — · LINK OFF · — |
+| CHORD | ARP | MOTION | `ON BASS POLY PERF MUT UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
+| CHORD | ARP | AMP | `ON BASS POLY PERF MUT UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
+| CHORD | ARP | HARMONY | `ON BASS POLY PERF MUT UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
 | MIX | GLO | LEVEL | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 42% · CHORD 18% · DRUMS 70% |
 | MIX | GLO | DELAY | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 0% · CHORD 60% · DRUMS 25% |
 | MIX | GLO | REVERB | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 20% · CHORD 60% · DRUMS 25% |

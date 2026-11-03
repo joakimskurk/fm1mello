@@ -163,14 +163,14 @@ def the_tour():
     t.btn(FX)
     layers(t, "fx", "AUDIO FX", ["REVERB ROOM", "REVERB RETURNS"])
 
-    # ARP: CHORD, BASS, DRUMS
-    t.btn(ARP)
-    layers(t, "chord", "CHORD",
-           ["PLAY", "CHORD", "VOICING", "GRID", "PATTERN", "FILTER", "TONE", "MOTION", "AMP", "HARMONY"])
+    # ARP: BASS, DRUMS, CHORD
     t.btn(ARP)
     layers(t, "bass", "BASS", ["PLAY", "SEQ", "STEP", "FILTER", "VOICE", "TONE"])
     t.btn(ARP)
     layers(t, "drums", "DRUMS", ["VOICE", "STEP", "VARY", "KIT", "DIST"])
+    t.btn(ARP)
+    layers(t, "chord", "CHORD",
+           ["PLAY", "CHORD", "VOICING", "GRID", "PATTERN", "FILTER", "TONE", "MOTION", "AMP", "HARMONY"])
 
     # GLO: MIX, GLOBAL
     t.btn(GLO)
@@ -197,7 +197,6 @@ def the_tour():
     t.btn(EDIT)
     t.btn(SEQ)
     t.shot("step-playing", None, None, "SEQ > STEP while playing")
-    t.btn(ARP)
     t.btn(ARP)
     t.btn(ARP)
     t.sel()  # DIST was left open: round to VOICE

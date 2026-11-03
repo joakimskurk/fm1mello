@@ -1362,6 +1362,12 @@ the tails are what a drive lifts most): its reference is a hit, a sine dying awa
 kick's TONE and the bass's DRIVE stay as they were; the test keeps them within 2 dB. The snare's fixed crunch has no
 knob and stays part of its sound.
 
+## ARP: BASS, DRUMS, CHORD (2026-11-03)
+
+The product owner: "chord should not come first". ARP now opens BASS, then DRUMS, then CHORD (with the Chord Machine
+compiled out, BASS and DRUMS). The rhythm section first, the colour after. The UI map, the README's tables and tour,
+UI_ICEBERG and the screens tour follow; control_action_contract checks the order.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

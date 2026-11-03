@@ -344,7 +344,7 @@ static MelloUiPage cycle_page(const MelloUi *ui, const MelloUiPage *list, uint8_
 /* R1 (DECISIONS.md "One thread"): the printed button is the section. From elsewhere it opens the section's first
  * page; on one of its pages it goes to the next (or, from ALGORITHM, the one before). The sections:
  *   SEQ  STEP, SEGMENT, LOOP CYCLE, SLOT SEQ        ENV  SOUND, SAMPLE          LFO  LFO, DOT, EVOLVE
- *   FX   DISTORTION, DELAY, REVERB                  ARP  CHORD, BASS, DRUMS     GLO  MIX, GLOBAL */
+ *   FX   DISTORTION, DELAY, REVERB                  ARP  BASS, DRUMS, CHORD     GLO  MIX, GLOBAL */
 static void section_next(MelloUi *ui, uint8_t button, int dir)
 {
     switch (button) {
@@ -386,7 +386,7 @@ static void section_next(MelloUi *ui, uint8_t button, int dir)
     }
     case MELLO_UI_BTN_ARP: {
 #if MELLO_FEATURE_CHORD_MACHINE
-        static const MelloUiPage c[3] = {MELLO_UI_CHORD, MELLO_UI_SUB, MELLO_UI_DRUMS};
+        static const MelloUiPage c[3] = {MELLO_UI_SUB, MELLO_UI_DRUMS, MELLO_UI_CHORD}; /* BASS, DRUMS, CHORD */
         open_page(ui, cycle_page(ui, c, 3u, dir));
 #else
         static const MelloUiPage c[2] = {MELLO_UI_SUB, MELLO_UI_DRUMS};
