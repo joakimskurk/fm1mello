@@ -398,6 +398,7 @@ make bench         # where the audio's time goes on this computer
 make host          # the whole firmware on this computer: a WAV and screen PNGs (pip3 install Pillow)
 make screens       # every page as PNG in docs/screens, and the UI map's pictures (python3, nothing else)
 make format        # clang-format the Mello sources (pip3 install clang-format)
+make emu PKG=build/skurkymello-0.5-f60.fwsc   # a package on fm1-emu: played and edited live, its load, its stacks
 ```
 
 One change, `make test`, `make format`, commit. The target build checks what the host cannot: RAM, the pools and the
@@ -425,7 +426,10 @@ builds every push the same way (`.github/workflows/build.yml`) and attests the p
 `tools/emu_cpu.sh PACKAGE.fwsc` runs the package in fm1-emu, in silence and then playing, and reports the audio
 interrupt's share of the chip in instructions per second (the emulator counts instructions, not cycles). The chip's
 own cycles show on GLOBAL > CLOCK as CPU nn%. 0.5-f27: the default pattern 32%, the worst case (everything on at
-once) 71%, silence 2%; 7.4 KB of RAM free, and the build fails under 2 KB.
+once) 71%, silence 2%; 7.4 KB of RAM free, and the build fails under 2 KB. 0.5-f60: the default pattern 35.5%, 10.1
+KB of RAM free. `tools/emu_smoke.sh` plays the package 10 s while it turns the knobs and goes through the pages, and
+fails if the sound dies or the load passes 60%; `tools/emu_stack.sh` reads how deep the two stacks went (0.5-f59:
+3.2 of 23.75 KB and 1.1 of 7.75 KB). `make emu PKG=...` runs both.
 
 ## Where things are
 
@@ -440,7 +444,8 @@ firmware/src/mello_sample.*    user samples
 firmware/src/platform.c, hal/  Dinghy's platform, as close to upstream as possible
 firmware/src/midi_uart.c       Dinghy 0.4's MIDI IN on the TRS jack, as upstream has it
 tests/mello/                   host tests;  tests/bench/  the CPU bench;  tests/parity/  the HTML parity
-tools/fm1_samples.py (WAVs into the sample slots), fm1_install.py, screens.py (the pages as PNG), emu_cpu.sh, build.py
+tools/fm1_samples.py (WAVs into the sample slots), fm1_install.py, screens.py (the pages as PNG), emu_cpu.sh, emu_smoke.sh,
+                               emu_stack.sh, build.py
 reference/skurkymello.html     the original: the reference for sound and feel
 docs/mello/                    DECISIONS.md, UI_MAP.md, CONTROL_GRAMMAR.md, UI_ICEBERG.md, FIRST_FLASH.md
 docs/screens/                  every page of the firmware as a picture, drawn by the host build (make screens)

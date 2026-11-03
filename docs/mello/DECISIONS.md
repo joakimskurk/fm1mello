@@ -1312,6 +1312,19 @@ of the same slot; tools/fm1_samples.py clear sends both (the host tool is in too
 bytes between do not count. Test: sample_transfer_roundtrip. **NOSAVE.** The third item, the screen saying nothing
 when saving is off after a rollback, was already done: the header shows NOSAVE (or FULL) in red.
 
+## The emulator smoke (2026-11-03)
+
+ROADMAP Phase 0's last item, F23. The old ci/build_target.sh ran two smokes on the web emulator at 80 MHz: playing
+while the encoders turned, the sound still alive after, and real-time margin. tools/emu_smoke.sh does the same on
+fm1-emu, which this repository already measures with: 10.5 s, PLAY after the splash, every page, K1-K4 and SELECT
+turned while it plays, a roll, REC; it fails if the run stops short, a stack guard trips, the sound is silent or the
+last 2 s are under a tenth of the run's peak, or the audio interrupt passes 60% of the chip (85 for a MELLO_STRESS
+build). 0.5-f60: 29.5%, the sound alive to the end. `make emu PKG=...` runs it and tools/emu_stack.sh. A first
+version pressed PLAY during the splash, which drops keys: it heard one note die away and still passed; the tail check
+is now relative to the run's peak, so that case fails. The budget report the old script had is tools/build.py's,
+on every build. CI does not run the smoke yet: the shared zvenson/fm1-build workflow has no fm1-emu, and changing a
+workflow file needs the push token's workflow scope.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

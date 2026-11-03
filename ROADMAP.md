@@ -76,7 +76,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F20 | The output level: as quiet as the HTML (about -10 dB RMS); MASTER or an outer gain, a product choice | Phase 2 |
 | F21 | RAM: the stack's high-water mark, the 60 B event, UNDO as one packed slot (B4). Done 2026-11-03 (0.5-f59): stacks measured (tools/emu_stack.sh: user 3.2 of 23.75 KB, system 1.1 of 7.75 KB), the event 60 B -> 44 (2 KB back); UNDO left as it is (1.1 KB, little to gain) | 2026-10-31 |
 | F22 | Storage: CC 113 on channel 16 can clear a sample slot; a save erases 10 sectors (a stall) (Phase 1, P2). Done 2026-11-03 (0.5-f60): CLEAR only straight after a QUERY of the slot; a save erases a sector a poll; NOSAVE in red on the header was already there | review |
-| F23 | CI: the 80 / 100 MHz emulator smokes the old build script ran (Phase 0) | review |
+| F23 | CI: the 80 / 100 MHz emulator smokes the old build script ran (Phase 0). Done 2026-11-03 locally: tools/emu_smoke.sh and `make emu` (fm1-emu, not the web emulator); the budget report was already build.py's. In CI still to do: the shared workflow needs fm1-emu, and a workflow change needs the push token's workflow scope | review |
 | F24 | On the FM-1, when there is one: first flash, the hand checklist (C4), E5, E8's levels, Big screen | Phase 1 |
 | F25 | The delay's ping-pong: the echoes left and right in turn (one line, read at the time and twice it, the feedback from the second at its square) | 2026-11-02, 11 |
 
@@ -473,8 +473,10 @@ In the order to do them; each is the next work before Phase 3 / 5's open items.
 - [x] One CI workflow through `zvenson/fm1-build`.
 - [x] First target build from this tree, on a Mac with Colima: `./build.sh --release 0.1-dev` gives a package
       byte-identical to the A.1 package (SHA-256 86a4dbec…b813), identity FM-1_970, budgets pass.
-- [ ] Carry over the checks that only the old `ci/build_target.sh` ran: the RAM/pool budget report
-      (`inspect_target_build.py`) and the 80/100 MHz emulator smokes.
+- [x] Carry over the checks that only the old `ci/build_target.sh` ran: the RAM/pool budget report
+      (`inspect_target_build.py`) and the 80/100 MHz emulator smokes. 2026-11-03 (F23): the budgets are
+      tools/build.py's (every build); the smokes are tools/emu_smoke.sh on fm1-emu (`make emu`), run by hand; in CI
+      once the shared workflow has fm1-emu.
 
 ## Phase 1: safe on hardware
 
