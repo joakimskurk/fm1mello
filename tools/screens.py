@@ -173,7 +173,11 @@ def the_tour():
 
     # GLO: MIX, GLOBAL
     t.btn(GLO)
-    t.shot("mix", "MIX", "—")
+    t.shot("mix", "MIX", "LEVEL")
+    t.sel()
+    t.shot("mix-delay", "MIX", "DELAY")
+    t.sel()
+    t.shot("mix-reverb", "MIX", "REVERB")
     t.btn(GLO)
     layers(t, "global", "GLOBAL", ["CLOCK", "MIDI", "GROOVE"])
 

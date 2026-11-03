@@ -124,6 +124,7 @@ typedef struct {
     uint8_t chord_subpage; /* MAIN, CHAIN, VOICE, GRID, PATTERN */
 #endif
     uint8_t global_subpage; /* CLOCK, MIDI */
+    uint8_t mix_subpage;    /* LEVEL, DELAY, REVERB: each part's level, and its sends */
     uint8_t sound_subpage;  /* OSC, ENV, LFO, FOLLOW, PLAY, GRIT, OSC 2, CHARACTER, MOD ENV */
     uint8_t fx_subpage;     /* DIST, DELAY A/B, REVERB A/B */
     uint8_t sample_subpage; /* MAIN, PITCH, TRIM, ENV */

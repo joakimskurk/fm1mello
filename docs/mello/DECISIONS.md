@@ -1131,6 +1131,25 @@ pattern 32.2% (the part is off by default). RAM as before 0.5-f48 (both voices a
 note at a time in every mode, BROKEN's figure, WALK's beats and steps, every note in the key, two voices at most,
 POLY's STAB together); storage_chord_regression (POLY through a power cycle); the four-voice tests set POLY.
 
+## A send per part (2026-11-03)
+
+ROADMAP E11 / F8. Before: the lead, the bass and the samples were one bus through the lead's filter (HOME's CUTOFF)
+and distortion, sent to the delay and the reverb with the FX pages' WET; the chords and the drums each had one SPACE
+to both. The bass could not be kept out of the reverb, and the lead's CUTOFF swept it. Now:
+
+- MIX has three layers on SELECT: LEVEL (as before), DELAY and REVERB, each part's send (LEAD, BASS, CHORD, DRUMS;
+  the samples go with the lead). The FX pages' WET stays, scaling every send of its effect; the chords send 800 /
+  1000 of their share, as their SPACE did. SPACE left the CHORD (TONE) and DRUMS (KIT) pages: one place for sends.
+- The bass leaves the lead's filter and distortion (a departure from the HTML, where Tone's chain filtered both):
+  it has its own filter and DRIVE since BASS's FILTER layer. It enters the mix at the level the lead's path gave it at
+  the defaults (measured: within 0.01 dB), still under the LFO's AMP and the kick's DUCK.
+- A project saved before (FX section version 3 or older) gets the sends it played with: the lead and the bass all
+  of theirs, the chords and the drums their SPACE. A new project: the lead 100%, the bass no delay and 20% reverb,
+  the chords 60%, the drums 25% (their SPACE defaults).
+
+Tests: fx_sends (the defaults; a part at 0 sounds as with the effects off, at 100% not; the lead's CUTOFF leaves the
+bass alone; MIX's layers set the sends; saved). SEC_FX version 4.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

@@ -285,9 +285,10 @@ typedef struct {
      * divides in hardware but slowly, and a divide by a constant is a divide too; its widening multiply is one
      * instruction. Gains in Q12 (4096 = 1), modulation depths in Q15. */
     int32_t lfo_depth_q15, lfo_filter_span_q15, lfo_pitch_cents, lfo_pwm_swing, key_track_q15, osc2_q8_base,
-        osc2_mix_q15, delay_lc_k, drum_level_q12, drum_space_q12, drum_fold_q12;
+        osc2_mix_q15, delay_lc_k, drum_level_q12, drum_fold_q12;
+    int32_t send_dly_q12[MELLO_SEND_PARTS], send_rev_q12[MELLO_SEND_PARTS]; /* MIX's sends (the chords' x 0.8) */
 #if MELLO_FEATURE_CHORD_MACHINE
-    int32_t chord_level_q12, chord_send_q12;
+    int32_t chord_level_q12;
 #endif
     int16_t last_lfo;
     /* the control step's values (render: every 4 samples), read by the samples between */

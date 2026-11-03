@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f49.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f50.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -203,7 +203,7 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   the scale's steps between), arpeggios up, down or both ways, a pattern, STAB (the top tone) or HOLD (the top tone
   held), the delay making the line a chord. POLY is four voices with a Juno-like chorus and STRUM, the chords
   stabbed, held, arpeggiated or by a pattern of voice masks. Both: triggered by the steps or by a grid; voice
-  leading; a resonant filter with its envelope, an ADSR and its own space. B1 BASS
+  leading; a resonant filter with its envelope, an ADSR; their sends on MIX. B1 BASS
   puts the bass on the chord's root. The HARMONY layer ties the chords to the rest: FOLLOW moves the lead's notes
   on the beats (or all of them) to the chord sounding, and DRIFT lets one chord change each time the chain comes
   round, within DEPTH (a degree of the same function, the shape, the voicing, or any), the first chord keeping
@@ -217,9 +217,12 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
 - **Drums** (ARP > DRUMS). Kick, snare, hat and a glitch voice (bleep, chirp, crackle, stutter) on a 16-step
   pattern with accents, per-step pitch, decay, crush and ratchet locks, rolls, chance, swing (GLOBAL > GROOVE, for
   everything), a kit drive with fold, DUCK (the kick's sidechain: the lead, sub and chords dip at each kick and
-  come back over 160 ms), and a send to the delay and reverb. RNDMZR rolls them too with FEED on. The kick is built
+  come back over 160 ms), and their sends on MIX. RNDMZR rolls them too with FEED on. The kick is built
   for weight: a driven sine from 38 to 90 Hz whose pitch falls from 3.5x over 90 ms, decaying up to 1.5 s.
-- **MIX** (GLO > MIX). The levels of lead, bass, chords and drums as faders, each with a mute (LD, BS, CH, DR).
+- **MIX** (GLO > MIX). The levels of lead, bass, chords and drums as faders, each with a mute (LD, BS, CH, DR);
+  SELECT turns to each part's send to the delay (DELAY) and to the reverb (REVERB), the effects' WET on the FX
+  pages scaling them all. The lead and its samples go through the lead's filter and distortion; the bass, the
+  chords and the drums do not.
 - **GLOBAL** (GLO > GLOBAL). Tempo (TAP), division, external sync, note out; the MIDI channels of lead and bass,
   the note length; the groove's swing. CLOCK shows the chip's measured audio load as CPU nn%.
 - **KEY** (SEL). Root, scale, global octave, pitch span.
@@ -271,7 +274,7 @@ K1-K4 with their default values.
 | CHORD | ARP | VOICING | `ON BASS POLY F B < R UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
 | CHORD | ARP | GRID | `ON BASS POLY F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
 | CHORD | ARP | PATTERN | `ON BASS POLY F B < R UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
-| CHORD | ARP | TONE | `ON BASS POLY F B < R UNDO RNDMZR` | WAVE SAW · — · SPACE 60% · LEVEL 18% |
+| CHORD | ARP | TONE | `ON BASS POLY F B < R UNDO RNDMZR` | WAVE SAW · — · — · LEVEL 18% |
 | CHORD | ARP | FILTER | `ON BASS POLY F B < R UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LINK OFF |
 | CHORD | ARP | MOTION | `ON BASS POLY F B < R UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
 | CHORD | ARP | AMP | `ON BASS POLY F B < R UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
@@ -301,9 +304,11 @@ K1-K4 with their default values.
 | DRUMS | ARP | VOICE | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | TUNE 40% · DECAY 174MS · TONE 10% · LEVEL 90% |
 | DRUMS | ARP | STEP | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | DRUMS | ARP | VARY | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
-| DRUMS | ARP | KIT | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · SPACE 25% · LEVEL 70% |
+| DRUMS | ARP | KIT | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · — · LEVEL 70% |
 | DRUMS | ARP | DIST | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · — |
-| MIX | GLO | — | `LD BS CH DR F B < R UNDO RNDMZR` | LEAD 100% · BASS 42% · CHORD 32% · DRUMS 70% |
+| MIX | GLO | LEVEL | `LD BS CH DR F B < R UNDO RNDMZR` | LEAD 100% · BASS 42% · CHORD 18% · DRUMS 70% |
+| MIX | GLO | DELAY | `LD BS CH DR F B < R UNDO RNDMZR` | LEAD 100% · BASS 0% · CHORD 60% · DRUMS 25% |
+| MIX | GLO | REVERB | `LD BS CH DR F B < R UNDO RNDMZR` | LEAD 100% · BASS 20% · CHORD 60% · DRUMS 25% |
 
 ## Saving, slots and MIDI
 

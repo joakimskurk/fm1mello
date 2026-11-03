@@ -43,7 +43,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/chord-voicing.png" width="96" alt="CHORD VOICING"> | CHORD | ARP | VOICING | `ON BASS POLY F B < R UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
 | <img src="../screens/chord-grid.png" width="96" alt="CHORD GRID"> | CHORD | ARP | GRID | `ON BASS POLY F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
 | <img src="../screens/chord-pattern.png" width="96" alt="CHORD PATTERN"> | CHORD | ARP | PATTERN | `ON BASS POLY F B < R UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
-| <img src="../screens/chord-tone.png" width="96" alt="CHORD TONE"> | CHORD | ARP | TONE | `ON BASS POLY F B < R UNDO RNDMZR` | WAVE SAW · — · SPACE 60% · LEVEL 18% |
+| <img src="../screens/chord-tone.png" width="96" alt="CHORD TONE"> | CHORD | ARP | TONE | `ON BASS POLY F B < R UNDO RNDMZR` | WAVE SAW · — · — · LEVEL 18% |
 | <img src="../screens/chord-filter.png" width="96" alt="CHORD FILTER"> | CHORD | ARP | FILTER | `ON BASS POLY F B < R UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LINK OFF |
 | <img src="../screens/chord-motion.png" width="96" alt="CHORD MOTION"> | CHORD | ARP | MOTION | `ON BASS POLY F B < R UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
 | <img src="../screens/chord-amp.png" width="96" alt="CHORD AMP"> | CHORD | ARP | AMP | `ON BASS POLY F B < R UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
@@ -73,9 +73,11 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/drums-voice.png" width="96" alt="DRUMS VOICE"> | DRUMS | ARP | VOICE | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | TUNE 40% · DECAY 174MS · TONE 10% · LEVEL 90% |
 | <img src="../screens/drums-step.png" width="96" alt="DRUMS STEP"> | DRUMS | ARP | STEP | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | <img src="../screens/drums-vary.png" width="96" alt="DRUMS VARY"> | DRUMS | ARP | VARY | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
-| <img src="../screens/drums-kit.png" width="96" alt="DRUMS KIT"> | DRUMS | ARP | KIT | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · SPACE 25% · LEVEL 70% |
+| <img src="../screens/drums-kit.png" width="96" alt="DRUMS KIT"> | DRUMS | ARP | KIT | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · — · LEVEL 70% |
 | <img src="../screens/drums-dist.png" width="96" alt="DRUMS DIST"> | DRUMS | ARP | DIST | `ON VOX ACC ROLL F B < R UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · — |
-| <img src="../screens/mix.png" width="96" alt="MIX —"> | MIX | GLO | — | `LD BS CH DR F B < R UNDO RNDMZR` | LEAD 100% · BASS 42% · CHORD 32% · DRUMS 70% |
+| <img src="../screens/mix.png" width="96" alt="MIX LEVEL"> | MIX | GLO | LEVEL | `LD BS CH DR F B < R UNDO RNDMZR` | LEAD 100% · BASS 42% · CHORD 18% · DRUMS 70% |
+| <img src="../screens/mix-delay.png" width="96" alt="MIX DELAY"> | MIX | GLO | DELAY | `LD BS CH DR F B < R UNDO RNDMZR` | LEAD 100% · BASS 0% · CHORD 60% · DRUMS 25% |
+| <img src="../screens/mix-reverb.png" width="96" alt="MIX REVERB"> | MIX | GLO | REVERB | `LD BS CH DR F B < R UNDO RNDMZR` | LEAD 100% · BASS 20% · CHORD 60% · DRUMS 25% |
 
 ## White keys
 

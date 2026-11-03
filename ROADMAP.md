@@ -60,8 +60,8 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F4 | PERFORM: one key opens the white keys as 16 actions, its own screen; MUTATE always on B6 (G4) | 2026-11-03, 6 |
 | F5 | REC on every page with a sequence, the drums included (G3) | 2026-11-01 (D14 did HOME); 2026-11-03, 5 |
 | F6 | SUB MELLO in place of the chord synth, its code kept behind the flag (E6). Done 2026-11-03 (0.5-f48: BROKEN and WALK); then both, POLY on B2 picking per project (0.5-f49) | 2026-11-02, 6 |
-| F7 | Room without a change to sound: the key scan's LED pulses, the chord config's copies (E6) | 2026-11-02, 6 |
-| F8 | Sends per part to reverb and delay; the bass out of the lead's filter (E11) | 2026-11-02, 11 |
+| F7 | Room without a change to sound: the key scan's LED pulses, the chord config's copies (E6). Looked at 2026-11-03: nothing sets the glow or backlight layers yet, so the pulse loop never runs (fm1-emu's hot PCs are the main loop's polls); it will with G5's glow, so it is measured and made cheap in wave 4. The config copies would give ~0.35 KB with 6.6 KB free: left. | 2026-11-02, 6 |
+| F8 | Sends per part to reverb and delay; the bass out of the lead's filter (E11). Done 2026-11-03 (0.5-f50): MIX's DELAY and REVERB layers | 2026-11-02, 11 |
 | F9 | Delay divisions: 32N, 16D, 2T, 2D, 1 BAR, ping-pong, and an honest limit (E11) | 2026-11-02, 11 |
 | F10 | LO CUT where it is found (E11) | 2026-11-02, 11 |
 | F11 | K1-K4 the same on every voice (E12, G6) | 2026-11-02, 12 |

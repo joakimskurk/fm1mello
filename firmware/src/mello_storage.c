@@ -22,7 +22,7 @@ enum {
     SECVER_WORKING = 1,
     SECVER_SLOTS = 1,
     SECVER_SLOT_SEQ = 1,
-    SECVER_FX = 3, /* 2: the delay's LO CUT; 3: PRE DIST */
+    SECVER_FX = 4, /* 2: the delay's LO CUT; 3: PRE DIST; 4: the sends per part */
     SECVER_CHORD =
         5,           /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading); 3: CHAIN,
                          SUB ROOT; 4: HARMONY (FOLLOW, DRIFT, DEPTH); 5: POLY */
@@ -38,7 +38,8 @@ enum {
 #define SNAPSHOT_WIRE_SIZE 528u
 #define FX_WIRE_SIZE_V1    34u
 #define FX_WIRE_SIZE_V2    36u
-#define FX_WIRE_SIZE       37u
+#define FX_WIRE_SIZE_V3    37u
+#define FX_WIRE_SIZE       (FX_WIRE_SIZE_V3 + 4u * MELLO_SEND_PARTS) /* v4: DLY and REV per part */
 #define CHORD_WIRE_SIZE_V1 (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
 #define CHORD_WIRE_SIZE_V2 (CHORD_WIRE_SIZE_V1 + 21u)
 #define CHORD_WIRE_SIZE_V3 (CHORD_WIRE_SIZE_V2 + 2u)
@@ -503,8 +504,23 @@ static void encode_fx(Writer *w, const MelloFxConfig *c)
     wr_u16(w, c->reverb_level);
     wr_u16(w, c->delay_lowcut);
     wr_u8(w, c->delay_pre_dist ? 1u : 0u);
+    {
+        uint8_t i;
+        for (i = 0u; i < MELLO_SEND_PARTS; ++i) {
+            wr_u16(w, c->send_dly[i]);
+            wr_u16(w, c->send_rev[i]);
+        }
+    }
 }
-/* Version 1 has no LO CUT, 2 no PRE DIST: they stay off. */
+static bool decode_sends(Reader *r, MelloFxConfig *c)
+{
+    uint8_t i;
+    for (i = 0u; i < MELLO_SEND_PARTS; ++i)
+        if (!rd_u16(r, &c->send_dly[i]) || !rd_u16(r, &c->send_rev[i])) return false;
+    return true;
+}
+/* Version 1 has no LO CUT, 2 no PRE DIST: they stay off. Before 4 there are no sends per part: parse_payload sets
+ * them from what the project played (the lead and the bass all, the chords' and the drums' SPACE). */
 static bool decode_fx(Reader *r, MelloFxConfig *c, uint8_t ver)
 {
     uint8_t b;
@@ -517,7 +533,8 @@ static bool decode_fx(Reader *r, MelloFxConfig *c, uint8_t ver)
            rd_u16(r, &c->reverb_size) && rd_u16(r, &c->reverb_decay_ms) && rd_u16(r, &c->reverb_pre_ms) &&
            rd_u16(r, &c->reverb_tone) && rd_u16(r, &c->reverb_level) &&
            (ver < 2u || rd_u16(r, &c->delay_lowcut)) &&
-           (ver < 3u || (rd_u8(r, &b) && ((c->delay_pre_dist = b != 0u), true)));
+           (ver < 3u || (rd_u8(r, &b) && ((c->delay_pre_dist = b != 0u), true))) &&
+           (ver < 4u || decode_sends(r, c));
 }
 
 /* DRUMS: the kit, then each voice's sound, hits, accents and per-step locks. A reader without this section skips it;
@@ -1013,7 +1030,7 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
 {
     Reader r;
     uint8_t visible = 8u;
-    bool have_visible = false;
+    bool have_visible = false, sends_seen = false;
     if (!s || !rec) return false;
     r.storage = s;
     r.address = rec->payload_addr;
@@ -1056,9 +1073,11 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             memset(&fx, 0, sizeof(fx));
             if (len != (ver == 1u   ? FX_WIRE_SIZE_V1
                         : ver == 2u ? FX_WIRE_SIZE_V2
+                        : ver == 3u ? FX_WIRE_SIZE_V3
                                     : FX_WIRE_SIZE) ||
                 !decode_fx(&r, &fx, ver))
                 return false;
+            sends_seen = ver >= 4u;
             if (apply && e) mello_engine_fx_set_config(e, &fx);
 #if MELLO_FEATURE_CHORD_MACHINE
         } else if (id == SEC_CHORD && ver >= 1u && ver <= SECVER_CHORD) {
@@ -1166,6 +1185,16 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
     if (apply && e) {
         mello_engine_set_visible_slot_count(e, have_visible ? visible : 8u);
         mello_engine_slot_seq_reset_position(e);
+        if (!sends_seen) { /* saved before the sends per part: as it played */
+            MelloFxConfig fx = e->fx;
+            fx.send_dly[MELLO_SEND_LEAD] = fx.send_rev[MELLO_SEND_LEAD] = 1000u;
+            fx.send_dly[MELLO_SEND_BASS] = fx.send_rev[MELLO_SEND_BASS] = 1000u;
+#if MELLO_FEATURE_CHORD_MACHINE
+            fx.send_dly[MELLO_SEND_CHORD] = fx.send_rev[MELLO_SEND_CHORD] = e->chord.space;
+#endif
+            fx.send_dly[MELLO_SEND_DRUMS] = fx.send_rev[MELLO_SEND_DRUMS] = e->drums.space;
+            mello_engine_fx_set_config(e, &fx);
+        }
     }
     return true;
 }

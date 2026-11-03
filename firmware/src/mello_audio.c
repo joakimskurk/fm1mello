@@ -4,6 +4,9 @@
 
 #define Q15_ONE                    32767
 #define Q24_ONE                    (32767 << 8)
+/* The bass bus (ROADMAP E11): the level the lead's path (x 0.58, the distortion's x 1/3 at AMT 0, its LEVEL 90%, the
+ * lead's filter at its default CUTOFF) gave the bass, measured so a project sounds as it did */
+#define BASS_BUS_Q12 713
 #define MELLO_SAMPLE_DECODE_BUDGET 20u /* IMA blocks per render call (256 frames): 5 per sample voice */
 #define AUDIO_US_BASE              (1000000u / MELLO_AUDIO_FS)
 #define AUDIO_US_REM               (1000000u % MELLO_AUDIO_FS)
@@ -2038,11 +2041,19 @@ static void apply_pending(MelloAudio *a)
                       16);
         a->drum_level_q12 =
             (int32_t)a->drum_config.level * 4096 / 3000; /* LEVEL 70%: a little over the lead */
-        a->drum_space_q12 = permille_q12(a->drum_config.space);
         a->drum_fold_q12 = permille_q12(a->drum_config.fold);
+        {
+            uint8_t p;
+            for (p = 0u; p < MELLO_SEND_PARTS; ++p) {
+                a->send_dly_q12[p] = permille_q12(a->fx.send_dly[p]);
+                a->send_rev_q12[p] = permille_q12(a->fx.send_rev[p]);
+            }
+            /* the chords send 800 / 1000 of their share, as their SPACE did */
+            a->send_dly_q12[MELLO_SEND_CHORD] = (int32_t)a->fx.send_dly[MELLO_SEND_CHORD] * 3277 / 1000;
+            a->send_rev_q12[MELLO_SEND_CHORD] = (int32_t)a->fx.send_rev[MELLO_SEND_CHORD] * 3277 / 1000;
+        }
 #if MELLO_FEATURE_CHORD_MACHINE
         a->chord_level_q12 = permille_q12(a->chord_config.level);
-        a->chord_send_q12 = (int32_t)a->chord_config.space * 3277 / 1000; /* 800 / 1000 of their SPACE */
 #endif
         lead_tracking(a);
     }
@@ -2341,7 +2352,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
 #if MELLO_FEATURE_CHORD_MACHINE
         int32_t chord_mix = 0, chord_l = 0, chord_r = 0;
 #endif
-        int32_t drums = 0, drums_l = 0, drums_r = 0;
+        int32_t drums = 0, drums_l = 0, drums_r = 0, bass = 0;
         bool rm = a->ramps_moving;
         uint16_t cut = (uint16_t)(RAMP(a, rm, rp_cut) >> 8), res = (uint16_t)(RAMP(a, rm, rp_res) >> 8);
         int32_t master = RAMP(a, rm, rp_master) >> 8, rev_send = RAMP(a, rm, rp_rev_send) >> 8,
@@ -2699,8 +2710,14 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         if (a->mix_gain[0] != 32767)
             lead = q15mul(clamp32(lead, -65535, 65535), a->mix_gain[0]);                        /* its mute */
         if (a->mix_gain[1] != 32767) sub = q15mul(clamp32(sub, -65535, 65535), a->mix_gain[1]); /* SUB's */
-        mix = mul_q12(lead + sub + sample_mix, 2376);                                           /* 0.58 */
-        if (ampmod != 32767) mix = q15mul_wide(clamp32(mix, -65535, 65535), ampmod); /* reaches 65534: x2 */
+        mix = mul_q12(lead + sample_mix, 2376); /* 0.58 */
+        /* The bass leaves the lead's filter and distortion (ROADMAP E11): it has its own filter and DRIVE; at the
+         * level it reached the effects with before (the lead's 0.58, the distortion's x 1/3 at AMT 0, its LEVEL) */
+        bass = mul_q12(sub, BASS_BUS_Q12);
+        if (ampmod != 32767) { /* the LFO's AMP: the whole mix, as the HTML's */
+            mix = q15mul_wide(clamp32(mix, -65535, 65535), ampmod); /* reaches 65534: x2 */
+            bass = q15mul_wide(clamp32(bass, -65535, 65535), ampmod);
+        }
         {
             /* HTML: Tone.Filter lowpass -24 = two identical biquads, Q = res*15 dB, f = 80*200^cut. */
             int32_t y;
@@ -2715,6 +2732,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (a->duck_env < 4096) a->duck_env = 0;
             if (a->drum_config.duck) {
                 mix = q15mul(mix, g);
+                bass = q15mul(bass, g);
 #if MELLO_FEATURE_CHORD_MACHINE
                 chord_l = q15mul(chord_l, g);
                 chord_r = q15mul(chord_r, g);
@@ -2729,16 +2747,17 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (a->mix_gain[3] != 32767) /* MIX's PERC mute */
                 drums_l = q15mul(clamp32(drums_l, -65535, 65535), a->mix_gain[3]),
                 drums_r = q15mul(clamp32(drums_r, -65535, 65535), a->mix_gain[3]);
-            drums = (drums_l + drums_r) / 2; /* what SPACE sends */
+            drums = (drums_l + drums_r) / 2; /* what they send */
         }
         if (a->fx.delay_pre_dist) {
             /* PRE DIST: the delay before the distortion, so its filtered echoes are driven too (the HTML has it
              * after); what the chords and drums send to it goes there with them. */
-            int32_t in = mix;
+            int32_t in = mul_q12(mix, a->send_dly_q12[MELLO_SEND_LEAD]) +
+                         mul_q12(bass, a->send_dly_q12[MELLO_SEND_BASS]) +
+                         mul_q12(drums, a->send_dly_q12[MELLO_SEND_DRUMS]);
 #if MELLO_FEATURE_CHORD_MACHINE
-            in += mul_q12(chord_mix, a->chord_send_q12);
+            in += mul_q12(chord_mix, a->send_dly_q12[MELLO_SEND_CHORD]);
 #endif
-            in += mul_q12(drums, a->drum_space_q12);
             mix += mul_q12(delay_tick(a, mul_q12(in, dly_send), dly_fb, delay_q8), dly_level);
         }
         {
@@ -2761,16 +2780,22 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
 #if MELLO_FEATURE_CHORD_MACHINE
 #endif
         {
-            int32_t fx_in = mix;
-            mix = mul_q12(fx_in, 3441); /* 0.84 */
+            /* MIX's sends (DECISIONS "A send per part"): each part's share to the delay and to the reverb, then the
+             * effect's WET. The chords and drums bypass the lead's distortion, their width their own (added after
+             * the delay, below). */
+            int32_t fx_dly = mul_q12(mix, a->send_dly_q12[MELLO_SEND_LEAD]) +
+                             mul_q12(bass, a->send_dly_q12[MELLO_SEND_BASS]) +
+                             mul_q12(drums, a->send_dly_q12[MELLO_SEND_DRUMS]),
+                    fx_rev = mul_q12(mix, a->send_rev_q12[MELLO_SEND_LEAD]) +
+                             mul_q12(bass, a->send_rev_q12[MELLO_SEND_BASS]) +
+                             mul_q12(drums, a->send_rev_q12[MELLO_SEND_DRUMS]);
 #if MELLO_FEATURE_CHORD_MACHINE
-            /* The chords bypass the lead's distortion; their SPACE is their own send to the delay and reverb
-             * (1000 = as the lead's), their width their own (added after the delay, below). */
-            fx_in += mul_q12(chord_mix, a->chord_send_q12);
+            fx_dly += mul_q12(chord_mix, a->send_dly_q12[MELLO_SEND_CHORD]);
+            fx_rev += mul_q12(chord_mix, a->send_rev_q12[MELLO_SEND_CHORD]);
 #endif
-            fx_in += mul_q12(drums, a->drum_space_q12);
+            mix = mul_q12(mix + bass, 3441); /* 0.84 */
             if (!a->fx.delay_pre_dist)
-                mix += mul_q12(delay_tick(a, mul_q12(fx_in, dly_send), dly_fb, delay_q8), dly_level);
+                mix += mul_q12(delay_tick(a, mul_q12(fx_dly, dly_send), dly_fb, delay_q8), dly_level);
             mix_l = mix;
             mix_r = mix;
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -2780,7 +2805,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             mix_l += mul_q12(drums_l, 3441);
             mix_r += mul_q12(drums_r, 3441);
             if (a->reverb_buffer && a->reverb_capacity > 1024u && (a->fx.reverb_wet || a->reverb_live)) {
-                int32_t send = mul_q12(fx_in, rev_send), rv_l = 0, rv_r = 0;
+                int32_t send = mul_q12(fx_rev, rev_send), rv_l = 0, rv_r = 0;
                 const ToneSubBiquadCoeff *rt = &REVERB_TONE_BIQUAD_Q28[a->fx.reverb_tone / 10u];
                 int32_t tl, tr;
                 reverb_step(a, send, &rv_l, &rv_r);

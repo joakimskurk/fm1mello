@@ -395,6 +395,13 @@ static MelloFxConfig sanitize_fx_config(MelloFxConfig c)
     c.reverb_pre_ms = clamp_u16_range(c.reverb_pre_ms, 0u, 120u);
     c.reverb_tone = clamp_amount(c.reverb_tone);
     c.reverb_level = clamp_u16_range(c.reverb_level, 0u, 3000u);
+    {
+        uint8_t i;
+        for (i = 0u; i < MELLO_SEND_PARTS; ++i) {
+            c.send_dly[i] = clamp_amount(c.send_dly[i]);
+            c.send_rev[i] = clamp_amount(c.send_rev[i]);
+        }
+    }
     return c;
 }
 
@@ -1188,6 +1195,11 @@ void mello_fx_defaults(MelloFxConfig *c)
     c->reverb_pre_ms = 12u;
     c->reverb_tone = 620u;
     c->reverb_level = 1150u;
+    c->send_dly[MELLO_SEND_LEAD] = c->send_rev[MELLO_SEND_LEAD] = 1000u;
+    c->send_dly[MELLO_SEND_BASS] = 0u; /* a new project's bass stays out of the echoes, a little in the room */
+    c->send_rev[MELLO_SEND_BASS] = 200u;
+    c->send_dly[MELLO_SEND_CHORD] = c->send_rev[MELLO_SEND_CHORD] = 600u; /* the chords' SPACE before */
+    c->send_dly[MELLO_SEND_DRUMS] = c->send_rev[MELLO_SEND_DRUMS] = 250u; /* and the drums' */
 }
 
 void mello_stored_project_encode(MelloStoredProject *d, const MelloProject *p)

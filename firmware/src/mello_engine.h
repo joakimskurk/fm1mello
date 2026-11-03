@@ -283,6 +283,10 @@ typedef struct {
     int16_t vel_menv;   /* -1000..1000: an accent's MOD envelope, up to twice (or none) */
 } MelloSoundConfig;
 
+/* The parts a send is set for, MIX's order (the samples go with the lead) */
+#define MELLO_SEND_PARTS 4u
+enum { MELLO_SEND_LEAD = 0, MELLO_SEND_BASS, MELLO_SEND_CHORD, MELLO_SEND_DRUMS };
+
 typedef struct {
     uint16_t dist_amount;    /* 0..1000 */
     uint16_t dist_mix;       /* 0..1000 */
@@ -305,6 +309,10 @@ typedef struct {
     uint16_t reverb_pre_ms;   /* 0..120 */
     uint16_t reverb_tone;     /* 0..1000 */
     uint16_t reverb_level;    /* 0..3000 */
+    /* MIX's DELAY and REVERB layers (2026-11-03, ROADMAP E11, DECISIONS "A send per part"): how much of each part
+     * goes to the delay and to the reverb, 0..1000, before the effect's own WET */
+    uint16_t send_dly[MELLO_SEND_PARTS];
+    uint16_t send_rev[MELLO_SEND_PARTS];
 } MelloFxConfig;
 
 typedef struct {

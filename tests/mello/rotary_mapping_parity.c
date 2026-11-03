@@ -171,7 +171,7 @@ static const Case cases[] = {
     C("CHORD GRID", MELLO_UI_CHORD, 3, 15, 0, "MODE", "LENGTH", "DEPTH", "FOLLOW"),
     C("CHORD PATTERN", MELLO_UI_CHORD, 4, 3, 0, "MASK", "LENGTH", "", ""),
     /* a new project's chords are SUB MELLO: one voice, no chorus and nothing to strum (POLY gives them back) */
-    C("CHORD TONE", MELLO_UI_CHORD, 5, 15, 0, "WAVE", "", "SPACE", "LEVEL"),
+    C("CHORD TONE", MELLO_UI_CHORD, 5, 15, 0, "WAVE", "", "", "LEVEL"), /* SPACE: MIX's sends (E11) */
     C("CHORD FILTER", MELLO_UI_CHORD, 6, 15, 0, "CUT", "RES", "ENV", "LINK"),
     C("CHORD MOTION", MELLO_UI_CHORD, 7, 15, 0, "F.ATK", "F.DEC", "", "NEXT"),
     C("CHORD AMP", MELLO_UI_CHORD, 8, 15, 0, "ATTACK", "DECAY", "SUSTAIN", "RELEASE"),
@@ -198,7 +198,7 @@ static const Case cases[] = {
     C("DRUMS VOICE", MELLO_UI_DRUMS, 0, 15, 0, "TUNE", "DECAY", "TONE", "LEVEL"),
     C("DRUMS STEP", MELLO_UI_DRUMS, 1, 15, 0, "PITCH", "DECAY", "CRUSH", "RATCH"),
     C("DRUMS VARY", MELLO_UI_DRUMS, 2, 15, 0, "CHANCE", "CRUSH", "FEED", "ROLL"),
-    C("DRUMS KIT", MELLO_UI_DRUMS, 3, 15, 0, "LENGTH", "FOLLOW", "SPACE", "LEVEL"),
+    C("DRUMS KIT", MELLO_UI_DRUMS, 3, 15, 0, "LENGTH", "FOLLOW", "", "LEVEL"),
     C("DRUMS DIST", MELLO_UI_DRUMS, 4, 7, 0, "DRIVE", "FOLD", "DUCK", ""),
 #if MELLO_FEATURE_CHORD_MACHINE
     C("MIX", MELLO_UI_MIX, 0, 15, 0, "LEAD", "BASS", "CHORD", "DRUMS")};
