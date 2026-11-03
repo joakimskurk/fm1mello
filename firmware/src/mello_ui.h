@@ -135,6 +135,11 @@ typedef struct {
     uint32_t held_notes;     /* mello_ui_set_held_notes: the note keys held now */
     uint16_t audio_load;     /* mello_ui_set_audio_load: the chip's audio load, permille (GLOBAL shows it) */
     uint16_t held_black;     /* HOME: the black keys held now (bit = B0..B10), for the strip's names */
+    /* PERFORM (G4, ROADMAP F4): B5 PERF tapped opens it until PERF or a page button (1), held while held (2); the
+     * white keys are then 16 performance actions on every part */
+    uint8_t perform;
+    uint32_t perform_down_ms;
+    uint16_t perform_was; /* its white keys held at the last input, to redraw them when that changes */
     uint8_t perf_repeat_len; /* REPEAT's length in pulses (a white key while REPEAT is held); 0 = 4 */
     uint8_t held_step;       /* MELLO_UI_NO_STEP when none */
     uint8_t held_key;        /* its note key */

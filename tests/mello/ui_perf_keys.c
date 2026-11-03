@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (C) 2026 joakimskurk */
-/* Phase 3: HOME's performance keys (DECISIONS.md "Performance keys").
- * - Held on HOME, FILL / SUB MUTE / REVERSE / REPEAT reach the engine; let go, they stop; a white key while REPEAT is
- *   held sets its length (and edits no step); RESTART goes to step 1 at the next pulse.
+/* Phase 3: the performance keys (DECISIONS.md "Performance keys"), since 2026-11-03 on PERFORM (G4):
+ * - B5 PERF tapped opens PERFORM until PERF or a page button, held while held; its white keys: FILL and REPEAT while
+ *   held (no step edited), the mutes latched, MIX's mutes kept while an action is held; B6 MUT mutates on any page;
+ *   RESTART goes to step 1 at the next pulse.
  * - FILL plays every step (chance 0 and rests too) with doubled ratchets; SUB MUTE stops new bass notes and
  *   mello_audio fades the sounding bass in ~10 ms.
  * - REVERSE plays what was heard backwards, REPEAT the last n pulses round and round; let go, the sequence is where it
@@ -61,40 +62,72 @@ static int ui_part(void)
     static MelloStorage st;
     static MelloUi u;
     int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
-    uint32_t fill = 1u << black_note(5u), subm = 1u << black_note(6u), rep = 1u << black_note(8u),
-             w2 = 1u << white_note(1u);
+    uint32_t perf = 1u << black_note(5u), mut = 1u << black_note(6u), fill = 1u << white_note(0u),
+             rep4 = 1u << white_note(3u), lead = 1u << white_note(7u);
     MelloStep before;
+    MelloStep steps[MELLO_MAX_STEPS];
     mello_project_defaults(&p);
     mello_transport_init(&t, &p, 1u, 0, 0);
     mello_storage_init(&st, 0, 0);
     mello_ui_init(&u, &t, &st);
     mello_ui_set_page(&u, MELLO_UI_HOME);
 
-    mello_ui_set_held_notes(&u, fill | subm);
-    mello_ui_input(&u, 1000u, 1u, 0u, 0u, 0u, fill | subm, enc);
-    CHECK(t.engine.perf.fill && t.engine.perf.sub_mute && !t.engine.perf.repeat,
-          "held FILL + SUB MUTE did not act");
+    /* G4: B5 PERF tapped opens PERFORM, which stays */
+    mello_ui_set_held_notes(&u, perf);
+    mello_ui_input(&u, 1000u, 1u, 0u, 0u, 0u, perf, enc);
     mello_ui_set_held_notes(&u, 0u);
-    mello_ui_input(&u, 2000u, 2u, 0u, 0u, 0u, 0u, enc);
-    CHECK(!t.engine.perf.fill && !t.engine.perf.sub_mute, "let go, FILL / SUB MUTE stayed on");
+    mello_ui_input(&u, 101000u, 101u, 0u, 0u, 0u, 0u, enc);
+    CHECK(u.perform == 1u, "a tap on PERF did not keep PERFORM open (%u)", u.perform);
 
-    before = t.engine.project.steps[1];
-    mello_ui_set_held_notes(&u, rep);
-    mello_ui_input(&u, 3000u, 3u, 0u, 0u, 0u, rep, enc);
-    mello_ui_set_held_notes(&u, rep | w2);
-    mello_ui_input(&u, 4000u, 4u, 0u, 0u, 0u, w2, enc);
-    CHECK(t.engine.perf.repeat && t.engine.perf.repeat_len == 2u,
-          "REPEAT + white key 2 is not a 2-pulse repeat (%u)", t.engine.perf.repeat_len);
-    CHECK(u.held_step == MELLO_UI_NO_STEP && !memcmp(&before, &t.engine.project.steps[1], sizeof before),
-          "the white key under REPEAT edited a step");
-
-    mello_ui_set_held_notes(&u, 0u);
-    mello_ui_set_page(&u, MELLO_UI_SOUND_RESERVED); /* R3: B5-B8 are the performance keys on every page */
+    /* its white keys: FILL while held, REPEAT 4 while held (and no step edited), LEAD's mute latched */
     mello_ui_set_held_notes(&u, fill);
-    mello_ui_input(&u, 5000u, 5u, 0u, 0u, 0u, fill, enc);
-    CHECK(t.engine.perf.fill && !t.engine.perf.repeat, "FILL did not act off HOME");
+    mello_ui_input(&u, 200000u, 200u, 0u, 0u, 0u, fill, enc);
+    CHECK(t.engine.perf.fill && !t.engine.perf.repeat, "PERFORM's FILL held did not act");
     mello_ui_set_held_notes(&u, 0u);
-    mello_ui_input(&u, 6000u, 6u, 0u, 0u, 0u, 0u, enc);
+    mello_ui_input(&u, 300000u, 300u, 0u, 0u, 0u, 0u, enc);
+    CHECK(!t.engine.perf.fill, "let go, FILL stayed on");
+    before = t.engine.project.steps[3];
+    mello_ui_set_held_notes(&u, rep4);
+    mello_ui_input(&u, 400000u, 400u, 0u, 0u, 0u, rep4, enc);
+    CHECK(t.engine.perf.repeat && t.engine.perf.repeat_len == 4u, "PERFORM's REP 4 is not a 4-pulse repeat (%u)",
+          t.engine.perf.repeat_len);
+    CHECK(u.held_step == MELLO_UI_NO_STEP && !memcmp(&before, &t.engine.project.steps[3], sizeof before),
+          "a PERFORM key edited a step");
+    mello_ui_set_held_notes(&u, 0u);
+    mello_ui_input(&u, 500000u, 500u, 0u, 0u, 0u, 0u, enc);
+    CHECK(!t.engine.perf.repeat, "let go, REPEAT stayed on");
+    mello_ui_set_held_notes(&u, lead);
+    mello_ui_input(&u, 600000u, 600u, 0u, 0u, 0u, lead, enc);
+    mello_ui_set_held_notes(&u, 0u);
+    mello_ui_input(&u, 700000u, 700u, 0u, 0u, 0u, 0u, enc);
+    CHECK((t.engine.perf.mix_mute & 1u) && !t.engine.perf.fill, "PERFORM's LEAD did not mute the lead");
+    mello_ui_set_held_notes(&u, fill); /* a held action keeps MIX's mutes */
+    mello_ui_input(&u, 800000u, 800u, 0u, 0u, 0u, fill, enc);
+    CHECK(t.engine.perf.mix_mute & 1u, "holding FILL cleared the lead's mute");
+    mello_ui_set_held_notes(&u, 0u);
+    mello_ui_input(&u, 900000u, 900u, 0u, 0u, 0u, 0u, enc);
+
+    /* a page button closes PERFORM and goes to its page */
+    mello_ui_input(&u, 1000000u, 1000u, 1u << MELLO_UI_BTN_ENV, 0u, 0u, 0u, enc);
+    CHECK(!u.perform && u.page == MELLO_UI_SOUND_RESERVED, "ENV did not close PERFORM (%u, page %d)", u.perform,
+          (int)u.page);
+
+    /* PERF held long: PERFORM while held, closed when let go */
+    mello_ui_set_held_notes(&u, perf);
+    mello_ui_input(&u, 1100000u, 1100u, 0u, 0u, 0u, perf, enc);
+    CHECK(u.perform == 2u, "PERF held did not open PERFORM");
+    mello_ui_input(&u, 1800000u, 1800u, 0u, 0u, 0u, 0u, enc);
+    mello_ui_set_held_notes(&u, 0u);
+    mello_ui_input(&u, 1900000u, 1900u, 0u, 0u, 0u, 0u, enc);
+    CHECK(!u.perform, "PERF held and let go did not close PERFORM");
+
+    /* B6 MUT: MUTATE on any page (here SOUND) */
+    memcpy(steps, t.engine.project.steps, sizeof steps);
+    mello_ui_set_held_notes(&u, mut);
+    mello_ui_input(&u, 2000000u, 2000u, 0u, 0u, 0u, mut, enc);
+    mello_ui_set_held_notes(&u, 0u);
+    mello_ui_input(&u, 2100000u, 2100u, 0u, 0u, 0u, 0u, enc);
+    CHECK(memcmp(steps, t.engine.project.steps, sizeof steps), "B6 MUT did not mutate off HOME");
     return 0;
 }
 
@@ -193,7 +226,6 @@ static int audio_part(void)
 int main(void)
 {
     if (ui_part() || engine_part() || audio_part()) return 1;
-    puts("PASS: HOME's performance keys: held FILL / SUB MUTE / REVERSE / REPEAT (+ white key), RESTART; in "
-         "time");
+    puts("PASS: PERFORM (PERF tapped or held, its white keys, B6 MUT) and the performance actions; in time");
     return 0;
 }

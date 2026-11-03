@@ -1161,6 +1161,28 @@ delay's low end under 120 Hz (the HTML has no LO CUT; audio_html_parity sets it 
 distortion's tone filter. Test: delay_reach (the echoes of 2N, 2D and 1 BAR on time, 1 BAR at 60 BPM at the reach).
 A ping-pong option needs two read points and two filters' states: it is its own item (F25).
 
+## Performance on every part, in one place (2026-11-03)
+
+CONTROL_GRAMMAR's G4 (ROADMAP E2, F3, F4, F18). Before: B5-B8 were FILL, BASS MUTE, REVERSE and REPEAT, held, on every
+page, acting on the lead's sequence only (the drums, BASS SEQ and the chord chain ran on their own clocks); MUTATE was
+on HOME alone.
+
+- **B5 PERF** opens PERFORM: tapped (let go within 0.4 s), until PERF again or a page button; held, while held. Its
+  white keys, a 4 x 4 on the screen in the keys' order: FILL, REVERSE, REP 8 / 4 / 2 / 1 (pulses) while held;
+  RESTART, MUTATE, TRANS - / + on the press; MUTE LD / BS / CH / DR latched (MIX's mutes). Keys 15-16 free.
+- **B6 MUTATE** on every page; B7-B8 free for the pages; HOME's own keys lose MUT (- + RST CLR stay where they were).
+  Where the strip is too full for frames, PERF and MUT show as P and M.
+- **Every part**: the history keeps, with each of the sequence's pulses, the drums' and BASS SEQ's step and the chord
+  chain's chord, arpeggio and pattern places; REVERSE and REPEAT replay them all, each part's own place moving on
+  underneath, so letting go lands every part in time. FILL: a snare and glitch roll on every drum step (two hits at
+  least, chance aside), every step of the bass line, the chords struck on every step (HOLD's again). A CHAIN TRIG
+  chain moves by the triggers REVERSE / REPEAT replay.
+- Holding an action no longer clears MIX's mutes (perf_poll built the state from nothing and set it whole).
+
+Tests: perf_parts (REPEAT 4 loops the drums', the bass's and the chords' last four; REVERSE plays the drums backwards;
+let go, every part in time; FILL), ui_perf_keys (PERF tapped and held, the white keys, the mutes kept, a page button
+closes it, B6 MUT off HOME), the contracts' strips.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

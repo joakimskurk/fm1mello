@@ -15,29 +15,29 @@ typedef struct {
 } MapCase;
 
 static const MapCase cases[] = {
-    {"HOME", MELLO_UI_HOME, "B0:- B1:+ B2:MUT B3:RST B4:CLR B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"STEP", MELLO_UI_SEQ_STEP, "B1:SKIP B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B0:EVEN B1:A B2:B B3:C B4:D B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"LOOP", MELLO_UI_SEQ_LOOP, "B0:ON B1:RST B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B0:ON B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"RANDOM", MELLO_UI_RANDOM, "B0:NONE B1:ALL B2:CLR B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"SLOTS", MELLO_UI_SLOTS, "B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"DOT", MELLO_UI_DOT, "B0:ON B1:RND B2:RST B3:FLW B4:REV B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B2:LOOP B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"SUB", MELLO_UI_SUB, "B0:ON B1:SEQ B2:ROLL B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"HOME", MELLO_UI_HOME, "B0:- B1:+ B3:RST B4:CLR B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"STEP", MELLO_UI_SEQ_STEP, "B1:SKIP B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B0:EVEN B1:A B2:B B3:C B4:D B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"LOOP", MELLO_UI_SEQ_LOOP, "B0:ON B1:RST B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B0:ON B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"RANDOM", MELLO_UI_RANDOM, "B0:NONE B1:ALL B2:CLR B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"SLOTS", MELLO_UI_SLOTS, "B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"DOT", MELLO_UI_DOT, "B0:ON B1:RND B2:RST B3:FLW B4:REV B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B2:LOOP B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"SUB", MELLO_UI_SUB, "B0:ON B1:SEQ B2:ROLL B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
 #if MELLO_FEATURE_CHORD_MACHINE
-    {"CHORD", MELLO_UI_CHORD, "B0:ON B1:BASS B2:POLY B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"CHORD", MELLO_UI_CHORD, "B0:ON B1:BASS B2:POLY B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
 #endif
-    {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B2:RST2 B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"SOUND", MELLO_UI_SOUND_RESERVED, "B1:INIT B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B1:PRE-DIST B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"DRUMS", MELLO_UI_DRUMS, "B0:ON B1:VOX B2:ACC B3:ROLL B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B2:RST2 B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"SOUND", MELLO_UI_SOUND_RESERVED, "B1:INIT B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B1:PRE-DIST B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"DRUMS", MELLO_UI_DRUMS, "B0:ON B1:VOX B2:ACC B3:ROLL B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
 #if MELLO_FEATURE_CHORD_MACHINE
-    {"MIX", MELLO_UI_MIX, "B0:LD B1:BS B2:CH B3:DR B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"MIX", MELLO_UI_MIX, "B0:LD B1:BS B2:CH B3:DR B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
 #else
-    {"MIX", MELLO_UI_MIX, "B0:LD B1:BS B3:DR B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"MIX", MELLO_UI_MIX, "B0:LD B1:BS B3:DR B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
 #endif
 };
 
@@ -55,6 +55,24 @@ static void labels_of(const char *hint, char *out)
         memcpy(out + n, colon + 1, (size_t)(end - colon - 1));
         out[n + (size_t)(end - colon - 1)] = 0;
         hint = *end ? end + 1 : end;
+    }
+}
+/* A strip too full for frames shows PERF and MUT as P and M (draw_control_hint): the same keys. */
+static void short_of(const char *labels, char *out)
+{
+    const char *p = labels;
+    *out = 0;
+    while (*p) {
+        const char *e = strchr(p, ' ');
+        size_t n = e ? (size_t)(e - p) : strlen(p);
+        if (*out) strcat(out, " ");
+        if (n == 4u && !strncmp(p, "PERF", 4u))
+            strcat(out, "P");
+        else if (n == 3u && !strncmp(p, "MUT", 3u))
+            strcat(out, "M");
+        else
+            strncat(out, p, n);
+        p = e ? e + 1 : p + n;
     }
 }
 
@@ -167,8 +185,10 @@ static void verify_every_page_and_inactive_slot(void)
         render(&u, &cap);
         {
             char want[96];
+            char shrt[96];
             labels_of(cases[i].hint, want);
-            if (strcmp(cap.hint, want)) die(cases[i].name, "rendered descriptor hint drift");
+            short_of(want, shrt);
+            if (strcmp(cap.hint, want) && strcmp(cap.hint, shrt)) die(cases[i].name, "rendered descriptor hint drift");
         }
         for (slot = 0u; slot < 11u; ++slot) {
             if (has_slot(cases[i].hint, slot)) {
@@ -188,9 +208,9 @@ static void verify_every_page_and_inactive_slot(void)
         }
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if (active != 152u) die("MAP", "active slot count != 152 with Chord");
+    if (active != 115u) die("MAP", "active slot count != 115 with Chord");
 #else
-    if (active != 141u) die("MAP", "active slot count != 141 without Chord");
+    if (active != 107u) die("MAP", "active slot count != 107 without Chord");
 #endif
     printf("C5 MAP COVERAGE: pages=%u active=%u inactive=%u\n", (unsigned)(sizeof(cases) / sizeof(cases[0])),
            active, inactive);

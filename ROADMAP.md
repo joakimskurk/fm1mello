@@ -56,8 +56,8 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 |---|---|---|
 | F1 | DOT: B0 is the picked matrix's ON (G1) | 2026-11-03, 1 |
 | F2 | BASS: SEQ on the first page's B1 (G2) | 2026-11-03, 2 |
-| F3 | The performance keys act on every part: drums, bass line, chords (E2) | 2026-11-02, 2; 2026-11-03, 4 |
-| F4 | PERFORM: one key opens the white keys as 16 actions, its own screen; MUTATE always on B6 (G4) | 2026-11-03, 6 |
+| F3 | The performance keys act on every part: drums, bass line, chords (E2). Done 2026-11-03 (0.5-f52) | 2026-11-02, 2; 2026-11-03, 4 |
+| F4 | PERFORM: one key opens the white keys as 16 actions, its own screen; MUTATE always on B6 (G4). Done 2026-11-03 (0.5-f52) | 2026-11-03, 6 |
 | F5 | REC on every page with a sequence, the drums included (G3) | 2026-11-01 (D14 did HOME); 2026-11-03, 5 |
 | F6 | SUB MELLO in place of the chord synth, its code kept behind the flag (E6). Done 2026-11-03 (0.5-f48: BROKEN and WALK); then both, POLY on B2 picking per project (0.5-f49) | 2026-11-02, 6 |
 | F7 | Room without a change to sound: the key scan's LED pulses, the chord config's copies (E6). Looked at 2026-11-03: nothing sets the glow or backlight layers yet, so the pulse loop never runs (fm1-emu's hot PCs are the main loop's polls); it will with G5's glow, so it is measured and made cheap in wave 4. The config copies would give ~0.35 KB with 6.6 KB free: left. Found with F8: each of the 64 pattern slots held a copy of the FX config that nothing read (3.5 KB); gone (0.5-f50: RAM 91.7 -> 89.2 KB with the sends). | 2026-11-02, 6 |
@@ -71,7 +71,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F15 | GROOVE, a second MUSICAL: rolls, ties, ghost notes, rests (E10) | 2026-11-02, 10 |
 | F16 | The reverb's noise confirmed or found (E5): a recording from the emulator, then the FM-1 | 2026-11-02, 5 |
 | F17 | Music units on the remaining pages (Phase 3) | 2026-10-29 |
-| F18 | HOME's own black keys once PERFORM exists (G4) | 2026-11-03, 6 |
+| F18 | HOME's own black keys once PERFORM exists (G4). Done 2026-11-03: - + RST CLR stay, MUT went to B6 | 2026-11-03, 6 |
 | F19 | DOT's picture: "much better than the HTML" was asked; it kept its own body in C3 | 2026-10-29 (h3) |
 | F20 | The output level: as quiet as the HTML (about -10 dB RMS); MASTER or an outer gain, a product choice | Phase 2 |
 | F21 | RAM: the stack's high-water mark, the 60 B event, UNDO as one packed slot (B4) | 2026-10-31 |

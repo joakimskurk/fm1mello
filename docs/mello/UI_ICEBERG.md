@@ -36,7 +36,7 @@ header always shows `PAGE / LAYER`, and the readout (done) shows what you turn.
 | SELECT | **TEMPO** |
 | ALGORITHM | **RANDOM INTENSITY** (low / mid / high) |
 | PRESETS | **PATTERN**: picks a slot, switches on the next bar (`→04` in the header) |
-| Black keys | **Fixed places on every page** (R3): B0 ON (the page's part) · B1-B4 the page's own (HOME: transpose −/+, MUTATE, RESTART, CLEAR) · B5-B8 FILL · BASS MUTE · REVERSE · REPEAT (held; + white key = length), on every page · B9 UNDO · B10 RNDMZR |
+| Black keys | **Fixed places on every page** (R3, G1-G4): B0 ON (the page's part) · B1-B4 the page's own (HOME: transpose −/+, RESTART, CLEAR) · B5 PERF (the PERFORM page: the white keys are FILL, REVERSE, REPEAT, the mutes, MUTATE, RESTART, transpose, on every part) · B6 MUTATE · B7-B8 the page's · B9 UNDO · B10 RNDMZR |
 | PLAY | Start/stop; the LED blinks on the beat |
 | SAVE | Saves the project, with "SAVED" on screen. Hold = pattern slots |
 | EDIT | **KEYS**: the 27 keys become a keyboard. Tap = transpose the sequence; while stopped, play the lead |
@@ -66,7 +66,7 @@ and PATTERN are always there, and the title says GRID OFF / PTN OFF when they ar
 
 The keys (R3, R4, R6): a white key's tap toggles what sits on it and picks it; SEL held + a white key only picks;
 EDIT turns the page's edit mode on (KEYS on HOME, pitch entry on STEP, amounts on RANDOM, the lock on EVOLVE, per
-step on SAMPLE). The black keys: B0 ON, B1-B4 the page's own, B5-B8 FILL / BASS MUTE / REVERSE / REPEAT held on every
+step on SAMPLE). The black keys: B0 ON, B1-B4 the page's own, B5 PERF (PERFORM) and B6 MUTATE on every
 page, B9 UNDO, B10 RNDMZR.
 
 ## The look: the HTML's

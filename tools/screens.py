@@ -30,6 +30,7 @@ W = H = 240
 OCT_DOWN, OCT_UP, FX, SEL, ENV, LFO, EDIT, GLO, HOME, SAVE, ARP, SEQ, PLAY, REC = range(14)
 ENC_SELECT = 0
 B10 = 1 << 25  # the last black key, RNDMZR: key 25 of the 27 the UI counts (16 white, 11 black)
+B5 = 1 << 13  # PERF: the sixth black key
 WHITE3 = 1 << 4  # the third white key (E)
 
 GAP = 80  # ms between two inputs
@@ -201,6 +202,9 @@ def the_tour():
     t.btn(ARP)
     t.sel()  # DIST was left open: round to VOICE
     t.shot("drums-playing", None, None, "ARP > DRUMS while playing")
+    t.btn(HOME)
+    t.keys(B5, 120)  # PERF tapped: PERFORM stays open
+    t.shot("perform", "PERFORM", "—", "B5 PERF: the white keys are the performance actions, on every part")
     t.btn(HOME)
     t.btn(PLAY)
     t.end()
