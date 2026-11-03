@@ -2603,8 +2603,6 @@ static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
 
 static const char *layer_name(const MelloUi *ui);
 static const char *domain_name(const MelloUi *ui);
-static const char *button_name(const MelloUi *ui);
-static bool ui_str_eq(const char *a, const char *b);
 static uint16_t ui_text_len(const char *s);
 static uint8_t save_state(const MelloUi *ui);
 static void draw_param_panel(MelloUi *ui, const MelloUiDrawOps *o);
@@ -2627,7 +2625,7 @@ static void show_readout(MelloUi *ui, uint8_t what, uint32_t now_ms)
 {
     ui->readout = what;
     ui->readout_until_ms = now_ms + MELLO_UI_READOUT_MS;
-    ui->dirty |= MELLO_UI_DIRTY_BODY;
+    ui->dirty |= MELLO_UI_DIRTY_FOOTER; /* G7: at the bottom */
 }
 
 /* Acceleration: detents that come fast count more (x2 under 60 ms apart, x4 under 25 ms), so a sweep crosses a
@@ -3485,7 +3483,7 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
     if (!ui || !ui->transport) return;
     if (ui->readout && (int32_t)(now_ms - ui->readout_until_ms) >= 0) { /* its time is up: the body again */
         ui->readout = 0u;
-        ui->dirty |= MELLO_UI_DIRTY_BODY;
+        ui->dirty |= MELLO_UI_DIRTY_FOOTER; /* K1-K4 and the strip again */
     }
     if (ui->audition_release) {
         ui->audition_release = false;
@@ -4261,33 +4259,29 @@ static void draw_sequence_playhead(MelloUi *ui, const MelloUiDrawOps *o)
     }
 }
 
+static void status_count(MelloUi *ui, char *b);
+static void status_key(MelloUi *ui, char *b);
 static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
 {
     MelloEngine *e = eng(ui);
     char b[32], status[12], *p, chord_name[8] = "";
     uint16_t accent = ui_page_accent(ui);
+    uint8_t sv = save_state(ui);
     o->fill(o->ctx, 0, 0, 240, 30, UI_BLACK);
-    /* R2: BUTTON > PAGE > LAYER, the printed button first, so the screen says which button you pressed and what its
-     * next press gives. 24 characters fit before the tempo; a path longer than that drops the button. */
+    /* G7 (ROADMAP E3 / F12): one line, PAGE > LAYER where it fits in 16 characters, the layer alone where it does not
+     * (the lit panel button and the page's colour say the rest); then the key sounding and the count, right. */
     if (ui->page != MELLO_UI_HOME || ui->perform) { /* PERFORM: its name, on any page */
-        const char *btn = button_name(ui), *page = domain_name(ui), *layer = layer_name(ui);
+        const char *page = domain_name(ui), *layer = layer_name(ui);
         int16_t x = 4;
-        uint16_t need = ui_text_len(btn) + 3u + ui_text_len(page) + (layer ? 3u + ui_text_len(layer) : 0u);
-        if ((need <= 24u || !layer) &&
-            !ui_str_eq(btn, page)) { /* a page named as its button (FX) shows once */
-            o->text(o->ctx, x, 7, (int16_t)(ui_text_len(btn) * 8u), 0, btn, UI_DIM, 0);
-            x = (int16_t)(x + ui_text_len(btn) * 8u);
-            o->text(o->ctx, x, 7, 24, 0, " > ", UI_DIM, 0);
-            x = (int16_t)(x + 24);
+        if (!layer || ui_text_len(page) + 3u + ui_text_len(layer) <= 16u) {
+            o->text(o->ctx, x, 7, (int16_t)(ui_text_len(page) * 8u), 0, page, UI_WHITE, 0);
+            x = (int16_t)(x + ui_text_len(page) * 8u);
+            if (layer) {
+                o->text(o->ctx, x, 7, 24, 0, " > ", UI_DIM, 0);
+                x = (int16_t)(x + 24);
+            }
         }
-        o->text(o->ctx, x, 7, (int16_t)(ui_text_len(page) * 8u), 0, page, UI_WHITE, 0);
-        x = (int16_t)(x + ui_text_len(page) * 8u);
-        if (layer) {
-            o->text(o->ctx, x, 7, 24, 0, " > ", UI_DIM, 0);
-            x = (int16_t)(x + 24);
-            o->text(o->ctx, x, 7, (int16_t)(196 - x), 0, layer, accent,
-                    0); /* the layer in the page's colour */
-        }
+        if (layer) o->text(o->ctx, x, 7, (int16_t)(136 - x), 0, layer, accent, 0); /* in the page's colour */
     }
     p = copy_s(b, ui->page == MELLO_UI_HOME && ui->keys_mode
                       ? (ui->keys_rec ? (ui->keys_rec_target == MELLO_UI_REC_BASS    ? "REC > BASS"
@@ -4320,13 +4314,17 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
             if (chord_name[0]) o->text(o->ctx, 76, 7, 64, 0, chord_name, UI_CHORD, 0);
         }
     }
-    /* the HTML's "● PLAYING": a dot lit while playing, then the tempo */
-    o->fill(o->ctx, 200, 13, 4, 4, ui->transport->running ? UI_ACC : UI_DIM);
-    o->fill(o->ctx, 201, 12, 2, 6, ui->transport->running ? UI_ACC : UI_DIM);
-    o->fill(o->ctx, 199, 14, 6, 2, ui->transport->running ? UI_ACC : UI_DIM);
-    p = status;
-    put_u32(p, mello_transport_effective_bpm(ui->transport));
-    o->text(o->ctx, 208, 7, 28, 0, status, ui->transport->running ? UI_ACC : UI_MID, 2);
+    /* the key sounding (a save that cannot be made instead, in red) and the count; the tempo is GLOBAL's and
+     * SELECT's on HOME (the readout) */
+    if (sv >= 3u)
+        o->text(o->ctx, 140, 7, 48, 0, sv == 3u ? "NOSAVE" : "FULL", UI_RED, 0);
+    else {
+        status_key(ui, status);
+        o->text(o->ctx, 140, 7, 40, 0, status, UI_MID, 0);
+    }
+    ui->seen_save_state = sv;
+    status_count(ui, status);
+    o->text(o->ctx, 184, 7, 52, 0, status, ui->transport->running ? UI_BRIGHT : UI_MID, 2);
     o->fill(o->ctx, 0, 29, 240, 1, UI_LINE); /* the hairline under the header, as between every zone */
 }
 
@@ -4474,7 +4472,8 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
                 *q++ = 'x';
                 (void)put_u32(q, e->project.seg_repeats[i]);
             }
-            ui_pill(o, (int16_t)(4 + i * 39u), 82, 36, a, i == s, ui_segment_colour(i));
+            /* the pill holds four: past that the letter goes (the pill's colour is the segment's) */
+            ui_pill(o, (int16_t)(4 + i * 39u), 82, 36, ui_text_len(a) > 4u ? a + 1 : a, i == s, ui_segment_colour(i));
         }
         draw_value_rows(ui, o, 100);
         break;
@@ -5337,7 +5336,12 @@ static void value_cutoff(char *b, uint16_t cut)
 }
 static void value_millihz(char *b, uint32_t mhz)
 {
-    char *p = put_u32(b, mhz / 1000u);
+    char *p;
+    if (mhz >= 1000000u) { /* a kHz and up: whole Hz, so it fits its row ("6408HZ") */
+        (void)copy_s(put_u32(b, mhz / 1000u), "HZ");
+        return;
+    }
+    p = put_u32(b, mhz / 1000u);
     *p++ = '.';
     if (mhz < 10000u) {
         *p++ = (char)('0' + (mhz % 1000u) / 100u);
@@ -6654,34 +6658,14 @@ static uint8_t save_state(const MelloUi *ui)
     return st->dirty || st->manual_pending ? 2u : 1u;
 }
 
-static void draw_status(MelloUi *ui, const MelloUiDrawOps *o)
+/* G7 (ROADMAP E3 / F12): the status line's count, now on the header's right: the beat of the beats before RESET
+ * ("21/32", or bar.beat/bars past 99), the step of the length with RESET on FREE, the length stopped ("16 ST"). */
+static void status_count(MelloUi *ui, char *b)
 {
-    char b[48], *p;
     MelloEngine *e = eng(ui);
-    uint8_t sv = save_state(ui);
-    static const char *sw[5] = {"", "SAVED", "EDITED", "NOSAVE", "FULL"};
-    static const uint16_t sc[5] = {UI_DIM, UI_ACC, UI_CORAL, UI_RED, UI_RED};
-    o->fill(o->ctx, 0, 221, 240, 19,
-            UI_BLACK); /* from 221: row 220 is the footer's (its value row ends there) */
-    o->fill(o->ctx, 0, 221, 240, 1, UI_LINE);
-    if (e) { /* the key (R2: it left the header for the path): the HTML's title line, "C minor" */
-        static const char *n[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
-        static const char *sc_name[MELLO_SCALE_COUNT] = {"CHROM",  "MINOR", "DORIAN", "PHRYG",
-                                                         "LYDIAN", "MIXO",  "PENTA",  "mPENT",
-                                                         "DIM",    "WHOLE", "AUG",    "MAJOR"};
-        uint8_t kr;
-        MelloScale ks;
-        mello_engine_key_now(e, &kr, &ks); /* the key sounding, the loop step's where it sets one (ROADMAP E1) */
-        p = copy_s(b, n[kr % 12u]);
-        p = copy_s(p, " ");
-        (void)copy_s(p, sc_name[ks < MELLO_SCALE_COUNT ? ks : MELLO_SCALE_MINOR]);
-        o->text(o->ctx, 4, 222, 72, 0, b, UI_MID, 0);
-    }
+    char *p;
     if (ui->transport->running && ui->transport->display_step != 0xFFu) {
         if (e && e->project.master_len > 0u && e->loop_pulse_length > 0u) {
-            /* RESET set: the beat of the beats before the reset ("21/32"), counted in clock pulses, not in the
-             * sequence's steps (a step can take several pulses). The pulse sounding is the one the engine counted
-             * last. Past 99 beats (8 BAR) the field is too narrow, so bar.beat/bars ("7.13/8"). */
             uint32_t len = e->loop_pulse_length,
                      pulse = e->absolute_pulse ? (e->absolute_pulse - 1u) % len : 0u;
             if (len < 100u) {
@@ -6706,14 +6690,18 @@ static void draw_status(MelloUi *ui, const MelloUiDrawOps *o)
         p = put_u32(b, e ? e->project.seq_len : 0u);
         (void)copy_s(p, " ST");
     }
-    o->text(o->ctx, 80, 222, 48, 0, b, ui->transport->running ? UI_BRIGHT : UI_MID, 0);
-    if (e && e->active_slot >= 0) {
-        p = copy_s(b, "SLOT ");
-        put_u32(p, (uint32_t)e->active_slot + 1u);
-        o->text(o->ctx, 132, 222, 56, 0, b, UI_BLUE, 0);
-    }
-    o->text(o->ctx, 188, 222, 48, 0, sw[sv], sc[sv], 2);
-    ui->seen_save_state = sv;
+}
+/* The key sounding in short ("C#DOR"), the loop step's where it sets one (ROADMAP E1). */
+static void status_key(MelloUi *ui, char *b)
+{
+    static const char *n[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    static const char *sc[MELLO_SCALE_COUNT] = {"CHR", "MIN", "DOR", "PHR", "LYD", "MIX",
+                                                "PEN", "mPN", "DIM", "WHL", "AUG", "MAJ"};
+    MelloEngine *e = eng(ui);
+    uint8_t kr = 60u;
+    MelloScale ks = MELLO_SCALE_MINOR;
+    if (e) mello_engine_key_now(e, &kr, &ks);
+    (void)copy_s(copy_s(b, n[kr % 12u]), sc[ks < MELLO_SCALE_COUNT ? ks : MELLO_SCALE_MINOR]);
 }
 
 /* The render's draw ops wrap the platform's: they keep the last fills, so each text is drawn on the colour it
@@ -6724,13 +6712,43 @@ typedef struct {
     int16_t fx[FIT_FILLS], fy[FIT_FILLS], fw[FIT_FILLS], fh[FIT_FILLS];
     uint16_t fc[FIT_FILLS];
     uint8_t fn, fhead;
+    uint8_t zones; /* G7: the pages' rows moved to the screen's order (fit_rows); 0 for the splash and the readout */
 } MelloUiFitCtx;
+
+/* G7 (ROADMAP E3 / F12): the pages draw in their old rows (header 0-29, body 30-170, the black keys' strip 171-187,
+ * K1-K4 188-220, the status line 221-239); the screen shows them in its new order: the header, the body 18 rows
+ * taller (stretched: pictures grow, text keeps its size and moves), K1-K4, the strip at the bottom. */
+static const struct {
+    int16_t s0, s1, d0, d1;
+} FIT_ROWS[5] = {{0, 30, 0, 30}, {30, 171, 30, 189}, {171, 188, 222, 240}, {188, 221, 189, 222}, {221, 240, -1, -1}};
+static int16_t fit_row(uint8_t z, int16_t y)
+{
+    int16_t s0 = FIT_ROWS[z].s0, s1 = FIT_ROWS[z].s1, d0 = FIT_ROWS[z].d0, d1 = FIT_ROWS[z].d1;
+    if (z == 1u) return (int16_t)(d0 + ((int32_t)(y - s0) * (d1 - d0) + (s1 - s0) / 2) / (s1 - s0));
+    return (int16_t)(y - s0 + d0);
+}
+static uint8_t fit_zone(int16_t y)
+{
+    uint8_t z;
+    for (z = 0u; z < 5u; ++z)
+        if (y < FIT_ROWS[z].s1) return z;
+    return 4u;
+}
 
 static void fit_fill(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t colour)
 {
     MelloUiFitCtx *f = (MelloUiFitCtx *)ctx;
-    uint8_t i = f->fhead;
-    f->raw->fill(f->raw->ctx, x, y, w, h, colour);
+    uint8_t i = f->fhead, z;
+    if (!f->zones)
+        f->raw->fill(f->raw->ctx, x, y, w, h, colour);
+    else /* each zone's part of the box, in its new rows */
+        for (z = 0u; z < 4u; ++z) {
+            int16_t a = y > FIT_ROWS[z].s0 ? y : FIT_ROWS[z].s0,
+                    b = (int16_t)(y + h) < FIT_ROWS[z].s1 ? (int16_t)(y + h) : FIT_ROWS[z].s1, ya, yb;
+            if (a >= b) continue;
+            ya = fit_row(z, a), yb = b == FIT_ROWS[z].s1 ? FIT_ROWS[z].d1 : fit_row(z, b);
+            if (yb > ya) f->raw->fill(f->raw->ctx, x, ya, w, (int16_t)(yb - ya), colour);
+        }
     if (w < 8 || h < 8) return; /* lines and dots are not backgrounds */
     f->fx[i] = x, f->fy[i] = y, f->fw[i] = w, f->fh[i] = h, f->fc[i] = colour;
     f->fhead = (uint8_t)((i + 1u) % FIT_FILLS);
@@ -6752,14 +6770,20 @@ static void fit_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, 
                      uint16_t colour, uint8_t align)
 {
     MelloUiFitCtx *f = (MelloUiFitCtx *)ctx;
-    uint16_t n = ui_text_len(text);
+    uint16_t n = ui_text_len(text), bg;
+    int16_t ty = y;
     if (large == MELLO_UI_TEXT_SPACED && (uint32_t)n * 9u > (uint32_t)(w > 0 ? w : 0) + 1u) large = 0u;
     if (large == 1u && (uint32_t)n * 16u > (uint32_t)(w > 0 ? w : 0)) large = 0u;
+    bg = fit_bg(f, x, y, w, (int16_t)(large == 1u ? 32 : 16)); /* (the fills it sits on, in the page's rows) */
+    if (f->zones) {
+        uint8_t z = fit_zone(y);
+        if (FIT_ROWS[z].d0 < 0) return; /* the old status line: nothing there now */
+        ty = fit_row(z, y);
+    }
     if (f->raw->text_on)
-        f->raw->text_on(f->raw->ctx, x, y, w, large, text, colour,
-                        fit_bg(f, x, y, w, (int16_t)(large == 1u ? 32 : 16)), align);
+        f->raw->text_on(f->raw->ctx, x, ty, w, large, text, colour, bg, align);
     else
-        f->raw->text(f->raw->ctx, x, y, w, large == 1u ? 1u : 0u, text, colour, align);
+        f->raw->text(f->raw->ctx, x, ty, w, large == 1u ? 1u : 0u, text, colour, align);
 }
 
 /* The page's name as the header and the readout show it: LFO, DOT and EVOLVE are one domain, MOD (the LFO
@@ -6779,30 +6803,6 @@ static const char *domain_name(const MelloUi *ui)
     return mello_ui_page_name(ui->page);
 }
 
-/* Two strings the same (the target's libc has no strcmp). */
-static bool ui_str_eq(const char *a, const char *b)
-{
-    while (*a && *a == *b) ++a, ++b;
-    return *a == *b;
-}
-
-/* The printed panel button that leads here (R2): what the header shows first. */
-static const char *button_name(const MelloUi *ui)
-{
-    if (ui->perform) return "PERFORM"; /* the header shows it once */
-    switch (page_button(ui)) {
-    case MELLO_UI_BTN_SEQ: return "SEQ";
-    case MELLO_UI_BTN_ENV: return "ENV";
-    case MELLO_UI_BTN_LFO: return "LFO";
-    case MELLO_UI_BTN_FX: return "FX";
-    case MELLO_UI_BTN_ARP: return "ARP";
-    case MELLO_UI_BTN_SEL: return "SEL";
-    case MELLO_UI_BTN_GLO: return "GLO";
-    case MELLO_UI_BTN_SAVE: return "SAVE";
-    case MELLO_UI_BTN_HOME: return "HOME";
-    default: return "RNDMZR"; /* RANDOM: the held key */
-    }
-}
 
 /* The name of the layer SELECT shows on the current page, or 0 where a page has none. */
 static const char *layer_name(const MelloUi *ui)
@@ -6875,56 +6875,58 @@ static const char *full_label(const char *l)
 
 /* What you are turning, large over the body: where you are (page, layer), the control's name and its value. The
  * same texts as the footer (footer_texts), so the two never disagree. */
+/* The readout (G7): what a knob moves, over K1-K4 and the black keys' strip at the bottom (rows 189-239), so the
+ * picture it changes stays in view; the name and the value large on one line, the name small above the value where
+ * both do not fit; the slider under. Drawn in the screen's own rows (the zones off). */
 static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
 {
-    char v[4][24], where[40], *p = where;
-    const char *l[4], *layer = layer_name(ui);
-    uint16_t accent = ui_page_accent(ui);
+    MelloUiFitCtx *fc = (MelloUiFitCtx *)o->ctx;
+    char v[4][24], val[24], *q;
+    const char *l[4], *label = "", *layer = layer_name(ui), *shown;
+    uint16_t accent = ui_page_accent(ui), nv = 0u, nm = 0u;
+    bool slider = false;
+    uint8_t zones = fc->zones;
+    MelloEngine *e = eng(ui);
     footer_texts(ui, l, v);
-    if (!ui_str_eq(button_name(ui), domain_name(ui))) {
-        p = copy_s(p, button_name(ui));
-        p = copy_s(p, " > ");
-    }
-    p = copy_s(p, domain_name(ui));
-    if (layer) {
-        p = copy_s(p, " > ");
-        (void)copy_s(p, layer);
-    }
-    o->fill(o->ctx, 0, 30, 240, 141,
-            UI_BLACK); /* in place of the body, not over it: no overdraw, no flicker */
-    ui_round_fill(o, 6, 40, 228, 124, UI_PANEL);
-    ui_round_frame(o, 6, 40, 228, 124, ui_mix(accent, UI_BLACK, 90));
-    ui_spaced(o, 12, 46, 216, where, UI_DIM, 1);
-    if (ui->readout >= MELLO_UI_READOUT_TEMPO) {
-        MelloEngine *e = eng(ui);
-        char val[24], *q = val;
-        const char *label = "TEMPO";
-        val[0] = 0;
-        if (ui->readout == MELLO_UI_READOUT_TEMPO && e) {
-            q = put_u32(val, e->project.bpm);
-            (void)copy_s(q, " BPM");
-        } else if (ui->readout == MELLO_UI_READOUT_INTENSITY) {
-            label = "RANDOM";
-            (void)copy_s(val, random_intensity_name(ui->random_intensity));
-        } else if (e) {
-            label = "PATTERN";
-            q = copy_s(val, "SLOT ");
-            q = put_u32(q, (uint32_t)ui->selected_slot + 1u);
-            if (!mello_engine_slot_valid(e, ui->selected_slot)) (void)copy_s(val, "NO SLOTS");
-        }
-        o->text(o->ctx, 12, 68, 216, 1, label, accent, 1);
-        o->text(o->ctx, 12, 102, 216, 1, val, UI_BRIGHT, 1);
+    val[0] = 0;
+    if (ui->readout == MELLO_UI_READOUT_TEMPO && e) {
+        label = "TEMPO";
+        q = put_u32(val, e->project.bpm);
+        (void)copy_s(q, " BPM");
+    } else if (ui->readout == MELLO_UI_READOUT_INTENSITY) {
+        label = "RANDOM";
+        (void)copy_s(val, random_intensity_name(ui->random_intensity));
+    } else if (ui->readout == MELLO_UI_READOUT_PATTERN && e) {
+        label = "PATTERN";
+        q = copy_s(val, "SLOT ");
+        q = put_u32(q, (uint32_t)ui->selected_slot + 1u);
+        if (!mello_engine_slot_valid(e, ui->selected_slot)) (void)copy_s(val, "NO SLOTS");
     } else if (ui->readout == MELLO_UI_READOUT_LAYER) {
-        o->text(o->ctx, 12, 80, 216, 1, layer ? layer : domain_name(ui), accent, 1);
-        ui_spaced(o, 12, 124, 216, "SELECT: LAYER", UI_DIM, 1);
+        label = "LAYER";
+        (void)copy_s(val, layer ? layer : domain_name(ui));
     } else {
-        uint8_t k = (uint8_t)(ui->readout - 1u);
-        uint16_t nv, nm;
+        uint8_t k = (uint8_t)((ui->readout - 1u) & 3u);
         accent = knob_colour(ui, k);
-        o->text(o->ctx, 12, 68, 216, 1, full_label(l[k]), accent, 1);
-        o->text(o->ctx, 12, 102, 216, 1, v[k][0] ? v[k] : "-", UI_BRIGHT, 1);
-        if (knob_norm(ui, k, &nv, &nm)) ui_slider(o, 20, 146, 200, nv, nm, accent); /* the HTML's slider */
+        label = full_label(l[k]);
+        (void)copy_s(val, v[k][0] ? v[k] : "-");
+        slider = knob_norm(ui, k, &nv, &nm);
     }
+    shown = val;
+    fc->zones = 0u;
+    o->fill(o->ctx, 0, 189, 240, 51, UI_BLACK);
+    ui_round_fill(o, 2, 190, 236, 48, UI_PANEL);
+    ui_round_frame(o, 2, 190, 236, 48, ui_mix(accent, UI_BLACK, 90));
+    {
+        uint16_t nl = ui_text_len(label), nv2 = ui_text_len(shown);
+        uint8_t big_name = (nl + 1u + nv2) * 16u <= 224u, big_value = nl * 8u + 8u + nv2 * 16u <= 224u;
+        if (nl) /* the name large, or small beside a large value, or both small */
+            o->text(o->ctx, 8, big_name ? 194 : 202, (int16_t)(nl * (big_name ? 16u : 8u)), big_name ? 1u : 0u,
+                    label, accent, 0);
+        o->text(o->ctx, (int16_t)(232 - nv2 * (big_value ? 16u : 8u)), big_value ? 194 : 202,
+                (int16_t)(nv2 * (big_value ? 16u : 8u)), big_value ? 1u : 0u, shown, UI_BRIGHT, 0);
+    }
+    if (slider) ui_slider(o, 20, 229, 200, nv, nm, accent);
+    fc->zones = zones;
 }
 
 void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
@@ -6936,6 +6938,7 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
     fit_ctx.raw = ops;
     fit_ctx.fn = 0u;
     fit_ctx.fhead = 0u;
+    fit_ctx.zones = 1u;
     fitted.fill = fit_fill;
     fitted.text = fit_text;
     fitted.key_led = 0;
@@ -6947,12 +6950,9 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
         fitted.fill(fitted.ctx, 0, 0, 240, 240, UI_BLACK);
         d |= MELLO_UI_DIRTY_HEADER | MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_STATUS;
     }
+    if (d & MELLO_UI_DIRTY_STATUS) d |= MELLO_UI_DIRTY_HEADER; /* G7: the count and the key are the header's */
     if (d & MELLO_UI_DIRTY_HEADER) draw_header(ui, &fitted);
-    if (ui->readout) {
-        /* The readout takes the body's place; the partial playhead redraws wait for the full redraw when it
-         * goes. */
-        if (d & MELLO_UI_DIRTY_BODY) draw_readout(ui, &fitted);
-    } else if ((d & MELLO_UI_DIRTY_BODY) && ui->perform)
+    if ((d & MELLO_UI_DIRTY_BODY) && ui->perform)
         draw_perform(ui, &fitted);
     else if (d & MELLO_UI_DIRTY_BODY)
         draw_body(ui, &fitted);
@@ -6961,8 +6961,10 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
     else if ((d & MELLO_UI_DIRTY_SEQ_PLAYHEAD) && !ui->perform &&
              (ui->page == MELLO_UI_SEQ_STEP || ui->page == MELLO_UI_RANDOM))
         draw_sequence_playhead(ui, &fitted);
-    if (d & MELLO_UI_DIRTY_FOOTER) draw_footer(ui, &fitted);
-    if (d & MELLO_UI_DIRTY_STATUS) draw_status(ui, &fitted);
+    if (ui->readout) { /* G7: the readout over K1-K4 and the strip; the picture it changes stays in view */
+        if (d & (MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_BODY)) draw_readout(ui, &fitted);
+    } else if (d & MELLO_UI_DIRTY_FOOTER)
+        draw_footer(ui, &fitted);
     ui->dirty &= MELLO_UI_DIRTY_LEDS;
 }
 
@@ -6980,6 +6982,7 @@ void mello_ui_draw_splash(const MelloUiDrawOps *ops, const char *version)
     fit_ctx.raw = ops;
     fit_ctx.fn = 0u;
     fit_ctx.fhead = 0u;
+    fit_ctx.zones = 0u; /* the splash: the screen's own rows */
     memset(&o, 0, sizeof o);
     o.fill = fit_fill;
     o.text = fit_text;

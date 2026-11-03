@@ -26,8 +26,8 @@ static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, cons
     if (!s || x < 2) return;
     k = (x - 2) / 60;
     if (k < 0 || k > 3) return;
-    if (y == 189) snprintf(f->lab[k], 32, "%s", s);
-    if (y == 205) snprintf(f->val[k], 32, "%s", s);
+    if (y == 190) snprintf(f->lab[k], 32, "%s", s); /* (G7: K1-K4 one row lower) */
+    if (y == 206) snprintf(f->val[k], 32, "%s", s);
 }
 static void led(void *c, uint8_t i, bool on)
 {

@@ -1217,6 +1217,24 @@ layer and knob where the parameter's code is, and the footer, the knobs, the rea
 it. The layers' pictures are still drawn by their own index. Test: rotary_mapping_parity (labels and handlers),
 ui_readout.
 
+## The screen in its new order (2026-11-03)
+
+CONTROL_GRAMMAR's G7 (ROADMAP E3, F12), as chosen from the sketches (B, and the readout at the bottom):
+
+- One line on top: `PAGE > LAYER` where it fits in 16 characters, else the layer alone (the printed button left the
+  line: the lit panel button says it); on the right the key sounding in short (`CMIN`, `C#DOR`) and the count. The
+  tempo left the header (SELECT's readout on HOME, GLOBAL's CLOCK); NOSAVE or FULL show in red in the key's place.
+  The status line is gone; the count it carried redraws the header.
+- The picture 18 rows taller, K1-K4 under it, the black keys' strip at the bottom, nearest the keys.
+- The readout (a knob's name, value and slider, 1.2 s) covers K1-K4 and the strip, not the body: name and value
+  large on one line, else the name small beside a large value, else both small.
+
+Done in the draw layer every page goes through (fit_fill / fit_text, FIT_ROWS): the pages still draw in their old
+rows, and each zone is moved to its new place, the body stretched (fills grow; text keeps its size and moves). So
+every page has its new height without its own code changing; the readout and the splash draw in the screen's own
+rows. Two truncations it showed were fixed (a SEGMENT pill with 'A13x4', a cutoff of four digits in Hz now whole).
+Tests moved to the new rows (the strip's, K1-K4's, the header's count); Big screen's mirror check is pixel-exact.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

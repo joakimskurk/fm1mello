@@ -37,8 +37,8 @@ static void smoke_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large
                     (long)n * glyph_w, w, (unsigned)large);
             text_clip_error = 1;
         }
-        if (strcmp(text_value, "C MINOR") == 0)
-            saw_brand = 1; /* the key heads HOME (the wordmark moves to the splash) */
+        if (strcmp(text_value, "CMIN") == 0)
+            saw_brand = 1; /* the key, short, on the header's right (G7) */
         if (strstr(text_value, "BASS SEQ") || strstr(text_value, "BASS OFF") || strstr(text_value, "BASS  "))
             saw_sub_5seq = 1; /* BASS SEQ, as it is called since 2026-10-31: the SUB page's title says so */
         if (strstr(text_value, "X-SUB") || strcmp(text_value, "X OFF") == 0 ||
@@ -99,7 +99,7 @@ int main(void)
 
     if (render_page(&ui, &ops, MELLO_UI_HOME) || fills < 30 || texts < 8) return 2;
     if (!saw_brand) {
-        fprintf(stderr, "HOME missing the key (C MINOR) in its header\n");
+        fprintf(stderr, "HOME missing the key (CMIN) in its header\n");
         return 29;
     }
 
@@ -255,7 +255,7 @@ int main(void)
     mello_ui_render(&ui, &ops);
 
     if (bounds_error) return 17;
-    if (fills >= 20 || texts >= 5) { /* the status line now carries the key too (R2) */
+    if (fills >= 20 || texts >= 8) { /* the header (the key and the count, G7) and the two bars */
         fprintf(stderr, "HOME playhead redraw too broad: fills=%d texts=%d\n", fills, texts);
         return 18;
     }

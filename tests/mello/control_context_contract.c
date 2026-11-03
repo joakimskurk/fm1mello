@@ -105,7 +105,7 @@ static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, cons
     (void)large;
     (void)c;
     (void)align;
-    if (y == 172 && s && *s &&
+    if (y == 223 && s && *s && /* the strip: at the bottom since G7 */
         strlen(cap->hint) + strlen(s) + 2u < sizeof cap->hint) { /* the strip's labels */
         if (cap->hint[0]) strcat(cap->hint, " ");
         strcat(cap->hint, s);

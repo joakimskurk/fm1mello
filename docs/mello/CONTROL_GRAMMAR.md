@@ -24,7 +24,7 @@ here.
 | G4 | **Performance in one place.** B5 is PERF: tapped, the PERFORM page and 16 actions on the white keys until PERF or a page button; held, while held. Every action acts on every part. B6 is MUTATE on every page; B7 and B8 go to the pages. | Applied 0.5-f52 |
 | G5 | **The lights.** Lit = now, active or held; glow = set or there; dark = nothing; on the white and black keys, on every page. | Wave 4 |
 | G6 | **K1-K4.** A voice's first layer is K1 CUT, K2 RES, K3 DECAY or ENV, K4 LEVEL (the sampler: LEVEL first). | Applied 0.5-f54 (KNOB_MAPS; rotary_mapping_parity) |
-| G7 | **The screen.** One line on top (path, key now, count); the picture; K1-K4; the black keys' strip at the bottom; the readout over K1-K4 and the strip. | Chosen; wave 4 |
+| G7 | **The screen.** One line on top (path, key now, count); the picture; K1-K4; the black keys' strip at the bottom; the readout over K1-K4 and the strip. | Applied 0.5-f54 (FIT_ROWS) |
 | G8 | **A rule is a test.** control_authoritative_mapping (verify_g1_g2 and the page-by-page strips), control_context_contract, rotary_mapping_parity and ui_glossary hold the applied rules. | Applied with each rule |
 
 ## Global invariants

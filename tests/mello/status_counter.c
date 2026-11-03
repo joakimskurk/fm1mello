@@ -29,7 +29,7 @@ static void text(void *c, int16_t x, int16_t y, int16_t w, uint8_t large, const 
     (void)large;
     (void)col;
     (void)al;
-    if (y == 222 && x == 80 && s) snprintf(status, sizeof status, "%s", s);
+    if (y == 7 && x == 184 && s) snprintf(status, sizeof status, "%s", s); /* the header's right (G7) */
 }
 static void led(void *c, uint8_t i, bool on)
 {

@@ -108,7 +108,7 @@ static void audit_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large
     } else {
         audit_fail(a, "INTERNAL", "text rectangle capacity exhausted");
     }
-    if (a->fixture && !strncmp(a->fixture, "HOME/", 5) && y < 172 && strstr(s, "SGL"))
+    if (a->fixture && !strncmp(a->fixture, "HOME/", 5) && y < 189 && strstr(s, "SGL"))
         a->saw_home_single = 1u;
 }
 

@@ -13,10 +13,10 @@ static void count_fill(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, ui
     (void)colour;
     if (x < 0 || y < 0 || w < 0 || h < 0 || x + w > 240 || y + h > 240) bounds_error = 1;
     ++fills;
-    if (y == 36 && h == 10 && x >= 8 && x < 232) ++step_cells;
+    if (y >= 36 && y <= 38 && h >= 10 && h <= 12 && x >= 8 && x < 232) ++step_cells; /* 36 / 10, stretched (G7) */
     /* The SEGMENT strip sits in its panel under the title and the A-F letter row (Phase 3's HTML look): the same
        32-cell/bounds contract at y=67 (one body: the four value rows below it). */
-    if (y == 67 && h == 12 && x >= 8 && x < 232) ++segment_cells;
+    if (y >= 71 && y <= 73 && h >= 12 && h <= 14 && x >= 8 && x < 232) ++segment_cells; /* 67 / 12, stretched */
 }
 static void count_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, const char *text,
                        uint16_t colour, uint8_t align)
@@ -76,7 +76,7 @@ int main(void)
         return 1;
     }
     if (!delta_render(&ui, &ops, 1u, 1u)) return 2;
-    if (fills >= 20u || texts >= 5u) { /* the status line: key, steps, slot, save (R2) */
+    if (fills >= 20u || texts >= 8u) { /* the header: path, key, count (G7) */
         fprintf(stderr, "STEP playhead redraw too broad: fills=%u texts=%u\n", fills, texts);
         return 3;
     }
@@ -86,7 +86,7 @@ int main(void)
        old/new playhead cells while a pattern is running. */
     full_render(&ui, &ops, MELLO_UI_RANDOM);
     if (!delta_render(&ui, &ops, 2u, 2u)) return 4;
-    if (fills >= 20u || texts >= 5u) { /* the status line: key, steps, slot, save (R2) */
+    if (fills >= 20u || texts >= 8u) { /* the header: path, key, count (G7) */
         fprintf(stderr, "RANDOM playhead redraw too broad: fills=%u texts=%u\n", fills, texts);
         return 5;
     }

@@ -19,7 +19,7 @@ static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, cons
                  uint8_t a)
 {
     (void)ctx, (void)x, (void)w, (void)large, (void)c, (void)a;
-    if (y >= 30 && y < 172 && seen_n < 32u) { /* the body only */
+    if ((y >= 189 || y == 7) && seen_n < 32u) { /* the readout, at the bottom since G7, and the header's path */
         strncpy(seen[seen_n], s, 47);
         seen[seen_n++][47] = 0;
     }
@@ -68,7 +68,7 @@ int main(void)
     turn(&u, 1000u, MELLO_UI_ENC_KNOB1, 1); /* SOUND / FILTER: K1 = cutoff (G6) */
     if (u.readout != 1u) return fail("K1 on SOUND gave no readout");
     render(&u);
-    if (!body_has("ENV > SOUND > FILTER")) return fail("readout does not say where"); /* R2: the path */
+    if (!body_has("SOUND") || !body_has("FILTER")) return fail("the screen does not say where"); /* the header */
     {
         unsigned i, big = 0u;
         for (i = 0u; i < seen_n; ++i)
@@ -79,7 +79,7 @@ int main(void)
     turn(&u, 2000u, MELLO_UI_ENC_KNOB1, 0); /* 1.0 s later: still there */
     if (u.readout != 1u) return fail("readout went too early");
     turn(&u, 2300u, MELLO_UI_ENC_KNOB2, 0); /* 1.3 s after the detent: gone, and the body comes back */
-    if (u.readout || !(u.dirty & MELLO_UI_DIRTY_BODY)) return fail("readout did not go");
+    if (u.readout || !(u.dirty & MELLO_UI_DIRTY_FOOTER)) return fail("readout did not go"); /* K1-K4 again */
 
     turn(&u, 3000u, MELLO_UI_ENC_SELECT, 1); /* SELECT: the layer, by name */
     render(&u);

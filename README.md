@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f53.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f54.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -55,8 +55,8 @@ Ten screens, drawn by the firmware itself (`make screens`): what you see, and wh
 | | |
 |---|---|
 | <img src="docs/screens/splash.png" width="240" alt="The splash"> | **Switch on.** The splash shows the version while the project loads from flash. Then HOME. |
-| <img src="docs/screens/home.png" width="240" alt="HOME"> | **HOME.** Sixteen steps as bars: the height is the pitch, the note is written on the bar, the segments A-D sit over them in their colours. The strip under the bars is what the black keys do here; the footer is the four macros on K1-K4. The status line reads the key, the step and the slot. |
-| <img src="docs/screens/home-playing.png" width="240" alt="HOME, playing"> | **PLAY.** The playing step is bright, the LED blinks on the beat and the status line counts the beats to the RESET (`21/32`: the 21st sixteenth of the two bars; with RESET on FREE, the step of the sequence). SELECT is the tempo (the number top right), PRESETS the pattern slot. |
+| <img src="docs/screens/home.png" width="240" alt="HOME"> | **HOME.** Sixteen steps as bars: the height is the pitch, the note is written on the bar, the segments A-D sit over them in their colours. Under them the four macros on K1-K4, and at the bottom, over the keys, what the black keys do here. The header reads the key sounding and the length. |
+| <img src="docs/screens/home-playing.png" width="240" alt="HOME, playing"> | **PLAY.** The playing step is bright, the LED blinks on the beat and the header counts the beats to the RESET (`21/32`: the 21st sixteenth of the two bars; with RESET on FREE, the step of the sequence). SELECT is the tempo (shown as you turn it), PRESETS the pattern slot. |
 | <img src="docs/screens/home-rolled.png" width="240" alt="HOME after a roll"> | **RNDMZR**, the last black key. A tap rolls a new sequence from what the RANDOM page's mask allows; UNDO, the key before it, takes the roll back (and again puts it forward). Hold RNDMZR for the RANDOM page. |
 | <img src="docs/screens/home-held-step.png" width="240" alt="A step held"> | **Hold a white key.** That step's pitch, pulses, ratchet and gate come onto K1-K4, its flags (SKIP, ACC, SLD, SUB) onto the first black keys. A tap mutes or unmutes the step. |
 | <img src="docs/screens/home-rec.png" width="240" alt="REC in KEYS"> | **Tap EDIT, then REC.** The keys are a keyboard, lit where the scale has a tone, and REC picks what they write: the sequence, the bass line or the chords. Stopped, each key is the next step; playing, the step under the clock. |
@@ -64,7 +64,7 @@ Ten screens, drawn by the firmware itself (`make screens`): what you see, and wh
 | <img src="docs/screens/step-trig.png" width="240" alt="SEQ > STEP"> | **SEQ.** The STEP page: the picked step's values, the picture drawn from them. SELECT turns the layers (TRIG, NOTE, FLAGS, SEQ); SEQ again goes on to SEGMENT, LOOP CYCLE and SLOT SEQ. With EDIT on, a white key sets the step's pitch. |
 | <img src="docs/screens/sound-filter.png" width="240" alt="ENV > SOUND"> | **ENV.** The lead's sound: cutoff, resonance, decay and level first (K1-K4 so on every voice), the wave and PWM on OSC, the envelope, follower, grit, second oscillator and the rest on SELECT. INIT (B1) puts the sound back. ENV again: the sample layer. |
 | <img src="docs/screens/drums-voice.png" width="240" alt="ARP > DRUMS"> | **ARP**, three times: the drums. Four voices on a 16-step grid; VOX picks the voice, a white key puts its hit on or off, ON (B0) turns the kit on. CHORD and BASS are ARP's pages before it. |
-| <img src="docs/screens/mix.png" width="240" alt="GLO > MIX"> | **GLO.** The mix: lead, bass, chords and drums on the knobs, a mute under each (LD, BS, CH, DR). SAVE writes the project to flash; the status line says SAVED. |
+| <img src="docs/screens/mix.png" width="240" alt="GLO > MIX"> | **GLO.** The mix: lead, bass, chords and drums on the knobs, a mute under each (LD, BS, CH, DR). SAVE writes the project to flash. |
 
 Every page and layer is pictured beside its row in [docs/mello/UI_MAP.md](docs/mello/UI_MAP.md).
 
@@ -84,14 +84,17 @@ The FM-1's panel is printed, so its names are the firmware's names. What each co
 | **Black keys** | The action rail, with fixed places (below). |
 | **OCT- / OCT+** | The step bank where there are more than 16 (HOME, STEP), the octave in KEYS. |
 | **PLAY** | Start and stop. The LED blinks on the beat. |
-| **SAVE** | Saves the project ("SAVED" on the status line). Held: the pattern slots. |
+| **SAVE** | Saves the project (a save that cannot be made says NOSAVE or FULL in red in the header). Held: the pattern slots. |
 | **EDIT** | The page's mode: KEYS on HOME (the keys become a keyboard, lit where the scale has a tone), the pitch mode on STEP. Held on HOME: MACROS, where each of K1-K4 picks what it turns. |
 | **REC** | In KEYS: what the keys write, SEQ, BASS, CHORD, then off. Stopped, each key writes the next step; playing, the step under the clock. SEL writes a rest. |
 | **MASTER** (the knob) | The output level, in hardware. |
 
-The header reads where you are as `BUTTON > PAGE > LAYER` (`ARP > DRUMS > KIT`), the status line the key, the beat
-(of the beats before RESET; the step when RESET is FREE) and the slot, and the save state: SAVED, EDITED (written when the sequencer stops), NOSAVE (the flash holds a newer
-firmware's project) or FULL (the project does not fit).
+The screen, top to bottom: one line saying where you are as `PAGE > LAYER` (`DRUMS > KIT`; the layer alone where
+both do not fit, the lit panel button saying the rest), the key sounding in short (`C#DOR`) and the beat (of the beats
+before RESET; the step when RESET is FREE); the page's picture; K1-K4; and at the bottom, over the keys, what the black
+keys do. A knob turned shows its name, value and range large over K1-K4 and the strip for a moment, so the picture it
+changes stays in view. The project autosaves when the sequencer stops; NOSAVE (the flash holds a newer firmware's
+project) or FULL (the project does not fit) appear in red in the header.
 
 ### The black keys, the same on every page
 
@@ -187,7 +190,7 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
 - **Loop cycle** (SEQ > LOOP CYCLE). Up to eight steps, each held for a number of pulses: a chord progression over
   the loop. ROOT+ moves the key itself; TRANS (the lead and chords) and BASS TR (the bass) move by semitones and
   land on the key's nearest tone in that direction, so nothing leaves the key (in C minor, C +1 is D); KEY and
-  SCALE change the key where they are not FOLLOW. The status line, KEYS and the lights show the key sounding.
+  SCALE change the key where they are not FOLLOW. The header, KEYS and the lights show the key sounding.
   CHROMATIC transposes by plain semitones.
 - **Slot sequence** (SEQ > SLOT SEQ). Pattern slots played in a row, each held for a number of pulses.
 - **The lead** (ENV > SOUND). Saw, square, triangle, sine or pulse through a 24 dB filter (LP, HP, BP, NOTCH), an ADSR,

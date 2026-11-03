@@ -45,9 +45,9 @@ static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, cons
     if (x < 2) return;
     k = (x - 2) / 60;
     if (k < 0 || k > 3) return;
-    if (y == 189) { /* the footer label row (189: the hairline is at 188) */
+    if (y == 190) { /* the footer label row (G7: from 189; the hairline is at 189) */
         snprintf(f->label[k], sizeof f->label[k], "%s", s ? s : "");
-    } else if (y == 205) {
+    } else if (y == 206) {
         snprintf(f->value[k], sizeof f->value[k], "%s", s ? s : "");
     }
 }
@@ -227,6 +227,7 @@ int main(void)
                 continue;
             }
             turn(&u, k);
+            u.readout = 0u; /* G7: the readout covers K1-K4 for a moment; read them under it */
             render(&u, &after);
             if (strcmp(after.label[k], c->label[k]))
                 fail(c->name, k, "label after turn", after.label[k], c->label[k]);

@@ -60,7 +60,7 @@ static void text(void *c, int16_t x, int16_t y, int16_t w, uint8_t large, const 
     if (y == 7) { /* the header's words, in order */
         size_t n = strlen(header);
         snprintf(header + n, sizeof header - n, "%s%s", n ? " " : "", s);
-    } else if (y == 189 && x >= 2) {
+    } else if (y == 190 && x >= 2) { /* (G7: K1-K4 one row lower) */
         int k = (x - 2) / 60;
         if (k >= 0 && k < 4) snprintf(label[k], sizeof label[k], "%s", s);
     }
@@ -109,6 +109,7 @@ static void in(uint32_t ms, uint32_t pressed, uint32_t released, uint32_t held, 
     } while (0)
 static int labels_are(const char *a, const char *b, const char *c, const char *d)
 {
+    ui.readout = 0u; /* G7: the readout covers K1-K4 for a moment; read them under it */
     render();
     return !strcmp(label[0], a) && !strcmp(label[1], b) && !strcmp(label[2], c) && !strcmp(label[3], d);
 }

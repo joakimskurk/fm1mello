@@ -19,26 +19,35 @@ static void reset_counts(void)
     max_pitch_y = 0;
 }
 
+static int near(int a, int b)
+{
+    return a - b <= 1 && b - a <= 1;
+}
+/* G7: the body (the pages' rows 30-170) is drawn stretched to 30-188; back to the page's rows, to a pixel. */
 static void fill_cb(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t colour)
 {
+    int sy = y, sh = h;
     (void)ctx;
     (void)colour;
     fills++;
     if (x < 0 || y < 0 || w < 0 || h < 0 || x + w > 240 || y + h > 240) bounds = 1;
-    if (y == 132 && h == 27 && x >= 8 && x < 232) {
+    if (y >= 30 && y + h <= 189) {
+        sy = 30 + ((y - 30) * 141 + 79) / 159;
+        sh = 30 + ((y + h - 30) * 141 + 79) / 159 - sy;
+    }
+    if (y == 145 && (h == 30 || h == 31) && x >= 8 && x < 232) { /* the pages' 132 / 27, stretched */
         random_skyline_steps++;
         if (w < min_cell_w) min_cell_w = w;
         if (w > max_cell_w) max_cell_w = w;
     }
-    if (y >= 131 && y <= 153 && h >= 5 && h <= 27 && x >= 8 && x < 232) {
+    if (sy >= 131 && sy <= 153 && sh >= 4 && sh <= 28 && x >= 8 && x < 232) {
         pitch_bars++;
-        if (y < min_pitch_y) min_pitch_y = y;
-        if (y > max_pitch_y) max_pitch_y = y;
+        if (sy < min_pitch_y) min_pitch_y = sy;
+        if (sy > max_pitch_y) max_pitch_y = sy;
     }
-    if (y == 163 && h == 1) ratchet_marks++;
-    if ((y == 165 || y == 168) && h == 1) event_marks++;
-    if (y == 46 && h == 108 && x >= 8 &&
-        x < 232) { /* a HOME step's column (draw_home_step clears it first) */
+    if (near(sy, 163) && sh <= 2 && h == 1) ratchet_marks++;
+    if ((near(sy, 165) || near(sy, 168)) && h == 1) event_marks++;
+    if (near(sy, 46) && near(sh, 108) && x >= 8 && x < 232) { /* a HOME step's column (draw_home_step clears it) */
         home_columns++;
         if (w > 7) bounds = 1;
     }

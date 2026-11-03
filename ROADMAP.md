@@ -65,7 +65,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F9 | Delay divisions: 32N, 16D, 2T, 2D, 1 BAR, ping-pong, and an honest limit (E11). Done 2026-11-03 (0.5-f51) but ping-pong (F25): half rate to 2.97 s, "~" past it | 2026-11-02, 11 |
 | F10 | LO CUT where it is found (E11). Done 2026-11-03 (0.5-f51): on at 120 Hz on a new project; its silence bug fixed | 2026-11-02, 11 |
 | F11 | K1-K4 the same on every voice (E12, G6). Done 2026-11-03 (0.5-f54) | 2026-11-02, 12 |
-| F12 | The screen in its new order (E3, G7) | 2026-11-02, 3 |
+| F12 | The screen in its new order (E3, G7). Done 2026-11-03 (0.5-f54) | 2026-11-02, 3 |
 | F13 | The lights by one rule (E8, G5) | 2026-11-02, 8 |
 | F14 | EVOLVE, DOT and the LFO seen moving: a second thumb on the modulated value (E7 (2)) | 2026-11-02, 7 |
 | F15 | GROOVE, a second MUSICAL: rolls, ties, ghost notes, rests (E10) | 2026-11-02, 10 |
