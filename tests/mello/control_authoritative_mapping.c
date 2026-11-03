@@ -23,9 +23,9 @@ static const MapCase cases[] = {
     {"RANDOM", MELLO_UI_RANDOM, "B0:NONE B1:ALL B2:CLR B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
     {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
     {"SLOTS", MELLO_UI_SLOTS, "B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"DOT", MELLO_UI_DOT, "B1:RND B2:RST B3:FLW B4:REV B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"DOT", MELLO_UI_DOT, "B0:ON B1:RND B2:RST B3:FLW B4:REV B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
     {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B2:LOOP B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
-    {"SUB", MELLO_UI_SUB, "B0:ON B1:STEP B2:ROLL B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
+    {"SUB", MELLO_UI_SUB, "B0:ON B1:SEQ B2:ROLL B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
 #if MELLO_FEATURE_CHORD_MACHINE
     {"CHORD", MELLO_UI_CHORD, "B0:ON B1:BASS B5:F B6:B B7:< B8:R B9:UNDO B10:RNDMZR"},
 #endif
@@ -188,9 +188,9 @@ static void verify_every_page_and_inactive_slot(void)
         }
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if (active != 150u) die("MAP", "active slot count != 150 with Chord");
+    if (active != 151u) die("MAP", "active slot count != 151 with Chord");
 #else
-    if (active != 140u) die("MAP", "active slot count != 140 without Chord");
+    if (active != 141u) die("MAP", "active slot count != 141 without Chord");
 #endif
     printf("C5 MAP COVERAGE: pages=%u active=%u inactive=%u\n", (unsigned)(sizeof(cases) / sizeof(cases[0])),
            active, inactive);
@@ -248,8 +248,60 @@ static void verify_manual_note_priority(void)
     if (u.page != MELLO_UI_SEQ_STEP) die("STEP SEL+black", "context navigation stole musical key");
 }
 
+/* G1 (CONTROL_GRAMMAR "The rules"): on every page with a part or a lane, B0 is labelled ON and a press switches it,
+ * a second press back. G2: a part's first page is enough to hear it; BASS's B1 is SEQ, the bass sequencer. */
+static void verify_g1_g2(void)
+{
+    static const MelloUiPage parts[] = {MELLO_UI_SEQ_LOOP, MELLO_UI_SEQ_SLOTSEQ, MELLO_UI_DOT,
+                                        MELLO_UI_TURING,   MELLO_UI_SUB,         MELLO_UI_SAMPLE_RESERVED,
+                                        MELLO_UI_DRUMS,
+#if MELLO_FEATURE_CHORD_MACHINE
+                                        MELLO_UI_CHORD
+#endif
+    };
+    unsigned i;
+    for (i = 0u; i < sizeof parts / sizeof parts[0]; ++i) {
+        MelloProject p;
+        MelloTransport t;
+        MelloStorage st;
+        MelloUi u;
+        Capture cap;
+        MelloEngine before;
+        setup(&p, &t, &st, &u, parts[i]);
+        render(&u, &cap);
+        if (strncmp(cap.hint, "ON ", 3)) die("G1", "a part's page does not start its strip with ON");
+        before = t.engine;
+        black(&u, 100u, 0u);
+        if (!memcmp(&before, &t.engine, sizeof before)) die("G1", "B0 ON did not switch the page's part");
+        black(&u, 200u, 0u);
+    }
+    {
+        MelloProject p;
+        MelloTransport t;
+        MelloStorage st;
+        MelloUi u;
+        bool was;
+        setup(&p, &t, &st, &u, MELLO_UI_SUB);
+        was = t.engine.bass.on;
+        black(&u, 100u, 1u);
+        if (t.engine.bass.on == was) die("G2", "BASS's B1 did not switch BASS SEQ");
+        black(&u, 200u, 1u);
+        if (t.engine.bass.on != was) die("G2", "BASS's B1 did not switch BASS SEQ back");
+    }
+    {
+        MelloProject p;
+        MelloTransport t;
+        MelloStorage st;
+        MelloUi u;
+        setup(&p, &t, &st, &u, MELLO_UI_DOT);
+        black(&u, 100u, 0u);
+        if (!t.engine.dot[u.selected_dot_target].off) die("G1", "DOT's ON did not silence the picked matrix");
+    }
+}
+
 int main(void)
 {
+    verify_g1_g2();
     verify_every_page_and_inactive_slot();
     verify_b5_from_every_advertised_page();
     verify_manual_note_priority();

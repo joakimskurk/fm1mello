@@ -23,21 +23,21 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/key-scale.png" width="96" alt="KEY / SCALE —"> | KEY / SCALE | SEL | — | `F B < R UNDO RNDMZR` | ROOT 60 · SCALE minor · OCT +0 · SPAN 2 |
 | <img src="../screens/slots-load.png" width="96" alt="SLOTS LOAD"> | SLOTS | hold SAVE | LOAD | `F B < R UNDO RNDMZR` | — · VISIBLE 8 · — · — |
 | <img src="../screens/slots-rename.png" width="96" alt="SLOTS RENAME"> | SLOTS | hold SAVE | RENAME | `F B < R UNDO RNDMZR` | CURSOR 1 · CHAR - · — · — |
-| <img src="../screens/dot-accent.png" width="96" alt="DOT MATRIX ACCENT"> | DOT MATRIX | LFO | ACCENT | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
-| <img src="../screens/dot-mod-1.png" width="96" alt="DOT MATRIX MOD 1"> | DOT MATRIX | LFO | MOD 1 | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 24% · EVOLVE 0% |
-| <img src="../screens/dot-mod-2.png" width="96" alt="DOT MATRIX MOD 2"> | DOT MATRIX | LFO | MOD 2 | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
-| <img src="../screens/dot-ratchet.png" width="96" alt="DOT MATRIX RATCHET"> | DOT MATRIX | LFO | RATCHET | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
-| <img src="../screens/dot-sub.png" width="96" alt="DOT MATRIX SUB"> | DOT MATRIX | LFO | SUB | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 24% · EVOLVE 0% |
+| <img src="../screens/dot-accent.png" width="96" alt="DOT MATRIX ACCENT"> | DOT MATRIX | LFO | ACCENT | `ON RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
+| <img src="../screens/dot-mod-1.png" width="96" alt="DOT MATRIX MOD 1"> | DOT MATRIX | LFO | MOD 1 | `ON RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 24% · EVOLVE 0% |
+| <img src="../screens/dot-mod-2.png" width="96" alt="DOT MATRIX MOD 2"> | DOT MATRIX | LFO | MOD 2 | `ON RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
+| <img src="../screens/dot-ratchet.png" width="96" alt="DOT MATRIX RATCHET"> | DOT MATRIX | LFO | RATCHET | `ON RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
+| <img src="../screens/dot-sub.png" width="96" alt="DOT MATRIX SUB"> | DOT MATRIX | LFO | SUB | `ON RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 24% · EVOLVE 0% |
 | <img src="../screens/evolve-main.png" width="96" alt="EVOLVE MAIN"> | EVOLVE | LFO | MAIN | `ON RND LOOP F B < R UNDO RNDMZR` | MUTATE 10% · LENGTH 8 · RATE 1X · OFFSET +0 |
 | <img src="../screens/evolve-routes.png" width="96" alt="EVOLVE ROUTES"> | EVOLVE | LFO | ROUTES | `ON RND LOOP F B < R UNDO RNDMZR` | GATE LENGTH · FILTER OFF · OCT OFF · DECAY OFF |
 | <img src="../screens/evolve-depth.png" width="96" alt="EVOLVE DEPTH"> | EVOLVE | LFO | DEPTH | `ON RND LOOP F B < R UNDO RNDMZR` | GATE 35% · FILTER 35% · OCT 35% · DECAY 35% |
 | <img src="../screens/evolve-sound.png" width="96" alt="EVOLVE SOUND"> | EVOLVE | LFO | SOUND | `ON RND LOOP F B < R UNDO RNDMZR` | DEST A OFF · DEPTH A +50% · DEST B OFF · DEPTH B +50% |
-| <img src="../screens/bass-play.png" width="96" alt="BASS PLAY"> | BASS | ARP | PLAY | `ON STEP ROLL F B < R UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
-| <img src="../screens/bass-seq.png" width="96" alt="BASS SEQ"> | BASS | ARP | SEQ | `ON STEP ROLL F B < R UNDO RNDMZR` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
-| <img src="../screens/bass-step.png" width="96" alt="BASS STEP"> | BASS | ARP | STEP | `ON STEP ROLL F B < R UNDO RNDMZR` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
-| <img src="../screens/bass-voice.png" width="96" alt="BASS VOICE"> | BASS | ARP | VOICE | `ON STEP ROLL F B < R UNDO RNDMZR` | LEVEL 42% · WAVE SINE · DECAY 160MS · RELEASE 120MS |
-| <img src="../screens/bass-tone.png" width="96" alt="BASS TONE"> | BASS | ARP | TONE | `ON STEP ROLL F B < R UNDO RNDMZR` | GLIDE 20MS · CUT 242.0HZ · DRIVE 0% · OCT -1 |
-| <img src="../screens/bass-filter.png" width="96" alt="BASS FILTER"> | BASS | ARP | FILTER | `ON STEP ROLL F B < R UNDO RNDMZR` | RES 0% · ENV 0% · F.DEC 300MS · ACCENT 50% |
+| <img src="../screens/bass-play.png" width="96" alt="BASS PLAY"> | BASS | ARP | PLAY | `ON SEQ ROLL F B < R UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
+| <img src="../screens/bass-seq.png" width="96" alt="BASS SEQ"> | BASS | ARP | SEQ | `ON SEQ ROLL F B < R UNDO RNDMZR` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
+| <img src="../screens/bass-step.png" width="96" alt="BASS STEP"> | BASS | ARP | STEP | `ON SEQ ROLL F B < R UNDO RNDMZR` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
+| <img src="../screens/bass-voice.png" width="96" alt="BASS VOICE"> | BASS | ARP | VOICE | `ON SEQ ROLL F B < R UNDO RNDMZR` | LEVEL 42% · WAVE SINE · DECAY 160MS · RELEASE 120MS |
+| <img src="../screens/bass-tone.png" width="96" alt="BASS TONE"> | BASS | ARP | TONE | `ON SEQ ROLL F B < R UNDO RNDMZR` | GLIDE 20MS · CUT 242.0HZ · DRIVE 0% · OCT -1 |
+| <img src="../screens/bass-filter.png" width="96" alt="BASS FILTER"> | BASS | ARP | FILTER | `ON SEQ ROLL F B < R UNDO RNDMZR` | RES 0% · ENV 0% · F.DEC 300MS · ACCENT 50% |
 | <img src="../screens/chord-play.png" width="96" alt="CHORD PLAY"> | CHORD | ARP | PLAY | `ON BASS F B < R UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
 | <img src="../screens/chord-chord.png" width="96" alt="CHORD CHORD"> | CHORD | ARP | CHORD | `ON BASS F B < R UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
 | <img src="../screens/chord-voicing.png" width="96" alt="CHORD VOICING"> | CHORD | ARP | VOICING | `ON BASS F B < R UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |

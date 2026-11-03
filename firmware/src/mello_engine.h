@@ -401,6 +401,7 @@ typedef struct {
     bool follow;     /* true: evaluate only on pulseIdx==0 */
     uint16_t amount; /* 0..1000 */
     bool reverse;    /* REV: the route backwards (saved in bit 7 of the mode byte) */
+    bool off;        /* B0 ON off (G1): the matrix silent, its route still moving (bit 6 of the mode byte) */
 } MelloDotMatrixConfig;
 
 /* HOME's performance keys, held (DECISIONS.md "Performance keys"). */

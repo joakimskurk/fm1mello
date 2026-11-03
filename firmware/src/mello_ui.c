@@ -575,6 +575,7 @@ typedef enum {
     MELLO_CTX_RANDOM_CLEAR,
     MELLO_CTX_RANDOM_NONE,
     MELLO_CTX_RANDOM_ALL,
+    MELLO_CTX_DOT_TOGGLE,
     MELLO_CTX_DOT_REROLL,
     MELLO_CTX_DOT_RESET,
     MELLO_CTX_DOT_FOLLOW,  /* the matrix reads only at step starts (was a rotary) */
@@ -583,7 +584,7 @@ typedef enum {
     MELLO_CTX_TURING_REROLL,
     MELLO_CTX_TURING_LOOP, /* mutate at the loop's one, or on every step */
     MELLO_CTX_SUB_TOGGLE,
-    MELLO_CTX_SUB_STEP,
+    MELLO_CTX_BASS_SEQ,
     MELLO_CTX_CHORD_TOGGLE,
     MELLO_CTX_CHORD_SUB_ROOT, /* CHORD: the sub (and BASS SEQ) on the chord's root */
     MELLO_CTX_MIX_LEAD,       /* MIX: B0-B3 mute a part (lit while it plays) */
@@ -704,7 +705,8 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
                         [8] = {MELLO_CTX_PERF_REPEAT, "R"},
                         [9] = {MELLO_CTX_UNDO, "UNDO"},
                         [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
-    [MELLO_UI_DOT] = {[1] = {MELLO_CTX_DOT_REROLL, "RND"},
+    [MELLO_UI_DOT] = {[0] = {MELLO_CTX_DOT_TOGGLE, "ON"},
+                      [1] = {MELLO_CTX_DOT_REROLL, "RND"},
                       [2] = {MELLO_CTX_DOT_RESET, "RST"},
                       [3] = {MELLO_CTX_DOT_FOLLOW, "FLW"},
                       [4] = {MELLO_CTX_DOT_REVERSE, "REV"},
@@ -724,7 +726,7 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
                          [9] = {MELLO_CTX_UNDO, "UNDO"},
                          [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_SUB] = {[0] = {MELLO_CTX_SUB_TOGGLE, "ON"},
-                      [1] = {MELLO_CTX_SUB_STEP, "STEP"},
+                      [1] = {MELLO_CTX_BASS_SEQ, "SEQ"},
                       [2] = {MELLO_CTX_BASS_ROLL, "ROLL"},
                       [5] = {MELLO_CTX_PERF_FILL, "F"},
                       [6] = {MELLO_CTX_PERF_SUB_MUTE, "B"},
@@ -2874,6 +2876,14 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         mello_engine_set_randomize_mask(e, MELLO_RAND_ALL);
         mark_edit(ui);
         break;
+    case MELLO_CTX_DOT_TOGGLE: { /* G1: the picked matrix on or off */
+        MelloDotTarget t = (MelloDotTarget)ui->selected_dot_target;
+        MelloDotMatrixConfig c = e->dot[t];
+        c.off = !c.off;
+        mello_engine_dot_set_config(e, t, &c);
+        mark_edit(ui);
+        break;
+    }
     case MELLO_CTX_DOT_REROLL:
         mello_engine_dot_randomize_cells(e, (MelloDotTarget)ui->selected_dot_target);
         mark_edit(ui);
@@ -2927,14 +2937,10 @@ static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
         mark_edit(ui);
         break;
     }
-    case MELLO_CTX_SUB_STEP: { /* the picked BASS SEQ step on or off */
-        MelloBassConfig b = e->bass;
-        b.steps[ui->selected_sub_x_step % MELLO_BASS_STEPS].on =
-            !b.steps[ui->selected_sub_x_step % MELLO_BASS_STEPS].on;
-        mello_engine_bass_set_config(e, &b);
+    case MELLO_CTX_BASS_SEQ: /* G2: BASS SEQ on or off from the first page (a white key turns a step) */
+        bass_seq_toggle(e, !e->bass.on);
         mark_edit(ui);
         break;
-    }
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_CTX_MIX_LEAD:
     case MELLO_CTX_MIX_SUB:
@@ -4331,7 +4337,9 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         int8_t lane = dot_lane(sel_id);
         uint8_t i, r, col, len = c->length < 1u ? 1u : c->length, route[MELLO_DOT_ROUTE_MAX], route_pos[16],
                            route_n;
-        uint16_t colour = ui_dot_colour(sel_id), route_cells = 0u;
+        uint16_t colour = c->off ? ui_mix(ui_dot_colour(sel_id), UI_BLACK, 150) /* OFF (G1): dimmed */
+                                 : ui_dot_colour(sel_id),
+                 route_cells = 0u;
         /* The route the matrix reads, numbered in its cells (the first time it comes to each); RANDOM and WALK have
          * none fixed, so their cells only show they are in play. */
         memset(route_pos, 0, sizeof route_pos);
@@ -4347,7 +4355,7 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
         for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) {
             int16_t tx = (int16_t)(4 + i * 47u);
             bool sel = tid[i] == sel_id;
-            uint16_t tc = ui_dot_colour(tid[i]);
+            uint16_t tc = e->dot[tid[i]].off ? ui_mix(ui_dot_colour(tid[i]), UI_BLACK, 150) : ui_dot_colour(tid[i]);
             if (sel) ui_round_fill(o, tx, 32, 45, 17, ui_mix(tc, UI_BLACK, 170));
             ui_round_frame(o, tx, 32, 45, 17, sel ? tc : UI_LINE);
             o->text(o->ctx, (int16_t)(tx + 2), 33, 41, 0, tn[i], sel ? UI_BRIGHT : ui_mix(tc, UI_BLACK, 110),
@@ -4718,6 +4726,8 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     MelloEngine *e = eng(ui);
     if (!e) return -1;
     switch (v) {
+    case MELLO_CTX_DOT_TOGGLE: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].off ? 0 : 1;
+    case MELLO_CTX_BASS_SEQ: return e->bass.on ? 1 : 0;
     case MELLO_CTX_DOT_FOLLOW: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].follow ? 1 : 0;
     case MELLO_CTX_DOT_RESET: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].reset ? 1 : 0;
     case MELLO_CTX_DOT_REVERSE:
@@ -4902,12 +4912,13 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
         }
         gap_in = 2, gap_group = 6;
         if (need + 6 * gap_in + 4 * gap_group > 236) {
-            /* No room for framed cells: plain ones, each just holding its label, a pixel apart */
+            /* No room for framed cells: plain ones, each just holding its label (a glyph's own last column is
+             * blank, so the cells' fill stops a pixel short and they stay apart) */
             compact = true;
             gap_in = 0, gap_group = 2;
             need = 0;
             for (i = 0u; i < 11u; ++i) {
-                w[i] = lab[i] ? (int16_t)(ui_text_len(lab[i]) * 8u + 1u) : 2;
+                w[i] = lab[i] ? (int16_t)(ui_text_len(lab[i]) * 8u) : 2;
                 need = (int16_t)(need + w[i]);
             }
         }
@@ -4936,7 +4947,9 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
                         a->verb == MELLO_CTX_RNDMZR ? ui_mix(UI_PURPLE, UI_BLACK, 110)
                         : lit > 0                   ? ui_mix(c, UI_BLACK, 130)
                                                     : UI_PANEL);
-                o->text(o->ctx, x, 172, (int16_t)(cw - 1), 0, lab[i], lit > 0 ? UI_BRIGHT : c, 1);
+                if (i + 1u < 11u && i + 1u != group_end[g]) /* a hairline to the next cell of the group */
+                    o->fill(o->ctx, (int16_t)(x + cw - 1), 175, 1, 10, UI_LINE);
+                o->text(o->ctx, x, 172, cw, 0, lab[i], lit > 0 ? UI_BRIGHT : c, 1);
             } else if (a->verb ==
                        MELLO_CTX_RNDMZR) { /* the same key on every page, so it looks the same: filled */
                 ui_round_fill(o, x, 172, cw, 16, ui_mix(UI_PURPLE, UI_BLACK, 110));

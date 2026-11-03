@@ -3676,7 +3676,7 @@ static void evaluate_dot_matrices(MelloEngine *e, bool is_step_start, bool *matr
         cell = dot_route(e, rt, cfg.mode, cfg.length, cfg.reverse, base);
         e->dot_active_cell[id] = (int8_t)cell;
         e->last_mod.dot_cell[id] = (int8_t)cell;
-        on = (cfg.cells & (uint16_t)(1u << cell)) != 0u;
+        on = !cfg.off && (cfg.cells & (uint16_t)(1u << cell)) != 0u; /* OFF: the route moves, nothing is sent */
         if (!on) continue;
         if (id == MELLO_DOT_ACCENT) {
             if (chance_permille(&e->gen_rng, cfg.amount)) *matrix_accent = true;

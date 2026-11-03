@@ -3,7 +3,8 @@
 /* Phase 5: DOT's orders (DECISIONS.md "DOT orders"). The routes are what they say (spiral, diagonals, ping-pong
  * without doubled ends, the bouncing ball, LEN taking the route's first cells); the engine reads them in that order,
  * backwards with REV; WALK steps to neighbours within LEN; RANDOM plays each of the first LEN cells once a round; the
- * order and REV survive a power cycle (REV in bit 7 of the mode byte). */
+ * order and REV survive a power cycle (REV in bit 7 of the mode byte). B0 ON off (G1): a matrix that is off sends
+ * nothing while its route keeps moving, and stays off through a power cycle (bit 6). */
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -134,7 +135,7 @@ int main(void)
         MelloDotMatrixConfig d = e.dot[MELLO_DOT_RATCHET];
         uint32_t t = 100u;
         MelloStorageSaveResult w = MELLO_STORAGE_SAVE_IDLE;
-        d.mode = MELLO_DOT_WALK, d.reverse = true;
+        d.mode = MELLO_DOT_WALK, d.reverse = true, d.off = true;
         mello_engine_dot_set_config(&e, MELLO_DOT_RATCHET, &d);
         for (; t <= 30000u && w != MELLO_STORAGE_SAVE_WRITTEN; t += 100u)
             w = mello_storage_poll(&s, &e, t, true);
@@ -144,6 +145,35 @@ int main(void)
     CHECK(r == MELLO_STORAGE_LOAD_OK && e.dot[MELLO_DOT_RATCHET].mode == MELLO_DOT_WALK &&
               e.dot[MELLO_DOT_RATCHET].reverse,
           "WALK + REV lost in a power cycle");
+    CHECK(e.dot[MELLO_DOT_RATCHET].off, "OFF lost in a power cycle");
+
+    /* OFF: every cell lit, every pulse read, and no ratchet added; ON again, ratchets; the route moves either way */
+    {
+        unsigned on_run;
+        for (on_run = 0u; on_run < 2u; ++on_run) {
+            MelloDotMatrixConfig d;
+            unsigned i, added = 0u, moved = 0u;
+            int8_t last = -1;
+            mello_project_defaults(&p);
+            mello_engine_init(&e, &p, 1u);
+            d = e.dot[MELLO_DOT_RATCHET];
+            d.cells = 0xFFFFu, d.amount = 1000u, d.follow = false, d.off = !on_run;
+            mello_engine_dot_set_config(&e, MELLO_DOT_RATCHET, &d);
+            mello_engine_start(&e);
+            for (i = 0u; i < 32u; ++i) {
+                MelloEvent ev;
+                (void)mello_engine_advance_pulse(&e);
+                while (mello_event_pop(&e, &ev)) {
+                }
+                if (e.last_mod.effective_ratchet > 1u) ++added;
+                if (e.last_mod.dot_cell[MELLO_DOT_RATCHET] != last) ++moved;
+                last = e.last_mod.dot_cell[MELLO_DOT_RATCHET];
+            }
+            CHECK(on_run ? added > 0u : added == 0u, "RATCHET %s: %u pulses with ratchets added",
+                  on_run ? "ON" : "OFF", added);
+            CHECK(moved > 8u, "RATCHET %s: the route did not move (%u)", on_run ? "ON" : "OFF", moved);
+        }
+    }
     puts("PASS: DOT orders: routes, the engine reads them (REV, P-PONG, WALK, RANDOM), saved with REV");
     return 0;
 }

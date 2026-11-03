@@ -1096,6 +1096,17 @@ short lead reads louder than its RMS, which is why LEVEL went below the proposed
 their own values (but a save from the chords' first format, which held no voice, gets these); a new project gets
 them.
 
+## B0 is ON, and a part's first page plays it (2026-11-03)
+
+CONTROL_GRAMMAR's G1 and G2, the first of the rules G1-G8 (ROADMAP "Next: everything open"). G1: on every page with a
+part or a lane B0 is its ON. DOT had none (B0 was empty): B0 now switches the picked matrix, saved in bit 6 of its
+mode byte (older builds read the mode as HORIZ, as with REV in bit 7). An OFF matrix keeps its route moving, so it
+comes back in place, and sends nothing; the page draws it dimmed. G2: BASS's first page turns BASS SEQ on and off
+on B1 (SEQ, lit when on), in place of STEP, which only repeated a white key. The strip's plain cells (pages too full
+for frames) lost the pixel each kept beside its label and got a hairline between cells of a group instead, so DOT's
+eleven keys fit. Tests: control_authoritative_mapping (verify_g1_g2), dot_orders (OFF sends nothing, the route
+moves, OFF through a power cycle).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

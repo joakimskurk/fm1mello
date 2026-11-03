@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f46.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f47.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -97,7 +97,7 @@ firmware's project) or FULL (the project does not fit).
 
 | Key | On every page | |
 |---|---|---|
-| B0 | **ON** for the page's part, where there is one (BASS, CHORD, DRUMS, SAMPLE, EVOLVE, LOOP CYCLE, SLOT SEQ) | |
+| B0 | **ON** for the page's part, where there is one (BASS, CHORD, DRUMS, SAMPLE, EVOLVE, LOOP CYCLE, SLOT SEQ, and on DOT the picked matrix) | |
 | B1-B4 | The page's own keys, in the order pick, toggles, actions (HOME: transpose `-` `+`, MUTATE, RESTART, CLEAR) | |
 | B5 | **F**ILL, held: every step plays, ratchets doubled | performance |
 | B6 | **B**ASS MUTE, held: no new bass notes, the sounding bass fades | performance |
@@ -122,7 +122,7 @@ lands where it would have been. They are never saved or undone.
 | KEY | The root. |
 | DOT | A cell on or off. |
 | EVOLVE | Flips a bit and picks it. |
-| BASS | A BASS SEQ step on or off, and picks it. |
+| BASS | A BASS SEQ step on or off, and picks it (B1 SEQ turns BASS SEQ itself on or off). |
 | CHORD | Picks a chord of the chain (or a pattern step). |
 | DRUMS | The picked voice's hit on or off at that step, and picks the step. |
 
@@ -247,21 +247,21 @@ K1-K4 with their default values.
 | KEY / SCALE | SEL | — | `F B < R UNDO RNDMZR` | ROOT 60 · SCALE minor · OCT +0 · SPAN 2 |
 | SLOTS | hold SAVE | LOAD | `F B < R UNDO RNDMZR` | — · VISIBLE 8 · — · — |
 | SLOTS | hold SAVE | RENAME | `F B < R UNDO RNDMZR` | CURSOR 1 · CHAR - · — · — |
-| DOT MATRIX | LFO | ACCENT | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
-| DOT MATRIX | LFO | MOD 1 | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 24% · EVOLVE 0% |
-| DOT MATRIX | LFO | MOD 2 | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
-| DOT MATRIX | LFO | RATCHET | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
-| DOT MATRIX | LFO | SUB | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 24% · EVOLVE 0% |
+| DOT MATRIX | LFO | ACCENT | `ON RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
+| DOT MATRIX | LFO | MOD 1 | `ON RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 24% · EVOLVE 0% |
+| DOT MATRIX | LFO | MOD 2 | `ON RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
+| DOT MATRIX | LFO | RATCHET | `ON RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
+| DOT MATRIX | LFO | SUB | `ON RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 24% · EVOLVE 0% |
 | EVOLVE | LFO | MAIN | `ON RND LOOP F B < R UNDO RNDMZR` | MUTATE 10% · LENGTH 8 · RATE 1X · OFFSET +0 |
 | EVOLVE | LFO | ROUTES | `ON RND LOOP F B < R UNDO RNDMZR` | GATE LENGTH · FILTER OFF · OCT OFF · DECAY OFF |
 | EVOLVE | LFO | DEPTH | `ON RND LOOP F B < R UNDO RNDMZR` | GATE 35% · FILTER 35% · OCT 35% · DECAY 35% |
 | EVOLVE | LFO | SOUND | `ON RND LOOP F B < R UNDO RNDMZR` | DEST A OFF · DEPTH A +50% · DEST B OFF · DEPTH B +50% |
-| BASS | ARP | PLAY | `ON STEP ROLL F B < R UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
-| BASS | ARP | SEQ | `ON STEP ROLL F B < R UNDO RNDMZR` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
-| BASS | ARP | STEP | `ON STEP ROLL F B < R UNDO RNDMZR` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
-| BASS | ARP | VOICE | `ON STEP ROLL F B < R UNDO RNDMZR` | LEVEL 42% · WAVE SINE · DECAY 160MS · RELEASE 120MS |
-| BASS | ARP | TONE | `ON STEP ROLL F B < R UNDO RNDMZR` | GLIDE 20MS · CUT 242.0HZ · DRIVE 0% · OCT -1 |
-| BASS | ARP | FILTER | `ON STEP ROLL F B < R UNDO RNDMZR` | RES 0% · ENV 0% · F.DEC 300MS · ACCENT 50% |
+| BASS | ARP | PLAY | `ON SEQ ROLL F B < R UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
+| BASS | ARP | SEQ | `ON SEQ ROLL F B < R UNDO RNDMZR` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
+| BASS | ARP | STEP | `ON SEQ ROLL F B < R UNDO RNDMZR` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
+| BASS | ARP | VOICE | `ON SEQ ROLL F B < R UNDO RNDMZR` | LEVEL 42% · WAVE SINE · DECAY 160MS · RELEASE 120MS |
+| BASS | ARP | TONE | `ON SEQ ROLL F B < R UNDO RNDMZR` | GLIDE 20MS · CUT 242.0HZ · DRIVE 0% · OCT -1 |
+| BASS | ARP | FILTER | `ON SEQ ROLL F B < R UNDO RNDMZR` | RES 0% · ENV 0% · F.DEC 300MS · ACCENT 50% |
 | CHORD | ARP | PLAY | `ON BASS F B < R UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
 | CHORD | ARP | CHORD | `ON BASS F B < R UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
 | CHORD | ARP | VOICING | `ON BASS F B < R UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
