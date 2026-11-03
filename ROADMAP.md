@@ -82,7 +82,8 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 ### The order (waves)
 
 1. **The rules first** (G1-G8 into CONTROL_GRAMMAR.md and the contracts, nothing changes yet), then the two small
-   ones they show: F1, F2. Quick, and every later wave is checked against them.
+   ones they show: F1, F2. Quick, and every later wave is checked against them. Done 2026-11-03 (0.5-f47): the
+   rules table in CONTROL_GRAMMAR, G1 and G2 applied and tested (verify_g1_g2), F1 and F2 done.
 2. **The parts**: F6 SUB MELLO (it decides which parts there are), F7, then F8-F10 (a send per part needs the part
    list), then F3, F4 and F18 together (the performance actions on every part, the PERFORM page, MUTATE, HOME's keys;
    one change to the black keys, not three).
