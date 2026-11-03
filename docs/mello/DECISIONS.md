@@ -1285,6 +1285,18 @@ undone. Over 300 rolls of 16 steps (tests/mello/random_groove.c): 22% of the not
 in two rolls of three, a tie in two of three, ghost notes in three of five; 115 of 158 offbeat ratchets answered by
 a rest. INT is not saved, as before.
 
+## The stacks measured, the event smaller (2026-11-03)
+
+ROADMAP B4's leftovers, F21. **Stacks.** They lie outside the 96 KiB of .data/.bss (app.ld: the user stack 23.75
+KiB, the system stack, where the interrupts run, 7.75 KiB, each under a 256 B guard band), so the build's RAM guard
+never saw them. tools/emu_stack.sh runs a package for 11 s in fm1-emu (PLAY, RNDMZR three times, every page, SAVE,
+a held step) and reads how deep each went: the emulator's RAM starts at zero, so the lowest word not zero is the
+high-water mark (a frame of only zeros would hide: it can read a little short). 0.5-f59, the default pattern and the
+worst case alike: user 3.2-3.4 KiB, system 1.1 KiB; neither guard band touched. The deepest is the main loop's (the UI),
+not the audio. Room enough: no change. **The event.** MelloEvent held three enums of 4 bytes (type, voice, gate);
+held in a byte each it is 44 B, not 60: both queues together 2 KiB back (RAM 89952 -> 87904 B of 98304). **UNDO** as
+one packed slot was looked at and left: its copies are 1.1 KiB, and packing them costs a codec on every UNDO.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

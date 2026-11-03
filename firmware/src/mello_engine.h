@@ -765,9 +765,9 @@ typedef enum {
     MELLO_EVENT_DRUM_HIT /* sample_slot: the voice; note: 64 + PITCH; velocity; drum_decay, drum_crush */
 } MelloEventType;
 
-typedef struct {
+typedef struct { /* (the enums held in a byte each: 60 B -> 44, ROADMAP F21) */
     uint32_t tick;
-    MelloEventType type;
+    uint8_t type; /* MelloEventType */
     uint8_t step_index;
     uint8_t pulse_index;
     uint8_t total_pulses;
@@ -781,9 +781,9 @@ typedef struct {
     int8_t slot_index;
     uint8_t loop_cycle_index;
     uint8_t slot_seq_index;
-    MelloVoice voice;
+    uint8_t voice; /* MelloVoice */
     uint8_t sample_slot; /* 0..3 for SAMPLE events */
-    MelloGateMode effective_gate;
+    uint8_t effective_gate; /* MelloGateMode */
     uint8_t effective_ratchet;
     bool effective_accent;
     int8_t tm_index;

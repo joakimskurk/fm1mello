@@ -74,7 +74,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F18 | HOME's own black keys once PERFORM exists (G4). Done 2026-11-03: - + RST CLR stay, MUT went to B6 | 2026-11-03, 6 |
 | F19 | DOT's picture: "much better than the HTML" was asked; it kept its own body in C3. Looked at 2026-11-03 on the new screen: it holds (the grid fills the taller body, the read position, trail and route numbers show); no redraw. The UI map's DOT shots were all empty matrices, stopped; a playing shot with cells on (dot-playing) is in the README's tour | 2026-10-29 (h3) |
 | F20 | The output level: as quiet as the HTML (about -10 dB RMS); MASTER or an outer gain, a product choice | Phase 2 |
-| F21 | RAM: the stack's high-water mark, the 60 B event, UNDO as one packed slot (B4) | 2026-10-31 |
+| F21 | RAM: the stack's high-water mark, the 60 B event, UNDO as one packed slot (B4). Done 2026-11-03 (0.5-f59): stacks measured (tools/emu_stack.sh: user 3.2 of 23.75 KB, system 1.1 of 7.75 KB), the event 60 B -> 44 (2 KB back); UNDO left as it is (1.1 KB, little to gain) | 2026-10-31 |
 | F22 | Storage: CC 113 on channel 16 can clear a sample slot; a save erases 10 sectors (a stall) (Phase 1, P2) | review |
 | F23 | CI: the 80 / 100 MHz emulator smokes the old build script ran (Phase 0) | review |
 | F24 | On the FM-1, when there is one: first flash, the hand checklist (C4), E5, E8's levels, Big screen | Phase 1 |
