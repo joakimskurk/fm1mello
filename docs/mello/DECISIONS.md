@@ -1379,6 +1379,14 @@ and those filters, only while PING is on. Its reach is half the line's (1.49 s, 
 twice as far; past it the longest it can, as before. With PRE DIST the distortion is one channel, so both taps go in
 together: the echoes keep their rhythm, in the middle.
 
+## A label on its own box (2026-11-04)
+
+A bug from the new screen (F12): the draw layer gives each text the colour of the fill it sits on (fit_bg), but a
+rounded box's main fill leaves out its edge columns (ui_round_fill), so a label as wide as its box found no fill
+under it and was drawn on black: a black band across PERFORM's cells, the strip's cells (RNDMZR's purple, a lit
+cell's colour) hidden behind their labels, and the same on other pages' pills and cells. fit_bg now allows two
+columns of slack each side. 78 screens change; most show the colour the code meant all along.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

@@ -6833,13 +6833,14 @@ static void fit_fill(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint
     f->fhead = (uint8_t)((i + 1u) % FIT_FILLS);
     if (f->fn < FIT_FILLS) ++f->fn;
 }
-/* The colour of the latest fill that holds the box, else the ground. */
+/* The colour of the latest fill that holds the box, else the ground. Two columns of slack each side: a rounded
+ * box's main fill leaves out its edge columns (ui_round_fill), and a label as wide as its box sat on black. */
 static uint16_t fit_bg(const MelloUiFitCtx *f, int16_t x, int16_t y, int16_t w, int16_t h)
 {
     uint8_t n;
     for (n = 1u; n <= f->fn; ++n) {
         uint8_t i = (uint8_t)((f->fhead + FIT_FILLS - n) % FIT_FILLS);
-        if (x >= f->fx[i] && y >= f->fy[i] && x + w <= f->fx[i] + f->fw[i] && y + h <= f->fy[i] + f->fh[i])
+        if (x + 2 >= f->fx[i] && y >= f->fy[i] && x + w - 2 <= f->fx[i] + f->fw[i] && y + h <= f->fy[i] + f->fh[i])
             return f->fc[i];
     }
     return UI_BLACK;
