@@ -18,7 +18,8 @@ because Dinghy's USB code only assembles the six-byte soft keys:
   poly aftertouch d1 d2     DATA: two 7-bit digits; eight digits carry seven bytes (a mask byte, then the low
                             seven bits of each), the record exactly as it lies in flash
   control change 111 x      END: the record is checked (CRCs) and copied into the slot; ACK or ERROR
-  control change 112 x      ABORT, 113 slot CLEAR (ACK/ERROR), 114 slot QUERY (ACK = loaded, ERROR = empty)
+  control change 112 x      ABORT, 113 slot CLEAR (ACK/ERROR; only straight after 114 for the same slot),
+                            114 slot QUERY (ACK = loaded, ERROR = empty)
 The device only accepts START, END and CLEAR while the sequencer is stopped and the sound has died away.
 
 The record: a 64-byte header (SM10, version 1, slot, codec 1 = IMA ADPCM, 22050 Hz, 256 samples a block,
@@ -347,14 +348,15 @@ class Link:
             self.inp.close()
 
 
-def expect_ack(link, what, timeout, no_ack, settle):
+def expect_ack(link, what, timeout, no_ack, settle, either=False):
+    """Wait for ACK; with either, ERROR is an answer too (a QUERY's: the slot is empty)."""
     if no_ack or not link.inp:
         time.sleep(settle)
         return
     r = link.wait_ack(timeout)
     if r is None:
         raise ToolError(5, "%s: no answer from the device in %.1f s" % (what, timeout))
-    if not r[0]:
+    if not r[0] and not either:
         raise ToolError(4, "%s: the device said ERROR (slot %d). It takes samples only while stopped and silent;"
                            " a START also fails when the slot number is bad" % (what, r[1]))
 
@@ -386,6 +388,9 @@ def cmd_send(a):
 def cmd_clear(a):
     link = Link(a.port, not a.no_ack)
     try:
+        # CLEAR is taken only as the next message after a QUERY of the same slot (a stray CC 113 clears nothing)
+        link.cc(CC_QUERY, a.slot)
+        expect_ack(link, "QUERY", 2.0, a.no_ack, 0.2, either=True)
         link.cc(CC_CLEAR, a.slot)
         expect_ack(link, "CLEAR", 5.0, a.no_ack, 1.0)
         print("slot %d cleared" % a.slot)

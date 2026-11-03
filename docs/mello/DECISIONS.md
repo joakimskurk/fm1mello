@@ -1297,6 +1297,21 @@ not the audio. Room enough: no change. **The event.** MelloEvent held three enum
 held in a byte each it is 44 B, not 60: both queues together 2 KiB back (RAM 89952 -> 87904 B of 98304). **UNDO** as
 one packed slot was looked at and left: its copies are 1.1 KiB, and packing them costs a codec on every UNDO.
 
+## A save without a stall, a clear on purpose (2026-11-03)
+
+The review's P2 items (ROADMAP F22). **The stall.** A save (2 s after an edit while stopped, or SAVE) erased the
+record's sectors at once, up to 11 for a project with every pattern slot full: each 4 KiB erase holds the main loop
+~50-400 ms on the chip, so the screen and the keys froze 0.5-4 s, often in the middle of editing. mello_storage_poll
+now erases one sector a call and writes the record once the bank is erased; PLAY half-way stops it (nothing is
+written while playing, as before), and it goes on where it was, erasing nothing twice. The bank is always the one not
+in use, so a save cut anywhere leaves the last project whole. The check that no bank holds a newer firmware's
+project runs before the first sector, as before the first erase. A held key or a knob still waits out one sector.
+Test: storage_save_steps. **The clear.** CC 113 on channel 16 (the sample tool's CLEAR) emptied a slot for any
+controller that sent it while stopped. It is now taken only as the very next channel message after a QUERY (CC 114)
+of the same slot; tools/fm1_samples.py clear sends both (the host tool is in tools/, Dinghy's directory). Realtime
+bytes between do not count. Test: sample_transfer_roundtrip. **NOSAVE.** The third item, the screen saying nothing
+when saving is off after a rollback, was already done: the header shows NOSAVE (or FULL) in red.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

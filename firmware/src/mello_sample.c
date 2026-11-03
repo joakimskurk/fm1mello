@@ -348,8 +348,13 @@ static bool finish_transfer(MelloSampleTransfer *x)
 
 bool mello_sample_transfer_midi_in(MelloSampleTransfer *x, uint8_t st, uint8_t d1, uint8_t d2, bool safe)
 {
-    uint8_t slot;
+    uint8_t slot, armed;
     if (!x) return false;
+    /* CLEAR empties a slot for good, so it is taken only as the very next channel message after a QUERY of that
+     * slot (tools/fm1_samples.py sends both): a controller that happens to send CC 113 on channel 16 clears
+     * nothing (ROADMAP F22). Realtime bytes (clock) between the two do not count. */
+    armed = x->clear_armed;
+    if (st < 0xF0u) x->clear_armed = 0u;
     if (st == MELLO_SAMPLE_MIDI_DATA_STATUS) {
         if (x->active) {
             xdigit(x, d1);
@@ -378,7 +383,8 @@ bool mello_sample_transfer_midi_in(MelloSampleTransfer *x, uint8_t st, uint8_t d
     }
     if (d1 == MELLO_SAMPLE_CTRL_CLEAR) {
         slot = d2;
-        if (slot >= MELLO_SAMPLE_SLOT_COUNT || !safe || !mello_sample_store_clear_slot(x->store, slot)) {
+        if (slot >= MELLO_SAMPLE_SLOT_COUNT || armed != slot + 1u || !safe ||
+            !mello_sample_store_clear_slot(x->store, slot)) {
             ack(x, 0u, slot);
             return true;
         }
@@ -398,6 +404,7 @@ bool mello_sample_transfer_midi_in(MelloSampleTransfer *x, uint8_t st, uint8_t d
     }
     if (d1 == MELLO_SAMPLE_CTRL_QUERY) {
         slot = d2;
+        if (slot < MELLO_SAMPLE_SLOT_COUNT) x->clear_armed = (uint8_t)(slot + 1u);
         ack(x,
             slot < MELLO_SAMPLE_SLOT_COUNT && x->store && x->store->bank && x->store->bank->meta[slot].loaded,
             slot);

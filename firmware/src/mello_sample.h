@@ -79,6 +79,7 @@ typedef struct {
     bool active;
     bool failed;
     uint8_t slot;
+    uint8_t clear_armed; /* slot + 1 when the last channel message was QUERY of it: CLEAR needs that (F22) */
     uint8_t wire7[8];
     uint8_t wire7_used;
     uint32_t raw_received;

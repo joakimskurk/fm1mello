@@ -90,6 +90,10 @@ typedef struct {
     uint32_t baseline_size;
     uint32_t baseline_crc;
     uint32_t last_check_ms;
+    /* A save erases its bank a sector a poll (ROADMAP F22: all at once stalled the main loop 0.5-4 s): the bank
+     * being erased (-1 none) and how far, from its start. The record is written once it is all erased. */
+    int8_t pre_bank;
+    uint32_t pre_erased;
 } MelloStorage;
 
 void mello_storage_config_defaults(MelloStorageConfig *config);

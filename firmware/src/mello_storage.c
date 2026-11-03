@@ -1332,6 +1332,7 @@ void mello_storage_init(MelloStorage *s, const MelloStorageIo *io, const MelloSt
     if (!s) return;
     memset(s, 0, sizeof(*s));
     s->active_bank = -1;
+    s->pre_bank = -1;
     if (io) s->io = *io;
     if (cfg)
         s->config = *cfg;
@@ -1442,21 +1443,49 @@ MelloStorageLoadResult mello_storage_load(MelloStorage *s, MelloEngine *e)
 /* The sectors the record (header, payload, footer) will occupy, from the bank's start: what a scan reads. The
  * rest of the bank keeps whatever it held (fewer erases a save; and after an upgrade the old layout's record,
  * further up bank 0, outlives the first save). */
-static bool erase_bank(MelloStorage *s, uint8_t bank, uint32_t payload_size)
+static bool erase_bank(MelloStorage *s, uint8_t bank, uint32_t payload_size, uint32_t from)
 {
     uint32_t off, base, need = MELLO_STORAGE_HEADER_SIZE + payload_size + MELLO_STORAGE_FOOTER_SIZE;
     if (!s || !s->io.erase4k || s->config.sector_size == 0u ||
         s->config.bank_size % s->config.sector_size != 0u || need > s->config.bank_size)
         return false;
     base = s->config.bank_addr[bank];
-    for (off = 0u; off < need; off += s->config.sector_size)
+    for (off = from; off < need; off += s->config.sector_size)
         if (!s->io.erase4k(s->io.ctx, base + off)) return false;
     return true;
 }
 
+/* The bank a save of `size` goes to; first, that neither bank holds a newer firmware's project (see below), so
+ * nothing is erased before that is known. Returns WRITTEN when the save may go ahead. */
+static MelloStorageSaveResult pick_bank(MelloStorage *s, uint32_t size, uint32_t crc, uint8_t *bank)
+{
+    *bank = s->active_bank == 0 ? 1u : 0u;
+    /* After an upgrade the project came from the 40 KiB layout's second bank, which lies across the top of bank
+     * 0 and the start of bank 1: a record that fits under it goes to bank 0 and leaves it whole. */
+    if (s->active_legacy && MELLO_STORAGE_HEADER_SIZE + size + MELLO_STORAGE_FOOTER_SIZE <=
+                                MELLO_STORAGE_LEGACY_BANK1_ADDR - MELLO_STORAGE_BANK0_ADDR)
+        *bank = 0u;
+    /* After a rollback, a newer firmware's project is the user's newest work and this firmware cannot read
+     * it. While either bank holds one, write nothing: neither that bank nor the other, which may hold the
+     * user's previous project (load then runs on defaults). Installing the newer firmware again brings it
+     * back. An older format is still replaced, so an upgrade can save. */
+    {
+        RecordInfo b0 = scan_bank(s, 0u), b1 = scan_bank(s, 1u);
+        if (b0.io_error || b1.io_error) return MELLO_STORAGE_SAVE_IO_ERROR;
+        if ((b0.present && b0.version > MELLO_STORAGE_FORMAT_VERSION) ||
+            (b1.present && b1.version > MELLO_STORAGE_FORMAT_VERSION)) {
+            set_baseline(s, size, crc); /* do not retry until the project changes again */
+            s->dirty = false;
+            s->manual_pending = false;
+            return MELLO_STORAGE_SAVE_PROTECTED;
+        }
+    }
+    return MELLO_STORAGE_SAVE_WRITTEN;
+}
+
 MelloStorageSaveResult mello_storage_save_now(MelloStorage *s, const MelloEngine *e, uint32_t now_ms)
 {
-    uint32_t size, crc, rev, base, verify_crc;
+    uint32_t size, crc, rev, base, verify_crc, from;
     uint8_t bank, h[MELLO_STORAGE_HEADER_SIZE], f[MELLO_STORAGE_FOOTER_SIZE];
     Writer w;
     RecordInfo check;
@@ -1480,34 +1509,20 @@ MelloStorageSaveResult mello_storage_save_now(MelloStorage *s, const MelloEngine
         s->last_save_result = MELLO_STORAGE_SAVE_UNCHANGED;
         return s->last_save_result;
     }
-    bank = s->active_bank == 0 ? 1u : 0u;
-    /* After an upgrade the project came from the 40 KiB layout's second bank, which lies across the top of bank
-     * 0 and the start of bank 1: a record that fits under it goes to bank 0 and leaves it whole. */
-    if (s->active_legacy && MELLO_STORAGE_HEADER_SIZE + size + MELLO_STORAGE_FOOTER_SIZE <=
-                                MELLO_STORAGE_LEGACY_BANK1_ADDR - MELLO_STORAGE_BANK0_ADDR)
-        bank = 0u;
-    rev = s->active_bank < 0 ? 1u : s->revision + 1u;
-    base = s->config.bank_addr[bank];
-    /* After a rollback, a newer firmware's project is the user's newest work and this firmware cannot read
-     * it. While either bank holds one, write nothing: neither that bank nor the other, which may hold the
-     * user's previous project (load then runs on defaults). Installing the newer firmware again brings it
-     * back. An older format is still replaced, so an upgrade can save. */
     {
-        RecordInfo b0 = scan_bank(s, 0u), b1 = scan_bank(s, 1u);
-        if (b0.io_error || b1.io_error) {
-            s->last_save_result = MELLO_STORAGE_SAVE_IO_ERROR;
-            return s->last_save_result;
-        }
-        if ((b0.present && b0.version > MELLO_STORAGE_FORMAT_VERSION) ||
-            (b1.present && b1.version > MELLO_STORAGE_FORMAT_VERSION)) {
-            set_baseline(s, size, crc); /* do not retry until the project changes again */
-            s->dirty = false;
-            s->manual_pending = false;
-            s->last_save_result = MELLO_STORAGE_SAVE_PROTECTED;
-            return s->last_save_result;
+        MelloStorageSaveResult r = pick_bank(s, size, crc, &bank);
+        if (r != MELLO_STORAGE_SAVE_WRITTEN) {
+            s->pre_bank = -1;
+            s->last_save_result = r;
+            return r;
         }
     }
-    if (!erase_bank(s, bank, size)) {
+    rev = s->active_bank < 0 ? 1u : s->revision + 1u;
+    base = s->config.bank_addr[bank];
+    /* what poll erased already, a sector a call, is not erased again */
+    from = s->pre_bank == (int8_t)bank ? s->pre_erased : 0u;
+    s->pre_bank = -1;
+    if (!erase_bank(s, bank, size, from)) {
         s->last_save_result = MELLO_STORAGE_SAVE_IO_ERROR;
         return s->last_save_result;
     }
@@ -1600,6 +1615,37 @@ MelloStorageSaveResult mello_storage_poll(MelloStorage *s, const MelloEngine *e,
             (uint32_t)(now_ms - s->last_save_ms) < s->config.autosave_min_interval_ms) {
             s->last_save_result = MELLO_STORAGE_SAVE_DEFERRED;
             return s->last_save_result;
+        }
+    }
+    /* A sector a call until the bank is erased (each 4 KiB erase holds the main loop ~50-400 ms on the chip, all
+     * ten at once 0.5-4 s); then save_now writes the record. Stopped half-way (PLAY), what is erased stays erased:
+     * the bank is the one not in use. */
+    if (s->io.erase4k && s->config.sector_size) {
+        uint32_t size, crc;
+        uint8_t bank;
+        if (mello_storage_measure_payload(e, &size, &crc) &&
+            size <= s->config.bank_size - MELLO_STORAGE_HEADER_SIZE - MELLO_STORAGE_FOOTER_SIZE &&
+            !(s->active_bank >= 0 && size == s->active_payload_size && crc == s->active_payload_crc)) {
+            if (s->pre_bank < 0) { /* the first sector: nothing is erased before the newer-project check */
+                MelloStorageSaveResult r = pick_bank(s, size, crc, &bank);
+                if (r != MELLO_STORAGE_SAVE_WRITTEN) {
+                    s->last_save_result = r;
+                    return r;
+                }
+                s->pre_bank = (int8_t)bank;
+                s->pre_erased = 0u;
+            }
+            if (s->pre_erased < MELLO_STORAGE_HEADER_SIZE + size + MELLO_STORAGE_FOOTER_SIZE) {
+                if (!s->io.erase4k(s->io.ctx,
+                                   s->config.bank_addr[(uint8_t)s->pre_bank] + s->pre_erased)) {
+                    s->pre_bank = -1;
+                    s->last_save_result = MELLO_STORAGE_SAVE_IO_ERROR;
+                    return s->last_save_result;
+                }
+                s->pre_erased += s->config.sector_size;
+                s->last_save_result = MELLO_STORAGE_SAVE_DEFERRED;
+                return s->last_save_result;
+            }
         }
     }
     return mello_storage_save_now(s, e, now_ms);

@@ -359,7 +359,8 @@ python3 tools/fm1_samples.py clear --slot 1
 
 The tool mixes to mono, resamples, encodes, and sends the slot's flash record as it will lie in flash; the FM-1
 answers after START and END, and a transfer takes a second or two. The record goes to a staging area first, so a
-cut transfer never damages what the slot had. With the web emulator nothing comes back: add `--no-ack`, and pick
+cut transfer never damages what the slot had. A clear is taken only straight after a query of the same slot (the
+tool sends both), so a controller's stray CC 113 on channel 16 cannot empty a slot. With the web emulator nothing comes back: add `--no-ack`, and pick
 the MIDI port it listens to with `--port` (it takes the computer's MIDI inputs; on macOS an IAC bus does). For
 fm1-emu on the command line, `emu-keys` prints the whole transfer as its `--keys` script:
 
