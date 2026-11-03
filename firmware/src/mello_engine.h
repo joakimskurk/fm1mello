@@ -301,7 +301,8 @@ typedef struct {
     uint16_t delay_tone;     /* 0..1000: HI CUT on the return */
     uint16_t delay_lowcut;   /* 0..1000: LO CUT on the return and in the feedback, 20 Hz .. 2 kHz; 0 off */
     bool
-        delay_pre_dist; /* the delay before the distortion: its filtered echoes are driven too (HTML: after) */
+        delay_pre_dist;   /* the delay before the distortion: its filtered echoes are driven too (HTML: after) */
+    bool delay_pingpong; /* PING: the echoes left and right in turn (ROADMAP F25); with PRE DIST, in the middle */
     uint16_t delay_level;     /* 0..1500 */
     uint16_t reverb_wet;      /* 0..1000 */
     uint16_t reverb_size;     /* 0..1000 */

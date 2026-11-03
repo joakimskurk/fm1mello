@@ -619,6 +619,7 @@ typedef enum {
     MELLO_CTX_DRUM_FEED,   /* RNDMZR rolls the drums too */
     MELLO_CTX_BASS_ROLL,   /* roll a bass line under the sequence (undoable) */
     MELLO_CTX_DELAY_PRE,   /* FX: the delay before the distortion */
+    MELLO_CTX_DELAY_PING,  /* FX: the echoes left and right in turn (F25) */
     MELLO_CTX_SAMPLE_TOGGLE,
     MELLO_CTX_HOME_RANDOM, /* reroll now, at the intensity ALGORITHM sets */
     MELLO_CTX_RNDMZR,      /* every page's B10, the last: tap = reroll (undoable), hold = the RANDOM page */
@@ -741,6 +742,7 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
                                  [9] = {MELLO_CTX_UNDO, "UNDO"},
                                  [10] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_AUDIO_FX] = {[1] = {MELLO_CTX_DELAY_PRE, "PRE-DIST"},
+                           [2] = {MELLO_CTX_DELAY_PING, "PING"},
                            [5] = {MELLO_CTX_PERF, "PERF"},
                            [6] = {MELLO_CTX_MUTATE, "MUT"},
                            [9] = {MELLO_CTX_UNDO, "UNDO"},
@@ -3004,6 +3006,14 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
         mark_edit(ui);
         break;
     }
+    case MELLO_CTX_DELAY_PING: {
+        MelloFxConfig f = e->fx;
+        f.delay_pingpong = !f.delay_pingpong;
+        mello_engine_fx_set_config(e, &f);
+        persistent_dirty(ui, now_ms);
+        mark_edit(ui);
+        break;
+    }
     case MELLO_CTX_DRUM_ROLL:
         mello_engine_undo_snapshot(e);
         mello_engine_drums_roll(e);
@@ -5142,6 +5152,7 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_CHORD_POLY: return e->chord.poly ? 1 : 0;
 #endif
     case MELLO_CTX_DELAY_PRE: return e->fx.delay_pre_dist ? 1 : 0;
+    case MELLO_CTX_DELAY_PING: return e->fx.delay_pingpong ? 1 : 0;
     case MELLO_CTX_DRUM_FEED: return e->drums.feed ? 1 : 0;
     case MELLO_CTX_DRUM_ACCENT:
         return (e->drums.accents[ui->selected_drum_voice % MELLO_DRUM_VOICES] >>
@@ -6229,7 +6240,8 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
                 /* past the line's reach at this tempo: the longest it holds plays, and the name says so ("~") */
                 uint32_t bpm = mello_transport_effective_bpm(ui->transport);
                 char *q = copy_s(v[1], delay_div_name(e->fx.delay_div));
-                if (mello_delay_div_ms(e->fx.delay_div, 60000u / (bpm ? bpm : 80u)) > MELLO_DELAY_REACH_MS)
+                if (mello_delay_div_ms(e->fx.delay_div, 60000u / (bpm ? bpm : 80u)) >
+                    (e->fx.delay_pingpong ? MELLO_DELAY_REACH_MS / 2u : MELLO_DELAY_REACH_MS)) /* PING: half */
                     copy_s(q, "~");
             }
             l[2] = "TIME";

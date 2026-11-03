@@ -316,6 +316,7 @@ typedef struct {
         rp_dist_level, rp_sub_level, rp_fsub_level, rp_delay, rp_lead_level;
     int32_t delay_tone_s[2][4]; /* dlyTone */
     int32_t delay_lc[2];        /* LO CUT: two one-pole low-passes, taken away */
+    int32_t delay_lc_r[2], delay_tone_r_s[2][4]; /* PING's second tap: its own LO CUT and HI CUT */
     int16_t *reverb_buffer;
     uint32_t reverb_capacity;
     uint32_t reverb_pos;

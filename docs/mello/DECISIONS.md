@@ -1368,6 +1368,17 @@ The product owner: "chord should not come first". ARP now opens BASS, then DRUMS
 compiled out, BASS and DRUMS). The rhythm section first, the colour after. The UI map, the README's tables and tour,
 UI_ICEBERG and the screens tour follow; control_action_contract checks the order.
 
+## PING (2026-11-03)
+
+ROADMAP E11 / F25: the delay's ping-pong, on B2 of the FX pages (with PRE-DIST on B1), saved with the project (SEC_FX
+v5; older saves load with it off). The line stays one channel: it is read at the time (left) and at twice it
+(right, at FDBK), and fed back from the second tap at FDBK squared, so echo n comes at n times the time at FDBK^(n-1),
+left, right, left ...: the same series as without PING, taking turns (tests/mello/delay_pingpong.c: L, R, L, R, each
+6 dB under the last at FDBK 50%, as without). The second tap has its own LO CUT and HI CUT states; it costs a read
+and those filters, only while PING is on. Its reach is half the line's (1.49 s, half rate past 0.74 s), as it reads
+twice as far; past it the longest it can, as before. With PRE DIST the distortion is one channel, so both taps go in
+together: the echoes keep their rhythm, in the middle.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

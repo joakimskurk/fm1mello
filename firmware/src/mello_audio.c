@@ -1884,20 +1884,21 @@ static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int3
 /* One sample of the delay: in goes in (with the feedback), and its return comes out through LO CUT and HI CUT. The time
  * ramps (Tone's delayTime.rampTo): delay_q8 is read between samples while it moves. */
 /* The line's reach: past it, HALF RATE (twice as far); past that, the longest it holds. */
+/* PING reads the line at twice the time as well, so the line must hold that. */
 static void delay_fit(MelloAudio *a)
 {
-    uint32_t lim = a->delay_capacity - 2u;
+    uint32_t lim = a->delay_capacity - 2u, k = a->fx.delay_pingpong ? 2u : 1u;
     uint8_t hr;
     if (a->delay_samples < 1u) a->delay_samples = 1u;
-    hr = a->delay_samples > lim ? 1u : 0u;
-    if (a->delay_samples > 2u * lim - 2u) a->delay_samples = 2u * lim - 2u;
+    hr = a->delay_samples * k > lim ? 1u : 0u;
+    if (a->delay_samples * k > 2u * lim - 2u) a->delay_samples = (2u * lim - 2u) / k;
     if (hr != a->delay_hr) a->delay_hr = hr, a->delay_hr_phase = 0u;
 }
-static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t delay_q8)
+/* The line at delay_q8 (a time in samples, Q8), between two slots, through LO CUT (states lc). */
+static int32_t delay_read(MelloAudio *a, int32_t delay_q8, int32_t lc[2])
 {
     uint32_t di, fr, rp, rp1;
-    int32_t d, dl;
-    if (!a->delay_buffer || a->delay_capacity <= 2u || !a->delay_samples) return 0;
+    int32_t d;
     if (a->delay_hr) /* HALF RATE: the line's slots are two samples each; the read point counted in half slots */
         delay_q8 = (int32_t)(((uint32_t)delay_q8 - ((uint32_t)a->delay_hr_phase << 8)) >> 1);
     di = (uint32_t)delay_q8 >> 8, fr = (uint32_t)delay_q8 & 0xFFu;
@@ -1915,14 +1916,33 @@ static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t d
         /* The two one-poles' states in Q8, their output rounded: in Q0 the shift floored, a few LSB stayed in the
          * feedback for ever and the unit never counted as silent (autosave never ran; audio_silence_regression). */
         int32_t k = a->delay_lc_k;
-        a->delay_lc[0] += (int32_t)(((int64_t)((d << 8) - a->delay_lc[0]) * k) >> 15);
-        d -= (a->delay_lc[0] + 128) >> 8;
-        a->delay_lc[1] += (int32_t)(((int64_t)((d << 8) - a->delay_lc[1]) * k) >> 15);
-        d -= (a->delay_lc[1] + 128) >> 8;
+        lc[0] += (int32_t)(((int64_t)((d << 8) - lc[0]) * k) >> 15);
+        d -= (lc[0] + 128) >> 8;
+        lc[1] += (int32_t)(((int64_t)((d << 8) - lc[1]) * k) >> 15);
+        d -= (lc[1] + 128) >> 8;
     }
+    return d;
+}
+/* PING (ROADMAP F25): the line is read at the time (left) and at twice it (right, at FDBK), and fed back from the
+ * second at FDBK squared, so the echoes come left, right, left ... at 1, FDBK, FDBK^2 ...: the same series as without,
+ * taking turns. Without PING the right is the left. */
+static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t delay_q8, int32_t *right)
+{
+    int32_t d, fb_in, dl;
+    *right = 0;
+    if (!a->delay_buffer || a->delay_capacity <= 2u || !a->delay_samples) return 0;
+    d = delay_read(a, delay_q8, a->delay_lc);
     dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
+    if (a->fx.delay_pingpong) {
+        int32_t d2 = delay_read(a, delay_q8 * 2, a->delay_lc_r);
+        fb_in = mul_q12_fb(d2, mul_q12(dly_fb, dly_fb));
+        *right = mul_q12(tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_r_s, d2), dly_fb);
+    } else {
+        fb_in = mul_q12_fb(d, dly_fb);
+        *right = dl;
+    }
     if (a->delay_hr) { /* HALF RATE: two samples averaged into a slot */
-        int32_t in = send + mul_q12_fb(d, dly_fb);
+        int32_t in = send + fb_in;
         if (!a->delay_hr_phase) {
             a->delay_hr_acc = in;
             a->delay_hr_phase = 1u;
@@ -1931,7 +1951,7 @@ static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t d
         a->delay_hr_phase = 0u;
         a->delay_buffer[a->delay_pos] = sat16((a->delay_hr_acc + in) / 2);
     } else
-        a->delay_buffer[a->delay_pos] = sat16(send + mul_q12_fb(d, dly_fb));
+        a->delay_buffer[a->delay_pos] = sat16(send + fb_in);
     if (++a->delay_pos >= a->delay_capacity) a->delay_pos = 0u;
     return dl;
 }
@@ -2044,7 +2064,8 @@ static void apply_pending(MelloAudio *a)
     sub_drive_changed = a->sub_config.drive != a->pending_sub_config.drive;
     lfo_rate_changed = a->config.lfo_rate_millihz != a->pending_config.lfo_rate_millihz;
     delay_changed =
-        a->fx.delay_time_ms != a->pending_fx.delay_time_ms || a->fx.delay_sync != a->pending_fx.delay_sync;
+        a->fx.delay_time_ms != a->pending_fx.delay_time_ms || a->fx.delay_sync != a->pending_fx.delay_sync ||
+        a->fx.delay_pingpong != a->pending_fx.delay_pingpong; /* PING: the line holds twice the time */
     reverb_changed = a->fx.reverb_pre_ms != a->pending_fx.reverb_pre_ms ||
                      a->fx.reverb_size != a->pending_fx.reverb_size ||
                      a->fx.reverb_decay_ms != a->pending_fx.reverb_decay_ms;
@@ -2848,7 +2869,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
 #if MELLO_FEATURE_CHORD_MACHINE
             in += mul_q12(chord_mix, a->send_dly_q12[MELLO_SEND_CHORD]);
 #endif
-            mix += mul_q12(delay_tick(a, mul_q12(in, dly_send), dly_fb, delay_q8), dly_level);
+            int32_t dr, dl = delay_tick(a, mul_q12(in, dly_send), dly_fb, delay_q8, &dr);
+            /* the distortion is one channel: PING's two taps go in together, its echoes in the middle */
+            mix += mul_q12(a->fx.delay_pingpong ? dl + dr : dl, dly_level);
         }
         {
             /* HTML: Tone.Distortion is always in the path (wet = distMix, 1 by default). At AMT 0 its curve is
@@ -2884,10 +2907,13 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             fx_rev += mul_q12(chord_mix, a->send_rev_q12[MELLO_SEND_CHORD]);
 #endif
             mix = mul_q12(mix + bass, 3441); /* 0.84 */
-            if (!a->fx.delay_pre_dist)
-                mix += mul_q12(delay_tick(a, mul_q12(fx_dly, dly_send), dly_fb, delay_q8), dly_level);
             mix_l = mix;
             mix_r = mix;
+            if (!a->fx.delay_pre_dist) {
+                int32_t dr, dl = delay_tick(a, mul_q12(fx_dly, dly_send), dly_fb, delay_q8, &dr);
+                mix_l += mul_q12(dl, dly_level);
+                mix_r += mul_q12(dr, dly_level);
+            }
 #if MELLO_FEATURE_CHORD_MACHINE
             mix_l += mul_q12(chord_l, 2753); /* 0.672: 800 x 840 as the lead's dry */
             mix_r += mul_q12(chord_r, 2753);
@@ -2929,7 +2955,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         if ((mix_l > TAIL_LSB || mix_l < -TAIL_LSB || mix_r > TAIL_LSB || mix_r < -TAIL_LSB) &&
             (a->fx.delay_wet || a->fx.reverb_wet)) {
             uint32_t guard = 0u;
-            if (a->fx.delay_wet) guard = a->delay_samples + 512u;
+            if (a->fx.delay_wet) guard = a->delay_samples * (a->fx.delay_pingpong ? 2u : 1u) + 512u;
             if (a->fx.reverb_wet) {
                 uint32_t rg = ms_samples(a->fx.reverb_decay_ms);
                 if (rg > guard) guard = rg;

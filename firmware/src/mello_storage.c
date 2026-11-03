@@ -22,7 +22,7 @@ enum {
     SECVER_WORKING = 1,
     SECVER_SLOTS = 1,
     SECVER_SLOT_SEQ = 1,
-    SECVER_FX = 4, /* 2: the delay's LO CUT; 3: PRE DIST; 4: the sends per part */
+    SECVER_FX = 5, /* 2: the delay's LO CUT; 3: PRE DIST; 4: the sends per part; 5: PING */
     SECVER_CHORD =
         5,           /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading); 3: CHAIN,
                          SUB ROOT; 4: HARMONY (FOLLOW, DRIFT, DEPTH); 5: POLY */
@@ -39,7 +39,8 @@ enum {
 #define FX_WIRE_SIZE_V1    34u
 #define FX_WIRE_SIZE_V2    36u
 #define FX_WIRE_SIZE_V3    37u
-#define FX_WIRE_SIZE       (FX_WIRE_SIZE_V3 + 4u * MELLO_SEND_PARTS) /* v4: DLY and REV per part */
+#define FX_WIRE_SIZE_V4    (FX_WIRE_SIZE_V3 + 4u * MELLO_SEND_PARTS) /* v4: DLY and REV per part */
+#define FX_WIRE_SIZE       (FX_WIRE_SIZE_V4 + 1u)                    /* v5: PING */
 #define CHORD_WIRE_SIZE_V1 (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
 #define CHORD_WIRE_SIZE_V2 (CHORD_WIRE_SIZE_V1 + 21u)
 #define CHORD_WIRE_SIZE_V3 (CHORD_WIRE_SIZE_V2 + 2u)
@@ -511,6 +512,7 @@ static void encode_fx(Writer *w, const MelloFxConfig *c)
             wr_u16(w, c->send_rev[i]);
         }
     }
+    wr_u8(w, c->delay_pingpong ? 1u : 0u);
 }
 static bool decode_sends(Reader *r, MelloFxConfig *c)
 {
@@ -519,7 +521,7 @@ static bool decode_sends(Reader *r, MelloFxConfig *c)
         if (!rd_u16(r, &c->send_dly[i]) || !rd_u16(r, &c->send_rev[i])) return false;
     return true;
 }
-/* Version 1 has no LO CUT, 2 no PRE DIST: they stay off. Before 4 there are no sends per part: parse_payload sets
+/* Version 1 has no LO CUT, 2 no PRE DIST, 4 no PING: they stay off. Before 4 there are no sends per part: parse_payload sets
  * them from what the project played (the lead and the bass all, the chords' and the drums' SPACE). */
 static bool decode_fx(Reader *r, MelloFxConfig *c, uint8_t ver)
 {
@@ -534,7 +536,8 @@ static bool decode_fx(Reader *r, MelloFxConfig *c, uint8_t ver)
            rd_u16(r, &c->reverb_tone) && rd_u16(r, &c->reverb_level) &&
            (ver < 2u || rd_u16(r, &c->delay_lowcut)) &&
            (ver < 3u || (rd_u8(r, &b) && ((c->delay_pre_dist = b != 0u), true))) &&
-           (ver < 4u || decode_sends(r, c));
+           (ver < 4u || decode_sends(r, c)) &&
+           (ver < 5u || (rd_u8(r, &b) && ((c->delay_pingpong = b != 0u), true)));
 }
 
 /* DRUMS: the kit, then each voice's sound, hits, accents and per-step locks. A reader without this section skips it;
@@ -1074,6 +1077,7 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             if (len != (ver == 1u   ? FX_WIRE_SIZE_V1
                         : ver == 2u ? FX_WIRE_SIZE_V2
                         : ver == 3u ? FX_WIRE_SIZE_V3
+                        : ver == 4u ? FX_WIRE_SIZE_V4
                                     : FX_WIRE_SIZE) ||
                 !decode_fx(&r, &fx, ver))
                 return false;

@@ -214,7 +214,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   depth inverts, so the chords can open while the lead closes. DOT's MOD lanes reach the same destinations.
 - **FX**. Distortion with a character and a tone (PRE-DIST puts the delay before it), a delay synced to the tempo
   (32N to 1 BAR, triplets and dotted; past 1.49 s the line runs at half rate and reaches 2.97 s, a division past
-  even that shows a "~" and plays the longest it can) or free, with feedback and LO CUT (120 Hz on a new project)
+  even that shows a "~" and plays the longest it can) or free, with feedback and LO CUT (120 Hz on a new project);
+  PING (B2) sends the echoes left and right in turn (it reads the line at twice the time, so its reach is half)
   and HI CUT on its echoes, and a reverb with size, decay, pre-delay and tone.
 - **Chords** (ARP > CHORD). A chain of up to eight chords in the key (degree, shape, inversion, spread, octave),
   sounded one of two ways, B2 POLY picking it per project. SUB MELLO (a new project's) is one voice that plays the
@@ -302,11 +303,11 @@ K1-K4 with their default values.
 | SOUND | ENV | CHARACTER | `INIT PERF MUT UNDO RNDMZR` | SYNC OFF · FM 0% · SAT 0% · FILTER LP |
 | SOUND | ENV | MOD ENV | `INIT PERF MUT UNDO RNDMZR` | AMT +0% · ATTACK 0MS · DECAY 300MS · TARGET CUTOFF |
 | SOUND | ENV | TRACKING | `INIT PERF MUT UNDO RNDMZR` | V.CUT +0% · V.LVL 100% · KEYTRK 0% · V.ENV +0% |
-| AUDIO FX | FX | DISTORTION | `PRE-DIST PERF MUT UNDO RNDMZR` | AMT 0% · MIX 100% · CHAR 35% · TONE 82% |
-| AUDIO FX | FX | DELAY SEND | `PRE-DIST PERF MUT UNDO RNDMZR` | WET 12% · FDBK 32% · LO CUT 120HZ · HI CUT 72% |
-| AUDIO FX | FX | DELAY CONFIG | `PRE-DIST PERF MUT UNDO RNDMZR` | SYNC ON · DIV 8N · TIME 250MS · LEVEL 75% |
-| AUDIO FX | FX | REVERB ROOM | `PRE-DIST PERF MUT UNDO RNDMZR` | WET 24% · SIZE 70% · DECAY 6.0S · TONE 62% |
-| AUDIO FX | FX | REVERB RETURNS | `PRE-DIST PERF MUT UNDO RNDMZR` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · — |
+| AUDIO FX | FX | DISTORTION | `PRE-DIST PING P M UNDO RNDMZR` | AMT 0% · MIX 100% · CHAR 35% · TONE 82% |
+| AUDIO FX | FX | DELAY SEND | `PRE-DIST PING P M UNDO RNDMZR` | WET 12% · FDBK 32% · LO CUT 120HZ · HI CUT 72% |
+| AUDIO FX | FX | DELAY CONFIG | `PRE-DIST PING P M UNDO RNDMZR` | SYNC ON · DIV 8N · TIME 250MS · LEVEL 75% |
+| AUDIO FX | FX | REVERB ROOM | `PRE-DIST PING P M UNDO RNDMZR` | WET 24% · SIZE 70% · DECAY 6.0S · TONE 62% |
+| AUDIO FX | FX | REVERB RETURNS | `PRE-DIST PING P M UNDO RNDMZR` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · — |
 | SAMPLE | ENV | MAIN | `ON PERF MUT UNDO RNDMZR` | LEVEL 70% · DIST 0% · TRACK ON · LOOP OFF |
 | SAMPLE | ENV | PITCH | `ON PERF MUT UNDO RNDMZR` | COARSE +0 · FINE +0 · LEVEL 70% · DIST 0% |
 | SAMPLE | ENV | TRIM | `ON PERF MUT UNDO RNDMZR` | START 0% · END 100% · TRACK ON · LOOP OFF |
