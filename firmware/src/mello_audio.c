@@ -1843,11 +1843,13 @@ static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t d
     if (a->fx.delay_lowcut) {
         /* LO CUT, 12 dB an octave, 20 Hz .. 2 kHz: on the return and in the feedback, so each repeat is thinner than
          * the last (delay_lc_k, from apply_pending). */
+        /* The two one-poles' states in Q8, their output rounded: in Q0 the shift floored, a few LSB stayed in the
+         * feedback for ever and the unit never counted as silent (autosave never ran; audio_silence_regression). */
         int32_t k = a->delay_lc_k;
-        a->delay_lc[0] += (int32_t)(((int64_t)(d - a->delay_lc[0]) * k) >> 15);
-        d -= a->delay_lc[0];
-        a->delay_lc[1] += (int32_t)(((int64_t)(d - a->delay_lc[1]) * k) >> 15);
-        d -= a->delay_lc[1];
+        a->delay_lc[0] += (int32_t)(((int64_t)((d << 8) - a->delay_lc[0]) * k) >> 15);
+        d -= (a->delay_lc[0] + 128) >> 8;
+        a->delay_lc[1] += (int32_t)(((int64_t)((d << 8) - a->delay_lc[1]) * k) >> 15);
+        d -= (a->delay_lc[1] + 128) >> 8;
     }
     dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
     a->delay_buffer[a->delay_pos] = sat16(send + mul_q12_fb(d, dly_fb));
