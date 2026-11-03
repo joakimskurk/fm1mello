@@ -29,7 +29,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/dot-ratchet.png" width="96" alt="DOT MATRIX RATCHET"> | DOT MATRIX | LFO | RATCHET | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
 | <img src="../screens/dot-sub.png" width="96" alt="DOT MATRIX SUB"> | DOT MATRIX | LFO | SUB | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 24% · EVOLVE 0% |
 | <img src="../screens/evolve-main.png" width="96" alt="EVOLVE MAIN"> | EVOLVE | LFO | MAIN | `ON RND LOOP F B < R UNDO RNDMZR` | MUTATE 10% · LENGTH 8 · RATE 1X · OFFSET +0 |
-| <img src="../screens/evolve-routes.png" width="96" alt="EVOLVE ROUTES"> | EVOLVE | LFO | ROUTES | `ON RND LOOP F B < R UNDO RNDMZR` | GATE ON · FILTER OFF · OCT OFF · DECAY OFF |
+| <img src="../screens/evolve-routes.png" width="96" alt="EVOLVE ROUTES"> | EVOLVE | LFO | ROUTES | `ON RND LOOP F B < R UNDO RNDMZR` | GATE LENGTH · FILTER OFF · OCT OFF · DECAY OFF |
 | <img src="../screens/evolve-depth.png" width="96" alt="EVOLVE DEPTH"> | EVOLVE | LFO | DEPTH | `ON RND LOOP F B < R UNDO RNDMZR` | GATE 35% · FILTER 35% · OCT 35% · DECAY 35% |
 | <img src="../screens/evolve-sound.png" width="96" alt="EVOLVE SOUND"> | EVOLVE | LFO | SOUND | `ON RND LOOP F B < R UNDO RNDMZR` | DEST A OFF · DEPTH A +50% · DEST B OFF · DEPTH B +50% |
 | <img src="../screens/bass-play.png" width="96" alt="BASS PLAY"> | BASS | ARP | PLAY | `ON STEP ROLL F B < R UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |

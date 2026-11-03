@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f44.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f45.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -187,8 +187,9 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
 - **DOT** (LFO > DOT). Five 4 x 4 matrices read along a route (horizontal, spiral, random, walk ...) at the
   sequence's pace: accents, ratchets, the sub, and two MOD lanes that shape a sound parameter with an attack and a
   release.
-- **EVOLVE** (LFO > EVOLVE). A Turing-machine register that mutates by a probability, routed to gate, filter,
-  octave and decay, and to two sound destinations: the lead's (cutoff, resonance, decay, pitch, OSC 2, FM, noise,
+- **EVOLVE** (LFO > EVOLVE). A Turing-machine register that mutates by a probability, routed to the gate (LENGTH
+  shortens notes, on by default; RETRIG re-attacks on every pulse, off), filter, octave and decay, and to two sound
+  destinations: the lead's (cutoff, resonance, decay, pitch, OSC 2, FM, noise,
   saturation, detune, PWM), the drums' (tune, decay, crush, drive) or the chords' (C.CUT, C.LEVEL). A negative
   depth inverts, so the chords can open while the lead closes. DOT's MOD lanes reach the same destinations.
 - **FX**. Distortion with a character and a tone (PRE-DIST puts the delay before it), a delay synced to the tempo
@@ -248,7 +249,7 @@ K1-K4 with their default values.
 | DOT MATRIX | LFO | RATCHET | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |
 | DOT MATRIX | LFO | SUB | `RND RST FLW REV F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 24% · EVOLVE 0% |
 | EVOLVE | LFO | MAIN | `ON RND LOOP F B < R UNDO RNDMZR` | MUTATE 10% · LENGTH 8 · RATE 1X · OFFSET +0 |
-| EVOLVE | LFO | ROUTES | `ON RND LOOP F B < R UNDO RNDMZR` | GATE ON · FILTER OFF · OCT OFF · DECAY OFF |
+| EVOLVE | LFO | ROUTES | `ON RND LOOP F B < R UNDO RNDMZR` | GATE LENGTH · FILTER OFF · OCT OFF · DECAY OFF |
 | EVOLVE | LFO | DEPTH | `ON RND LOOP F B < R UNDO RNDMZR` | GATE 35% · FILTER 35% · OCT 35% · DECAY 35% |
 | EVOLVE | LFO | SOUND | `ON RND LOOP F B < R UNDO RNDMZR` | DEST A OFF · DEPTH A +50% · DEST B OFF · DEPTH B +50% |
 | BASS | ARP | PLAY | `ON STEP ROLL F B < R UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |

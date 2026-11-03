@@ -81,10 +81,13 @@ extern "C" {
 #define MELLO_RAND_ALL (MELLO_RAND_BASE_ALL | MELLO_RAND_WAVE)
 #endif
 
-#define MELLO_TM_ROUTE_GATE   (1u << 0)
+/* EVOLVE's routes. GATE is two (ROADMAP E7, DECISIONS.md "EVOLVE's GATE: LENGTH and RETRIG"): LENGTH shortens each
+ * note by the register (the old GATE bit, so a saved GATE ON plays LENGTH), RETRIG turns a lit bit into MULTI. */
+#define MELLO_TM_ROUTE_LENGTH (1u << 0)
 #define MELLO_TM_ROUTE_FILTER (1u << 1)
 #define MELLO_TM_ROUTE_OCTAVE (1u << 2)
 #define MELLO_TM_ROUTE_DECAY  (1u << 3)
+#define MELLO_TM_ROUTE_RETRIG (1u << 4)
 
 typedef enum {
     MELLO_GATE_SINGLE = 0,
@@ -443,7 +446,7 @@ typedef struct {
     MelloTmRate rate;
     int8_t offset;       /* -31..31 */
     uint8_t routes;      /* MELLO_TM_ROUTE_* bitmask */
-    uint16_t depth_gate; /* 0..1000 */
+    uint16_t depth_gate; /* 0..1000: LENGTH's reach and RETRIG's chance */
     uint16_t depth_filter;
     uint16_t depth_octave;
     uint16_t depth_decay;
@@ -814,6 +817,7 @@ typedef struct {
     int8_t tm_octave_mod;
     int16_t tm_filter_mod_q15;
     int16_t tm_decay_mod_q15;
+    uint16_t tm_length; /* EVOLVE LENGTH: the notes' length in 1/1024 (1024 = as the step says, 256 = a quarter) */
     int8_t dot_cell[MELLO_DOT_MATRIX_COUNT];
 } MelloPulseModState;
 

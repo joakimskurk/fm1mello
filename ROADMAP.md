@@ -47,8 +47,11 @@ Work: the header carries the path and, on the right, the key now and the count (
 the readout); then the body, K1-K4, and the strip last. Every page and layer moves with it: the zones' geometry,
 the paced repaint for Big screen, `make screens`, UI_MAP.md, the README. Sketches sent 2026-11-02 (A: two lines on top, the
 status line moved up; B: one line on top, path and key, tempo and save state off the main screen, the picture 18 px
-taller). Decide A or B (the header has room for the path or for the key on the longest paths, not both:
-"ENV > SOUND > OSC/FILT" is 22 of 30 characters).
+taller). Chosen 2026-11-03: B, one line on top. Measured over the 71 pages and layers: the line has 30 characters;
+the key in short form ("C#DOR", 5) and the count ("7.13/8", 6) leave 16 for the path, so the printed button leaves
+the line (the lit panel button says it, E8), PAGE > LAYER shows where it fits (56 of 71) and the layer alone where it
+does not (the other 15, longest "REVERB RETURNS", 14), the page's colour still saying which page. Tempo goes to
+GLOBAL's CLOCK picture and the readout, the save state to SAVE's page and a short flash on the line.
 
 **E4. The chords sit behind.** Heard: too loud and too open by default; they should comp in the background.
 Found: LEVEL 32%, CUT ~1 kHz opened to ~2.8 kHz by ENV 38% at every chord, SPACE 100% (all of it to the delay and
@@ -97,7 +100,9 @@ Work: (1) say what it does: the route is RETRIG on the screen, and the EVOLVE pi
 Proposed 2026-11-02 (the product owner heard GATE as the note's length): GATE becomes LENGTH, the
 register's value making each note shorter or longer (gate time 25-100% of the step, at DEPTH), on by default at 35%,
 so EVOLVE's default is heard as phrasing and never adds an attack; RETRIG (the HTML's re-gate, MULTI / SINGLE) is
-its own route, off by default. A departure from the HTML, into DECISIONS when accepted. (2) The modulation made visible: the audio keeps each
+its own route, off by default. A departure from the HTML. Accepted to try 2026-11-03 and done (package 0.5-f45):
+K1 on ROUTES picks GATE OFF / LENGTH / RETRIG / BOTH, DEPTH's GATE is LENGTH's reach and RETRIG's chance, neither
+plays a rest (DECISIONS "EVOLVE's GATE: LENGTH and RETRIG", test evolve_gate). Still to do: (2) The modulation made visible: the audio keeps each
 destination's current offset (11 x 2 bytes, written once a block), the UI reads it ~30 times a second, and a
 modulated value's slider shows a second, moving thumb (the GRIT layer's NOISE FM row, CUT on OSC/FILT, the drums'
 D.TUNE ...), on every page where that value is.

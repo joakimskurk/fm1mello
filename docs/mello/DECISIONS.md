@@ -1068,6 +1068,24 @@ rounded into the key; the global key and root lead, unless CHROMATIC or a loop s
 stays at MIDI 12. Projects saved earlier drop an octave too, which is the point. The follower (the lead's
 sub-oscillator, with its own OCT) stays where it was.
 
+## EVOLVE's GATE: LENGTH and RETRIG (2026-11-03)
+
+The HTML's EVOLVE GATE route, on by default at 35%, sets a step's gate to MULTI (a new attack on every pulse) when
+the register's bit is lit and to SINGLE when it is not, at DEPTH's chance. On steps of several pulses that is heard as
+ratchets, and it also played steps that were rests or failed their probability. The product owner heard GATE as the
+note's length. A departure from the HTML, accepted to try (ROADMAP E7):
+
+- **LENGTH** (the old GATE bit, so a saved GATE ON plays LENGTH; on by default at 35%): the register's value shortens
+  each note, at DEPTH 100% down to a quarter of its length, at 35% to about three quarters. It never adds an attack,
+  never plays a rest and never silences a note. HOLD steps are ties and keep their length.
+- **RETRIG** (a new route bit, off by default): the HTML's re-gate without its other half, a lit bit makes a playing
+  step MULTI at DEPTH's chance; an unlit bit leaves the step as it is, and a rest stays a rest.
+- On the screen, ROUTES' K1 is GATE: OFF, LENGTH, RETRIG or BOTH; DEPTH's GATE sets both.
+- The sub's TM mode reads the register's bit whatever the routes (it read it only with GATE on).
+
+Test: tests/mello/evolve_gate.c (the same notes as EVOLVE off, none longer, none under a quarter; RETRIG adds
+attacks and plays no rest).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

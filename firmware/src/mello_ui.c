@@ -1809,6 +1809,11 @@ static void adjust_turing(MelloUi *ui, uint8_t knob, int16_t delta)
         mello_engine_mod_routing_set(e, &m);
         mark_edit(ui);
         return;
+    } else if (ui->tm_subpage == 1u && knob == 0u) { /* GATE: OFF, LENGTH, RETRIG, BOTH (ROADMAP E7) */
+        uint8_t g = (uint8_t)((c.routes & MELLO_TM_ROUTE_LENGTH ? 1u : 0u) | (c.routes & MELLO_TM_ROUTE_RETRIG ? 2u : 0u));
+        g = (uint8_t)clamp_i32((int32_t)g + (delta > 0 ? 1 : -1), 0, 3);
+        c.routes = (uint8_t)((c.routes & (uint8_t)~(MELLO_TM_ROUTE_LENGTH | MELLO_TM_ROUTE_RETRIG)) |
+                             (g & 1u ? MELLO_TM_ROUTE_LENGTH : 0u) | (g & 2u ? MELLO_TM_ROUTE_RETRIG : 0u));
     } else if (ui->tm_subpage == 1u) {
         uint8_t mask = (uint8_t)(1u << knob);
         c.routes = delta > 0 ? (uint8_t)(c.routes | mask) : (uint8_t)(c.routes & (uint8_t)~mask);
@@ -5453,7 +5458,11 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             }
         } else if (ui->tm_subpage == 1u) {
             l[0] = "GATE";
-            copy_s(v[0], e->tm.routes & MELLO_TM_ROUTE_GATE ? "ON" : "OFF");
+            {
+                static const char *gn[4] = {"OFF", "LENGTH", "RETRIG", "BOTH"};
+                copy_s(v[0], gn[(e->tm.routes & MELLO_TM_ROUTE_LENGTH ? 1u : 0u) |
+                                (e->tm.routes & MELLO_TM_ROUTE_RETRIG ? 2u : 0u)]);
+            }
             l[1] = "FILTER";
             copy_s(v[1], e->tm.routes & MELLO_TM_ROUTE_FILTER ? "ON" : "OFF");
             l[2] = "OCT";

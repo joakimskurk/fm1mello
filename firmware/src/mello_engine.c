@@ -446,8 +446,8 @@ static MelloTmConfig sanitize_tm_config(MelloTmConfig c)
     c.length = sanitize_tm_length(c.length);
     if (c.rate > MELLO_TM_RATE_DOUBLE) c.rate = MELLO_TM_RATE_ONE;
     c.offset = clamp_i8(c.offset, -31, 31);
-    c.routes &=
-        (uint8_t)(MELLO_TM_ROUTE_GATE | MELLO_TM_ROUTE_FILTER | MELLO_TM_ROUTE_OCTAVE | MELLO_TM_ROUTE_DECAY);
+    c.routes &= (uint8_t)(MELLO_TM_ROUTE_LENGTH | MELLO_TM_ROUTE_FILTER | MELLO_TM_ROUTE_OCTAVE |
+                          MELLO_TM_ROUTE_DECAY | MELLO_TM_ROUTE_RETRIG);
     c.depth_gate = clamp_amount(c.depth_gate);
     c.depth_filter = clamp_amount(c.depth_filter);
     c.depth_octave = clamp_amount(c.depth_octave);
@@ -649,7 +649,7 @@ void mello_tm_defaults(MelloTmConfig *c)
     c->length = 8u;
     c->rate = MELLO_TM_RATE_ONE;
     c->offset = 0;
-    c->routes = MELLO_TM_ROUTE_GATE;
+    c->routes = MELLO_TM_ROUTE_LENGTH;
     c->depth_gate = 350u;
     c->depth_filter = 350u;
     c->depth_octave = 350u;
@@ -2011,6 +2011,13 @@ static uint8_t velocity_for_accent(bool accent)
     return accent ? 121u : 91u;
 }
 
+/* EVOLVE LENGTH: a duration times the pulse's length (1/1024), without a 64-bit product. */
+static uint32_t tm_length_scale(const MelloEngine *e, uint32_t ticks)
+{
+    uint32_t f = e->last_mod.tm_length;
+    return (ticks >> 10) * f + (((ticks & 1023u) * f) >> 10);
+}
+
 static void generate_gate_events(MelloEngine *e, const MelloStep *s, bool pass, uint8_t pulse_idx,
                                  uint8_t total, MelloGateMode gate, uint8_t ratchets, bool accent,
                                  int8_t octave_mod)
@@ -2047,11 +2054,11 @@ static void generate_gate_events(MelloEngine *e, const MelloStep *s, bool pass, 
     }
     if (gate == MELLO_GATE_MULTI || (gate == MELLO_GATE_SINGLE && ratchets > 1u)) {
         if (ratchets <= 1u) {
-            uint32_t dur = (pulse_ticks * 2u) / 5u;
+            uint32_t dur = tm_length_scale(e, (pulse_ticks * 2u) / 5u);
             emit_note_pair(e, t, t + dur, e->step_index, pulse_idx, total, note, vel, 0u, s->slide, pass);
         } else {
             uint32_t sub = pulse_ticks / ratchets;
-            uint32_t raw_dur = (sub * 18u) / 25u;
+            uint32_t raw_dur = tm_length_scale(e, (sub * 18u) / 25u);
             uint32_t dur = clamp_duration_ms_as_ticks(&e->project, raw_dur, 10u, 250u);
             uint8_t r;
             for (r = 0u; r < ratchets; ++r) {
@@ -2064,7 +2071,7 @@ static void generate_gate_events(MelloEngine *e, const MelloStep *s, bool pass, 
     }
     if (pulse_idx == 0u) {
         uint32_t total_ticks = pulse_ticks * total;
-        uint32_t raw_dur = (total_ticks * 41u) / 50u;
+        uint32_t raw_dur = tm_length_scale(e, (total_ticks * 41u) / 50u);
         uint32_t dur = clamp_duration_ms_as_ticks(&e->project, raw_dur, 20u, 4000u);
         emit_note_pair(e, t, t + dur, e->step_index, pulse_idx, total, note, vel, 0u, s->slide, pass);
     }
@@ -4085,6 +4092,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
 
     memset(&e->last_mod, 0, sizeof(e->last_mod));
     e->last_mod.tm_index = -1;
+    e->last_mod.tm_length = 1024u;
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) e->last_mod.dot_cell[i] = e->dot_active_cell[i];
 
     /* Source order: evolve registers -> read TM routes -> probability -> Dot Matrix -> pitch/gates/sub. */
@@ -4103,10 +4111,16 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         e->last_mod.tm_index = (int8_t)ti;
         e->last_mod.tm_bool = b;
         e->last_mod.tm_float = fv;
-        tm_gate_sub = ((e->tm.routes & MELLO_TM_ROUTE_GATE) != 0u) && b;
-        if ((e->tm.routes & MELLO_TM_ROUTE_GATE) != 0u && chance_permille(&e->gen_rng, e->tm.depth_gate)) {
+        tm_gate_sub = b; /* the sub's TM mode reads the bit, whatever the routes */
+        /* LENGTH (ROADMAP E7): the register shortens the note, at DEPTH 100% down to a quarter; never a new attack,
+         * never a rest played or a note silenced. RETRIG: the HTML's GATE, a lit bit (at DEPTH's chance) makes a
+         * step that plays MULTI, a new attack on every pulse. */
+        if ((e->tm.routes & MELLO_TM_ROUTE_LENGTH) != 0u)
+            e->last_mod.tm_length =
+                (uint16_t)(1024u - ((uint32_t)(65535u - fv) * e->tm.depth_gate / 65535u) * 768u / 1000u);
+        if ((e->tm.routes & MELLO_TM_ROUTE_RETRIG) != 0u && b && chance_permille(&e->gen_rng, e->tm.depth_gate)) {
             has_gate_override = true;
-            gate_override = b ? MELLO_GATE_MULTI : MELLO_GATE_SINGLE;
+            gate_override = MELLO_GATE_MULTI;
         }
         if ((e->tm.routes & MELLO_TM_ROUTE_FILTER) != 0u)
             e->last_mod.tm_filter_mod_q15 = (int16_t)((centered * (int32_t)e->tm.depth_filter) / 4000);
@@ -4119,7 +4133,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     }
 
     pass = e->perf.fill || probability_pass(e, s->probability); /* FILL: every step plays */
-    eff_gate = has_gate_override ? gate_override : (pass ? s->gate : MELLO_GATE_REST);
+    eff_gate = pass ? (has_gate_override && s->gate != MELLO_GATE_REST ? gate_override : s->gate) : MELLO_GATE_REST;
     if (e->perf.fill && eff_gate == MELLO_GATE_REST) eff_gate = MELLO_GATE_SINGLE;
 
     evaluate_dot_matrices(e, pe.pulse_index == 0u, &matrix_accent, &ratchet_add, &matrix_sub, dot_mod);
