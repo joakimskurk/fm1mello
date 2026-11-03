@@ -52,6 +52,11 @@ the key in short form ("C#DOR", 5) and the count ("7.13/8", 6) leave 16 for the 
 the line (the lit panel button says it, E8), PAGE > LAYER shows where it fits (56 of 71) and the layer alone where it
 does not (the other 15, longest "REVERB RETURNS", 14), the page's colour still saying which page. Tempo goes to
 GLOBAL's CLOCK picture and the readout, the save state to SAVE's page and a short flash on the line.
+The body's 18 px go to the pictures (HOME's bars, the wave and filter curves, air between the chord rows), drawn at
+their new height, not to more rows. Chosen 2026-11-03 with it: the readout (a knob's large name, value and slider,
+1.2 s after a turn) covers K1-K4 and the strip at the bottom, not the body, so the picture it changes stays in view;
+name and value on one large line with the slider under, the name small above the value where both do not fit
+("PULSE WIDTH 54%"). Sketch sent 2026-11-03 (HOME, SOUND OSC/FILT, CHORD PLAY, FX DISTORTION).
 
 **E4. The chords sit behind.** Heard: too loud and too open by default; they should comp in the background.
 Found: LEVEL 32%, CUT ~1 kHz opened to ~2.8 kHz by ENV 38% at every chord, SPACE 100% (all of it to the delay and
