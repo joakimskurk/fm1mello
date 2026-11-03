@@ -11,7 +11,7 @@ bench:           ## where the audio's time goes on this computer: the default pa
 	build/bench/cpu_bench $(BENCH_SECONDS)
 parity:          ## render tools/tone-ref/stimuli.json through the C engine and compare with the HTML (needs numpy)
 	mkdir -p build/golden-c
-	$(CC) -std=c11 -O2 -Wall -Wextra -Werror -Ifirmware/src tests/parity/render_stimuli.c firmware/src/mello_*.c -lm -o build/render_stimuli
+	$(CC) -std=c11 -O2 -Wall -Wextra -Werror -DMELLO_OUTPUT_GAIN_Q12=4096 -Ifirmware/src tests/parity/render_stimuli.c firmware/src/mello_*.c -lm -o build/render_stimuli
 	build/render_stimuli build/golden-c >/dev/null
 	python3 tools/tone-ref/compare.py --json tests/golden/parity.json
 reference:       ## re-render the HTML golden files (tests/golden/html) with Tone.Offline (needs node and a Chromium)

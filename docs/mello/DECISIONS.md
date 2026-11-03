@@ -1325,6 +1325,20 @@ is now relative to the run's peak, so that case fails. The budget report the old
 on every build. CI does not run the smoke yet: the shared zvenson/fm1-build workflow has no fm1-emu, and changing a
 workflow file needs the push token's workflow scope.
 
+## The output level (2026-11-03)
+
+ROADMAP F20. A departure from the HTML, asked for: "as loud as it should be, in the upper range before it clips;
+never mind the HTML here". Measured at the default MASTER over 8 s renders: the default pattern peaked at -15.8 dBFS
+(RMS -32.8), twenty rolls with every part on at -12 .. -16, the worst case at -14.9. MASTER was applied after the
+limiter, so even at its top the output could not reach the limiter's -1 dBFS. Now the mix goes through MASTER, then
+a fixed +11 dB (OUTPUT_GAIN_Q12), then the limiter (-1 dBFS, as before), then out. The default pattern peaks at
+-4.8 dBFS (RMS -21.8), rolls with every part on at -0.9 .. -3.4, the worst case at -3.9: nothing clips, the limiter
+only takes what is turned up past that (DRIVE, MIX's levels up). The tail detector that keeps the effects running
+(and lets SAVE in when they are done) looks for more than 8 LSB as before the gain: the reverb's last bits sit a few
+LSB above zero for ever, and at +11 dB they would have kept it from ever being silent (audio_silence_regression
+caught that). `make parity` renders with the gain at 0 dB (-DMELLO_OUTPUT_GAIN_Q12=4096), so it still compares the
+engine with the HTML and not the FM-1's output stage.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

@@ -73,7 +73,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F17 | Music units on the remaining pages (Phase 3). Done 2026-11-03 (0.5-f57): KEY's ROOT a note (C4), a LOOP slot's KEY a pitch class (D); the other bare numbers are counts | 2026-10-29 |
 | F18 | HOME's own black keys once PERFORM exists (G4). Done 2026-11-03: - + RST CLR stay, MUT went to B6 | 2026-11-03, 6 |
 | F19 | DOT's picture: "much better than the HTML" was asked; it kept its own body in C3. Looked at 2026-11-03 on the new screen: it holds (the grid fills the taller body, the read position, trail and route numbers show); no redraw. The UI map's DOT shots were all empty matrices, stopped; a playing shot with cells on (dot-playing) is in the README's tour | 2026-10-29 (h3) |
-| F20 | The output level: as quiet as the HTML (about -10 dB RMS); MASTER or an outer gain, a product choice | Phase 2 |
+| F20 | The output level: as quiet as the HTML (about -10 dB RMS); MASTER or an outer gain, a product choice. Done 2026-11-03 (0.5-f61): +11 dB ahead of the limiter, MASTER moved before it (the product owner: as loud as it should be, below clipping, the HTML aside) | Phase 2 |
 | F21 | RAM: the stack's high-water mark, the 60 B event, UNDO as one packed slot (B4). Done 2026-11-03 (0.5-f59): stacks measured (tools/emu_stack.sh: user 3.2 of 23.75 KB, system 1.1 of 7.75 KB), the event 60 B -> 44 (2 KB back); UNDO left as it is (1.1 KB, little to gain) | 2026-10-31 |
 | F22 | Storage: CC 113 on channel 16 can clear a sample slot; a save erases 10 sectors (a stall) (Phase 1, P2). Done 2026-11-03 (0.5-f60): CLEAR only straight after a QUERY of the slot; a save erases a sector a poll; NOSAVE in red on the header was already there | review |
 | F23 | CI: the 80 / 100 MHz emulator smokes the old build script ran (Phase 0). Done 2026-11-03 locally: tools/emu_smoke.sh and `make emu` (fm1-emu, not the web emulator); the budget report was already build.py's. In CI still to do: the shared workflow needs fm1-emu, and a workflow change needs the push token's workflow scope | review |
@@ -527,7 +527,7 @@ The reference is in place: `make reference` renders `reference/skurkymello.html`
   sleeps between interrupts, so the web emulator skips ~56% of the cycles at 240 MHz.
 - Not done: the chord layer's envelope (the chord is not in the HTML: nothing to match).
 - Note: the output is as quiet as the HTML (about -10 dB RMS vs 0.2-p1). Raise MASTER, or decide on an outer gain as a
-  product choice.
+  product choice. Decided 2026-11-03 (F20): +11 dB at the output, DECISIONS "The output level".
 
 ## Phase 3: feel = the HTML
 
