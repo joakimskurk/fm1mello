@@ -1183,6 +1183,23 @@ Tests: perf_parts (REPEAT 4 loops the drums', the bass's and the chords' last fo
 let go, every part in time; FILL), ui_perf_keys (PERF tapped and held, the white keys, the mutes kept, a page button
 closes it, B6 MUT off HOME), the contracts' strips.
 
+## REC where you are (2026-11-03)
+
+CONTROL_GRAMMAR's G3 (ROADMAP F5). Before: recording was HOME's EDIT > REC only, REC cycling SEQ, BASS, CHORD; the
+drums could not be recorded; a key played while recording on the clock was not heard, and stopped every key sounded
+as the lead.
+
+- REC on STEP, BASS, CHORD and DRUMS records that page's part, from its picked step, with HOME's KEYS > REC's own
+  writing (the key rule, a held key's tie or glide, a second key's chord shape, SEL a rest, one UNDO). REC again,
+  another page or PLAY's stop ends the take. The strip says what the keys do, in red; REC's LED is lit.
+- DRUMS: white keys 1-4 a hit of KICK, SNARE, HAT, GLITCH where the cursor is (stopped; a key held with another, the
+  same step) or the clock is (playing); 5-8 the last hit's ACCENT, RATCH (1-4 round), PITCH down, up.
+- Heard: stopped, every key, in the part's own voice (the bass's, the chords', a drum's); playing and recording, a
+  key that landed on the step already sounding (the clock had passed it, so the sequence will not play it this
+  round). One that rounds to the next step is not, since the sequence plays it there in a moment.
+
+Test: rec_pages (each page's take, its sound, UNDO, the ends of a take; the drums' voices, same-step keys and locks).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

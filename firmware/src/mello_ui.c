@@ -278,11 +278,13 @@ void mello_ui_attach_sample_bank(MelloUi *ui, MelloSampleBank *bank)
     ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_LEDS;
 }
 
+static void page_rec_stop(MelloUi *ui);
 void mello_ui_set_page(MelloUi *ui, MelloUiPage page)
 {
     if (!ui) return;
     if (page > MELLO_UI_MIX) page = MELLO_UI_HOME;
     if (ui->page == page) return;
+    page_rec_stop(ui); /* REC on a page ends with it */
     ui->page = page;
     ui->readout = 0u; /* it belonged to the old page */
     ui->step_pitch_mode = false;
@@ -791,10 +793,16 @@ static void audition(MelloUi *ui, uint8_t note, bool on, uint32_t now_us)
     if (!t || !t->event_sink) return;
     memset(&ev, 0, sizeof ev);
     ev.type = on ? MELLO_EVENT_NOTE_ON : MELLO_EVENT_NOTE_OFF;
+    ev.voice = MELLO_VOICE_LEAD;
+    if (ui->audition_part == 1u) /* recording the bass: the bass sounds it */
+        ev.type = on ? MELLO_EVENT_SUB_NOTE_ON : MELLO_EVENT_SUB_NOTE_OFF, ev.voice = MELLO_VOICE_SUB;
+#if MELLO_FEATURE_CHORD_MACHINE
+    else if (ui->audition_part == 2u) /* the chords, theirs */
+        ev.type = on ? MELLO_EVENT_CHORD_NOTE_ON : MELLO_EVENT_CHORD_NOTE_OFF, ev.voice = MELLO_VOICE_CHORD;
+#endif
     ev.note = note;
     ev.velocity = on ? 100u : 0u;
     ev.step_index = 0xFFu; /* not a step: pairs this ON with its OFF only */
-    ev.voice = MELLO_VOICE_LEAD;
     t->event_sink(t->event_sink_ctx, &ev, now_us);
 }
 
@@ -882,9 +890,10 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
     MelloEngine *e = eng(ui);
     int32_t m = 53 + (int32_t)note_index + 12 * ui->keys_octave; /* OCT-/OCT+ move the keyboard */
     uint8_t midi = (uint8_t)(m < 12 ? 12 : m > 108 ? 108 : m), heard;
-    bool running;
+    bool running, hear;
     if (!e) return;
     running = ui->transport->running;
+    hear = !running;
     if (running && !ui->keys_rec) {
         e->project.root_note = (uint8_t)(midi < 24u   ? 24u
                                          : midi > 83u ? 83u
@@ -908,9 +917,9 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
     }
     if (ui->keys_rec && ui->keys_rec_target == MELLO_UI_REC_BASS) {
         MelloBassConfig b = e->bass;
-        uint8_t len = b.length ? b.length : 1u, idx;
-        uint8_t pos = running ? rec_live_pos(ui, now_us, (uint8_t)((e->bass_pos + len - 1u) % len), len)
-                              : (uint8_t)(ui->keys_rec_pos % len);
+        uint8_t len = b.length ? b.length : 1u, idx, cur = (uint8_t)((e->bass_pos + len - 1u) % len);
+        uint8_t pos = running ? rec_live_pos(ui, now_us, cur, len) : (uint8_t)(ui->keys_rec_pos % len);
+        hear = !running || pos == cur; /* playing: a key on the step already sounding is heard now */
         int32_t oct;
         /* the sub's tones are the scale's seven; CHROMATIC writes through the minor scale's */
         bool chromatic = e->project.scale == MELLO_SCALE_CHROMATIC;
@@ -975,6 +984,7 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
         uint8_t len = e->project.seq_len ? e->project.seq_len : 1u;
         uint8_t pos = running ? rec_live_pos(ui, now_us, ui->transport->display_step, len)
                               : (uint8_t)(ui->keys_rec_pos % len);
+        hear = !running || pos == ui->transport->display_step; /* late: heard now, it played without it */
         MelloStep *s = &e->project.steps[pos], found;
         step_for_midi(e, midi, &found);
         s->pitch = found.pitch;
@@ -987,12 +997,93 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
         rebuild(ui);
         mark_edit(ui);
     }
-    if (!running) {
+    if (hear) { /* stopped, every key; playing and recording, a key that came after its step began */
         if (ui->audition_key != 0xFFu) audition(ui, ui->audition_note, false, now_us);
+        ui->audition_part = !ui->keys_rec                                ? 0u
+                            : ui->keys_rec_target == MELLO_UI_REC_BASS  ? 1u
+                            : ui->keys_rec_target == MELLO_UI_REC_CHORD ? 2u
+                                                                        : 0u;
         ui->audition_key = note_index;
         ui->audition_note = heard;
         audition(ui, heard, true, now_us);
     }
+}
+
+/* REC on DRUMS (G3): white keys 1-4 a hit of KICK, SNARE, HAT, GLITCH where the cursor is (stopped; a key held
+ * with another, the same step) or the clock is (playing); 5-8 the last hit's locks: ACCENT, RATCH (1-4 round), PITCH
+ * down, up. A hit is heard as it is written (playing, when it came after its step began). */
+static void drum_rec_key(MelloUi *ui, uint8_t note_index, uint32_t now_us)
+{
+    MelloEngine *e = eng(ui);
+    MelloDrumConfig d;
+    int8_t w = mello_ui_white_key_position(note_index);
+    uint8_t len, pos, v;
+    bool running;
+    if (!e || w < 0 || w > 7) return;
+    d = e->drums;
+    len = d.length ? d.length : 1u;
+    running = ui->transport->running;
+    if (w < 4) {
+        uint32_t others = 0u;
+        uint8_t k, cur = e->drum_step >= 0 ? (uint8_t)e->drum_step : 0u;
+        for (k = 0u; k < 4u; ++k)
+            if (k != (uint8_t)w) others |= bit_u32(white_key_notes[k]);
+        v = (uint8_t)w;
+        if (running)
+            pos = rec_live_pos(ui, now_us, cur, len);
+        else if (ui->held_notes & others) /* with another voice's key held: the same step */
+            pos = (uint8_t)(ui->drum_rec_step % len);
+        else {
+            pos = (uint8_t)(ui->keys_rec_pos % len);
+            ui->keys_rec_pos = (uint8_t)((pos + 1u) % len);
+        }
+        d.hits[v] |= (uint16_t)(1u << pos);
+        d.on = true;
+        ui->drum_rec_voice = v, ui->drum_rec_step = pos;
+        ui->selected_drum_voice = v, ui->selected_drum_step = pos;
+        if (!running || pos == cur) {
+            MelloEvent ev;
+            memset(&ev, 0, sizeof ev);
+            ev.type = MELLO_EVENT_DRUM_HIT;
+            ev.sample_slot = v;
+            ev.note = 64u;
+            ev.velocity = 110u;
+            ev.step_index = pos;
+            ev.voice = MELLO_VOICE_DRUM;
+            if (ui->transport->event_sink) ui->transport->event_sink(ui->transport->event_sink_ctx, &ev, now_us);
+        }
+    } else {
+        MelloDrumLock *l = &d.lock[ui->drum_rec_voice % MELLO_DRUM_VOICES][ui->drum_rec_step % MELLO_DRUM_STEPS];
+        if (w == 4) d.accents[ui->drum_rec_voice % MELLO_DRUM_VOICES] ^= (uint16_t)(1u << ui->drum_rec_step);
+        if (w == 5) l->ratchet = (uint8_t)(l->ratchet >= 4u ? 1u : l->ratchet + 1u);
+        if (w == 6 && l->pitch > -24) l->pitch--;
+        if (w == 7 && l->pitch < 24) l->pitch++;
+    }
+    mello_engine_drums_set_config(e, &d);
+    mark_edit(ui);
+    ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_FOOTER;
+}
+
+/* What REC records on a page (G3): 0 where the page has no sequence. */
+static uint8_t page_rec_target(MelloUiPage page)
+{
+    switch (page) {
+    case MELLO_UI_SEQ_STEP: return MELLO_UI_REC_SEQ;
+    case MELLO_UI_SUB: return MELLO_UI_REC_BASS;
+#if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_UI_CHORD: return MELLO_UI_REC_CHORD;
+#endif
+    case MELLO_UI_DRUMS: return MELLO_UI_REC_DRUMS;
+    default: return 0u;
+    }
+}
+static void page_rec_stop(MelloUi *ui)
+{
+    if (!ui->page_rec) return;
+    ui->page_rec = 0u;
+    ui->keys_rec = false;
+    ui->rec_key = 0xFFu;
+    ui->dirty |= MELLO_UI_DIRTY_ALL;
 }
 
 /* SEL while recording: a rest where the next key would have gone. A chain of chords has no rests. */
@@ -1018,6 +1109,9 @@ static void rec_rest(MelloUi *ui, uint32_t now_us)
         ui->selected_step = pos;
         if (!running) ui->keys_rec_pos = (uint8_t)((pos + 1u) % len);
         rebuild(ui);
+    } else if (ui->keys_rec_target == MELLO_UI_REC_DRUMS && !running) {
+        uint8_t len = e->drums.length ? e->drums.length : 1u;
+        ui->keys_rec_pos = (uint8_t)((ui->keys_rec_pos + 1u) % len); /* DRUMS: an empty step */
     } else
         return;
     ui->rec_key = 0xFFu;
@@ -1097,6 +1191,13 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         keys_note(ui, note_index, now_us);
         return;
     }
+    if (ui->page_rec) { /* REC on a page (G3): the keys are its keyboard, the drums' voices and locks on DRUMS */
+        if (ui->keys_rec_target == MELLO_UI_REC_DRUMS)
+            drum_rec_key(ui, note_index, now_us);
+        else
+            keys_note(ui, note_index, now_us);
+        return;
+    }
     if (ui->page == MELLO_UI_HOME && ui->held_step != MELLO_UI_NO_STEP) {
         int8_t b = black_key_position(note_index); /* a held step: the first black keys are its flags */
         if (b >= 0 && b < 4) {
@@ -1143,6 +1244,7 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
         if (!ui->transport->running) { /* stopped: hear the step while it is held */
             uint8_t midi = mello_resolve_step_midi(&e->project, &e->project.steps[idx]);
             if (ui->audition_key != 0xFFu) audition(ui, ui->audition_note, false, now_us);
+            ui->audition_part = 0u; /* the lead */
             ui->audition_key = note_index;
             ui->audition_note = midi;
             audition(ui, midi, true, now_us);
@@ -3023,9 +3125,10 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
     }
 
     if (pressed & bit_u32(MELLO_UI_BTN_PLAY)) {
-        if (ui->transport->running)
+        if (ui->transport->running) {
             mello_transport_stop(ui->transport);
-        else
+            page_rec_stop(ui); /* G3: stopping ends a take */
+        } else
             /* Start one lookahead out, so the first step reaches the audio before its block, like the rest. */
             mello_transport_start(ui->transport, now_us + MELLO_TRANSPORT_LOOKAHEAD_US);
         ui->dirty |= MELLO_UI_DIRTY_HEADER | MELLO_UI_DIRTY_STATUS | MELLO_UI_DIRTY_LEDS;
@@ -3061,6 +3164,28 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
             ui->edit_down_ms = now_ms;
         }
     }
+    if ((pressed & bit_u32(MELLO_UI_BTN_REC)) && ui->page != MELLO_UI_HOME && page_rec_target(ui->page)) {
+        /* G3: REC records the page's part; again, it stops. One UNDO takes the take back. */
+        if (ui->page_rec)
+            page_rec_stop(ui);
+        else {
+            mello_engine_undo_snapshot(e);
+            ui->page_rec = (uint8_t)ui->page;
+            ui->keys_rec = true;
+            ui->keys_rec_target = page_rec_target(ui->page);
+            ui->keys_rec_pos = ui->keys_rec_target == MELLO_UI_REC_SEQ     ? ui->selected_step
+                               : ui->keys_rec_target == MELLO_UI_REC_BASS  ? ui->selected_sub_x_step
+                               : ui->keys_rec_target == MELLO_UI_REC_DRUMS ? ui->selected_drum_step
+#if MELLO_FEATURE_CHORD_MACHINE
+                                                                           : ui->selected_chord_step;
+#else
+                                                                           : 0u;
+#endif
+            ui->keys_rec_last = 0u;
+            ui->rec_key = 0xFFu;
+            ui->dirty |= MELLO_UI_DIRTY_ALL;
+        }
+    }
     if ((pressed & bit_u32(MELLO_UI_BTN_REC)) && ui->page == MELLO_UI_HOME && ui->keys_mode) {
         /* REC cycles what the keys write: SEQ, BASS, CHORD, then off; a recording is one UNDO */
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -3086,7 +3211,7 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
     /* R1: the printed button is the section; from elsewhere it opens the section's first page, pressed again it
      * goes to the next (section_next). SELECT is the layer, ALGORITHM the page. */
     if (pressed & bit_u32(MELLO_UI_BTN_SEL)) {
-        if (ui->page == MELLO_UI_HOME && ui->keys_mode && ui->keys_rec)
+        if ((ui->page == MELLO_UI_HOME && ui->keys_mode && ui->keys_rec) || ui->page_rec)
             rec_rest(ui, now_us); /* recording: SEL is the rest (every key is a note) */
         else
             open_page(ui, MELLO_UI_KEY_SCALE);
@@ -4931,6 +5056,13 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
         o->text(o->ctx, 4, 172, 232, 0, b, UI_BRIGHT, 1);
         return;
     }
+    if (ui->page_rec) { /* REC on a page (G3): what the keys write, in red */
+        o->text(o->ctx, 4, 172, 232, 0,
+                ui->keys_rec_target == MELLO_UI_REC_DRUMS ? "REC  KIT 1-4  ACC RAT P- P+"
+                                                          : "REC  KEYS PLAY  SEL = REST",
+                UI_RED, 1);
+        return;
+    }
     if (ui->page == MELLO_UI_SEQ_STEP && ui->step_pitch_mode) { /* EDIT: the keys set the step's pitch */
         o->text(o->ctx, 4, 172, 232, 0, "EDIT: A KEY SETS THE PITCH", UI_GOLD, 1);
         return;
@@ -6759,8 +6891,12 @@ static uint32_t calc_key_leds(MelloUi *ui)
                 mask |= bit_u32(white_key_notes[i]);
         return mask | bit_u32(BLACK_KEY_NOTES[5]);
     }
-    if (ui->page == MELLO_UI_HOME && ui->keys_mode) {
-        /* KEYS: the scale's tones lit on the keyboard (F3 = MIDI 53 .. G5), the rest dark; CHROMATIC lights
+    if (ui->page_rec && ui->keys_rec_target == MELLO_UI_REC_DRUMS) { /* REC on DRUMS: the voices' and locks' keys */
+        for (i = 0u; i < 8u; ++i) mask |= bit_u32(white_key_notes[i]);
+        return mask;
+    }
+    if ((ui->page == MELLO_UI_HOME && ui->keys_mode) || ui->page_rec) {
+        /* KEYS (and REC on a page): the scale's tones lit on the keyboard (F3 = MIDI 53 .. G5), the rest dark; CHROMATIC lights
          * every key: the key rule (DECISIONS "Record it yourself"). */
         const int8_t *tones;
         uint8_t kr, n, k;
@@ -6859,7 +6995,7 @@ static uint32_t calc_button_leds(MelloUi *ui)
     if (ui->page == MELLO_UI_HOME && (ui->keys_mode || ui->macro_mode)) m |= bit_u32(MELLO_UI_BTN_EDIT);
     if (ui->page == MELLO_UI_SEQ_STEP && ui->step_pitch_mode) m |= bit_u32(MELLO_UI_BTN_EDIT);
     if (ui->page == MELLO_UI_RANDOM && ui->random_edit) m |= bit_u32(MELLO_UI_BTN_EDIT);
-    if (ui->page == MELLO_UI_HOME && ui->keys_rec) m |= bit_u32(MELLO_UI_BTN_REC);
+    if ((ui->page == MELLO_UI_HOME && ui->keys_rec) || ui->page_rec) m |= bit_u32(MELLO_UI_BTN_REC);
     if (ui->page == MELLO_UI_SUB && e && e->sub.on) m |= bit_u32(MELLO_UI_BTN_ARP);
 #if MELLO_FEATURE_CHORD_MACHINE
     if (ui->page == MELLO_UI_CHORD && e && e->chord.on) m |= bit_u32(MELLO_UI_BTN_ARP);

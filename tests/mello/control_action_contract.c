@@ -93,7 +93,15 @@ static void verify_rec_reserved(void)
         page = u.page;
         st.dirty = false;
         buttons(&u, 100u, bit_u32(MELLO_UI_BTN_REC), bit_u32(MELLO_UI_BTN_EDIT) | bit_u32(MELLO_UI_BTN_REC));
-        if (u.page != page || memcmp(&before, &t.engine, sizeof before) || st.dirty || u.tap_count)
+        if (page == MELLO_UI_SEQ_STEP || page == MELLO_UI_SUB || page == MELLO_UI_DRUMS
+#if MELLO_FEATURE_CHORD_MACHINE
+            || page == MELLO_UI_CHORD
+#endif
+        ) { /* G3: REC records the page's part; pressed, it writes nothing yet */
+            if (u.page != page || u.page_rec != (uint8_t)page ||
+                memcmp(&before.project, &t.engine.project, sizeof before.project) || u.tap_count)
+                fail(pages[i].name, "REC did not start recording the page's part (or wrote)");
+        } else if (u.page != page || memcmp(&before, &t.engine, sizeof before) || st.dirty || u.tap_count)
             fail(pages[i].name, "REC is not reserved/inert");
     }
 }

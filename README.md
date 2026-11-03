@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f52.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f53.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -117,7 +117,7 @@ The MUTEs latch (MIX's). Never saved or undone.
 | Page | A white key |
 |---|---|
 | HOME | Tap: the step on or off. Hold: the step's pitch, pulses, ratchet and gate on K1-K4, its flags on the first four black keys. In KEYS: a keyboard; tap transposes the sequence, stopped it plays the lead. |
-| STEP | Picks the step (a tap toggles it too); with EDIT on, a key sets its pitch. |
+| STEP | Picks the step (a tap toggles it too); with EDIT on, a key sets its pitch. With REC on: a keyboard writing the sequence. |
 | SEGMENT | Cuts or joins a segment at that step; SEL held: picks the segment. |
 | LOOP CYCLE | Picks a loop position (the first eight keys); with the cycle off, auditions it. |
 | SLOT SEQ, SLOTS, SAMPLE | Picks a position, a slot. |
@@ -125,9 +125,15 @@ The MUTEs latch (MIX's). Never saved or undone.
 | KEY | The root. |
 | DOT | A cell on or off. |
 | EVOLVE | Flips a bit and picks it. |
-| BASS | A BASS SEQ step on or off, and picks it (B1 SEQ turns BASS SEQ itself on or off). |
-| CHORD | Picks a chord of the chain (or a pattern step). |
-| DRUMS | The picked voice's hit on or off at that step, and picks the step. |
+| BASS | A BASS SEQ step on or off, and picks it (B1 SEQ turns BASS SEQ itself on or off). With REC on: a keyboard writing the bass line. |
+| CHORD | Picks a chord of the chain (or a pattern step). With REC on: a keyboard writing the chain (a second key held: the chord's shape). |
+| DRUMS | The picked voice's hit on or off at that step, and picks the step. With REC on: keys 1-4 KICK, SNARE, HAT, GLITCH (a key held with another, the same step), 5-8 the last hit's ACCENT, RATCH, PITCH down and up. |
+
+**REC where you are.** On STEP, BASS, CHORD and DRUMS the REC button records that page's part, from its picked step:
+stopped, each key writes the next step (SEL a rest); playing, the step under the clock, or the next once more than
+half a pulse has gone, and a key that lands on the step already sounding is heard at once. Each key sounds in the
+part's own voice. REC again, another page or PLAY's stop ends the take; one UNDO takes it back. On HOME, EDIT then REC
+does the same for the sequence, the bass or the chords, REC cycling between them.
 
 ## HOME
 

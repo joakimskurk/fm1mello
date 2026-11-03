@@ -159,6 +159,11 @@ typedef struct {
     uint32_t edit_down_ms;
     bool step_pitch_mode; /* STEP's EDIT: the white keys set the picked step's pitch (R6) */
     bool keys_rec;
+    /* REC on a page with a sequence (G3, ROADMAP F5): STEP, BASS, CHORD or DRUMS, the page it records (0: none);
+     * keys_rec and keys_rec_target then say what, as HOME's KEYS > REC does */
+    uint8_t page_rec;
+    uint8_t drum_rec_voice, drum_rec_step; /* REC on DRUMS: the last hit, for the lock keys */
+    uint8_t audition_part;                 /* what a key sounds while recording: 0 the lead, 1 the bass, 2 chords */
     uint8_t
         keys_rec_target; /* REC in KEYS cycles what the keys write: 1 SEQ, 2 BASS, 3 CHORD (MelloUiRecTarget) */
     uint8_t keys_rec_pos; /* the next step (or chord slot) written, stopped; playing, the keys write where the
@@ -231,7 +236,12 @@ typedef struct {
     uint8_t home_new_step;
 } MelloUi;
 
-typedef enum { MELLO_UI_REC_SEQ = 1, MELLO_UI_REC_BASS = 2, MELLO_UI_REC_CHORD = 3 } MelloUiRecTarget;
+typedef enum {
+    MELLO_UI_REC_SEQ = 1,
+    MELLO_UI_REC_BASS = 2,
+    MELLO_UI_REC_CHORD = 3,
+    MELLO_UI_REC_DRUMS = 4 /* REC on DRUMS (G3): white keys 1-4 the voices, 5-8 the last hit's locks */
+} MelloUiRecTarget;
 
 void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage);
 void mello_ui_attach_sample_bank(MelloUi *ui, MelloSampleBank *bank);

@@ -20,7 +20,7 @@ here.
 |---|---|---|
 | G1 | **B0 switches what the page plays.** On every page with a part or a lane B0 is its ON: LOOP CYCLE, SLOT SEQ, DOT (the picked matrix: off, its route keeps moving and nothing is sent), EVOLVE, BASS, CHORD, SAMPLE, DRUMS. Pages without one (SOUND, FX, KEY, GLOBAL, MIX, RANDOM, SLOTS, HOME, STEP, SEGMENT) keep their own first key. | Applied 0.5-f47 |
 | G2 | **A part's first page is enough to hear it.** What turns a part on and makes it play is on its first layer: BASS's B1 is SEQ, the bass sequencer (a white key turns a BASS SEQ step on or off). | Applied 0.5-f47 |
-| G3 | **REC records the part on screen**, on every page with a sequence (HOME and STEP the lead, BASS the bass line, CHORD or SUB MELLO the chain, DRUMS the drums: white keys 1-4 KICK, SNARE, HAT, GLITCH, the next keys the hit's locks). Stopped: step by step; playing: on the clock; one UNDO; the white keys a keyboard in the key now, OCT- / OCT+ moving it. HOME's EDIT > REC stays. | Decided; wave 3 |
+| G3 | **REC records the part on screen**, on every page with a sequence (HOME and STEP the lead, BASS the bass line, CHORD or SUB MELLO the chain, DRUMS the drums: white keys 1-4 KICK, SNARE, HAT, GLITCH, the next keys the hit's locks). Stopped: step by step; playing: on the clock; one UNDO; the white keys a keyboard in the key now, OCT- / OCT+ moving it. HOME's EDIT > REC stays. | Applied 0.5-f53 |
 | G4 | **Performance in one place.** B5 is PERF: tapped, the PERFORM page and 16 actions on the white keys until PERF or a page button; held, while held. Every action acts on every part. B6 is MUTATE on every page; B7 and B8 go to the pages. | Applied 0.5-f52 |
 | G5 | **The lights.** Lit = now, active or held; glow = set or there; dark = nothing; on the white and black keys, on every page. | Wave 4 |
 | G6 | **K1-K4.** A voice's first layer is K1 CUT, K2 RES, K3 DECAY or ENV, K4 LEVEL (the sampler: LEVEL first). | Wave 4 |
@@ -40,6 +40,8 @@ REC is reserved for actual recording/capture semantics.
 REC must not mean REROLL, TAP, RESET, CLEAR, randomize-now or any other generic page action.
 
 Existing page-specific REC behavior is legacy debt and must be migrated during Control Grammar v2 without silently removing functionality.
+
+Since 2026-11-03 (G3) REC records the part of the page it is pressed on (STEP, BASS, CHORD, DRUMS); elsewhere it stays inert, and HOME's EDIT > REC records as before (control_action_contract holds both).
 
 ### EDIT belongs to edit state/focus/lock
 
