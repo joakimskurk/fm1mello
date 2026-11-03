@@ -33,6 +33,13 @@ extern "C" {
 #ifndef MELLO_FEATURE_CHORD_MACHINE
 #define MELLO_FEATURE_CHORD_MACHINE 1
 #endif
+/* SUB MELLO (ROADMAP E6, DECISIONS "SUB MELLO"): the chord part's harmony (the chain, its progressions, HARMONY's
+ * FOLLOW and DRIFT, the bass on the chord's root) is MELLO_FEATURE_CHORD_MACHINE; how it sounds is one voice that
+ * plays the chords' tones one at a time, unless MELLO_FEATURE_CHORD_POLY builds the four-voice synth with its chorus
+ * (kept in the repository, off in the build). */
+#ifndef MELLO_FEATURE_CHORD_POLY
+#define MELLO_FEATURE_CHORD_POLY 0
+#endif
 #if MELLO_FEATURE_CHORD_MACHINE
 #define MELLO_CHORD_MAX_VOICES    4u
 #define MELLO_CHORD_MAX_STEPS     8u
@@ -567,6 +574,8 @@ typedef enum {
     MELLO_CHORD_ARP_DOWN,
     MELLO_CHORD_ARP_UPDOWN,
     MELLO_CHORD_PATTERN,
+    MELLO_CHORD_BROKEN, /* SUB MELLO's figures (2026-11-03): low, high, middle, high, on every pulse */
+    MELLO_CHORD_WALK,   /* the chord's tones on the beats, the scale's between, walking up and down */
     MELLO_CHORD_MODE_COUNT
 } MelloChordMode;
 
@@ -890,6 +899,7 @@ typedef struct {
     uint8_t chord_arp_pos;
     int8_t chord_arp_dir;
     uint8_t chord_pattern_pos;
+    uint8_t chord_walk_note; /* WALK: the note it is on (0: none yet) */
     uint8_t chord_last_notes[MELLO_CHORD_MAX_VOICES];
     uint8_t chord_last_count;
     uint8_t chord_voiced[MELLO_CHORD_MAX_VOICES]; /* the chord sounding, as voiced (voice leading) */

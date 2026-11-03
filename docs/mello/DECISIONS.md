@@ -1107,6 +1107,30 @@ for frames) lost the pixel each kept beside its label and got a hairline between
 eleven keys fit. Tests: control_authoritative_mapping (verify_g1_g2), dot_orders (OFF sends nothing, the route
 moves, OFF through a power cycle).
 
+## SUB MELLO (2026-11-03)
+
+Decided 2026-11-02 (ROADMAP E6, F6): the chord synth gives way to SUB MELLO, and its code stays. The chord part's
+harmony (the chain, its progressions, MOTION's NEXT, HARMONY's FOLLOW and DRIFT, B1 BASS on the chord's root, the
+routes to C.CUT and C.LEVEL) is MELLO_FEATURE_CHORD_MACHINE, on as before; the sound is split off as
+MELLO_FEATURE_CHORD_POLY, off in the build. With it off:
+
+- one voice (and one more for the last note's release) through the same filter, envelopes, high-pass and SPACE,
+  with no chorus; a note as loud as one voice of a triad was, so LEVEL means what it did (default project, default
+  part: 2.9 dB under the lead, the four-voice chords were 2.0);
+- the engine plays the chord's tones one at a time: two new modes, BROKEN (low, high, middle, high of the voiced
+  chord, on every pulse; the default) and WALK (on every fourth note the chord tone nearest a step on, between them
+  a step of the scale, turning at the chord's ends); the arpeggios as they were; STAB the chord's top tone, HOLD the
+  top tone held (with VLEAD it moves least), a PATTERN step its lowest tone;
+- CHORUS and STRUM are blank on the screen and do nothing; saved values are kept for a build with the synth.
+
+The part keeps its name, CHORD: its page edits a chain of chords, and SUB MELLO is how they sound. Measured: the
+worst case (mello_engine_stress, fm1-emu's instruction count) from 174.2 to 163.0 M instructions a second, 72.6% to
+67.9% of the chip; the default pattern 32.2%, as before (the part is off by default); make bench on this computer,
+the part's share of the worst case from about a fifth to a few percent; RAM 640 B back (the chorus line and four
+voices; the config's copies are F7). Tests: sub_mello (one note at a time in every mode, BROKEN's figure, WALK's beats and steps,
+every note in the key, two audio voices at most); chord_voice, chord_machine_smoke and audio_event_order_smoke build
+with MELLO_FEATURE_CHORD_POLY=1, so the kept synth is still tested.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

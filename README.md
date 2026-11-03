@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f47.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f48.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -198,8 +198,10 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
 - **FX**. Distortion with a character and a tone (PRE-DIST puts the delay before it), a delay synced to the tempo
   or free with feedback, low and high cut, and a reverb with size, decay, pre-delay and tone.
 - **Chords** (ARP > CHORD). A chain of up to eight chords in the key (degree, shape, inversion, spread, octave),
-  played as stabs, held, arpeggiated or by a pattern of voice masks, triggered by the steps or by a grid; voice
-  leading; a Juno-like voice with chorus, a resonant filter with its envelope, an ADSR and its own space. B1 BASS
+  sounded by SUB MELLO, one voice that plays the chord's tones one at a time: BROKEN (low, high, middle, high, the
+  default), WALK (the chord's tones on the beats, the scale's steps between), arpeggios up, down or both ways, a
+  pattern, STAB (the top tone) or HOLD (the top tone held); triggered by the steps or by a grid; voice leading; a
+  resonant filter with its envelope, an ADSR and its own space, the delay making the line a chord. B1 BASS
   puts the bass on the chord's root. The HARMONY layer ties the chords to the rest: FOLLOW moves the lead's notes
   on the beats (or all of them) to the chord sounding, and DRIFT lets one chord change each time the chain comes
   round, within DEPTH (a degree of the same function, the shape, the voicing, or any), the first chord keeping
@@ -267,9 +269,9 @@ K1-K4 with their default values.
 | CHORD | ARP | VOICING | `ON BASS F B < R UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
 | CHORD | ARP | GRID | `ON BASS F B < R UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
 | CHORD | ARP | PATTERN | `ON BASS F B < R UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
-| CHORD | ARP | TONE | `ON BASS F B < R UNDO RNDMZR` | WAVE SAW · CHORUS 60% · SPACE 60% · LEVEL 18% |
+| CHORD | ARP | TONE | `ON BASS F B < R UNDO RNDMZR` | WAVE SAW · — · SPACE 60% · LEVEL 18% |
 | CHORD | ARP | FILTER | `ON BASS F B < R UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LINK OFF |
-| CHORD | ARP | MOTION | `ON BASS F B < R UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · STRUM 0MS · NEXT TRIG |
+| CHORD | ARP | MOTION | `ON BASS F B < R UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
 | CHORD | ARP | AMP | `ON BASS F B < R UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
 | CHORD | ARP | HARMONY | `ON BASS F B < R UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
 | GLOBAL | GLO | CLOCK | `TAP RST2 F B < R UNDO RNDMZR` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |

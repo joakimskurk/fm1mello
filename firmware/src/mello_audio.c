@@ -1030,8 +1030,10 @@ static void chord_coeffs(MelloAudio *a)
     v->k_fatt = chord_rate(c->fenv_attack_ms, 15u);
     v->k_fdec = chord_rate(c->fenv_decay_ms, 40u);
     v->sus_q24 = (int32_t)((uint32_t)c->sustain * 16777u);
+#if MELLO_FEATURE_CHORD_POLY
     v->chorus_depth = (int32_t)c->chorus * 80 / 1000;
     v->chorus_mix_q15 = (int32_t)c->chorus * 16384 / 1000;
+#endif
 }
 static void chord_release_voice(MelloAudioChordVoice *v, uint8_t i)
 {
@@ -1090,7 +1092,9 @@ static void chord_kill(MelloAudio *a)
     memset(v->venv, 0, sizeof v->venv);
     memset(v->vgain, 0, sizeof v->vgain);
     memset(v->vstep, 0, sizeof v->vstep);
+#if MELLO_FEATURE_CHORD_POLY
     memset(v->chorus_buf, 0, sizeof v->chorus_buf);
+#endif
     v->active_count = 0u;
     v->env_q24 = 0;
     v->env_stage = MELLO_ENV_OFF;
@@ -1145,10 +1149,13 @@ static void chord_control(MelloAudio *a)
 /* One sample of the chord layer, left and right (before LEVEL). */
 static void chord_render(MelloAudio *a, int32_t *out_l, int32_t *out_r)
 {
+#if MELLO_FEATURE_CHORD_POLY
     static const int16_t norm[5] = {0, 32767, 18500, 13200, 10400};
+    int32_t wet_l, wet_r, m;
+#endif
     MelloAudioChordVoice *v = &a->chord;
     const MelloChordConfig *c = &a->chord_config;
-    int32_t x = 0, hp, wet_l, wet_r, m;
+    int32_t x = 0, hp;
     uint8_t i;
     if (!v->k_att) chord_coeffs(a); /* before the first config */
     if (!(v->ctl++ & 15u)) chord_control(a);
@@ -1158,7 +1165,12 @@ static void chord_render(MelloAudio *a, int32_t *out_l, int32_t *out_r)
         v->phase[i] += v->inc[i];
         x += q15mul(osc_sample(c->wave, v->phase[i], v->inc[i], 500u), v->vgain[i] >> 9);
     }
+#if MELLO_FEATURE_CHORD_POLY
     x = q15mul(clamp32(x, -131071, 131071) >> 1, norm[c->voices <= 4u ? c->voices : 4u]) * 2;
+#else
+    x = q15mul(clamp32(x, -65535, 65535), 13200); /* SUB MELLO: a voice as loud as one of a triad's, so LEVEL
+                                                   * means what it did for the chords */
+#endif
     /* the filter: a state variable low-pass (Chamberlin), 12 dB */
     x = clamp32(x, -65535, 65535);
     v->lp = clamp32(v->lp + (int32_t)(((int64_t)v->f_q15 * v->bp) >> 15), -262143, 262143);
@@ -1170,6 +1182,9 @@ static void chord_render(MelloAudio *a, int32_t *out_l, int32_t *out_r)
     v->hp_x1 = x;
     v->hp_y1 = hp;
     x = clamp32(hp, -32767, 32767);
+#if !MELLO_FEATURE_CHORD_POLY
+    *out_l = *out_r = x; /* SUB MELLO: no chorus, the delay and the reverb give it its space */
+#else
     if (!c->chorus) {
         *out_l = *out_r = x;
         return;
@@ -1200,6 +1215,7 @@ static void chord_render(MelloAudio *a, int32_t *out_l, int32_t *out_r)
         *out_l = x + q15mul(wet_l - x, m);
         *out_r = x + q15mul(wet_r - x, m);
     }
+#endif
 }
 #endif
 

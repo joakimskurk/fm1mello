@@ -1038,7 +1038,11 @@ void mello_chord_defaults(MelloChordConfig *c)
     memset(c, 0, sizeof(*c));
     c->on = false;
     c->trigger = MELLO_CHORD_TRIGGER_STEP;
+#if MELLO_FEATURE_CHORD_POLY
     c->mode = MELLO_CHORD_STAB;
+#else
+    c->mode = MELLO_CHORD_BROKEN; /* SUB MELLO: a broken chord, the delay making it a chord */
+#endif
     c->length = 4u;
     c->voices = 3u;
     c->level = 180u; /* E4: was 320; the chords sit 2 dB under the default lead (RMS), 5.7 dB under before */
@@ -1679,6 +1683,7 @@ void mello_engine_start(MelloEngine *e)
     e->chord_step_count = 0u;
     e->chord_arp_pos = 0u;
     e->chord_arp_dir = 1;
+    e->chord_walk_note = 0u;
     e->chord_pattern_pos = 0u;
     e->chord_last_count = 0u;
     e->chord_voiced_n = 0u;
@@ -2658,6 +2663,7 @@ void mello_engine_chord_reset(MelloEngine *e)
     e->chord_step_count = 0u;
     e->chord_arp_pos = 0u;
     e->chord_arp_dir = 1;
+    e->chord_walk_note = 0u;
     e->chord_pattern_pos = 0u;
     e->chord_last_count = 0u;
     e->chord_voiced_n = 0u;
@@ -3918,6 +3924,12 @@ static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advanc
     memcpy(e->chord_voiced, notes, n);
     e->chord_voiced_n = n;
     strum = c->strum_ms ? ms_to_ticks(&e->project, c->strum_ms) : 0u;
+#if !MELLO_FEATURE_CHORD_POLY
+    if (c->mode == MELLO_CHORD_HOLD && n > 1u) { /* SUB MELLO holds the chord's top tone (VLEAD moves it least) */
+        notes[0] = notes[n - 1u];
+        n = 1u;
+    }
+#endif
     if (c->mode == MELLO_CHORD_HOLD) {
         if (fresh && !advance_chain && c->chain != MELLO_CHORD_CHAIN_TRIG)
             e->chord_chain_hold = 1u; /* STEPS / SEG: sounded; the clock says when the next one is */
@@ -3961,11 +3973,48 @@ static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advanc
                         e->chord_arp_pos = (uint8_t)(p - 1u);
                 }
             }
+        } else if (c->mode == MELLO_CHORD_BROKEN) { /* low, high, middle, high (an Alberti bass's figure) */
+            static const uint8_t fig3[4] = {0u, 2u, 1u, 2u}, fig4[4] = {0u, 2u, 1u, 3u};
+            uint8_t k = (uint8_t)(e->chord_arp_pos % 4u);
+            mask = (uint8_t)(1u << (n >= 4u ? fig4[k] : n == 3u ? fig3[k] : (uint8_t)(k % n)));
+            e->chord_arp_pos = (uint8_t)((k + 1u) % 4u);
+        } else if (c->mode == MELLO_CHORD_WALK) {
+            /* On a beat (every fourth trigger) the chord tone nearest a step on; between, a scale step on: a line
+             * that walks between the chord's tones and turns at its ends, so the chord is heard in time. */
+            int32_t root = 60, lo = notes[0], hi = notes[0], last, best = notes[0];
+            MelloScale scale = MELLO_SCALE_MINOR;
+            uint8_t k;
+            for (k = 1u; k < n; ++k) {
+                if (notes[k] < lo) lo = notes[k];
+                if (notes[k] > hi) hi = notes[k];
+            }
+            last = e->chord_walk_note ? e->chord_walk_note : lo;
+            current_loop_context(e, &root, &scale, NULL, NULL, NULL, NULL);
+            if (e->chord_arp_dir == 0) e->chord_arp_dir = 1;
+            if (last >= hi + 12) e->chord_arp_dir = -1;
+            if (last <= lo) e->chord_arp_dir = 1;
+            if (!e->chord_walk_note || e->chord_arp_pos % 4u == 0u) {
+                int32_t want = last + e->chord_arp_dir * 2, d = 0x7FFF;
+                for (k = 0u; k < n * 2u; ++k) { /* the chord and its octave above */
+                    int32_t t = (int32_t)notes[k % n] + (k >= n ? 12 : 0), dd = t > want ? t - want : want - t;
+                    if (dd < d) d = dd, best = t;
+                }
+            } else
+                best = key_round(scale, root, last + e->chord_arp_dir, e->chord_arp_dir);
+            e->chord_walk_note = clamp_u8_i32(best, 24u, 96u);
+            e->chord_arp_pos++;
+            notes[0] = e->chord_walk_note; /* one note, as an ARP's */
+            n = 1u;
+            mask = 1u;
         } else {
             uint8_t pl = c->pattern_length ? c->pattern_length : 1u;
             mask = (uint8_t)(c->pattern_masks[e->chord_pattern_pos % pl] & ((1u << n) - 1u));
             e->chord_pattern_pos = (uint8_t)((e->chord_pattern_pos + 1u) % pl);
         }
+#if !MELLO_FEATURE_CHORD_POLY
+        if (mask & (uint8_t)(mask - 1u)) /* SUB MELLO plays one tone: STAB the top one, a PATTERN step its lowest */
+            mask = c->mode == MELLO_CHORD_STAB ? (uint8_t)(1u << (n - 1u)) : (uint8_t)(mask & (uint8_t)-mask);
+#endif
         /* STAB is deliberately pulse-locked: short chord hit. HOLD is the pad/background mode,
          * while ARP/PATTERN also advance on the master pulse. Harmony itself advances on steps. */
         unit_ticks = mello_pulse_ticks(&e->project);
@@ -4144,7 +4193,8 @@ bool mello_engine_advance_pulse(MelloEngine *e)
         if (e->chord.trigger == MELLO_CHORD_TRIGGER_GRID)
             fire = chord_grid_hit(e, step_start);
         else if (e->chord.mode == MELLO_CHORD_ARP_UP || e->chord.mode == MELLO_CHORD_ARP_DOWN ||
-                 e->chord.mode == MELLO_CHORD_ARP_UPDOWN || e->chord.mode == MELLO_CHORD_PATTERN)
+                 e->chord.mode == MELLO_CHORD_ARP_UPDOWN || e->chord.mode == MELLO_CHORD_PATTERN ||
+                 e->chord.mode == MELLO_CHORD_BROKEN || e->chord.mode == MELLO_CHORD_WALK)
             fire = true;
         else
             fire = step_start;

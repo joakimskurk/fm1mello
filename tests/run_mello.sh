@@ -16,7 +16,10 @@ defines() {
     case "$1" in
     audio_html_parity | wp_e3_reverb_v3_smoke) echo -DMELLO_REVERB_TEST_HOOK=1 ;;
     live_edit_audio_stress) echo -DMELLO_LIVE_EDIT_TEST_HOOK=1 ;;
-    audio_overflow_regression | audio_grit_smoke | audio_virus_smoke | chord_voice | drum_machine | random_musical | bass_seq | step_wave | drum_routes) echo -fsanitize=undefined -fno-sanitize-recover=undefined ;;
+    chord_voice) echo -fsanitize=undefined -fno-sanitize-recover=undefined -DMELLO_FEATURE_CHORD_POLY=1 ;;
+    audio_overflow_regression | audio_grit_smoke | audio_virus_smoke | drum_machine | random_musical | bass_seq | step_wave | drum_routes) echo -fsanitize=undefined -fno-sanitize-recover=undefined ;;
+    # The four-voice chord synth (kept, off in the build: DECISIONS "SUB MELLO") is still tested as it was.
+    chord_machine_smoke | audio_event_order_smoke) echo -DMELLO_FEATURE_CHORD_POLY=1 ;;
     esac
 }
 

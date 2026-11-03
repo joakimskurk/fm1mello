@@ -170,9 +170,17 @@ static const Case cases[] = {
     C("CHORD VOICING", MELLO_UI_CHORD, 2, 15, 0, "INV", "SPREAD", "VOICES", "VLEAD"),
     C("CHORD GRID", MELLO_UI_CHORD, 3, 15, 0, "MODE", "LENGTH", "DEPTH", "FOLLOW"),
     C("CHORD PATTERN", MELLO_UI_CHORD, 4, 3, 0, "MASK", "LENGTH", "", ""),
+#if MELLO_FEATURE_CHORD_POLY
     C("CHORD TONE", MELLO_UI_CHORD, 5, 15, 0, "WAVE", "CHORUS", "SPACE", "LEVEL"),
+#else /* SUB MELLO: one voice, no chorus and nothing to strum */
+    C("CHORD TONE", MELLO_UI_CHORD, 5, 15, 0, "WAVE", "", "SPACE", "LEVEL"),
+#endif
     C("CHORD FILTER", MELLO_UI_CHORD, 6, 15, 0, "CUT", "RES", "ENV", "LINK"),
+#if MELLO_FEATURE_CHORD_POLY
     C("CHORD MOTION", MELLO_UI_CHORD, 7, 15, 0, "F.ATK", "F.DEC", "STRUM", "NEXT"),
+#else
+    C("CHORD MOTION", MELLO_UI_CHORD, 7, 15, 0, "F.ATK", "F.DEC", "", "NEXT"),
+#endif
     C("CHORD AMP", MELLO_UI_CHORD, 8, 15, 0, "ATTACK", "DECAY", "SUSTAIN", "RELEASE"),
     C("CHORD HARMONY", MELLO_UI_CHORD, 9, 7, 0, "FOLLOW", "DRIFT", "DEPTH", ""),
 #endif

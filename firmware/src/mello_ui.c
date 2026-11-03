@@ -1944,6 +1944,8 @@ static const char *chord_mode_name(MelloChordMode m)
     case MELLO_CHORD_ARP_DOWN: return "ARP DN";
     case MELLO_CHORD_ARP_UPDOWN: return "ARP UD";
     case MELLO_CHORD_PATTERN: return "PATTERN";
+    case MELLO_CHORD_BROKEN: return "BROKEN";
+    case MELLO_CHORD_WALK: return "WALK";
     default: return "STAB";
     }
 }
@@ -2004,7 +2006,9 @@ static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
             (uint8_t)clamp_i32((int32_t)c.pattern_length + delta, 1, MELLO_CHORD_PATTERN_STEPS);
         break;
     case 20: c.wave = step_sub_waveform(c.wave, delta); break;
+#if MELLO_FEATURE_CHORD_POLY
     case 21: c.chorus = (uint16_t)clamp_i32((int32_t)c.chorus + delta * 10, 0, 1000); break;
+#endif
     case 22: c.space = (uint16_t)clamp_i32((int32_t)c.space + delta * 10, 0, 1000); break;
     case 23: c.level = (uint16_t)clamp_i32((int32_t)c.level + delta * 10, 0, 1000); break;
     case 24: c.cut = (uint16_t)clamp_i32((int32_t)c.cut + delta * 10, 0, 1000); break;
@@ -2013,7 +2017,9 @@ static void adjust_chord(MelloUi *ui, uint8_t knob, int16_t delta)
     case 27: c.link = delta > 0; break;
     case 28: c.fenv_attack_ms = chord_ms(c.fenv_attack_ms, delta, 1u, 2000u); break;
     case 29: c.fenv_decay_ms = chord_ms(c.fenv_decay_ms, delta, 10u, 4000u); break;
+#if MELLO_FEATURE_CHORD_POLY
     case 30: c.strum_ms = (uint8_t)clamp_i32((int32_t)c.strum_ms + delta, 0, 60); break;
+#endif
     case 31: { /* NEXT: how the chain moves on; STEPS starts each chord at a bar (HOLD 16) */
         uint8_t was = c.chain, i;
         c.chain = (uint8_t)clamp_i32((int32_t)c.chain + (delta > 0 ? 1 : -1), MELLO_CHORD_CHAIN_TRIG,
@@ -5153,7 +5159,10 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 3: v = c->gate_amount, m = 1200u; break;
         case 13: v = c->grid_length, m = 16u; break;
         case 14: v = c->grid_amount; break;
+#if MELLO_FEATURE_CHORD_POLY
         case 21: v = c->chorus; break;
+        case 30: v = c->strum_ms, m = 60u; break;
+#endif
         case 22: v = c->space; break;
         case 23: v = c->level; break;
         case 24: v = c->cut; break;
@@ -5161,7 +5170,6 @@ static bool knob_norm(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 26: v = c->fenv; break;
         case 28: v = c->fenv_attack_ms, m = 2000u; break;
         case 29: v = c->fenv_decay_ms, m = 4000u; break;
-        case 30: v = c->strum_ms, m = 60u; break;
         case 6: v = c->steps[ui->selected_chord_step % c->length].hold, m = 64u; break;
         case 32: v = c->attack_ms, m = 2000u; break;
         case 33: v = c->decay_ms, m = 4000u; break;
@@ -5559,9 +5567,15 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
                                                    {"INV", "SPREAD", "VOICES", "VLEAD"},
                                                    {"MODE", "LENGTH", "DEPTH", "FOLLOW"},
                                                    {"MASK", "LENGTH", "", ""},
+#if MELLO_FEATURE_CHORD_POLY
                                                    {"WAVE", "CHORUS", "SPACE", "LEVEL"},
                                                    {"CUT", "RES", "ENV", "LINK"},
                                                    {"F.ATK", "F.DEC", "STRUM", "NEXT"},
+#else /* SUB MELLO: one voice, no chorus, nothing to strum */
+                                                   {"WAVE", "", "SPACE", "LEVEL"},
+                                                   {"CUT", "RES", "ENV", "LINK"},
+                                                   {"F.ATK", "F.DEC", "", "NEXT"},
+#endif
                                                    {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"},
                                                    {"FOLLOW", "DRIFT", "DEPTH", ""}};
         MelloChordConfig *c = &e->chord;
@@ -5605,7 +5619,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             break;
         case 5:
             copy_s(v[0], wave_name(c->wave));
-            value_pct(v[1], c->chorus);
+            if (MELLO_FEATURE_CHORD_POLY) value_pct(v[1], c->chorus);
             value_pct(v[2], c->space);
             value_pct(v[3], c->level);
             break;
@@ -5618,7 +5632,7 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
         case 7:
             value_ms(v[0], c->fenv_attack_ms);
             value_ms(v[1], c->fenv_decay_ms);
-            value_ms(v[2], c->strum_ms);
+            if (MELLO_FEATURE_CHORD_POLY) value_ms(v[2], c->strum_ms);
             copy_s(v[3], c->chain == MELLO_CHORD_CHAIN_STEPS
                              ? "STEPS"
                              : (c->chain == MELLO_CHORD_CHAIN_SEG ? "SEG" : "TRIG"));
