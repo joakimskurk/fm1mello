@@ -132,6 +132,11 @@ static void ui_key_led(void *ctx, uint8_t key_index, bool on)
     (void)ctx;
     fm1_led_key(KEY_LED(key_index), on);
 }
+static void ui_key_glow(void *ctx, uint8_t key_index, bool on)
+{
+    (void)ctx;
+    fm1_led_glow_key(KEY_LED(key_index), on);
+}
 static void ui_button_led(void *ctx, uint8_t button_id, bool on)
 {
     (void)ctx;
@@ -147,6 +152,7 @@ static MelloUiDrawOps ui_draw_ops(void)
     o.button_led = ui_button_led;
     o.ctx = 0;
     o.text_on = ui_text_on;
+    o.key_glow = ui_key_glow;
     return o;
 }
 

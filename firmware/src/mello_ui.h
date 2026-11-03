@@ -102,6 +102,8 @@ typedef struct {
      * small, 1 large, 2 small letter-spaced (a pixel between characters). Without it, text() draws on black. */
     void (*text_on)(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t style, const char *text,
                     uint16_t colour, uint16_t bg, uint8_t align);
+    /* G5: a key's glow, the middle of the lights' three levels (lit, glow, dark); optional */
+    void (*key_glow)(void *ctx, uint8_t key_index, bool on);
 } MelloUiDrawOps;
 
 typedef struct {
@@ -215,6 +217,7 @@ typedef struct {
 
     uint16_t dirty;
     uint32_t last_key_led_mask;
+    uint32_t last_key_glow_mask; /* G5: the keys that glow (fm1_led_dim) */
     uint32_t last_button_led_mask;
 
     uint8_t seen_step;

@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f54.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f55.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -107,6 +107,10 @@ project) or FULL (the project does not fit) appear in red in the header.
 | B7-B8 | free for the pages | |
 | B9 | **UNDO**: the last roll or edit back (again: redo) | |
 | B10 | **RNDMZR**: a roll of the randomizer; held: the RANDOM page | |
+
+The keys' lights say the same on every page: lit is what is happening now or on (the playhead, the step in focus,
+a switch that is on), a glow is what is set or there (a step that plays, a scale tone, a black key with a function),
+dark is nothing.
 
 PERFORM's white keys, in a 4 x 4 on the screen (keys 1-4 the top row): FILL, REVERSE, REP 8, REP 4 / REP 2, REP 1,
 RESTART, MUTE LD / MUTE BS, MUTE CH, MUTE DR, MUTATE / TRANS -, TRANS +. FILL, REVERSE and the REPs act while held

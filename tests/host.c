@@ -33,6 +33,7 @@ static uint32_t fm1_input_note_edges(void) { uint32_t n = host_note_edges; host_
 static int32_t host_enc[8];
 static int32_t fm1_enc_take(uint32_t e) { int32_t d = host_enc[e & 7u]; host_enc[e & 7u] = 0; return d; }
 static void fm1_led_key(uint32_t id, int on) { (void)id; (void)on; }
+static void fm1_led_glow_key(uint32_t id, int on) { (void)id; (void)on; }
 
 /* Big screen on the host: the same encoder and glue as the FM-1's (platform.c's other branch) */
 #define MIRROR_NOW() fm1_ms

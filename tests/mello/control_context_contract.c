@@ -168,7 +168,7 @@ static void turn_k4(MelloUi *u)
 }
 static void render(MelloUi *u, Capture *cap)
 {
-    MelloUiDrawOps ops = {fill, text, led_key, led_btn, cap, 0};
+    MelloUiDrawOps ops = {fill, text, led_key, led_btn, cap, 0, 0};
     memset(cap, 0, sizeof *cap);
     u->last_key_led_mask = 0u;
     u->last_button_led_mask = 0u;

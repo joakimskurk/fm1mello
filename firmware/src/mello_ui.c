@@ -267,6 +267,7 @@ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage
     ui->home_old_step = 0xFFu;
     ui->home_new_step = 0xFFu;
     ui->last_key_led_mask = 0xFFFFFFFFu;
+    ui->last_key_glow_mask = 0xFFFFFFFFu; /* (sent whole at the start, as the lit ones) */
     ui->last_button_led_mask = 0xFFFFFFFFu;
     ui->dirty = MELLO_UI_DIRTY_ALL;
 }
@@ -6945,6 +6946,7 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
     fitted.button_led = 0;
     fitted.ctx = &fit_ctx;
     fitted.text_on = 0;
+    fitted.key_glow = 0;
     d = ui->dirty;
     if (d & MELLO_UI_DIRTY_FULL) {
         fitted.fill(fitted.ctx, 0, 0, 240, 240, UI_BLACK);
@@ -7001,26 +7003,32 @@ void mello_ui_draw_splash(const MelloUiDrawOps *ops, const char *version)
     o.text(o.ctx, 0, 176, 240, 0, b, UI_DIM, 1);
 }
 
-static uint32_t calc_key_leds(MelloUi *ui)
+/* G5 (CONTROL_GRAMMAR, ROADMAP E8 / F13): one rule for the keys' lights on every page: lit = now, active or held (the
+ * playhead, the step or cell in focus, a function that is on, the root in KEYS); glow = set or there (a step that
+ * plays, a cell that is on, a key with a function, a scale tone); dark = nothing. The playhead no longer flips its key,
+ * which read differently on a lit step and a dark one. */
+static void calc_key_levels(MelloUi *ui, uint32_t *lit_out, uint32_t *glow_out)
 {
     MelloEngine *e = eng(ui);
-    uint32_t mask = 0u;
+    uint32_t lit = 0u, glow = 0u;
     uint8_t i;
-    if (!e) return 0u;
-    if (ui->perform) { /* PERFORM: a key lit while its action acts (held, or a MUTE on), PERF lit */
+    bool running = ui->transport->running, notes_are_keys = false;
+    *lit_out = *glow_out = 0u;
+    if (!e) return;
+#define WK(n) bit_u32(white_key_notes[(n) % 16u])
+    if (ui->perform) { /* PERFORM: a key with an action glows, lit while it acts (held, or a MUTE on) */
         uint16_t held = perform_held(ui);
-        for (i = 0u; i < 16u; ++i)
-            if (((held >> i) & 1u) || (i >= 7u && i <= 10u && ((e->perf.mix_mute >> (i - 7u)) & 1u)))
-                mask |= bit_u32(white_key_notes[i]);
-        return mask | bit_u32(BLACK_KEY_NOTES[5]);
-    }
-    if (ui->page_rec && ui->keys_rec_target == MELLO_UI_REC_DRUMS) { /* REC on DRUMS: the voices' and locks' keys */
-        for (i = 0u; i < 8u; ++i) mask |= bit_u32(white_key_notes[i]);
-        return mask;
-    }
-    if ((ui->page == MELLO_UI_HOME && ui->keys_mode) || ui->page_rec) {
-        /* KEYS (and REC on a page): the scale's tones lit on the keyboard (F3 = MIDI 53 .. G5), the rest dark; CHROMATIC lights
-         * every key: the key rule (DECISIONS "Record it yourself"). */
+        for (i = 0u; i < 16u; ++i) {
+            if (PERFORM_NAMES[i][0]) glow |= WK(i);
+            if (((held >> i) & 1u) || (i >= 7u && i <= 10u && ((e->perf.mix_mute >> (i - 7u)) & 1u))) lit |= WK(i);
+        }
+    } else if (ui->page_rec && ui->keys_rec_target == MELLO_UI_REC_DRUMS) { /* the voices' and locks' keys */
+        for (i = 0u; i < 8u; ++i) glow |= WK(i);
+        lit |= WK(ui->drum_rec_voice);
+        notes_are_keys = true;
+    } else if ((ui->page == MELLO_UI_HOME && ui->keys_mode) || ui->page_rec) {
+        /* KEYS (and REC on a page): the scale's tones glow on the keyboard (F3 = MIDI 53 .. G5), the root lit, the
+         * rest dark; CHROMATIC: every key glows (DECISIONS "Record it yourself") */
         const int8_t *tones;
         uint8_t kr, n, k;
         MelloScale ks;
@@ -7030,83 +7038,97 @@ static uint32_t calc_key_leds(MelloUi *ui)
             uint8_t rel = (uint8_t)((53u + i + 120u - kr) % 12u);
             bool in = n >= 12u;
             for (k = 0u; k < n && !in; ++k) in = tones[k] == (int8_t)rel;
-            if (in) mask |= bit_u32(i);
+            if (in) glow |= bit_u32(i);
+            if (rel == 0u) lit |= bit_u32(i);
         }
-    } else if (ui->page == MELLO_UI_HOME) {
-        /* The steps of this bank: lit = on; the playhead flips its key, so it runs across them. */
+        notes_are_keys = true;
+    } else if (ui->page == MELLO_UI_HOME || ui->page == MELLO_UI_SEQ_STEP) {
+        /* the bank's steps that play glow; the playhead lit, and the step held (HOME) or picked (STEP) */
         uint8_t base = (uint8_t)(ui->step_bank * 16u), at = ui->transport->display_step;
         for (i = 0u; i < 16u; ++i)
-            if (base + i < e->project.seq_len && !e->project.steps[base + i].skip)
-                mask |= bit_u32(white_key_notes[i]);
-        if (ui->transport->running && at >= base && at < base + 16u)
-            mask ^= bit_u32(white_key_notes[at - base]);
-    } else if (ui->page == MELLO_UI_SEQ_STEP) {
-        uint8_t p = (uint8_t)(ui->selected_step % 16u);
-        if (ui->selected_step / 16u == ui->step_bank) mask |= bit_u32(white_key_notes[p]);
-    } else if (ui->page == MELLO_UI_SEQ_SEGMENT) {
-        /* where each segment starts, lit; the playhead flips its key */
+            if (base + i < e->project.seq_len && !e->project.steps[base + i].skip) glow |= WK(i);
+        if (running && at >= base && at < base + 16u) lit |= WK(at - base);
+        if (ui->page == MELLO_UI_HOME && ui->held_step != MELLO_UI_NO_STEP && ui->held_step / 16u == ui->step_bank)
+            lit |= WK(ui->held_step);
+        if (ui->page == MELLO_UI_SEQ_STEP && ui->selected_step / 16u == ui->step_bank) lit |= WK(ui->selected_step);
+    } else if (ui->page == MELLO_UI_SEQ_SEGMENT) { /* where each segment starts glows; the playhead lit */
         uint8_t base = (uint8_t)(ui->step_bank * 16u), at = ui->transport->display_step,
                 b[MELLO_MAX_SEGMENTS + 1u], sc = mello_segment_bounds(&e->project, b);
         for (i = 0u; i < sc; ++i)
-            if (b[i] >= base && b[i] < base + 16u) mask |= bit_u32(white_key_notes[b[i] - base]);
-        if (ui->transport->running && at >= base && at < base + 16u)
-            mask ^= bit_u32(white_key_notes[at - base]);
-    } else if (ui->page == MELLO_UI_SEQ_LOOP) {
-        mask |= bit_u32(white_key_notes[ui->selected_loop_step]);
+            if (b[i] >= base && b[i] < base + 16u) glow |= WK(b[i] - base);
+        if (running && at >= base && at < base + 16u) lit |= WK(at - base);
+    } else if (ui->page == MELLO_UI_SEQ_LOOP) { /* the cycle's positions glow, the picked one lit */
+        for (i = 0u; i < e->loop_cycle.length && i < 8u; ++i) glow |= WK(i);
+        if (e->loop_cycle.active && running) lit |= WK(e->loop_cycle_pos);
+        lit |= WK(ui->selected_loop_step);
     } else if (ui->page == MELLO_UI_SEQ_SLOTSEQ) {
-        mask |= bit_u32(white_key_notes[ui->selected_slot_seq_step % 16u]);
-    } else if (ui->page == MELLO_UI_RANDOM) {
-        for (i = 0u; i < random_target_count(); ++i)
-            if (e->randomize.mask & random_target_bit(i)) mask |= bit_u32(white_key_notes[i]);
-    } else if (ui->page == MELLO_UI_SLOTS) {
+        for (i = 0u; i < e->slot_seq.length && i < 16u; ++i) glow |= WK(i);
+        lit |= WK(ui->selected_slot_seq_step);
+    } else if (ui->page == MELLO_UI_RANDOM) { /* the targets glow, those a roll touches lit */
+        for (i = 0u; i < random_target_count(); ++i) {
+            glow |= WK(i);
+            if (e->randomize.mask & random_target_bit(i)) lit |= WK(i);
+        }
+    } else if (ui->page == MELLO_UI_SLOTS) { /* saved slots glow, the picked one lit */
         uint8_t base = (uint8_t)(ui->slot_bank * 16u);
         for (i = 0u; i < 16u; ++i)
-            if (base + i < MELLO_MAX_SLOTS && e->slots[base + i].valid) mask |= bit_u32(white_key_notes[i]);
-        mask |= bit_u32(white_key_notes[ui->selected_slot % 16u]);
-    } else if (ui->page == MELLO_UI_DOT) {
+            if (base + i < MELLO_MAX_SLOTS && e->slots[base + i].valid) glow |= WK(i);
+        lit |= WK(ui->selected_slot);
+    } else if (ui->page == MELLO_UI_DOT) { /* the cells that are on glow, the read position lit */
         uint16_t bits = e->dot[ui->selected_dot_target].cells;
         int8_t at = e->dot_active_cell[ui->selected_dot_target];
         for (i = 0u; i < 16u; ++i)
-            if (bits & (uint16_t)(1u << i)) mask |= bit_u32(white_key_notes[i]);
-        if (at >= 0 && at < 16)
-            mask ^= bit_u32(white_key_notes[at]); /* the read position: inverted, so it shows */
-    } else if (ui->page == MELLO_UI_TURING) {
+            if (bits & (uint16_t)(1u << i)) glow |= WK(i);
+        if (at >= 0 && at < 16) lit |= WK(at);
+    } else if (ui->page == MELLO_UI_TURING) { /* the bits that are set glow, the one read lit */
         uint8_t base = (uint8_t)(ui->tm_bank * 16u);
         for (i = 0u; i < 16u; ++i)
-            if (e->tm_bool_reg[base + i]) mask |= bit_u32(white_key_notes[i]);
-    } else if (ui->page == MELLO_UI_SUB) { /* BASS SEQ's steps lit; its playhead flips its key */
+            if (e->tm_bool_reg[base + i]) glow |= WK(i);
+        if (e->tm.on && e->tm_active_index >= (int8_t)base && e->tm_active_index < (int8_t)(base + 16u))
+            lit |= WK(e->tm_active_index - base);
+    } else if (ui->page == MELLO_UI_SUB) { /* BASS SEQ's steps that play glow; its playhead and the picked step lit */
         for (i = 0u; i < e->bass.length; ++i)
-            if (e->bass.steps[i].on) mask |= bit_u32(white_key_notes[i]);
-        if (ui->transport->running && e->bass.on && e->bass_step >= 0)
-            mask ^= bit_u32(white_key_notes[(uint8_t)e->bass_step]);
+            if (e->bass.steps[i].on) glow |= WK(i);
+        if (running && e->bass.on && e->bass_step >= 0) lit |= WK((uint8_t)e->bass_step);
+        lit |= WK(ui->selected_sub_x_step);
 #if MELLO_FEATURE_CHORD_MACHINE
     } else if (ui->page == MELLO_UI_CHORD) {
-        if (ui->chord_subpage == 3u) {
+        if (ui->chord_subpage == 3u) { /* the grid's cells glow, the one read lit */
             uint16_t bits = e->chord.grid_cells;
             for (i = 0u; i < 16u; ++i)
-                if (bits & (uint16_t)(1u << i)) mask |= bit_u32(white_key_notes[i]);
+                if (bits & (uint16_t)(1u << i)) glow |= WK(i);
+            if (e->chord_grid_active_cell >= 0) lit |= WK((uint8_t)e->chord_grid_active_cell);
         } else if (ui->chord_subpage == 4u) {
-            if (ui->selected_chord_pattern < 16u)
-                mask |= bit_u32(white_key_notes[ui->selected_chord_pattern]);
-        } else {
-            for (i = 0u; i < e->chord.length && i < 16u; ++i) mask |= bit_u32(white_key_notes[i]);
-            if (ui->selected_chord_step < 16u) mask |= bit_u32(white_key_notes[ui->selected_chord_step]);
+            for (i = 0u; i < e->chord.pattern_length && i < 16u; ++i) glow |= WK(i);
+            lit |= WK(ui->selected_chord_pattern);
+        } else { /* the chain's chords glow; the one sounding and the picked one lit */
+            for (i = 0u; i < e->chord.length && i < 16u; ++i) glow |= WK(i);
+            if (running && e->chord.on && e->chord_voiced_slot < e->chord.length) lit |= WK(e->chord_voiced_slot);
+            lit |= WK(ui->selected_chord_step);
         }
 #endif
-    } else if (ui->page == MELLO_UI_DRUMS) {
-        /* the picked voice's hits lit; the drums' playhead flips its key */
+    } else if (ui->page == MELLO_UI_DRUMS) { /* the picked voice's hits glow; the playhead and the picked step lit */
         uint16_t h = e->drums.hits[ui->selected_drum_voice % MELLO_DRUM_VOICES];
         for (i = 0u; i < e->drums.length; ++i)
-            if (h & (1u << i)) mask |= bit_u32(white_key_notes[i]);
-        if (ui->transport->running && e->drums.on && e->drum_step >= 0)
-            mask ^= bit_u32(white_key_notes[(uint8_t)e->drum_step]);
-    } else if (ui->page == MELLO_UI_SAMPLE_RESERVED) {
+            if (h & (1u << i)) glow |= WK(i);
+        if (running && e->drums.on && e->drum_step >= 0) lit |= WK((uint8_t)e->drum_step);
+        lit |= WK(ui->selected_drum_step);
+    } else if (ui->page == MELLO_UI_SAMPLE_RESERVED) { /* the loaded slots glow, the one edited lit */
         for (i = 0u; i < MELLO_SAMPLE_SLOT_COUNT; ++i)
-            if (ui->sample_bank && ui->sample_bank->meta[i].loaded) mask |= bit_u32(white_key_notes[i]);
-        if (e->sample.edit_slot < MELLO_SAMPLE_SLOT_COUNT)
-            mask |= bit_u32(white_key_notes[e->sample.edit_slot]);
+            if (ui->sample_bank && ui->sample_bank->meta[i].loaded) glow |= WK(i);
+        if (e->sample.edit_slot < MELLO_SAMPLE_SLOT_COUNT) lit |= WK(e->sample.edit_slot);
     }
-    return mask;
+#undef WK
+    if (!notes_are_keys) /* the black keys: one with a function glows; on (a switch that is on, PERF open) or held, lit */
+        for (i = 0u; i < 11u; ++i) {
+            const MelloContextAction *a = context_action(ui->page, i);
+            uint32_t k = bit_u32(BLACK_KEY_NOTES[i]);
+            if (!a || a->verb == MELLO_CTX_NONE) continue;
+            glow |= k;
+            if (ctx_lit(ui, a->verb) > 0 || (ui->held_notes & k)) lit |= k;
+        }
+    *lit_out = lit;
+    *glow_out = glow & ~lit;
 }
 
 static uint32_t calc_button_leds(MelloUi *ui)
@@ -7128,16 +7150,22 @@ static uint32_t calc_button_leds(MelloUi *ui)
 
 void mello_ui_sync_leds(MelloUi *ui, const MelloUiDrawOps *ops)
 {
-    uint32_t km, bm, ch;
+    uint32_t km, gm, bm, ch;
     uint8_t i;
     if (!ui || !ops) return;
-    km = calc_key_leds(ui);
+    calc_key_levels(ui, &km, &gm);
     bm = calc_button_leds(ui);
     if (ops->key_led) {
         ch = km ^ ui->last_key_led_mask;
         for (i = 0u; i < 27u; ++i)
             if (ch & bit_u32(i)) ops->key_led(ops->ctx, i, (km & bit_u32(i)) != 0u);
     }
+    if (ops->key_glow) { /* G5's middle level */
+        ch = gm ^ ui->last_key_glow_mask;
+        for (i = 0u; i < 27u; ++i)
+            if (ch & bit_u32(i)) ops->key_glow(ops->ctx, i, (gm & bit_u32(i)) != 0u);
+    }
+    ui->last_key_glow_mask = gm;
     if (ops->button_led) {
         ch = bm ^ ui->last_button_led_mask;
         for (i = 0u; i < MELLO_UI_BUTTON_COUNT; ++i)

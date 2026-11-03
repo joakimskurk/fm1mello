@@ -277,7 +277,7 @@ static void render_random_length(unsigned n)
     MelloTransport t;
     MelloStorage st;
     MelloUi ui;
-    MelloUiDrawOps ops = {fill_cb, text_cb, 0, 0, 0, 0};
+    MelloUiDrawOps ops = {fill_cb, text_cb, 0, 0, 0, 0, 0};
     unsigned i;
     mello_project_defaults(&p);
     p.seq_len = (uint8_t)n;
@@ -313,7 +313,7 @@ static void check_ui_contract(void)
     MelloTransport t;
     MelloStorage st;
     MelloUi ui;
-    MelloUiDrawOps ops = {fill_cb, text_cb, 0, 0, 0, 0};
+    MelloUiDrawOps ops = {fill_cb, text_cb, 0, 0, 0, 0, 0};
     int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
     MelloEngine expected;
     unsigned n;

@@ -66,7 +66,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F10 | LO CUT where it is found (E11). Done 2026-11-03 (0.5-f51): on at 120 Hz on a new project; its silence bug fixed | 2026-11-02, 11 |
 | F11 | K1-K4 the same on every voice (E12, G6). Done 2026-11-03 (0.5-f54) | 2026-11-02, 12 |
 | F12 | The screen in its new order (E3, G7). Done 2026-11-03 (0.5-f54) | 2026-11-02, 3 |
-| F13 | The lights by one rule (E8, G5) | 2026-11-02, 8 |
+| F13 | The lights by one rule (E8, G5). Done 2026-11-03 (0.5-f55); the glow costs 2 points of the chip | 2026-11-02, 8 |
 | F14 | EVOLVE, DOT and the LFO seen moving: a second thumb on the modulated value (E7 (2)) | 2026-11-02, 7 |
 | F15 | GROOVE, a second MUSICAL: rolls, ties, ghost notes, rests (E10) | 2026-11-02, 10 |
 | F16 | The reverb's noise confirmed or found (E5): a recording from the emulator, then the FM-1 | 2026-11-02, 5 |

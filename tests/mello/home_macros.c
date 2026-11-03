@@ -85,7 +85,7 @@ static MelloUi ui;
 
 static void render(void)
 {
-    MelloUiDrawOps ops = {fill, text, led, led, 0, 0};
+    MelloUiDrawOps ops = {fill, text, led, led, 0, 0, 0};
     header[0] = 0;
     memset(label, 0, sizeof label);
     ui.dirty = MELLO_UI_DIRTY_ALL;

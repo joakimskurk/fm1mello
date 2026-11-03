@@ -2,13 +2,13 @@
 /* Copyright (C) 2026 joakimskurk */
 /* Phase 3, PERFORM HOME (docs/mello/UI_ICEBERG.md): K1-K4 are CUTOFF / DECAY / SPACE / DRIVE; a white key held down
  * holds its step for K1-K4 and, let go without a turn, switches the step on/off; keys past the length do nothing;
- * the step LEDs show the steps that are on, with the playhead flipping its key. */
+ * the step LEDs: the steps that are on glow, the playhead lit (G5). */
 #include <stdio.h>
 #include <string.h>
 
 #include "mello_ui.h"
 
-static uint32_t leds;
+static uint32_t leds, glows;
 static void fill(void *c, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t col)
 {
     (void)c, (void)x, (void)y, (void)w, (void)h, (void)col;
@@ -21,6 +21,11 @@ static void key_led(void *c, uint8_t key, bool on)
 {
     (void)c;
     if (on) leds |= 1u << key;
+}
+static void key_glow(void *c, uint8_t key, bool on)
+{
+    (void)c;
+    if (on) glows |= 1u << key;
 }
 static void btn_led(void *c, uint8_t b, bool on)
 {
@@ -59,7 +64,7 @@ int main(void)
     static MelloTransport t;
     static MelloStorage st;
     static MelloUi u;
-    MelloUiDrawOps o = {fill, text, key_led, btn_led, 0, 0};
+    MelloUiDrawOps o = {fill, text, key_led, btn_led, 0, 0, key_glow};
     uint8_t k3 = white(2u), k16 = white(15u);
     uint16_t cut, decay, rel;
 
@@ -126,16 +131,16 @@ int main(void)
     if (t.engine.project.seq_len != 8u || u.held_step != MELLO_UI_NO_STEP)
         return fail("a key past the length acted");
 
-    /* LEDs: steps 1-8 on except W3 off; running at step 5 flips W5. */
+    /* LEDs (G5): steps 1-8 on except W3 off glow; running at step 5, W5 lit (the playhead), past the length dark */
     t.engine.project.steps[2].skip = true;
     t.running = true;
     t.display_step = 4u;
-    leds = 0u;
-    u.last_key_led_mask = 0u; /* sync reports changes only: from all-off, every lit key is reported */
+    leds = glows = 0u;
+    u.last_key_led_mask = u.last_key_glow_mask = 0u; /* sync reports changes only: from all-off, all reported */
     u.dirty |= MELLO_UI_DIRTY_LEDS;
     mello_ui_sync_leds(&u, &o);
-    if (!(leds & (1u << white(0u))) || (leds & (1u << k3)) || (leds & (1u << white(4u))) ||
-        (leds & (1u << white(8u))))
+    if (!(glows & (1u << white(0u))) || ((glows | leds) & (1u << k3)) || !(leds & (1u << white(4u))) ||
+        ((glows | leds) & (1u << white(8u))) || (leds & (1u << white(0u))))
         return fail("step LEDs");
 
     /* The rail: RND then UNDO gives back the pattern, UNDO again redoes; MUT moves pitches only. */

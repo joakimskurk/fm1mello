@@ -15,6 +15,7 @@
 
 static char header[64];
 static uint32_t key_leds = 0x07FFFFFFu; /* the UI assumes every LED lit at init and only sends changes */
+static uint32_t key_glows = 0x07FFFFFFu; /* (and every glow) */
 static void fill(void *c, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t col)
 {
     (void)c;
@@ -47,6 +48,14 @@ static void key_led(void *c, uint8_t i, bool on)
     else
         key_leds &= ~(1u << i);
 }
+static void key_glow(void *c, uint8_t i, bool on)
+{
+    (void)c;
+    if (on)
+        key_glows |= 1u << i;
+    else
+        key_glows &= ~(1u << i);
+}
 static void button_led(void *c, uint8_t i, bool on)
 {
     (void)c;
@@ -68,7 +77,7 @@ static uint32_t ms = 1000u;
 
 static void render(void)
 {
-    MelloUiDrawOps ops = {fill, text, key_led, button_led, 0, 0};
+    MelloUiDrawOps ops = {fill, text, key_led, button_led, 0, 0, key_glow};
     header[0] = 0;
     ui.dirty = MELLO_UI_DIRTY_ALL;
     mello_ui_render(&ui, &ops);
@@ -135,12 +144,16 @@ int main(void)
     tap_button(MELLO_UI_BTN_EDIT);
     render();
     CHECK(strstr(header, "KEYS"), "EDIT tapped: KEYS, the header reads \"%s\"", header);
-    CHECK(popcount(key_leds) == 16u, "C minor lights %u of 27 keys, wanted 16", popcount(key_leds));
-    CHECK(key_leds & (1u << 7), "C4 (key 8) is lit");
-    CHECK(!(key_leds & (1u << 8)), "C#4 (key 9) is dark");
+    /* G5: the scale's tones glow, the root lit */
+    CHECK(popcount(key_leds | key_glows) == 16u, "C minor lights %u of 27 keys, wanted 16",
+          popcount(key_leds | key_glows));
+    CHECK((key_leds & (1u << 7)) && !(key_glows & (1u << 7)), "C4 (key 8), the root, is lit");
+    CHECK(popcount(key_leds) == 2u, "the root lit on its 2 keys, C4 and C5 (%u)", popcount(key_leds));
+    CHECK(!((key_leds | key_glows) & (1u << 8)), "C#4 (key 9) is dark");
     e->project.scale = MELLO_SCALE_CHROMATIC;
     render();
-    CHECK(popcount(key_leds) == 27u, "CHROMATIC lights every key (%u)", popcount(key_leds));
+    CHECK(popcount(key_leds | key_glows) == 27u, "CHROMATIC lights every key (%u)",
+          popcount(key_leds | key_glows));
     e->project.scale = MELLO_SCALE_MINOR;
 
     /* REC > SEQ, stopped: the keys write step 1, 2, 3 ..., a key off the scale rounded */

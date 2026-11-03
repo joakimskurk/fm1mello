@@ -1235,6 +1235,20 @@ every page has its new height without its own code changing; the readout and the
 rows. Two truncations it showed were fixed (a SEGMENT pill with 'A13x4', a cutoff of four digits in Hz now whole).
 Tests moved to the new rows (the strip's, K1-K4's, the header's count); Big screen's mirror check is pixel-exact.
 
+## The lights by one rule (2026-11-03)
+
+CONTROL_GRAMMAR's G5 (ROADMAP E8, F13). Every page used on and off only and marked the playhead by flipping its key,
+so it went dark on a step that plays and lit on one that does not; the black keys were never lit. Now three levels,
+on every page and on both kinds of key: lit = now, active or held (the playhead, the step or cell in focus or held,
+the read position, a switch that is on, PERF open, the root in KEYS); glow = set or there (a step that plays, a cell
+that is on, a saved slot, a chain's chord, a scale tone, a black key that has a function); dark = nothing. The glow is
+the HAL's existing layer (fm1_led_dim, FM1_GLOW_NS a frame), reached by a small helper in hal/fm1_input.h
+(fm1_led_glow_key, Dinghy's file) and a key_glow draw op. Its cost, measured in fm1-emu: the default pattern playing
+from 34.0% to 36.0% of the chip (instruction count: the timer's tick waits out the glow pulse where the shift is
+shorter than it); a cheaper timing (no reads once the pulse is over) gave nothing and was not kept. How bright the
+glow reads against lit is to be checked on an FM-1 (F24). Tests: ui_home_perform (steps glow, the playhead lit),
+keys_record (scale tones glow, the root lit).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

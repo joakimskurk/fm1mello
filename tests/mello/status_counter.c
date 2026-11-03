@@ -63,7 +63,7 @@ static void fresh(uint16_t master_len)
 static const char *
 status_at(uint32_t us) /* poll up to us, then render: what the status line's counter reads */
 {
-    MelloUiDrawOps ops = {fill, text, led, led, 0, 0};
+    MelloUiDrawOps ops = {fill, text, led, led, 0, 0, 0};
     for (; polled_us <= us; polled_us += 1000u)
         mello_transport_poll_ahead(&t, polled_us, MELLO_TRANSPORT_LOOKAHEAD_US);
     status[0] = 0;

@@ -155,7 +155,7 @@ static void black(MelloUi *u, uint32_t ms, uint8_t pos)
 }
 static void render(MelloUi *u, Capture *cap)
 {
-    MelloUiDrawOps ops = {fill, text, led_key, led_btn, cap, 0};
+    MelloUiDrawOps ops = {fill, text, led_key, led_btn, cap, 0, 0};
     memset(cap, 0, sizeof *cap);
     u->dirty = MELLO_UI_DIRTY_ALL;
     mello_ui_render(u, &ops);

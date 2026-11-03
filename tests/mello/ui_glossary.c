@@ -119,7 +119,7 @@ int main(void)
     for (page = MELLO_UI_HOME; page <= MELLO_UI_MIX; ++page)
         for (sub = 0; sub < subcount((MelloUiPage)page); ++sub) {
             Foot f;
-            MelloUiDrawOps ops = {fill, text, led, led, &f, 0};
+            MelloUiDrawOps ops = {fill, text, led, led, &f, 0, 0};
             memset(&f, 0, sizeof f);
             mello_project_defaults(&p);
             mello_transport_init(&t, &p, 1u, midi, NULL);
