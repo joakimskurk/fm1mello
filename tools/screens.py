@@ -206,6 +206,13 @@ def the_tour():
     t.keys(B5, 120)  # PERF tapped: PERFORM stays open
     t.shot("perform", "PERFORM", "—", "B5 PERF: the white keys are the performance actions, on every part")
     t.btn(HOME)
+    t.btn(LFO)
+    t.btn(LFO)  # DOT, on its first matrix (ACCENT)
+    for k in (0, 4, 9, 14, 17, 23):  # white keys: cells on (the shot shows which)
+        t.keys(1 << k, 120)
+    t.wait(1500)
+    t.shot("dot-playing", None, None, "LFO > DOT while playing: the cells on glow, the read position framed, its trail", settle=0)
+    t.btn(HOME)
     t.btn(PLAY)
     t.end()
     return t

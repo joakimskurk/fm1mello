@@ -72,7 +72,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F16 | The reverb's noise confirmed or found (E5): a recording from the emulator, then the FM-1 | 2026-11-02, 5 |
 | F17 | Music units on the remaining pages (Phase 3). Done 2026-11-03 (0.5-f57): KEY's ROOT a note (C4), a LOOP slot's KEY a pitch class (D); the other bare numbers are counts | 2026-10-29 |
 | F18 | HOME's own black keys once PERFORM exists (G4). Done 2026-11-03: - + RST CLR stay, MUT went to B6 | 2026-11-03, 6 |
-| F19 | DOT's picture: "much better than the HTML" was asked; it kept its own body in C3 | 2026-10-29 (h3) |
+| F19 | DOT's picture: "much better than the HTML" was asked; it kept its own body in C3. Looked at 2026-11-03 on the new screen: it holds (the grid fills the taller body, the read position, trail and route numbers show); no redraw. The UI map's DOT shots were all empty matrices, stopped; a playing shot with cells on (dot-playing) is in the README's tour | 2026-10-29 (h3) |
 | F20 | The output level: as quiet as the HTML (about -10 dB RMS); MASTER or an outer gain, a product choice | Phase 2 |
 | F21 | RAM: the stack's high-water mark, the 60 B event, UNDO as one packed slot (B4) | 2026-10-31 |
 | F22 | Storage: CC 113 on channel 16 can clear a sample slot; a save erases 10 sectors (a stall) (Phase 1, P2) | review |
@@ -93,7 +93,8 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
    2026-11-03 (0.5-f53).
 4. **The screen and the hands**: F11, F12, F13 and F14 as one UI round (they all move the same zones and lights), F17
    with them; screens, UI_MAP and the README once at the end. Done 2026-11-03 (0.5-f54 .. f57).
-5. **Music**: F15 GROOVE; F19 if the new screen leaves DOT's picture behind.
+5. **Music**: F15 GROOVE; F19 if the new screen leaves DOT's picture behind. Done 2026-11-03: GROOVE (0.5-f58); DOT's
+   picture holds, a playing shot added.
 6. **Room and safety**: F21, F22, F23; F20 decided by ear.
 7. **On the device**: F24 and F16.
 
