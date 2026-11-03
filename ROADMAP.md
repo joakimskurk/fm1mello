@@ -79,6 +79,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F23 | CI: the 80 / 100 MHz emulator smokes the old build script ran (Phase 0). Done 2026-11-03 locally: tools/emu_smoke.sh and `make emu` (fm1-emu, not the web emulator); the budget report was already build.py's. In CI still to do: the shared workflow needs fm1-emu, and a workflow change needs the push token's workflow scope | review |
 | F24 | On the FM-1, when there is one: first flash, the hand checklist (C4), E5, E8's levels, Big screen | Phase 1 |
 | F25 | The delay's ping-pong: the echoes left and right in turn (one line, read at the time and twice it, the feedback from the second at its square) | 2026-11-02, 11 |
+| F26 | Gain compensation where a drive is turned (asked 2026-11-03 with F20). Done 2026-11-03 (0.5-f62): the kit's DRIVE/FOLD and a sample's DIST; the kick's TONE and the bass's DRIVE measured and already level (DECISIONS "Distortion keeps its level") | 2026-11-03 |
 
 ### The order (waves)
 
@@ -95,7 +96,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
    with them; screens, UI_MAP and the README once at the end. Done 2026-11-03 (0.5-f54 .. f57).
 5. **Music**: F15 GROOVE; F19 if the new screen leaves DOT's picture behind. Done 2026-11-03: GROOVE (0.5-f58); DOT's
    picture holds, a playing shot added.
-6. **Room and safety**: F21, F22, F23; F20 decided by ear.
+6. **Room and safety**: F21, F22, F23; F20 decided by ear. Done 2026-11-03 (0.5-f59 .. f62), with F26.
 7. **On the device**: F24 and F16.
 
 The 2026-11-02 list below keeps each item's findings and work in full.

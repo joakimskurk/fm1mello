@@ -1339,6 +1339,29 @@ LSB above zero for ever, and at +11 dB they would have kept it from ever being s
 caught that). `make parity` renders with the gain at 0 dB (-DMELLO_OUTPUT_GAIN_Q12=4096), so it still compares the
 engine with the HTML and not the FM-1's output stage.
 
+## Distortion keeps its level (2026-11-03)
+
+Asked for with the output level: gain compensation wherever a drive is turned ("fine on the main synth, missing on
+the drums, among others"). The main DIST had it (its curve scaled so a sine at -8 dBFS keeps its AMT 0 level), and
+so did the oscillators' SAT. Measured alone (tests/mello/drive_makeup.c, the output's gain at 0 dB so the limiter
+hides nothing), against the same part with no drive, 25 .. 100%:
+
+| drive | before | now |
+|---|---|---|
+| the kit's DRIVE | +5.5 .. +7.1 dB (its fixed -6 dB at full was not enough) | -0.2 .. -1.2 dB |
+| the kit's DRIVE with FOLD 60% | +3.6 .. +6.9 dB | -0.6 .. -1.0 dB |
+| the kick's TONE (its own drive) | within 0.2 dB | unchanged |
+| the bass's DRIVE | -1.6 .. +1.1 dB | unchanged |
+
+So the kit's DRIVE was the one that needed it, and a sample slot's DIST (soft_drive's up to 1.73x: a sample at -6
+dBFS ~4.5 dB louder at full, worked out from the curve; no render test, as it needs a sample loaded). Both now have
+a makeup worked out on the main loop when the config changes (the stage's mean |y| held to its level without the
+drive) and the render only multiplies. The kit's DRIVE is modulated, so it is a table of 17 points over DRIVE (with
+the config's FOLD), read with a multiply, no divide. A single sine did not fit the kit (its hits are transients, and
+the tails are what a drive lifts most): its reference is a hit, a sine dying away from about a kick's peak. The
+kick's TONE and the bass's DRIVE stay as they were; the test keeps them within 2 dB. The snare's fixed crunch has no
+knob and stays part of its sound.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

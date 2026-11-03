@@ -352,6 +352,11 @@ typedef struct {
     uint16_t reverb_send_permille;
     int16_t sub_dist_curve[257];
     int16_t pending_sub_dist_curve[257];
+    /* Gain compensation for the drives (DECISIONS "Distortion keeps its level"), worked out on the main loop when
+     * the config changes and taken over with it (apply_pending), Q12: the kit's DRIVE at 0, 62.5 .. 1000 (with its
+     * FOLD), each sample slot's DIST. */
+    int16_t drum_makeup_q12[17], pending_drum_makeup_q12[17];
+    int16_t sample_makeup_q12[MELLO_SAMPLE_SLOT_COUNT], pending_sample_makeup_q12[MELLO_SAMPLE_SLOT_COUNT];
     int16_t main_dist_curve[257]; /* Tone.Distortion after the main filter: always in the path */
     int16_t pending_main_dist_curve[257];
     int32_t main_dist_prev;

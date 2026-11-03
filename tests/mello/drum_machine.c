@@ -200,7 +200,8 @@ int main(void)
             }
         }
         printf("DRIVE and FOLD at full: peak %d (clean %d)\n", (int)peak, (int)clean);
-        CHECK(peak > clean / 2 && peak <= 32767, "DRIVE and FOLD: peak %d, clean %d", (int)peak, (int)clean);
+        /* the level is held to the clean kit's (drive_makeup: mean, not peak), so the flattened peaks sit lower */
+        CHECK(peak > clean / 8 && peak <= 32767, "DRIVE and FOLD: peak %d, clean %d", (int)peak, (int)clean);
     }
 
     for (v = 0u; v < 7u; ++v) { /* each voice and GLITCH kind, plain and crushed, at its extremes */

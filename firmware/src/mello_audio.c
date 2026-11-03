@@ -705,8 +705,7 @@ static int32_t drum_glue(int32_t s)
     return (x - (int32_t)(((int64_t)q * x) >> 16) / 3) * 2 / 3;
 }
 /* The kit's DRIVE (up to 8x, and FOLD's 4x more) into a soft clip, crossed by FOLD with a fold: past full scale the
- * wave turns back (a triangle, no loop). The level brought down as the drive rises; the tails come up, as in any
- * distortion: at 40% the kit ~6 dB louder (RMS), the mix with the default lead ~4 (MIX's PERC takes it back). */
+ * wave turns back (a triangle, no loop). Its level is held by drum_makeup_q12 (drums_makeup), not here. */
 static int32_t drum_drive(int32_t x, uint16_t drive, uint16_t fold, int32_t fold_q12)
 {
     int32_t y = (int32_t)(((int64_t)x * (1024 + (int32_t)drive * 7 + (int32_t)fold * 4)) >> 10), c, q, u, out;
@@ -718,7 +717,7 @@ static int32_t drum_drive(int32_t x, uint16_t drive, uint16_t fold, int32_t fold
         if (u >= 65536) u = 131071 - u;
         out += mul_q12((u - 32768) * 4 / 3 - out, fold_q12);
     }
-    return mul_q12(out, 4096 - (((int32_t)drive * 2097) >> 10)); /* down 1.9 dB at 40%, 6 dB at full */
+    return out;
 }
 /* One sample of the drums, in stereo (before LEVEL). music: the lead and sub as they are now, for STUTTER's memory. */
 static void drum_render(MelloAudio *a, int32_t music, int32_t *out_l, int32_t *out_r)
@@ -843,9 +842,12 @@ static void drum_render(MelloAudio *a, int32_t music, int32_t *out_l, int32_t *o
     l += mid, r += mid;
     {
         uint16_t drive = (uint16_t)clamp32((int32_t)a->drum_config.drive + a->drum_mod[3], 0, 1000);
-        if (drive | a->drum_config.fold) { /* the kit's own DRIVE (modulated) and FOLD */
-            l = drum_drive(l, drive, a->drum_config.fold, a->drum_fold_q12);
-            r = drum_drive(r, drive, a->drum_config.fold, a->drum_fold_q12);
+        if (drive | a->drum_config.fold) { /* the kit's own DRIVE (modulated) and FOLD, at the level it had without */
+            int32_t pos = ((int32_t)drive * 67109) >> 10, i = pos >> 12, f = pos & 4095, m; /* drive * 16 / 1000, Q12 */
+            m = a->drum_makeup_q12[i];
+            if (i < 16) m += ((a->drum_makeup_q12[i + 1] - m) * f) >> 12;
+            l = mul_q12(drum_drive(l, drive, a->drum_config.fold, a->drum_fold_q12), m);
+            r = mul_q12(drum_drive(r, drive, a->drum_config.fold, a->drum_fold_q12), m);
         }
     }
     *out_l = clamp32(l, -65535, 65535);
@@ -1008,7 +1010,7 @@ static int32_t sample_render_voice(MelloAudio *a, MelloAudioSampleVoice *v)
     y = s0 + ((s1 - s0) * (int32_t)(frac >> 8)) / 256;
     y = q15mul(y, v->env_q24 >> 8);
     y = q15mul(y, (int32_t)v->velocity * 258);
-    if (c->dist) y = soft_drive(y, c->dist, 500u);
+    if (c->dist) y = mul_q12(soft_drive(y, c->dist, 500u), a->sample_makeup_q12[v->slot]); /* as loud as without */
     y = y * (int32_t)c->level / 1000;
     v->pos_q16 += v->step_q16;
     return y;
@@ -1526,6 +1528,60 @@ static void build_main_dist_curve(int16_t curve[257], uint16_t amount, uint16_t 
     }
 }
 
+/* Distortion keeps its level (DECISIONS "Distortion keeps its level", 2026-11-03): each drive scaled so a sine at a
+ * reference level keeps the mean |y| it has without the drive, as the main DIST's curve is (above). Built on the main
+ * loop when the config changes; the render only multiplies. Q12, held to 1/8 .. 2x. */
+static int32_t makeup_from(uint32_t want, uint32_t got)
+{
+    uint32_t g;
+    want >>= 4, got >>= 4; /* sums of 64 |samples| up to 2^22: Q12 of them fits 32 bits */
+    if (!got) return 4096;
+    g = (want << 12) / got;
+    return (int32_t)(g < 512u ? 512u : (g > 8192u ? 8192u : g));
+}
+/* soft_drive at `amount` against no drive, on a sine at `ref` */
+static int32_t soft_drive_makeup_q12(uint16_t amount, int32_t ref)
+{
+    uint32_t want = 0u, got = 0u, k;
+    for (k = 0u; k < 64u; ++k) {
+        int32_t x = (SINE_Q15[k * 4u + 2u] * ref) >> 15, w = x, y = soft_drive(x, amount, 500u);
+        want += (uint32_t)(w < 0 ? -w : w);
+        got += (uint32_t)(y < 0 ? -y : y);
+    }
+    return makeup_from(want, got);
+}
+/* The kit's DRIVE at 0, 62.5 .. 1000 with its FOLD, against no drive, on a sine at about a hit's level */
+#define DRUM_MAKEUP_DECAY 80 /* the hit's decay a step: -0.2 .. -1.2 dB over DRIVE, with or without FOLD (drive_makeup) */
+/* The kit's DRIVE at 0, 62.5 .. 1000 with its FOLD, against no drive, on a hit: a sine dying away from about a
+ * kick's peak, so the attack and the tail the drive lifts both count */
+static void drums_makeup(int16_t t[17], uint16_t fold)
+{
+    int32_t fold_q12 = permille_q12(fold);
+    uint32_t i, k;
+    for (i = 0u; i <= 16u; ++i) {
+        uint32_t want = 0u, got = 0u;
+        uint16_t drive = (uint16_t)(i * 1000u / 16u);
+        int32_t env = 30000;
+        for (k = 0u; k < 256u; ++k) {
+            int32_t x = (SINE_Q15[(k * 8u + 2u) & 255u] * env) >> 15, y = drum_drive(x, drive, fold, fold_q12);
+            want += (uint32_t)(x < 0 ? -x : x);
+            got += (uint32_t)(y < 0 ? -y : y);
+            env -= env / DRUM_MAKEUP_DECAY;
+        }
+        t[i] = (int16_t)(drive | fold ? makeup_from(want, got) : 4096);
+    }
+}
+static void drives_makeup(MelloAudio *a)
+{
+    uint8_t s;
+    drums_makeup(a->pending_drum_makeup_q12, a->pending_drum_config.fold);
+    for (s = 0u; s < MELLO_SAMPLE_SLOT_COUNT; ++s)
+        a->pending_sample_makeup_q12[s] =
+            (int16_t)(a->pending_sample_config.slots[s].dist
+                          ? soft_drive_makeup_q12(a->pending_sample_config.slots[s].dist, 16384)
+                          : 4096);
+}
+
 /* Tone.Reverb's RT60 in ms for DECAY = i * 100 ms: its noise IR fades with exponentialApproachValueAtTime, tau =
  * ln(decay+1)/ln 200, so RT60 = 6.908 tau. 2.54 s at DECAY 6 s. */
 static const uint16_t TONE_REVERB_RT60_MS[601] = {
@@ -2002,6 +2058,8 @@ static void apply_pending(MelloAudio *a)
     a->sample_config = a->pending_sample_config;
     a->drum_config = a->pending_drum_config;
     a->bass_config = a->pending_bass_config;
+    memcpy(a->drum_makeup_q12, a->pending_drum_makeup_q12, sizeof a->drum_makeup_q12);
+    memcpy(a->sample_makeup_q12, a->pending_sample_makeup_q12, sizeof a->sample_makeup_q12);
 #if MELLO_FEATURE_CHORD_MACHINE
     {
         bool was_on = a->chord_config.on;
@@ -2126,6 +2184,7 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
     build_sub_dist_curve_for_drive(a->pending_sub_dist_curve, a->pending_sub_config.drive);
     build_main_dist_curve(a->pending_main_dist_curve, a->pending_fx.dist_amount,
                           a->pending_fx.dist_character);
+    drives_makeup(a);
     a->delay_buffer = db;
     a->delay_capacity = dc;
     a->reverb_buffer = rb;
@@ -2156,6 +2215,7 @@ void mello_audio_set_config(MelloAudio *a, const MelloSoundConfig *s, const Mell
     a->pending_fx = *f;
     a->pending_sub_config = *sub;
     a->pending_sample_config = *sample;
+    drives_makeup(a);
     config_update_end(a, update);
 }
 void mello_audio_set_sub_mute(MelloAudio *a, bool mute)
@@ -2199,6 +2259,7 @@ void mello_audio_set_drum_config(MelloAudio *a, const MelloDrumConfig *c)
     if (!a || !c) return;
     update = config_update_begin(a);
     mello_audio_drum_kit(c, &a->pending_drum_config);
+    drives_makeup(a);
     config_update_end(a, update);
 }
 #if MELLO_FEATURE_CHORD_MACHINE
