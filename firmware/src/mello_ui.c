@@ -5749,8 +5749,8 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
             l[0] = "KEY";
             if (ls->root_note < 0)
                 copy_s(v[0], "FOLLOW");
-            else
-                value_u(v[0], "", (uint32_t)ls->root_note);
+            else /* a pitch class, named (F17) */
+                copy_s(v[0], (const char *[12]){"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}[ls->root_note % 12]);
             l[1] = "SCALE";
             if (ls->scale_set < 0)
                 copy_s(v[1], "FOLLOW");
@@ -6055,7 +6055,7 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
 #endif
     case MELLO_UI_KEY_SCALE:
         l[0] = "ROOT";
-        value_u(v[0], "", e->project.root_note);
+        midi_note_name(v[0], e->project.root_note); /* a note, not a MIDI number (F17): 60 is C4 */
         l[1] = "SCALE";
         copy_s(v[1], mello_scale_name(e->project.scale));
         l[2] = "OCT";

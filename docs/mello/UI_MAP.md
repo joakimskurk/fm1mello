@@ -21,7 +21,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/random-mask.png" width="96" alt="RANDOM MASK"> | RANDOM | hold RNDMZR | MASK | `NONE ALL CLR PERF MUT UNDO RNDMZR` | INTENS MED · — · — · — |
 | <img src="../screens/random-links.png" width="96" alt="RANDOM LINKS"> | RANDOM | hold RNDMZR | LINKS | `NONE ALL CLR PERF MUT UNDO RNDMZR` | INTENS MED · — · — · — |
 | <img src="../screens/random-amounts.png" width="96" alt="RANDOM AMOUNTS"> | RANDOM | hold RNDMZR | AMOUNTS | `NONE ALL CLR PERF MUT UNDO RNDMZR` | AMOUNT PIT 10~ · — · — · — |
-| <img src="../screens/key-scale.png" width="96" alt="KEY / SCALE —"> | KEY / SCALE | SEL | — | `PERF MUT UNDO RNDMZR` | ROOT 60 · SCALE minor · OCT +0 · SPAN 2 |
+| <img src="../screens/key-scale.png" width="96" alt="KEY / SCALE —"> | KEY / SCALE | SEL | — | `PERF MUT UNDO RNDMZR` | ROOT C4 · SCALE minor · OCT +0 · SPAN 2 |
 | <img src="../screens/slots-load.png" width="96" alt="SLOTS LOAD"> | SLOTS | hold SAVE | LOAD | `PERF MUT UNDO RNDMZR` | — · VISIBLE 8 · — · — |
 | <img src="../screens/slots-rename.png" width="96" alt="SLOTS RENAME"> | SLOTS | hold SAVE | RENAME | `PERF MUT UNDO RNDMZR` | CURSOR 1 · CHAR - · — · — |
 | <img src="../screens/dot-accent.png" width="96" alt="DOT MATRIX ACCENT"> | DOT MATRIX | LFO | ACCENT | `ON RND RST FLW REV P M UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · CHANCE 100% · EVOLVE 0% |

@@ -1259,6 +1259,12 @@ page moved. A value row whose parameter is a modulation destination draws a seco
 is now; none when nothing moves it, so a still page looks as before. Which row is which destination is found from
 the row's label on the page (CUT, RES, NOISE, FM, ...), one table. Test: mod_view.
 
+## Notes by name (2026-11-03)
+
+ROADMAP F17 (Phase 3's music units). The KEY page showed ROOT as a MIDI number (60) and a LOOP slot's KEY as a pitch
+class (0-11); both are named now (C4; D), as the step pages already named their notes. The other bare numbers on the
+pages were looked at and are counts (HOLD 16, PULSES 6, SPAN 2) and stay numbers.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

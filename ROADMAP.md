@@ -70,7 +70,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F14 | EVOLVE, DOT and the LFO seen moving: a second thumb on the modulated value (E7 (2)). Done 2026-11-03 (0.5-f56) | 2026-11-02, 7 |
 | F15 | GROOVE, a second MUSICAL: rolls, ties, ghost notes, rests (E10) | 2026-11-02, 10 |
 | F16 | The reverb's noise confirmed or found (E5): a recording from the emulator, then the FM-1 | 2026-11-02, 5 |
-| F17 | Music units on the remaining pages (Phase 3) | 2026-10-29 |
+| F17 | Music units on the remaining pages (Phase 3). Done 2026-11-03 (0.5-f57): KEY's ROOT a note (C4), a LOOP slot's KEY a pitch class (D); the other bare numbers are counts | 2026-10-29 |
 | F18 | HOME's own black keys once PERFORM exists (G4). Done 2026-11-03: - + RST CLR stay, MUT went to B6 | 2026-11-03, 6 |
 | F19 | DOT's picture: "much better than the HTML" was asked; it kept its own body in C3 | 2026-10-29 (h3) |
 | F20 | The output level: as quiet as the HTML (about -10 dB RMS); MASTER or an outer gain, a product choice | Phase 2 |
@@ -92,7 +92,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 3. **Record**: F5 on every sequence page, drums included, on the same keyboard and UNDO as HOME's REC. Done
    2026-11-03 (0.5-f53).
 4. **The screen and the hands**: F11, F12, F13 and F14 as one UI round (they all move the same zones and lights), F17
-   with them; screens, UI_MAP and the README once at the end.
+   with them; screens, UI_MAP and the README once at the end. Done 2026-11-03 (0.5-f54 .. f57).
 5. **Music**: F15 GROOVE; F19 if the new screen leaves DOT's picture behind.
 6. **Room and safety**: F21, F22, F23; F20 decided by ear.
 7. **On the device**: F24 and F16.
