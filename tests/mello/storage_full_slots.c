@@ -79,8 +79,8 @@ static void fill_slots(MelloEngine *e)
 static int slots_equal(const MelloEngine *a, const MelloEngine *b)
 {
     unsigned i;
-    for (i = 0u; i < MELLO_MAX_SLOTS; ++i) /* everything but fx, which a slot does not keep (FX is global) */
-        if (memcmp(&a->slots[i], &b->slots[i], offsetof(MelloPatternSlot, fx))) return 0;
+    for (i = 0u; i < MELLO_MAX_SLOTS; ++i) /* a slot does not keep FX (it is global) */
+        if (memcmp(&a->slots[i], &b->slots[i], sizeof a->slots[i])) return 0;
     return 1;
 }
 

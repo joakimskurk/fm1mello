@@ -2350,7 +2350,6 @@ void mello_engine_capture_working(const MelloEngine *e, MelloPatternSlot *out)
     out->randomize = e->randomize;
     out->sound = e->sound;
     out->sample = e->sample;
-    out->fx = e->fx;
 }
 
 bool mello_engine_restore_working(MelloEngine *e, const MelloPatternSlot *snapshot)
@@ -2374,8 +2373,7 @@ bool mello_engine_restore_working(MelloEngine *e, const MelloPatternSlot *snapsh
     e->randomize = snapshot->randomize;
     e->randomize.mask &= MELLO_RAND_ALL;
     e->sound = sanitize_sound_config(snapshot->sound);
-    e->sample = sanitize_sample_config(snapshot->sample);
-    e->fx = sanitize_fx_config(snapshot->fx);
+    e->sample = sanitize_sample_config(snapshot->sample); /* (FX: its own section, SEC_FX) */
     e->playing = false;
     e->has_active_step = false;
     e->step_index = 0u;
@@ -2424,7 +2422,6 @@ bool mello_engine_import_slot(MelloEngine *e, uint8_t index, const MelloPatternS
     clean.randomize.mask &= MELLO_RAND_ALL;
     clean.sound = sanitize_sound_config(slot->sound);
     clean.sample = sanitize_sample_config(slot->sample);
-    clean.fx = sanitize_fx_config(slot->fx);
     e->slots[index] = clean;
     return true;
 }
@@ -2454,7 +2451,6 @@ bool mello_engine_save_slot(MelloEngine *e, uint8_t index, const char *name)
     e->slots[index].randomize = e->randomize;
     e->slots[index].sound = e->sound;
     e->slots[index].sample = e->sample;
-    mello_fx_defaults(&e->slots[index].fx); /* source slots strip global audio-FX fields */
     copy_name(e->slots[index].name, name);
     e->active_slot = (int8_t)index;
     return true;

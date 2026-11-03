@@ -735,7 +735,7 @@ typedef struct {
     MelloRandomizeConfig randomize;
     MelloSoundConfig sound;
     MelloSampleConfig sample;
-    MelloFxConfig fx; /* working snapshots persist FX; saved-slot loads intentionally ignore it */
+    /* (no FX: it is global, saved in SEC_FX; a copy in each of the 64 slots, never read, cost 3.5 KB of RAM) */
 } MelloPatternSlot;
 
 typedef enum {
