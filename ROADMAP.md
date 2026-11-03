@@ -3,6 +3,95 @@
 From the October 2026 review ([docs/review-2026-10/REVIEW.md](docs/review-2026-10/REVIEW.md)): keep the model,
 sequencer and storage; rewrite the sound to match the HTML, rebuild HOME as an instrument. One phase at a time.
 
+## Next: everything open, in one order (2026-11-03)
+
+The product owner's worry, 2026-11-03: the list grows, and the instrument must not get messy. So first the rules
+every change is checked against (G1-G8), then every open item from every list in this file and from the
+conversations since 2026-10-28 (F1-F24, with where each came from), then one order of work in waves. A wave is a
+set of items that touch the same keys, screens or parts, done together so a rule is changed once. Each item still
+lands as its own commit, test and package; DECISIONS.md gets each rule when it is applied.
+
+### The rules (G1-G8)
+
+Proposed 2026-11-03 from the rules decided 2026-10-31 (C2) and what playing 0.5-f46 showed. "Decide" marks a choice
+for the product owner.
+
+- **G1. B0 switches what the page plays.** On every page that has a part or a lane, B0 is its ON: BASS, CHORD (or
+  SUB MELLO), DRUMS, SAMPLE, EVOLVE, LOOP CYCLE, SLOT SEQ as now, and DOT for the picked matrix (today B0 is empty
+  there and the matrix cannot be switched off). Pages without one (SOUND, FX, KEY, GLOBAL, MIX, RANDOM, SLOTS)
+  keep their own first key.
+- **G2. A part's first page is enough to hear it.** What turns a part on and makes it play sits on its first
+  layer: BASS's PLAY gets SEQ (the bass sequencer on or off) on B1, in place of STEP, which only repeats what the
+  white keys do (a white key on BASS already turns a BASS SEQ step on or off).
+- **G3. REC records the part on screen.** The panel's REC, today used only in HOME's KEYS, arms recording for the
+  page's part on every page with a sequence: HOME and STEP the lead, BASS the bass line, CHORD (or SUB MELLO) the
+  chain, DRUMS the drums. The white keys are then a keyboard in the key now (OCT- / OCT+ move it); stopped, each key
+  writes the next step, playing, the step under the clock; one UNDO takes the take back; REC again or PLAY's stop
+  ends it. DRUMS: white keys 1-4 are KICK, SNARE, HAT and GLITCH, the next keys the hit's locks (accent, ratchet,
+  pitch down / up). HOME's EDIT > REC stays as it is (it cycles SEQ, BASS, CHORD).
+- **G4. Performance in one place.** Decide: B5 becomes PERF. Tapped, the PERFORM page opens with its own screen
+  and the white keys are 16 performance actions until PERF or a page button is pressed; held, the same for as long
+  as it is held. Every action acts on every part (E2). Proposed keys: FILL, REVERSE, REPEAT 1 / 2 / 4 / 8 beats,
+  MUTE LEAD / BASS / CHORDS / DRUMS (latched), MUTATE, RESTART, TRANSPOSE - / +, two left free. B6 is MUTATE on every
+  page (always one press away); B7 and B8 go to the pages' own keys. HOME's own keys then: decide which of - + MUT RST
+  CLR stay there (they are all in PERFORM).
+- **G5. The lights (E8).** Lit = now, active or held; glow = set or there; dark = nothing. The same on the white and
+  the black keys and on every page.
+- **G6. K1-K4 (E12).** A voice's first layer is K1 CUT, K2 RES, K3 DECAY or ENV, K4 LEVEL; WAVE and the rest on the
+  next layer. The sampler, which has no filter, keeps LEVEL first.
+- **G7. The screen (E3, chosen).** One line on top (the path, the key now, the count); the picture with the 18 px;
+  K1-K4; the black keys' strip at the bottom; the readout over K1-K4 and the strip.
+- **G8. A rule is a test.** The control contracts (control_authoritative_mapping, rotary_mapping_parity,
+  ui_glossary) hold G1-G6 page by page, so a new page or key cannot break them unnoticed.
+
+### Everything open (F1-F24)
+
+Done since the 2026-11-02 list: E1 (the key), E4 (the chords' defaults), E7's naming (LENGTH and RETRIG), E9 (the bass
+an octave lower), the screen chosen (E3's B and the readout at the bottom).
+
+| | Item | From |
+|---|---|---|
+| F1 | DOT: B0 is the picked matrix's ON (G1) | 2026-11-03, 1 |
+| F2 | BASS: SEQ on the first page's B1 (G2) | 2026-11-03, 2 |
+| F3 | The performance keys act on every part: drums, bass line, chords (E2) | 2026-11-02, 2; 2026-11-03, 4 |
+| F4 | PERFORM: one key opens the white keys as 16 actions, its own screen; MUTATE always on B6 (G4) | 2026-11-03, 6 |
+| F5 | REC on every page with a sequence, the drums included (G3) | 2026-11-01 (D14 did HOME); 2026-11-03, 5 |
+| F6 | SUB MELLO in place of the chord synth, its code kept behind the flag (E6) | 2026-11-02, 6 |
+| F7 | Room without a change to sound: the key scan's LED pulses, the chord config's copies (E6) | 2026-11-02, 6 |
+| F8 | Sends per part to reverb and delay; the bass out of the lead's filter (E11) | 2026-11-02, 11 |
+| F9 | Delay divisions: 32N, 16D, 2T, 2D, 1 BAR, ping-pong, and an honest limit (E11) | 2026-11-02, 11 |
+| F10 | LO CUT where it is found (E11) | 2026-11-02, 11 |
+| F11 | K1-K4 the same on every voice (E12, G6) | 2026-11-02, 12 |
+| F12 | The screen in its new order (E3, G7) | 2026-11-02, 3 |
+| F13 | The lights by one rule (E8, G5) | 2026-11-02, 8 |
+| F14 | EVOLVE, DOT and the LFO seen moving: a second thumb on the modulated value (E7 (2)) | 2026-11-02, 7 |
+| F15 | GROOVE, a second MUSICAL: rolls, ties, ghost notes, rests (E10) | 2026-11-02, 10 |
+| F16 | The reverb's noise confirmed or found (E5): a recording from the emulator, then the FM-1 | 2026-11-02, 5 |
+| F17 | Music units on the remaining pages (Phase 3) | 2026-10-29 |
+| F18 | HOME's own black keys once PERFORM exists (G4) | 2026-11-03, 6 |
+| F19 | DOT's picture: "much better than the HTML" was asked; it kept its own body in C3 | 2026-10-29 (h3) |
+| F20 | The output level: as quiet as the HTML (about -10 dB RMS); MASTER or an outer gain, a product choice | Phase 2 |
+| F21 | RAM: the stack's high-water mark, the 60 B event, UNDO as one packed slot (B4) | 2026-10-31 |
+| F22 | Storage: CC 113 on channel 16 can clear a sample slot; a save erases 10 sectors (a stall) (Phase 1, P2) | review |
+| F23 | CI: the 80 / 100 MHz emulator smokes the old build script ran (Phase 0) | review |
+| F24 | On the FM-1, when there is one: first flash, the hand checklist (C4), E5, E8's levels, Big screen | Phase 1 |
+
+### The order (waves)
+
+1. **The rules first** (G1-G8 into CONTROL_GRAMMAR.md and the contracts, nothing changes yet), then the two small
+   ones they show: F1, F2. Quick, and every later wave is checked against them.
+2. **The parts**: F6 SUB MELLO (it decides which parts there are), F7, then F8-F10 (a send per part needs the part
+   list), then F3, F4 and F18 together (the performance actions on every part, the PERFORM page, MUTATE, HOME's keys;
+   one change to the black keys, not three).
+3. **Record**: F5 on every sequence page, drums included, on the same keyboard and UNDO as HOME's REC.
+4. **The screen and the hands**: F11, F12, F13 and F14 as one UI round (they all move the same zones and lights), F17
+   with them; screens, UI_MAP and the README once at the end.
+5. **Music**: F15 GROOVE; F19 if the new screen leaves DOT's picture behind.
+6. **Room and safety**: F21, F22, F23; F20 decided by ear.
+7. **On the device**: F24 and F16.
+
+The 2026-11-02 list below keeps each item's findings and work in full.
+
 ## Next: the 2026-11-02 list (E1-E12)
 
 Twelve points from playing 0.5-f43 in the emulators, some raised before and lost on the way. Each says what was
@@ -160,9 +249,7 @@ Work: every voice's first layer is the same: K1 CUT, K2 RES, K3 the envelope's D
 bass, chord or SUB MELLO, the drums' voice with TONE as its cut; the sampler has no filter and keeps LEVEL first); WAVE and the rest go to the second layer;
 the control contracts (tests) hold the rule. With E3 and E8, one UI round: screens, UI_MAP, README after it.
 
-Order of work: E1 and E9 (notes in the wrong key or octave are bugs), E7's naming, E4 (defaults); then E6's choice,
-since E11 and E12 depend on which parts there are; E11; E2; E12, E3 and E8 as one UI round; E7's moving thumbs;
-E10; E5 confirmed on the device. Each lands as its own package and test, with DECISIONS updated.
+Order of work: replaced 2026-11-03 by the waves above (E1, E4, E7's naming and E9 done in this order first).
 
 ## Now: one thread, and room to run (2026-10-31)
 
