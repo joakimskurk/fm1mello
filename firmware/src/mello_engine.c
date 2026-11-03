@@ -383,7 +383,7 @@ static MelloFxConfig sanitize_fx_config(MelloFxConfig c)
     c.dist_tone = clamp_amount(c.dist_tone);
     c.dist_level = clamp_u16_range(c.dist_level, 200u, 1400u);
     c.delay_wet = clamp_amount(c.delay_wet);
-    if (c.delay_div > 8u) c.delay_div = 0u;
+    if (c.delay_div > 13u) c.delay_div = 0u; /* 9..13: 32N, 16D, 2T, 2D, 1 BAR (2026-11-03) */
     c.delay_time_ms = clamp_u16_range(c.delay_time_ms, 30u, 1500u);
     c.delay_feedback = clamp_u16_range(c.delay_feedback, 0u, 950u);
     c.delay_tone = clamp_amount(c.delay_tone);
@@ -1173,6 +1173,26 @@ void mello_sample_defaults(MelloSampleConfig *c)
     }
 }
 
+/* A division's time from a beat's (ms): the HTML's four first, then 16T .. 2N, then 32N, 16D, 2T, 2D, 1 BAR. */
+uint32_t mello_delay_div_ms(uint8_t div, uint32_t qms)
+{
+    switch (div) {
+    case 1: return qms / 4u;
+    case 2: return qms;
+    case 3: return qms / 3u;
+    case 4: return qms / 6u;          /* 16T */
+    case 5: return qms * 2u / 3u;     /* 4T */
+    case 6: return qms * 3u / 4u;     /* 8D */
+    case 7: return qms * 3u / 2u;     /* 4D */
+    case 8: return qms * 2u;          /* 2N */
+    case 9: return qms / 8u;          /* 32N */
+    case 10: return qms * 3u / 8u;    /* 16D */
+    case 11: return qms * 4u / 3u;    /* 2T */
+    case 12: return qms * 3u;         /* 2D */
+    case 13: return qms * 4u;         /* 1 BAR */
+    default: return qms / 2u;         /* 8N */
+    }
+}
 void mello_fx_defaults(MelloFxConfig *c)
 {
     if (!c) return;
@@ -1188,6 +1208,7 @@ void mello_fx_defaults(MelloFxConfig *c)
     c->delay_time_ms = 250u;
     c->delay_feedback = 320u;
     c->delay_tone = 720u;
+    c->delay_lowcut = 390u; /* LO CUT ~120 Hz on a new project's echoes (E11/F10; it was OFF, and hard to find) */
     c->delay_level = 750u;
     c->reverb_wet = 240u;
     c->reverb_size = 700u;

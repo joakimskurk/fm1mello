@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f50.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f51.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -196,7 +196,9 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   saturation, detune, PWM), the drums' (tune, decay, crush, drive) or the chords' (C.CUT, C.LEVEL). A negative
   depth inverts, so the chords can open while the lead closes. DOT's MOD lanes reach the same destinations.
 - **FX**. Distortion with a character and a tone (PRE-DIST puts the delay before it), a delay synced to the tempo
-  or free with feedback, low and high cut, and a reverb with size, decay, pre-delay and tone.
+  (32N to 1 BAR, triplets and dotted; past 1.49 s the line runs at half rate and reaches 2.97 s, a division past
+  even that shows a "~" and plays the longest it can) or free, with feedback and LO CUT (120 Hz on a new project)
+  and HI CUT on its echoes, and a reverb with size, decay, pre-delay and tone.
 - **Chords** (ARP > CHORD). A chain of up to eight chords in the key (degree, shape, inversion, spread, octave),
   sounded one of two ways, B2 POLY picking it per project. SUB MELLO (a new project's) is one voice that plays the
   chord's tones one at a time: BROKEN (low, high, middle, high, the default), WALK (the chord's tones on the beats,
@@ -293,7 +295,7 @@ K1-K4 with their default values.
 | SOUND | ENV | MOD ENV | `INIT F B < R UNDO RNDMZR` | AMT +0% · ATTACK 0MS · DECAY 300MS · TARGET CUTOFF |
 | SOUND | ENV | TRACKING | `INIT F B < R UNDO RNDMZR` | V.CUT +0% · V.LVL 100% · KEYTRK 0% · V.ENV +0% |
 | AUDIO FX | FX | DISTORTION | `PRE-DIST F B < R UNDO RNDMZR` | AMT 0% · MIX 100% · CHAR 35% · TONE 82% |
-| AUDIO FX | FX | DELAY SEND | `PRE-DIST F B < R UNDO RNDMZR` | WET 12% · FDBK 32% · LO CUT OFF · HI CUT 72% |
+| AUDIO FX | FX | DELAY SEND | `PRE-DIST F B < R UNDO RNDMZR` | WET 12% · FDBK 32% · LO CUT 120HZ · HI CUT 72% |
 | AUDIO FX | FX | DELAY CONFIG | `PRE-DIST F B < R UNDO RNDMZR` | SYNC ON · DIV 8N · TIME 250MS · LEVEL 75% |
 | AUDIO FX | FX | REVERB ROOM | `PRE-DIST F B < R UNDO RNDMZR` | WET 24% · SIZE 70% · DECAY 6.0S · TONE 62% |
 | AUDIO FX | FX | REVERB RETURNS | `PRE-DIST F B < R UNDO RNDMZR` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · — |

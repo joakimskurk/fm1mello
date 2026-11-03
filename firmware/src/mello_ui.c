@@ -481,16 +481,19 @@ static const char *filter_mode_name(MelloFilterMode m)
 
 static const char *delay_div_name(uint8_t d)
 {
-    static const char *n[9] = {"8N", "16N", "4N", "8T", "16T", "4T", "8D", "4D", "2N"};
-    return n[d < 9u ? d : 0u];
+    static const char *n[14] = {"8N", "16N", "4N", "8T", "16T", "4T", "8D",
+                                "4D", "2N",  "32N", "16D", "2T", "2D", "1BAR"};
+    return n[d < 14u ? d : 0u];
 }
 /* DIV's values from the shortest to the longest (the stored numbers keep the HTML's four first). */
-static const uint8_t delay_div_order[9] = {4u, 1u, 3u, 0u, 5u, 6u, 2u, 7u, 8u};
+#define DELAY_DIVS 14u
+static const uint8_t delay_div_order[DELAY_DIVS] = {9u, 4u, 1u, 3u, 10u, 0u, 5u, 6u, 2u, 11u, 7u, 8u, 12u, 13u};
 static uint8_t delay_div_step(uint8_t d, int16_t delta)
 {
     uint8_t i = 0u;
-    while (i < 9u && delay_div_order[i] != d) ++i;
-    return delay_div_order[clamp_i32((int32_t)(i < 9u ? i : 3u) + (delta > 0 ? 1 : -1), 0, 8)];
+    while (i < DELAY_DIVS && delay_div_order[i] != d) ++i;
+    return delay_div_order[clamp_i32((int32_t)(i < DELAY_DIVS ? i : 5u) + (delta > 0 ? 1 : -1), 0,
+                                     (int32_t)DELAY_DIVS - 1)];
 }
 
 static void set_selected_step_from_note(MelloUi *ui, uint8_t note_index)
@@ -5853,7 +5856,13 @@ static void footer_texts(MelloUi *ui, const char *l[4], char v[4][24])
             l[0] = "SYNC";
             copy_s(v[0], e->fx.delay_sync ? "ON" : "OFF");
             l[1] = "DIV";
-            copy_s(v[1], delay_div_name(e->fx.delay_div));
+            {
+                /* past the line's reach at this tempo: the longest it holds plays, and the name says so ("~") */
+                uint32_t bpm = mello_transport_effective_bpm(ui->transport);
+                char *q = copy_s(v[1], delay_div_name(e->fx.delay_div));
+                if (mello_delay_div_ms(e->fx.delay_div, 60000u / (bpm ? bpm : 80u)) > MELLO_DELAY_REACH_MS)
+                    copy_s(q, "~");
+            }
             l[2] = "TIME";
             value_ms(v[2], e->fx.delay_time_ms);
             l[3] = "LEVEL";

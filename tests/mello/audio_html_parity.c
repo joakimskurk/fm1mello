@@ -256,6 +256,7 @@ int main(void)
     fx.delay_wet = 0u;
     fx.delay_feedback = 500u;
     fx.delay_tone = 0u;
+    fx.delay_lowcut = 0u; /* the HTML's delay has no LO CUT (a new project's is on since 2026-11-03) */
     fx.reverb_wet = 0u;
     fx.dist_amount = 0u;
     mello_audio_set_config(&a, &sound, &fx, &sub, &sample);

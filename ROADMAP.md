@@ -62,8 +62,8 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F6 | SUB MELLO in place of the chord synth, its code kept behind the flag (E6). Done 2026-11-03 (0.5-f48: BROKEN and WALK); then both, POLY on B2 picking per project (0.5-f49) | 2026-11-02, 6 |
 | F7 | Room without a change to sound: the key scan's LED pulses, the chord config's copies (E6). Looked at 2026-11-03: nothing sets the glow or backlight layers yet, so the pulse loop never runs (fm1-emu's hot PCs are the main loop's polls); it will with G5's glow, so it is measured and made cheap in wave 4. The config copies would give ~0.35 KB with 6.6 KB free: left. Found with F8: each of the 64 pattern slots held a copy of the FX config that nothing read (3.5 KB); gone (0.5-f50: RAM 91.7 -> 89.2 KB with the sends). | 2026-11-02, 6 |
 | F8 | Sends per part to reverb and delay; the bass out of the lead's filter (E11). Done 2026-11-03 (0.5-f50): MIX's DELAY and REVERB layers | 2026-11-02, 11 |
-| F9 | Delay divisions: 32N, 16D, 2T, 2D, 1 BAR, ping-pong, and an honest limit (E11) | 2026-11-02, 11 |
-| F10 | LO CUT where it is found (E11) | 2026-11-02, 11 |
+| F9 | Delay divisions: 32N, 16D, 2T, 2D, 1 BAR, ping-pong, and an honest limit (E11). Done 2026-11-03 (0.5-f51) but ping-pong (F25): half rate to 2.97 s, "~" past it | 2026-11-02, 11 |
+| F10 | LO CUT where it is found (E11). Done 2026-11-03 (0.5-f51): on at 120 Hz on a new project; its silence bug fixed | 2026-11-02, 11 |
 | F11 | K1-K4 the same on every voice (E12, G6) | 2026-11-02, 12 |
 | F12 | The screen in its new order (E3, G7) | 2026-11-02, 3 |
 | F13 | The lights by one rule (E8, G5) | 2026-11-02, 8 |
@@ -78,6 +78,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F22 | Storage: CC 113 on channel 16 can clear a sample slot; a save erases 10 sectors (a stall) (Phase 1, P2) | review |
 | F23 | CI: the 80 / 100 MHz emulator smokes the old build script ran (Phase 0) | review |
 | F24 | On the FM-1, when there is one: first flash, the hand checklist (C4), E5, E8's levels, Big screen | Phase 1 |
+| F25 | The delay's ping-pong: the echoes left and right in turn (one line, read at the time and twice it, the feedback from the second at its square) | 2026-11-02, 11 |
 
 ### The order (waves)
 

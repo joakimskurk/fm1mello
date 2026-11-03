@@ -302,6 +302,10 @@ typedef struct {
     int16_t *delay_buffer;
     uint32_t delay_capacity;
     uint32_t delay_pos;
+    /* HALF RATE (ROADMAP E11/F9): a time past the line's 1.49 s runs it at half the rate, every second sample (two
+     * averaged) written, so it reaches 2.97 s (1 BAR from 81 BPM); HI CUT already takes what that loses */
+    uint8_t delay_hr, delay_hr_phase;
+    int32_t delay_hr_acc;
     uint32_t delay_samples;
     /* Knob changes ramp as the HTML's rampTo calls do (lines 989-1077); the delay time too (read between samples). */
     int32_t limiter_env_q4; /* limiter_step's peak follower */

@@ -1827,11 +1827,24 @@ static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int3
  * interpolated back. */
 /* One sample of the delay: in goes in (with the feedback), and its return comes out through LO CUT and HI CUT. The time
  * ramps (Tone's delayTime.rampTo): delay_q8 is read between samples while it moves. */
+/* The line's reach: past it, HALF RATE (twice as far); past that, the longest it holds. */
+static void delay_fit(MelloAudio *a)
+{
+    uint32_t lim = a->delay_capacity - 2u;
+    uint8_t hr;
+    if (a->delay_samples < 1u) a->delay_samples = 1u;
+    hr = a->delay_samples > lim ? 1u : 0u;
+    if (a->delay_samples > 2u * lim - 2u) a->delay_samples = 2u * lim - 2u;
+    if (hr != a->delay_hr) a->delay_hr = hr, a->delay_hr_phase = 0u;
+}
 static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t delay_q8)
 {
-    uint32_t di = (uint32_t)delay_q8 >> 8, fr = (uint32_t)delay_q8 & 0xFFu, rp, rp1;
+    uint32_t di, fr, rp, rp1;
     int32_t d, dl;
     if (!a->delay_buffer || a->delay_capacity <= 2u || !a->delay_samples) return 0;
+    if (a->delay_hr) /* HALF RATE: the line's slots are two samples each; the read point counted in half slots */
+        delay_q8 = (int32_t)(((uint32_t)delay_q8 - ((uint32_t)a->delay_hr_phase << 8)) >> 1);
+    di = (uint32_t)delay_q8 >> 8, fr = (uint32_t)delay_q8 & 0xFFu;
     if (di < 1u) di = 1u;
     if (di > a->delay_capacity - 2u) di = a->delay_capacity - 2u;
     rp = a->delay_pos >= di ? a->delay_pos - di : a->delay_pos + a->delay_capacity - di;
@@ -1852,7 +1865,17 @@ static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t d
         d -= (a->delay_lc[1] + 128) >> 8;
     }
     dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
-    a->delay_buffer[a->delay_pos] = sat16(send + mul_q12_fb(d, dly_fb));
+    if (a->delay_hr) { /* HALF RATE: two samples averaged into a slot */
+        int32_t in = send + mul_q12_fb(d, dly_fb);
+        if (!a->delay_hr_phase) {
+            a->delay_hr_acc = in;
+            a->delay_hr_phase = 1u;
+            return dl;
+        }
+        a->delay_hr_phase = 0u;
+        a->delay_buffer[a->delay_pos] = sat16((a->delay_hr_acc + in) / 2);
+    } else
+        a->delay_buffer[a->delay_pos] = sat16(send + mul_q12_fb(d, dly_fb));
     if (++a->delay_pos >= a->delay_capacity) a->delay_pos = 0u;
     return dl;
 }
@@ -1991,8 +2014,7 @@ static void apply_pending(MelloAudio *a)
     if (a->delay_capacity && (delay_changed || a->applied_generation == 0u)) {
         uint32_t ms = a->fx.delay_time_ms;
         a->delay_samples = ((uint32_t)ms * 441u + 5u) / 10u;
-        if (a->delay_samples < 1u) a->delay_samples = 1u;
-        if (a->delay_samples >= a->delay_capacity - 1u) a->delay_samples = a->delay_capacity - 2u;
+        delay_fit(a);
     }
     if (reverb_changed || a->applied_generation == 0u) {
         reverb_configure(a);
@@ -2330,20 +2352,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
     if (a->fx.delay_sync && a->delay_capacity > 1u) {
         uint32_t qms = 60000u / (bpm ? bpm : 80u);
         uint32_t ms;
-        switch (a->fx.delay_div) {
-        case 1: ms = qms / 4u; break;
-        case 2: ms = qms; break;
-        case 3: ms = qms / 3u; break;
-        case 4: ms = qms / 6u; break;      /* 16T */
-        case 5: ms = qms * 2u / 3u; break; /* 4T */
-        case 6: ms = qms * 3u / 4u; break; /* 8D */
-        case 7: ms = qms * 3u / 2u; break; /* 4D */
-        case 8: ms = qms * 2u; break;      /* 2N (as far as the delay's 1.5 s reach) */
-        default: ms = qms / 2u; break;
-        }
+        ms = mello_delay_div_ms(a->fx.delay_div, qms);
         a->delay_samples = (ms * 441u + 5u) / 10u;
-        if (a->delay_samples < 1u) a->delay_samples = 1u;
-        if (a->delay_samples >= a->delay_capacity - 1u) a->delay_samples = a->delay_capacity - 2u;
+        delay_fit(a);
         ramp_to(&a->rp_delay, (int32_t)a->delay_samples, 50u, a->rendered_frames == 0u);
         if (a->rp_delay.left) a->ramps_moving = true;
     }

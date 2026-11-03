@@ -62,7 +62,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/sound-mod-env.png" width="96" alt="SOUND MOD ENV"> | SOUND | ENV | MOD ENV | `INIT F B < R UNDO RNDMZR` | AMT +0% · ATTACK 0MS · DECAY 300MS · TARGET CUTOFF |
 | <img src="../screens/sound-tracking.png" width="96" alt="SOUND TRACKING"> | SOUND | ENV | TRACKING | `INIT F B < R UNDO RNDMZR` | V.CUT +0% · V.LVL 100% · KEYTRK 0% · V.ENV +0% |
 | <img src="../screens/fx-distortion.png" width="96" alt="AUDIO FX DISTORTION"> | AUDIO FX | FX | DISTORTION | `PRE-DIST F B < R UNDO RNDMZR` | AMT 0% · MIX 100% · CHAR 35% · TONE 82% |
-| <img src="../screens/fx-delay-send.png" width="96" alt="AUDIO FX DELAY SEND"> | AUDIO FX | FX | DELAY SEND | `PRE-DIST F B < R UNDO RNDMZR` | WET 12% · FDBK 32% · LO CUT OFF · HI CUT 72% |
+| <img src="../screens/fx-delay-send.png" width="96" alt="AUDIO FX DELAY SEND"> | AUDIO FX | FX | DELAY SEND | `PRE-DIST F B < R UNDO RNDMZR` | WET 12% · FDBK 32% · LO CUT 120HZ · HI CUT 72% |
 | <img src="../screens/fx-delay-config.png" width="96" alt="AUDIO FX DELAY CONFIG"> | AUDIO FX | FX | DELAY CONFIG | `PRE-DIST F B < R UNDO RNDMZR` | SYNC ON · DIV 8N · TIME 250MS · LEVEL 75% |
 | <img src="../screens/fx-reverb-room.png" width="96" alt="AUDIO FX REVERB ROOM"> | AUDIO FX | FX | REVERB ROOM | `PRE-DIST F B < R UNDO RNDMZR` | WET 24% · SIZE 70% · DECAY 6.0S · TONE 62% |
 | <img src="../screens/fx-reverb-returns.png" width="96" alt="AUDIO FX REVERB RETURNS"> | AUDIO FX | FX | REVERB RETURNS | `PRE-DIST F B < R UNDO RNDMZR` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · — |

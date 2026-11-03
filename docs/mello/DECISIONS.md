@@ -1150,6 +1150,17 @@ to both. The bass could not be kept out of the reverb, and the lead's CUTOFF swe
 Tests: fx_sends (the defaults; a part at 0 sounds as with the effects off, at 100% not; the lead's CUTOFF leaves the
 bass alone; MIX's layers set the sends; saved). SEC_FX version 4.
 
+The delay's reach (F9, F10): DIV gains 32N, 16D, 2T, 2D and 1 BAR (stored as 9..13, so the older numbers keep their
+meaning; an older build reads them as 8N). The line holds 1.49 s; a time past it runs the line at half rate (every
+second sample written, two averaged; the read point in half slots), so it reaches 2.97 s and 1 BAR fits from 81 BPM;
+HI CUT already takes what half rate loses. A division past even that plays the longest the line holds and shows a
+"~" after its name. LO CUT is on at 120 Hz on a new project (it was OFF, and hard to find); its one-poles keep their
+state in Q8 with the output rounded, since in Q0 a few LSB stayed in the feedback for ever and the unit never
+counted as silent (found when it became the default: audio_silence_regression). make parity: hot_fx loses its
+delay's low end under 120 Hz (the HTML has no LO CUT; audio_html_parity sets it off), sub_dry its share of the
+distortion's tone filter. Test: delay_reach (the echoes of 2N, 2D and 1 BAR on time, 1 BAR at 60 BPM at the reach).
+A ping-pong option needs two read points and two filters' states: it is its own item (F25).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

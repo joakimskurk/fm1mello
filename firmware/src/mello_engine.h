@@ -1014,6 +1014,9 @@ void mello_chord_defaults(MelloChordConfig *config);
 void mello_randomize_defaults(MelloRandomizeConfig *config);
 void mello_sound_defaults(MelloSoundConfig *config);
 void mello_sample_defaults(MelloSampleConfig *config);
+/* A delay division's time (ms) from a beat's; the line reaches MELLO_DELAY_REACH_MS (at half rate past 1.49 s). */
+uint32_t mello_delay_div_ms(uint8_t div, uint32_t qms);
+#define MELLO_DELAY_REACH_MS 2970u
 void mello_fx_defaults(MelloFxConfig *config);
 void mello_stored_project_encode(MelloStoredProject *dst, const MelloProject *src);
 void mello_stored_project_decode(MelloProject *dst, const MelloStoredProject *src);
