@@ -216,6 +216,7 @@ typedef struct {
     uint8_t selected_dot_target; /* the matrix (MelloDotTarget) */
     bool dot_shape;              /* a MOD lane's SHAPE layer */
     uint8_t tm_bank;
+    uint8_t drum_bank; /* DRUMS: steps 1-16 or 17-32 (OCT- / OCT+) */
     uint8_t selected_tm_bit;
     uint8_t selected_sub_x_step; /* BASS SEQ's picked step (it was 5-SEQ's) */
 #if MELLO_FEATURE_CHORD_MACHINE

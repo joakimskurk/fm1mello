@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "mello_storage.h"
+#include "mello_ui.h"
 
 static int fails;
 #define CHECK(c, ...)                                                                                        \
@@ -119,6 +120,21 @@ int main(void)
     CHECK(e.drum_wrap == 48u, "16 16 12-REV 7-PING meet after %u, not 48", e.drum_wrap);
     d.vdir[2] = d.vdir[3] = MELLO_DRUM_DIR_FWD;
 
+    /* 32 steps: the kick on 32 against the snare's 16, a hit on step 25 heard at pulse 24 and 56 only */
+    {
+        static int16_t at32[70][4];
+        MelloDrumConfig k32 = d;
+        memset(k32.vlen, 0, sizeof k32.vlen);
+        k32.vlen[0] = 32u, k32.vlen[1] = 16u;
+        k32.hits[0] = 1ul << 24, k32.hits[1] = 1u, k32.hits[2] = k32.hits[3] = 0u;
+        mello_engine_drums_set_config(&e, &k32);
+        play(70u, at32);
+        for (k = 0u; k < 70u; ++k) {
+            CHECK((at32[k][0] >= 0) == (k % 32u == 24u), "32 steps: the kick at pulse %u (%d)", k, at32[k][0]);
+            CHECK((at32[k][1] >= 0) == (k % 16u == 0u), "16 under 32: the snare at pulse %u", k);
+        }
+    }
+
     /* the longest the count can be */
     {
         static const uint8_t worst[4] = {16u, 15u, 13u, 11u};
@@ -137,6 +153,7 @@ int main(void)
         memcpy(d.vlen, lens, sizeof d.vlen);
         d.bar_reset = true;
         d.vdir[3] = MELLO_DRUM_DIR_PING, d.swing_part[MELLO_SWING_DRUMS] = 450;
+        d.hits[0] |= 1ul << 29, d.lock[0][29].ratchet = 3u, d.lock[0][29].pitch = -7; /* (step 30, saved in v5) */
         mello_engine_drums_set_config(&e, &d);
         {
             MelloFxConfig f = e.fx; /* (and FX's TRIM, SEC_FX v6, with them) */
@@ -153,12 +170,54 @@ int main(void)
         r = mello_storage_load(&s, &e);
         (void)r;
         CHECK(e.fx.trim_db == -3, "TRIM read back as %d", e.fx.trim_db);
+        CHECK((e.drums.hits[0] >> 29) & 1u && e.drums.lock[0][29].ratchet == 3u && e.drums.lock[0][29].pitch == -7,
+              "step 30 not read back");
         CHECK(e.drums.vdir[3] == MELLO_DRUM_DIR_PING && e.drums.swing_part[MELLO_SWING_DRUMS] == 450 &&
                   e.drums.swing_part[MELLO_SWING_LEAD] == -1,
               "DIR and SWING per part not read back");
         CHECK(!memcmp(e.drums.vlen, lens, sizeof lens) && e.drums.bar_reset && e.drum_wrap == 48u,
               "read back: %u %u %u %u, BAR %d", e.drums.vlen[0], e.drums.vlen[1], e.drums.vlen[2], e.drums.vlen[3],
               (int)e.drums.bar_reset);
+    }
+
+    /* the UI: OCT+ shows steps 17-32; a white key there writes step 17 + its place; LENGTH past 16 copies the bar */
+    {
+        static MelloProject up;
+        static MelloTransport t;
+        static MelloStorage us;
+        static MelloUi u;
+        int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
+        uint8_t w3 = 0xFFu, i;
+        for (i = 0u; i < 27u; ++i)
+            if (mello_ui_white_key_position(i) == 2) w3 = i;
+        mello_project_defaults(&up);
+        mello_transport_init(&t, &up, 5u, 0, 0);
+        mello_storage_init(&us, 0, 0);
+        mello_ui_init(&u, &t, &us);
+        mello_ui_set_page(&u, MELLO_UI_DRUMS);
+        {
+            MelloDrumConfig kd = t.engine.drums;
+            uint32_t h16 = kd.hits[MELLO_DRUM_HAT];
+            u.selected_drum_voice = MELLO_DRUM_HAT;
+            u.drum_subpage = 3u; /* KIT: K1 LENGTH */
+            enc[MELLO_UI_ENC_KNOB1] = 16;
+            mello_ui_input(&u, 1000000u, 1000u, 0u, 0u, 0u, 0u, enc);
+            enc[MELLO_UI_ENC_KNOB1] = 0;
+            CHECK(t.engine.drums.length == 32u && t.engine.drums.hits[MELLO_DRUM_HAT] == (h16 | (h16 << 16)),
+                  "LENGTH 32 did not copy the bar (length %u)", t.engine.drums.length);
+        }
+        mello_ui_input(&u, 2000000u, 2000u, 1u << MELLO_UI_BTN_OCT_UP, 0u, 1u << MELLO_UI_BTN_OCT_UP, 0u, enc);
+        mello_ui_input(&u, 2100000u, 2100u, 0u, 1u << MELLO_UI_BTN_OCT_UP, 0u, 0u, enc);
+        CHECK(u.drum_bank == 1u, "OCT+ did not show steps 17-32");
+        {
+            uint32_t was = t.engine.drums.hits[MELLO_DRUM_HAT];
+            mello_ui_set_held_notes(&u, 1u << w3);
+            mello_ui_input(&u, 2200000u, 2200u, 0u, 0u, 0u, 1u << w3, enc);
+            mello_ui_set_held_notes(&u, 0u);
+            mello_ui_input(&u, 2300000u, 2300u, 0u, 0u, 0u, 0u, enc);
+            CHECK((t.engine.drums.hits[MELLO_DRUM_HAT] ^ was) == (1ul << 18) && u.selected_drum_step == 18u,
+                  "white key 3 in the second bank did not toggle step 19 (step %u)", u.selected_drum_step);
+        }
     }
 
     if (fails) return 1;

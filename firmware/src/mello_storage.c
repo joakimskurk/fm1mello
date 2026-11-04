@@ -28,7 +28,7 @@ enum {
                          SUB ROOT; 4: HARMONY (FOLLOW, DRIFT, DEPTH); 5: POLY */
     SECVER_GRIT = 4, /* 4: MIX's LEAD */
     SECVER_MOD = 3,
-    SECVER_DRUMS = 4, /* 2: DUCK; 3: each voice's LENGTH, BAR; 4: each voice's DIR, SWING per part */
+    SECVER_DRUMS = 5, /* 2: DUCK; 3: each voice's LENGTH, BAR; 4: each voice's DIR, SWING per part; 5: 32 steps */
     SECVER_BASS = 1,
     SECVER_MACROS = 1
 };
@@ -54,10 +54,12 @@ enum {
 #define MOD_ENTRY_SIZE_V1  40u
 #define MOD_ENTRY_SIZE_V2  44u
 #define MOD_ENTRY_SIZE     57u
-#define DRUMS_WIRE_SIZE_V1 (12u + MELLO_DRUM_VOICES * (12u + 4u + MELLO_DRUM_STEPS * 4u))
+#define DRUMS_WIRE_SIZE_V1 (12u + MELLO_DRUM_VOICES * (12u + 4u + 16u * 4u)) /* 16 steps until v5 */
 #define DRUMS_WIRE_SIZE_V2 (DRUMS_WIRE_SIZE_V1 + 2u) /* v2: DUCK */
 #define DRUMS_WIRE_SIZE_V3 (DRUMS_WIRE_SIZE_V2 + MELLO_DRUM_VOICES) /* v3: each voice's LENGTH (BAR a flag) */
-#define DRUMS_WIRE_SIZE    (DRUMS_WIRE_SIZE_V3 + MELLO_DRUM_VOICES + 6u) /* v4: each voice's DIR, SWING per part */
+#define DRUMS_WIRE_SIZE_V4 (DRUMS_WIRE_SIZE_V3 + MELLO_DRUM_VOICES + 6u) /* v4: each voice's DIR, SWING per part */
+/* v5: 32 steps: each voice's hits and accents in 32 bits, its locks for 32 steps */
+#define DRUMS_WIRE_SIZE    (DRUMS_WIRE_SIZE_V4 + MELLO_DRUM_VOICES * (4u + 16u * 4u))
 #define BASS_WIRE_SIZE     (10u + MELLO_BASS_STEPS * 2u)
 #define SLOT_SEQ_WIRE_SIZE (2u + MELLO_MAX_SLOT_SEQ_STEPS * 3u)
 #define SLOT_WIRE_SIZE     (1u + (MELLO_SLOT_NAME_CHARS + 1u) + SNAPSHOT_WIRE_SIZE)
@@ -567,8 +569,8 @@ static void encode_drums(Writer *w, const MelloDrumConfig *d)
         wr_u16(w, dv->level);
         wr_u16(w, dv->chance);
         wr_u16(w, dv->crush);
-        wr_u16(w, d->hits[v]);
-        wr_u16(w, d->accents[v]);
+        wr_u32(w, d->hits[v]); /* v5: 32 bits */
+        wr_u32(w, d->accents[v]);
         for (k = 0u; k < MELLO_DRUM_STEPS; ++k) {
             wr_i8(w, d->lock[v][k].pitch);
             wr_i8(w, d->lock[v][k].decay);
@@ -598,11 +600,18 @@ static bool decode_drums(Reader *r, MelloDrumConfig *d, uint16_t ver)
     d->bar_reset = (flags & 16u) != 0u;
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
         MelloDrumVoice *dv = &d->voice[v];
+        uint8_t steps = ver >= 5u ? MELLO_DRUM_STEPS : 16u;
         if (!rd_u16(r, &dv->tune) || !rd_u16(r, &dv->decay) || !rd_u16(r, &dv->tone) ||
-            !rd_u16(r, &dv->level) || !rd_u16(r, &dv->chance) || !rd_u16(r, &dv->crush) ||
-            !rd_u16(r, &d->hits[v]) || !rd_u16(r, &d->accents[v]))
+            !rd_u16(r, &dv->level) || !rd_u16(r, &dv->chance) || !rd_u16(r, &dv->crush))
             return false;
-        for (k = 0u; k < MELLO_DRUM_STEPS; ++k)
+        if (ver >= 5u) {
+            if (!rd_u32(r, &d->hits[v]) || !rd_u32(r, &d->accents[v])) return false;
+        } else {
+            uint16_t h, a;
+            if (!rd_u16(r, &h) || !rd_u16(r, &a)) return false;
+            d->hits[v] = h, d->accents[v] = a;
+        }
+        for (k = 0u; k < steps; ++k)
             if (!rd_i8(r, &d->lock[v][k].pitch) || !rd_i8(r, &d->lock[v][k].decay) ||
                 !rd_u8(r, &d->lock[v][k].crush) || !rd_u8(r, &d->lock[v][k].ratchet))
                 return false;
@@ -1169,6 +1178,7 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             if (len != (ver == 1u   ? DRUMS_WIRE_SIZE_V1
                         : ver == 2u ? DRUMS_WIRE_SIZE_V2
                         : ver == 3u ? DRUMS_WIRE_SIZE_V3
+                        : ver == 4u ? DRUMS_WIRE_SIZE_V4
                                     : DRUMS_WIRE_SIZE) ||
                 !decode_drums(&r, &drums, ver))
                 return false;

@@ -84,7 +84,7 @@ The FM-1's panel is printed, so its names are the firmware's names. What each co
 | **PRESETS** (encoder) | On HOME: the pattern slot (it switches on the next bar). |
 | **White keys** | Positions: steps, cells, bits, slots, chords. A tap toggles what sits on the key and picks it. |
 | **Black keys** | The action rail, with fixed places (below). |
-| **OCT- / OCT+** | The step bank where there are more than 16 (HOME, STEP), the octave in KEYS. |
+| **OCT- / OCT+** | The step bank where there are more than 16 (HOME, STEP, DRUMS), the octave in KEYS. |
 | **PLAY** | Start and stop. The LED blinks on the beat. |
 | **SAVE** | Saves the project (a save that cannot be made says NOSAVE or FULL in red in the header). Held: the pattern slots. |
 | **EDIT** | The page's mode: KEYS on HOME (the keys become a keyboard, lit where the scale has a tone), the pitch mode on STEP. Held on HOME: MACROS, where each of K1-K4 picks what it turns. |
@@ -244,8 +244,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   16-step bass line of its own with tone, octave, glide and accent per step, a resonant filter with envelope, drive.
   ROLL (B2) writes a line under the sequence as it is: roots and fifths, or the lead's chord tones, on the beats,
   walks and octave jumps between, an octave down; UNDO takes it back.
-- **Drums** (ARP > DRUMS). Kick, snare, hat and a glitch voice (bleep, chirp, crackle, stutter) on a 16-step
-  pattern with accents, per-step pitch, decay, crush and ratchet locks, rolls, chance, swing (GLOBAL > GROOVE, for
+- **Drums** (ARP > DRUMS). Kick, snare, hat and a glitch voice (bleep, chirp, crackle, stutter) on a pattern of
+  up to 32 steps (OCT- and OCT+ show 1-16 and 17-32; a line made longer than 16 copies its bar there) with accents, per-step pitch, decay, crush and ratchet locks, rolls, chance, swing (GLOBAL > GROOVE, for
   everything), a length and a direction per voice (LINE: V.LEN, KICK 16, SNARE 16, HAT 12, GLITCH 7 is a polyrhythm;
   DIR forward, backwards or there and back; RESTART: BAR starts them all over at every bar's one, FREE lets them
   run until RESET, start or stop), swing per part (GLOBAL > GROOVE: LEAD, BASS, DRUMS their own, or GLOBAL), a kit drive with fold, DUCK (the kick's sidechain: the lead, sub and chords dip at each kick and

@@ -1664,6 +1664,17 @@ the tempo from 128 to 96. The product owner: "the tempo shall never be rolled".
   they had been since 0.5-f72, never pushed): what a voice's line does, together. The drums' count is 32 bits now
   (with PING the cycles' least common multiple can pass 65535). Saved: SEC_DRUMS v4. Tests: swing_global, drum_poly.
 
+## 32 steps (2026-11-04, the workshop's wave 4)
+
+- Each drum voice's line (and the kit's LENGTH) up to 32 steps: hits and accents in 32 bits, the locks for 32
+  steps. 272 B more per copy of the drums (the engine's, UNDO's, the three rolls back): RAM about 1.4 KB more.
+- The page shows 16 at a time: OCT- steps 1-16, OCT+ 17-32 (the header says which when a line is longer than 16);
+  the white keys write in the bank shown; REC shows the bank it writes in; each row's playhead in its bank.
+- A line made longer than 16 for the first time (its steps 17-32 empty) gets its first bar copied there, hits,
+  accents and locks, so it plays on as it was and is changed from there (an Elektron habit).
+- Saved: SEC_DRUMS v5 (hits and accents in 32 bits, 32 locks per voice); v1-v4 read as 16 steps. Test: drum_poly
+  (a 32 against a 16, step 30 saved, the UI's banks and the copy).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

@@ -532,7 +532,7 @@ typedef struct {
 /* DRUMS (2026-10-30): four synthesized voices on a 16-step pattern with its own clock. The voices are plain; what
  * makes them move is per-step: each hit's PITCH, DECAY, CRUSH and RATCH, and the rolls (ROLL, and RNDMZR with FEED). */
 #define MELLO_DRUM_VOICES 4u
-#define MELLO_DRUM_STEPS  16u
+#define MELLO_DRUM_STEPS  32u /* two banks of 16 (2026-11-04, DECISIONS "32 steps") */
 typedef enum { MELLO_DRUM_KICK = 0, MELLO_DRUM_SNARE, MELLO_DRUM_HAT, MELLO_DRUM_GLITCH } MelloDrumVoiceId;
 enum { MELLO_DRUM_DIR_FWD = 0, MELLO_DRUM_DIR_REV, MELLO_DRUM_DIR_PING, MELLO_DRUM_DIRS };
 enum { MELLO_SWING_LEAD = 0, MELLO_SWING_BASS, MELLO_SWING_DRUMS };
@@ -563,9 +563,9 @@ typedef struct {
     bool follow; /* step with the main sequence's steps (its skips and long steps stop it), not every pulse */
     bool feed;   /* RNDMZR rolls the drums too */
     bool feed_sound; /* FEED+: and a roll (ROLL, RNDMZR's) changes the voices' TUNE, DECAY and TONE as well */
-    uint8_t length;  /* 1..16 */
+    uint8_t length;  /* 1..32 */
     /* Each voice's own LENGTH (2026-11-04, DECISIONS "A length per voice"): 0 the kit's LENGTH, else 1..16; KICK 16,
-     * SNARE 16, HAT 12, GLITCH 7 is a polyrhythm. With BAR they all start over at every bar's one; FREE, they run on
+     * SNARE 16, HAT 12, GLITCH 7 is a polyrhythm (up to 32 each). With BAR they all start over at every bar's one; FREE, they run on
      * until RESET, start or stop. */
     uint8_t vlen[4];
     uint8_t vdir[4]; /* each voice's DIR (MELLO_DRUM_DIR_*) */
@@ -583,8 +583,8 @@ typedef struct {
         duck; /* 0..1000: DUCK, the kick's sidechain: the lead, sub and chords dip by this at each kick and
                         come back over ~160 ms (DECISIONS.md "A kick with weight") */
     MelloDrumVoice voice[MELLO_DRUM_VOICES];
-    uint16_t hits[MELLO_DRUM_VOICES];    /* bit = step */
-    uint16_t accents[MELLO_DRUM_VOICES]; /* bit = step */
+    uint32_t hits[MELLO_DRUM_VOICES];    /* bit = step */
+    uint32_t accents[MELLO_DRUM_VOICES]; /* bit = step */
     MelloDrumLock lock[MELLO_DRUM_VOICES][MELLO_DRUM_STEPS];
 } MelloDrumConfig;
 
