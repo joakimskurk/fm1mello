@@ -1501,6 +1501,39 @@ is off by default); and RNDMZR leaves the chords alone unless CHORD is in its ma
   Over another bass it starts at the triads. In every variant the bass's note is one of the chord's
   (tests/mello/chord_fit.c plays them and checks each half bar). Undoable; the variant is not saved.
 
+## STYLE (2026-11-04)
+
+The product owner, after FIT: "it feels very oompah; I want electronica, ambient, Aphex Twin, Oneohtrix Point Never,
+even techno or EDM", and then: "more styles, and part of the randomness, so it does not feel the same every press".
+The oompah was the defaults working together: the chords' BROKEN is an Alberti figure (low, high, middle, high), a
+rolled bass walked root and fifth on the beats, and the drums a rock beat.
+
+STYLE, K2 on the RANDOM page: OFF, ANY (a new project's) or a style. With a style a tap of RNDMZR rolls the band in
+it; ANY picks a style each time and never the one before. The style's name shows as the readout. Each style:
+
+| | tempo | lead | bass | drums | chords | sound |
+|---|---|---|---|---|---|---|
+| AMBIENT | 76-92 | MUSICAL, few notes, each held, glides | DRONE under the chords' root | no kick, ticks that come and go | POLY pad (attack 0.9 s, release 3 s), a chord a bar or two, sus2 or 7 | long envelope, big reverb, ping-pong 4D delay |
+| DUB | 112-122 | sparse and short | root on 1, long | four on the floor, off-beat hat | minor sevenths stabbed off the beat (grid), into the delay | 8D delay at 65%, ping-pong |
+| TRIPHOP | 84-96 | MUSICAL, long and lazy | late, gliding | kick 1 and the "and", backbeat, swung hats | held sevenths, a chord a bar | reverb, 8N delay |
+| TECHNO | 124-132 | GROOVE folded to a four-sixteenth motif, off-beat accents | off-beat eighths, sixteenths after | four on the floor, clap, hats on every off-sixteenth | sus4 or 7 stabs off the beat | short, 16D delay |
+| ACID | 124-134 | a 303 line: nearly every sixteenth, the root most, slides, accents | a low pedal | four on the floor, hats | none | the lead's filter low and resonant |
+| ELECTRO | 118-128 | GROOVE, staccato, the octave jumping | syncopated, the octave, a glide | electro kick, backbeat, hats on every sixteenth | none | dry, 16N delay |
+| BREAKS | 128-140 | GROOVE | syncopated, the seventh | broken kick, backbeat with ghosts, eighths | held sevenths | room reverb |
+| IDM | 120-160 | GROOVE with rolls of three and four, the octave either way | five to nine notes anywhere, leaps, glides | a broken beat, kicks off the grid, rolling hats, glitches | one voice up and down or walking the chord, sus2 or 7 | 16T ping-pong delay |
+
+Every part has dice in it (a bass note moved or another tone, a ghost note, a roll, a second clap, which beat the
+stabs keep), so no two rolls of a style are alike. The chords are read from the bass line as FIT reads them, so the
+bass is in the chord (tests/mello/style_roll.c plays every style, six seeds, and finds no clash); AMBIENT walks a
+progression and the drone follows its root. The lead keeps RANDOM's mask (empty, it is left alone); the rest is the
+style's: the parts it uses go on (ACID and ELECTRO turn the chords off), and its tempo, the lead's envelope, the
+delay and the reverb change with it. UNDO takes a roll back whole: the snapshot now keeps the effects and the sub
+too, and UNDO gives the transport the tempo back (it did not re-time after an undone tempo before, a latent bug).
+ROLL on BASS rolls the line of the style last rolled (or the one chosen); with STYLE OFF, the walking line.
+Rendered from a new project, 10 s each, the styles sit within ~3 dB of each other (RMS -12 .. -17 dBFS; ACID and
+AMBIENT the dense ones on top). INT is not used while a style is on (the style picks MUSICAL or GROOVE);
+random_wave_overview_smoke tests INT with STYLE OFF.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

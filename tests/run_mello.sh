@@ -22,7 +22,7 @@ defines() {
 }
 
 # The Chord Machine must also compile out (MELLO_FEATURE_CHORD_MACHINE=0) without touching the rest.
-FEATURE_OFF="ui_visual_smoke control_grammar_smoke chord_final_acceptance audio_timing_stress random_wave_overview_smoke chord_tone_smoke storage_chord_regression"
+FEATURE_OFF="style_roll ui_visual_smoke control_grammar_smoke chord_final_acceptance audio_timing_stress random_wave_overview_smoke chord_tone_smoke storage_chord_regression"
 
 run() {    # name, binary suffix, extra flags
     bin="$OUT/$1$2"

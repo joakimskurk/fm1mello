@@ -245,6 +245,7 @@ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage
     ui->storage = storage;
     ui->page = MELLO_UI_HOME;
     ui->random_intensity = MELLO_RANDOMIZE_MED;
+    ui->random_style = MELLO_STYLE_ANY; /* DECISIONS "STYLE": a press rolls the band in a style */
     ui->selected_slot = 0u;
     ui->selected_tm_bit = 0u;
     ui->seen_step = 0xFFu;
@@ -2581,6 +2582,19 @@ static void adjust_presets(MelloUi *ui, int16_t delta)
     if (ui->page == MELLO_UI_SLOTS) mark_edit(ui);
 }
 
+/* RNDMZR's roll: the band in a style (and the style shown), or with STYLE OFF the lead alone by INT */
+static void show_readout(MelloUi *ui, uint8_t what, uint32_t now_ms);
+static void ui_roll(MelloUi *ui, MelloEngine *e, uint32_t now_ms)
+{
+    if (ui->random_style != MELLO_STYLE_OFF) {
+        (void)mello_engine_style_roll(e, ui->random_style);
+        if (ui->transport) mello_transport_set_bpm(ui->transport, e->project.bpm); /* the style's tempo */
+        show_readout(ui, MELLO_UI_READOUT_STYLE, now_ms);
+        ui->dirty |= MELLO_UI_DIRTY_ALL;
+    } else
+        mello_engine_randomize_steps_intensity(e, ui->random_intensity);
+}
+
 static const char *random_intensity_name(MelloRandomizeIntensity intensity)
 {
     return intensity == MELLO_RANDOMIZE_LOW       ? "LOW"
@@ -2592,7 +2606,14 @@ static const char *random_intensity_name(MelloRandomizeIntensity intensity)
 
 static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
 {
-    if (!ui || knob != 0u || !delta) return;
+    if (!ui || knob > 1u || !delta) return;
+    if (knob == 1u) { /* K2: STYLE, OFF .. ANY .. the styles */
+        if (ui->random_edit) return;
+        ui->random_style = (uint8_t)clamp_i32((int32_t)ui->random_style + (delta > 0 ? 1 : -1), MELLO_STYLE_OFF,
+                                              MELLO_STYLE_COUNT - 1);
+        mark_edit(ui);
+        return;
+    }
     if (ui->random_edit && eng(ui)) { /* EDIT: K1 is the picked target's amount, in 5% steps */
         MelloEngine *e = eng(ui);
         MelloModRouting m = e->modr;
@@ -3022,9 +3043,9 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
         persistent_dirty(ui, now_ms);
         mark_edit(ui);
         break;
-    case MELLO_CTX_BASS_ROLL:
+    case MELLO_CTX_BASS_ROLL: /* in the style last rolled (or the chosen one); STYLE OFF, the walking line */
         mello_engine_undo_snapshot(e);
-        mello_engine_bass_roll(e);
+        mello_engine_style_bass(e, ui->random_style == MELLO_STYLE_ANY ? e->style_now : ui->random_style);
         persistent_dirty(ui, now_ms);
         mark_edit(ui);
         break;
@@ -3038,7 +3059,7 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
         mark_edit(ui);
         break;
     case MELLO_CTX_RANDOM_REROLL:
-        mello_engine_randomize_steps_intensity(e, ui->random_intensity);
+        ui_roll(ui, e, now_ms);
         rebuild(ui);
         persistent_dirty(ui, now_ms);
         mark_edit(ui);
@@ -3060,13 +3081,14 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
         ui->rndmzr_down_ms = now_ms;
         break;
     case MELLO_CTX_HOME_RANDOM:
-        mello_engine_randomize_steps_intensity(e, ui->random_intensity);
+        ui_roll(ui, e, now_ms);
         rebuild(ui);
         persistent_dirty(ui, now_ms);
         mark_edit(ui);
         break;
     case MELLO_CTX_UNDO:
         if (mello_engine_undo_swap(e)) {
+            if (ui->transport) mello_transport_set_bpm(ui->transport, e->project.bpm); /* (a STYLE roll's tempo) */
             persistent_dirty(ui, now_ms);
             mark_edit(ui);
         }
@@ -3562,7 +3584,7 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
         if (!(ui->held_notes & bit_u32(ui->rndmzr_key))) {
             ui->rndmzr_down = false;
             if (e) {
-                mello_engine_randomize_steps_intensity(e, ui->random_intensity);
+                ui_roll(ui, e, now_ms);
                 rebuild(ui);
                 persistent_dirty(ui, now_ms);
                 mark_edit(ui);
@@ -5829,7 +5851,8 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
         }
         l[0] = "INTENS";
         copy_s(v[0], random_intensity_name(ui->random_intensity));
-        copy_s(v[1], "-");
+        l[1] = "STYLE";
+        copy_s(v[1], mello_style_name(ui->random_style));
         copy_s(v[2], "-");
         copy_s(v[3], "-");
         break;
@@ -6991,6 +7014,9 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
     } else if (ui->readout == MELLO_UI_READOUT_INTENSITY) {
         label = "RANDOM";
         (void)copy_s(val, random_intensity_name(ui->random_intensity));
+    } else if (ui->readout == MELLO_UI_READOUT_STYLE && e) {
+        label = "STYLE";
+        (void)copy_s(val, mello_style_name(e->style_now));
     } else if (ui->readout == MELLO_UI_READOUT_PATTERN && e) {
         label = "PATTERN";
         q = copy_s(val, "SLOT ");

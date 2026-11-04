@@ -293,6 +293,7 @@ static void render_random_length(unsigned n)
     mello_transport_init(&t, &p, 77u, 0, 0);
     mello_storage_init(&st, 0, 0);
     mello_ui_init(&ui, &t, &st);
+    ui.random_style = MELLO_STYLE_OFF; /* the lead alone, by INT (STYLE has its own test) */
     mello_ui_set_page(&ui, MELLO_UI_RANDOM);
     ui.dirty = MELLO_UI_DIRTY_ALL;
     reset_counts();
@@ -322,6 +323,7 @@ static void check_ui_contract(void)
     mello_transport_init(&t, &p, 77u, 0, 0);
     mello_storage_init(&st, 0, 0);
     mello_ui_init(&ui, &t, &st);
+    ui.random_style = MELLO_STYLE_OFF; /* the lead alone, by INT (STYLE has its own test) */
     mello_ui_set_page(&ui, MELLO_UI_HOME);
     ui.dirty = MELLO_UI_DIRTY_ALL;
     reset_counts();
@@ -334,6 +336,7 @@ static void check_ui_contract(void)
     mello_transport_init(&t, &p, 1234u, 0, 0);
     mello_storage_init(&st, 0, 0);
     mello_ui_init(&ui, &t, &st);
+    ui.random_style = MELLO_STYLE_OFF; /* the lead alone, by INT (STYLE has its own test) */
     mello_ui_set_page(&ui, MELLO_UI_RANDOM);
     if (ui.random_intensity != MELLO_RANDOMIZE_MED) die("RANDOM default intensity is not MED");
     enc[MELLO_UI_ENC_KNOB1] = 1;

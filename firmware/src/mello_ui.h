@@ -77,6 +77,7 @@ typedef enum {
 #define MELLO_UI_READOUT_TEMPO     6u /* HOME's SELECT, ALGORITHM, PRESETS */
 #define MELLO_UI_READOUT_INTENSITY 7u
 #define MELLO_UI_READOUT_PATTERN   8u
+#define MELLO_UI_READOUT_STYLE     9u /* the style RNDMZR just rolled */
 #define MELLO_UI_READOUT_MS        1200u /* how long the readout stays after the last detent */
 
 enum {
@@ -191,6 +192,7 @@ typedef struct {
     uint8_t rndmzr_key;
     uint32_t rndmzr_down_ms;
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
+    uint8_t random_style; /* MelloStyle: RNDMZR rolls the band in it (ANY: a style each time; OFF: the lead, by INT) */
     bool random_links;                        /* RANDOM's LINKS layer (SELECT): keys set + / - per target */
     bool random_edit;                         /* RANDOM's EDIT: a key picks a target, K1 its amount */
     uint8_t random_sel;                       /* the target EDIT sets (index into the RANDOM page's pills) */

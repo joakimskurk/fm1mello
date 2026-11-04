@@ -947,6 +947,9 @@ typedef struct {
 #endif
     MelloDrumConfig undo_drums;
     MelloBassConfig undo_bass; /* ROLL on BASS is undoable too */
+    MelloFxConfig undo_fx;     /* a STYLE roll sets the effects and the sub too */
+    MelloSubConfig undo_sub;
+    uint8_t style_now; /* the style the last STYLE roll played (MelloStyle) */
     bool undo_valid;
     bool undo_is_redo;  /* the last press was UNDO: the next puts the roll back */
     uint32_t undo_hash; /* the state as UNDO left it: an edit since means there is nothing to redo */
@@ -1127,6 +1130,26 @@ void mello_engine_stress(MelloEngine *engine);
 void mello_engine_set_randomize_mask(MelloEngine *engine, uint16_t mask);
 void mello_engine_randomize_steps(MelloEngine *engine); /* exact MED compatibility path */
 void mello_engine_randomize_steps_intensity(MelloEngine *engine, MelloRandomizeIntensity intensity);
+/* STYLE (DECISIONS "STYLE"): RNDMZR rolls the whole band in a style: the lead (within RANDOM's mask), the bass line,
+ * the drums, the chords and some of the sound (the lead's envelope, the delay, the reverb). ANY picks a style each
+ * time, never the one before. Undoable. Returns the style rolled. */
+typedef enum {
+    MELLO_STYLE_OFF = 0, /* RNDMZR rolls the lead alone, as INT says */
+    MELLO_STYLE_ANY,
+    MELLO_STYLE_AMBIENT,
+    MELLO_STYLE_DUB,
+    MELLO_STYLE_TRIPHOP,
+    MELLO_STYLE_TECHNO,
+    MELLO_STYLE_ACID,
+    MELLO_STYLE_ELECTRO,
+    MELLO_STYLE_BREAKS,
+    MELLO_STYLE_IDM,
+    MELLO_STYLE_COUNT
+} MelloStyle;
+const char *mello_style_name(uint8_t style);
+uint8_t mello_engine_style_roll(MelloEngine *engine, uint8_t style);
+/* ROLL on BASS in a style: the bass line alone, as the style's roll writes it (OFF / ANY: the walking line) */
+void mello_engine_style_bass(MelloEngine *engine, uint8_t style);
 /* Undo: keep what a destructive edit is about to replace (randomize_steps_intensity does so itself), and swap it
  * back in. A second swap redoes. Returns false when there is nothing to undo. */
 void mello_engine_undo_snapshot(MelloEngine *engine);

@@ -79,6 +79,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F23 | CI: the 80 / 100 MHz emulator smokes the old build script ran (Phase 0). Done 2026-11-03 locally: tools/emu_smoke.sh and `make emu` (fm1-emu, not the web emulator); the budget report was already build.py's. In CI still to do: the shared workflow needs fm1-emu, and a workflow change needs the push token's workflow scope | review |
 | F24 | On the FM-1, when there is one: first flash, the hand checklist (C4), E5, E8's levels, Big screen | Phase 1 |
 | F25 | The delay's ping-pong: the echoes left and right in turn (one line, read at the time and twice it, the feedback from the second at its square). Done 2026-11-03 (0.5-f63): PING on B2 of the FX pages, saved (SEC_FX v5) | 2026-11-02, 11 |
+| F27 | STYLE: RNDMZR rolls the band in a style, eight of them and ANY (DECISIONS "STYLE"). Done 2026-11-04 (0.5-f68) | 2026-11-04 |
 | F26 | Gain compensation where a drive is turned (asked 2026-11-03 with F20). Done 2026-11-03 (0.5-f62): the kit's DRIVE/FOLD and a sample's DIST; the kick's TONE and the bass's DRIVE measured and already level (DECISIONS "Distortion keeps its level") | 2026-11-03 |
 
 ### The order (waves)
