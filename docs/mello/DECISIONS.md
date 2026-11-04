@@ -1721,6 +1721,22 @@ Test: reverb_glide (no line's read moves more than 2 samples a millisecond throu
 SIZE's length after; no lone spike in the tail). fx_sends now measures what the bass's sends add (the difference of
 two takes), not the sum's level, which a held low note's reverb can lower (it did by 0.03 dB with the lines right).
 
+## RAM (2026-11-04)
+
+Under 4 KB of the 96 KiB was left (94368 B at 0.5-f81). Measured from the ELF, symbol by symbol: the transport with
+the engine 64.9 KB (the 64 pattern slots 47.1 KB of it, at 736 B each; the three rolls back 5.1 KB; the event queue
+2.8 KB; the undo copies 1.6 KB), the audio 15.6 KB (STUTTER's buffer 4 KB, its queue 3 KB, the sample decode 2 KB,
+the distortion curves 2 KB), the rest small (OTA's staging 2.7 KB, the MIDI and SysEx queues). The pool (the delay,
+the reverb, the samples, the screen) is separate and as full (1.3 KB free).
+
+- UNDO's project and the three rolls back keep the project in the compact form a slot keeps (227 B, not 596): lossless
+  for a sanitized project, and a copy is sanitized before it is packed (the project is left alone). roll_locks
+  proves every step's every field comes back.
+- A slot's EVOLVE register is 32 bits, not 32 bytes (still a byte a step on the wire, so saves read as before).
+- 3264 B: 91104 B used, 7.2 KB free (0.5-f82). The styles' fingerprint (840 rolls) is unchanged.
+- The large one left: the pattern slots (47 KB) could live in flash, read when one is played and written with the
+  project; it changes how a slot is saved, so it waits for the product owner's word and, best, an FM-1.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

@@ -760,8 +760,8 @@ typedef struct {
     MelloTmConfig tm;
     MelloModRouting modr;
     uint8_t tm_bool_len;
-    uint8_t
-        tm_bool_reg[MELLO_TM_MAX_STEPS]; /* snapshot saves current bool-array length; load expands to 32 */
+    uint32_t tm_bool_bits; /* the register's bits, step i at bit i (32 bytes before: DECISIONS "RAM"); the snapshot
+                            * saves the bool-array length, load expands to 32 */
     MelloSubConfig sub;
     MelloRandomizeConfig randomize;
     MelloSoundConfig sound;
@@ -869,7 +869,7 @@ typedef struct {
 /* The band as it was before a roll (DECISIONS "Three rolls back"): what UNDO swaps, kept for the last three rolls */
 #define MELLO_ROLL_BACK 3u
 typedef struct {
-    MelloProject project;
+    MelloStoredProject project; /* the compact form (as a slot's: 227 B, not 596; DECISIONS "RAM") */
     MelloSoundConfig sound;
 #if MELLO_FEATURE_CHORD_MACHINE
     MelloChordConfig chord;
@@ -969,7 +969,7 @@ typedef struct {
     MelloPulseModState last_mod;
 
     /* Undo for RANDOM and CLEAR: what the pattern was before the last one (mello_engine_undo_swap). */
-    MelloProject undo_project;
+    MelloStoredProject undo_project; /* compact, as a slot's (DECISIONS "RAM") */
     MelloSoundConfig undo_sound;
 #if MELLO_FEATURE_CHORD_MACHINE
     MelloChordConfig undo_chord;

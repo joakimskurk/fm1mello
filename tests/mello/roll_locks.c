@@ -92,6 +92,27 @@ static void engine_part(void)
     CHECK(e.project.bpm == 131u, "going back changed the tempo to %u", e.project.bpm);
     CHECK(mello_engine_roll_back(&e, 2u) && !memcmp(lead1, e.project.steps, sizeof lead1), "back 3 is not before A");
     CHECK(!mello_engine_roll_back(&e, 3u), "a fourth roll back");
+
+    /* the compact copies give back the very project (DECISIONS "RAM"): every step's every field varied */
+    {
+        static MelloProject full;
+        uint8_t i;
+        for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
+            MelloStep *x = &e.project.steps[i];
+            x->pitch = (int8_t)(i % 14u), x->pulses = (uint8_t)(1u + i % 8u), x->ratchet = (uint8_t)(1u + (i * 3u) % 8u);
+            x->wave = (uint8_t)(i % 6u), x->gate = (MelloGateMode)(i % 4u), x->octave = (int8_t)((int)(i % 5u) - 2);
+            x->slide = i & 1u, x->skip = (i % 7u) == 3u, x->accent = (i % 3u) == 0u, x->sub = (i % 5u) == 1u;
+            x->sample_slot = (uint8_t)(i % 5u), x->probability = (uint16_t)(i * 2053u);
+        }
+        e.project.seg_count = 3u, e.project.master_len = 48u;
+        full = e.project;
+        (void)mello_engine_style_roll(&e, MELLO_STYLE_IDM);
+        CHECK(mello_engine_roll_back(&e, 0u) && !memcmp(&full, &e.project, sizeof full),
+              "the roll back's compact copy is not the project");
+        (void)mello_engine_style_roll(&e, MELLO_STYLE_TECHNO);
+        CHECK(mello_engine_undo_swap(&e) && !memcmp(&full.steps, &e.project.steps, sizeof full.steps),
+              "UNDO's compact copy is not the project");
+    }
 }
 
 static void ui_part(void)

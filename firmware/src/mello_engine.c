@@ -2438,7 +2438,7 @@ static bool apply_slot(MelloEngine *e, uint8_t index, bool from_slot_seq, uint32
     {
         uint8_t saved_len = e->slots[index].tm_bool_len;
         if (saved_len > MELLO_TM_MAX_STEPS) saved_len = MELLO_TM_MAX_STEPS;
-        for (i = 0u; i < saved_len; ++i) e->tm_bool_reg[i] = e->slots[index].tm_bool_reg[i] ? 1u : 0u;
+        for (i = 0u; i < saved_len; ++i) e->tm_bool_reg[i] = (uint8_t)((e->slots[index].tm_bool_bits >> i) & 1u);
         for (i = saved_len; i < MELLO_TM_MAX_STEPS; ++i)
             e->tm_bool_reg[i] = gen_unit16(&e->gen_rng) >= 32768u ? 1u : 0u;
         e->tm_bool_len = MELLO_TM_MAX_STEPS; /* loadSnapshot uses tmEnsureLength(..., MAX_STEPS). */
@@ -2496,8 +2496,9 @@ void mello_engine_capture_working(const MelloEngine *e, MelloPatternSlot *out)
     out->tm = e->tm;
     out->modr = e->modr;
     out->tm_bool_len = e->tm_bool_len > MELLO_TM_MAX_STEPS ? MELLO_TM_MAX_STEPS : e->tm_bool_len;
+    out->tm_bool_bits = 0u;
     for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i)
-        out->tm_bool_reg[i] = (i < out->tm_bool_len && e->tm_bool_reg[i]) ? 1u : 0u;
+        if (i < out->tm_bool_len && e->tm_bool_reg[i]) out->tm_bool_bits |= 1ul << i;
     out->sub = e->sub;
     out->randomize = e->randomize;
     out->sound = e->sound;
@@ -2517,7 +2518,7 @@ bool mello_engine_restore_working(MelloEngine *e, const MelloPatternSlot *snapsh
     e->tm = sanitize_tm_config(snapshot->tm);
     e->modr = sanitize_mod_routing(snapshot->modr);
     saved_len = snapshot->tm_bool_len > MELLO_TM_MAX_STEPS ? MELLO_TM_MAX_STEPS : snapshot->tm_bool_len;
-    for (i = 0u; i < saved_len; ++i) e->tm_bool_reg[i] = snapshot->tm_bool_reg[i] ? 1u : 0u;
+    for (i = 0u; i < saved_len; ++i) e->tm_bool_reg[i] = (uint8_t)((snapshot->tm_bool_bits >> i) & 1u);
     for (i = saved_len; i < MELLO_TM_MAX_STEPS; ++i)
         e->tm_bool_reg[i] = gen_unit16(&e->gen_rng) >= 32768u ? 1u : 0u;
     e->tm_bool_len = MELLO_TM_MAX_STEPS;
@@ -2568,7 +2569,7 @@ bool mello_engine_import_slot(MelloEngine *e, uint8_t index, const MelloPatternS
     clean.modr = sanitize_mod_routing(slot->modr);
     n = slot->tm_bool_len > MELLO_TM_MAX_STEPS ? MELLO_TM_MAX_STEPS : slot->tm_bool_len;
     clean.tm_bool_len = n;
-    for (i = 0u; i < n; ++i) clean.tm_bool_reg[i] = slot->tm_bool_reg[i] ? 1u : 0u;
+    clean.tm_bool_bits = n >= 32u ? slot->tm_bool_bits : slot->tm_bool_bits & ((1ul << n) - 1u);
     clean.sub = sanitize_sub_config(slot->sub);
     clean.randomize = slot->randomize;
     clean.randomize.mask &= MELLO_RAND_ALL;
@@ -2597,8 +2598,9 @@ bool mello_engine_save_slot(MelloEngine *e, uint8_t index, const char *name)
     e->slots[index].tm = e->tm;
     e->slots[index].modr = e->modr;
     e->slots[index].tm_bool_len = e->tm_bool_len;
+    e->slots[index].tm_bool_bits = 0u;
     for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i)
-        e->slots[index].tm_bool_reg[i] = (i < e->tm_bool_len && e->tm_bool_reg[i]) ? 1u : 0u;
+        if (i < e->tm_bool_len && e->tm_bool_reg[i]) e->slots[index].tm_bool_bits |= 1ul << i;
     e->slots[index].sub = e->sub;
     e->slots[index].randomize = e->randomize;
     e->slots[index].sound = e->sound;
@@ -4331,6 +4333,15 @@ static uint8_t style_resolve(MelloEngine *e, uint8_t style, uint8_t parts)
     return st;
 }
 
+/* A project into the compact form a slot keeps, and back (DECISIONS "RAM"): lossless for a sanitized project, so a
+ * copy is sanitized first (the project itself is left as it is) */
+static void keep_project(MelloStoredProject *d, const MelloProject *p)
+{
+    MelloProject c = *p;
+    sanitize_project(&c);
+    mello_stored_project_encode(d, &c);
+}
+
 /* The band as it is, into the three rolls back (the oldest dropped) */
 static void roll_back_push(MelloEngine *e)
 {
@@ -4338,7 +4349,8 @@ static void roll_back_push(MelloEngine *e)
     uint8_t i;
     for (i = MELLO_ROLL_BACK - 1u; i > 0u; --i) e->roll_back[i] = e->roll_back[i - 1u]; /* (no memmove here) */
     b = &e->roll_back[0];
-    b->project = e->project, b->sound = e->sound, b->drums = e->drums, b->bass = e->bass, b->fx = e->fx;
+    keep_project(&b->project, &e->project);
+    b->sound = e->sound, b->drums = e->drums, b->bass = e->bass, b->fx = e->fx;
     b->sub = e->sub;
 #if MELLO_FEATURE_CHORD_MACHINE
     b->chord = e->chord;
@@ -4352,7 +4364,8 @@ bool mello_engine_roll_back(MelloEngine *e, uint8_t n)
     if (!e || n >= e->roll_back_n) return false;
     b = &e->roll_back[n];
     bpm = e->project.bpm; /* the tempo is the player's */
-    e->project = b->project, e->project.bpm = bpm;
+    mello_stored_project_decode(&e->project, &b->project);
+    e->project.bpm = bpm;
     e->sound = b->sound;
 #if MELLO_FEATURE_CHORD_MACHINE
     e->chord = b->chord;
@@ -4459,7 +4472,7 @@ void mello_engine_roll_cancel(MelloEngine *e)
 void mello_engine_undo_snapshot(MelloEngine *e)
 {
     if (!e) return;
-    e->undo_project = e->project;
+    keep_project(&e->undo_project, &e->project);
     e->undo_sound = e->sound;
 #if MELLO_FEATURE_CHORD_MACHINE
     e->undo_chord = e->chord;
@@ -4505,8 +4518,8 @@ bool mello_engine_undo_swap(MelloEngine *e)
     MelloSoundConfig s;
     if (!e || mello_engine_undo_state(e) == MELLO_UNDO_NONE) return false;
     p = e->project;
-    e->project = e->undo_project;
-    e->undo_project = p;
+    mello_stored_project_decode(&e->project, &e->undo_project);
+    keep_project(&e->undo_project, &p);
     e->project.bpm = p.bpm; /* the tempo is the player's: UNDO leaves it (DECISIONS "The tempo is the player's") */
     s = e->sound;
     e->sound = e->undo_sound;

@@ -796,7 +796,7 @@ static void encode_snapshot(Writer *w, const MelloPatternSlot *s)
     }
     encode_tm(w, &s->tm);
     wr_u8(w, s->tm_bool_len);
-    for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i) wr_u8(w, s->tm_bool_reg[i] ? 1u : 0u);
+    for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i) wr_u8(w, (uint8_t)((s->tm_bool_bits >> i) & 1u)); /* a byte each, as before */
     encode_sub(w, &s->sub);
     wr_u16(w, s->randomize.mask);
     encode_sound(w, &s->sound);
@@ -814,8 +814,13 @@ static bool decode_snapshot(Reader *r, MelloPatternSlot *s)
     mello_dot_defaults_for(&s->dot[MELLO_DOT_MOD2], MELLO_DOT_MOD2);
     mello_mod_routing_defaults(&s->modr);
     if (!decode_tm(r, &s->tm) || !rd_u8(r, &s->tm_bool_len)) return false;
+    s->tm_bool_bits = 0u;
     for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i)
-        if (!rd_u8(r, &s->tm_bool_reg[i])) return false;
+    {
+        uint8_t b;
+        if (!rd_u8(r, &b)) return false;
+        if (b) s->tm_bool_bits |= 1ul << i;
+    }
     if (!decode_sub(r, &s->sub) || !rd_u16(r, &s->randomize.mask) || !decode_sound(r, &s->sound) ||
         !decode_sample(r, &s->sample))
         return false;
