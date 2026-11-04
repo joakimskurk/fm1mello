@@ -28,7 +28,7 @@ enum {
                          SUB ROOT; 4: HARMONY (FOLLOW, DRIFT, DEPTH); 5: POLY */
     SECVER_GRIT = 4, /* 4: MIX's LEAD */
     SECVER_MOD = 3,
-    SECVER_DRUMS = 3, /* 2: DUCK; 3: each voice's LENGTH, BAR */
+    SECVER_DRUMS = 4, /* 2: DUCK; 3: each voice's LENGTH, BAR; 4: each voice's DIR, SWING per part */
     SECVER_BASS = 1,
     SECVER_MACROS = 1
 };
@@ -56,7 +56,8 @@ enum {
 #define MOD_ENTRY_SIZE     57u
 #define DRUMS_WIRE_SIZE_V1 (12u + MELLO_DRUM_VOICES * (12u + 4u + MELLO_DRUM_STEPS * 4u))
 #define DRUMS_WIRE_SIZE_V2 (DRUMS_WIRE_SIZE_V1 + 2u) /* v2: DUCK */
-#define DRUMS_WIRE_SIZE    (DRUMS_WIRE_SIZE_V2 + MELLO_DRUM_VOICES) /* v3: each voice's LENGTH (BAR a flag) */
+#define DRUMS_WIRE_SIZE_V3 (DRUMS_WIRE_SIZE_V2 + MELLO_DRUM_VOICES) /* v3: each voice's LENGTH (BAR a flag) */
+#define DRUMS_WIRE_SIZE    (DRUMS_WIRE_SIZE_V3 + MELLO_DRUM_VOICES + 6u) /* v4: each voice's DIR, SWING per part */
 #define BASS_WIRE_SIZE     (10u + MELLO_BASS_STEPS * 2u)
 #define SLOT_SEQ_WIRE_SIZE (2u + MELLO_MAX_SLOT_SEQ_STEPS * 3u)
 #define SLOT_WIRE_SIZE     (1u + (MELLO_SLOT_NAME_CHARS + 1u) + SNAPSHOT_WIRE_SIZE)
@@ -577,6 +578,8 @@ static void encode_drums(Writer *w, const MelloDrumConfig *d)
     }
     wr_u16(w, d->duck); /* v2 */
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) wr_u8(w, d->vlen[v]); /* v3 */
+    for (v = 0u; v < MELLO_DRUM_VOICES; ++v) wr_u8(w, d->vdir[v]); /* v4 */
+    for (v = 0u; v < 3u; ++v) wr_u16(w, (uint16_t)d->swing_part[v]);
 }
 static bool decode_drums(Reader *r, MelloDrumConfig *d, uint16_t ver)
 {
@@ -607,6 +610,13 @@ static bool decode_drums(Reader *r, MelloDrumConfig *d, uint16_t ver)
     if (ver >= 2u && !rd_u16(r, &d->duck)) return false;
     for (v = 0u; ver >= 3u && v < MELLO_DRUM_VOICES; ++v)
         if (!rd_u8(r, &d->vlen[v])) return false;
+    for (v = 0u; ver >= 4u && v < MELLO_DRUM_VOICES; ++v)
+        if (!rd_u8(r, &d->vdir[v])) return false;
+    for (v = 0u; ver >= 4u && v < 3u; ++v) {
+        uint16_t x;
+        if (!rd_u16(r, &x)) return false;
+        d->swing_part[v] = (int16_t)x;
+    }
     return true;
 }
 
@@ -1156,7 +1166,10 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
         } else if (id == SEC_DRUMS && ver >= 1u && ver <= SECVER_DRUMS) {
             MelloDrumConfig drums;
             mello_drum_defaults(&drums);
-            if (len != (ver == 1u ? DRUMS_WIRE_SIZE_V1 : ver == 2u ? DRUMS_WIRE_SIZE_V2 : DRUMS_WIRE_SIZE) ||
+            if (len != (ver == 1u   ? DRUMS_WIRE_SIZE_V1
+                        : ver == 2u ? DRUMS_WIRE_SIZE_V2
+                        : ver == 3u ? DRUMS_WIRE_SIZE_V3
+                                    : DRUMS_WIRE_SIZE) ||
                 !decode_drums(&r, &drums, ver))
                 return false;
             if (apply && e) mello_engine_drums_set_config(e, &drums);

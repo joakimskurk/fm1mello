@@ -2166,7 +2166,7 @@ static int8_t drum_tick_key(const MelloEngine *e)
 {
     return e->drum_step < 0 ? (int8_t)-1 : (int8_t)(e->drum_pos & 0x3Fu);
 }
-#define DRUM_LAYERS 5u
+#define DRUM_LAYERS 6u /* VOICE, STEP, VARY, KIT, DIST, LINE */
 static void adjust_drums(MelloUi *ui, uint8_t knob, int16_t delta)
 {
     MelloEngine *e = eng(ui);
@@ -2197,16 +2197,22 @@ static void adjust_drums(MelloUi *ui, uint8_t knob, int16_t delta)
     case 11: d.roll = (uint16_t)clamp_i32((int32_t)d.roll + delta * 10, 0, 1000); break;
     case 12: d.length = (uint8_t)clamp_i32((int32_t)d.length + delta, 1, MELLO_DRUM_STEPS); break;
     case 13: d.follow = delta > 0; break;
-    case 14: { /* V.LEN: the picked voice's own LENGTH, KIT (0, the kit's) .. 16 (SPACE went to MIX, E11) */
-        uint8_t *n = &d.vlen[ui->selected_drum_voice % MELLO_DRUM_VOICES];
-        *n = (uint8_t)clamp_i32((int32_t)*n + delta, 0, MELLO_DRUM_STEPS);
-        break;
-    }
+    case 14: return; /* SPACE went to MIX's DELAY and REVERB (E11) */
     case 15: d.level = (uint16_t)clamp_i32((int32_t)d.level + delta * 10, 0, 1000); break;
     case 16: d.drive = (uint16_t)clamp_i32((int32_t)d.drive + delta * 10, 0, 1000); break;
     case 17: d.fold = (uint16_t)clamp_i32((int32_t)d.fold + delta * 10, 0, 1000); break;
     case 18: d.duck = (uint16_t)clamp_i32((int32_t)d.duck + delta * 10, 0, 1000); break;
-    case 19: d.bar_reset = delta > 0; break; /* RESTART: BAR, every bar's one; FREE, at RESET, start and stop */
+    case 20: { /* LINE: V.LEN, the picked voice's own LENGTH, KIT (0, the kit's) .. 16 */
+        uint8_t *n = &d.vlen[ui->selected_drum_voice % MELLO_DRUM_VOICES];
+        *n = (uint8_t)clamp_i32((int32_t)*n + delta, 0, MELLO_DRUM_STEPS);
+        break;
+    }
+    case 21: { /* DIR: the picked voice FWD, REV, PING */
+        uint8_t *n = &d.vdir[ui->selected_drum_voice % MELLO_DRUM_VOICES];
+        *n = (uint8_t)clamp_i32((int32_t)*n + (delta > 0 ? 1 : -1), 0, MELLO_DRUM_DIRS - 1);
+        break;
+    }
+    case 22: d.bar_reset = delta > 0; break; /* RESTART: BAR, every bar's one; FREE, at RESET, start and stop */
     default: return;
     }
     mello_engine_drums_set_config(e, &d);
@@ -2527,12 +2533,17 @@ static void adjust_global(MelloUi *ui, uint8_t knob, int16_t delta, uint32_t now
                 t, (MelloSyncMode)wrap_u8((int32_t)t->sync_mode + (delta > 0 ? 1 : -1), 3u), now_us);
         else if (knob == 3u)
             mello_transport_set_midi_note_out(t, delta > 0);
-    } else if (ui->global_subpage == 2u) { /* GROOVE: SWING, for everything (the same as DRUMS VARY's) */
-        if (knob == 0u) {
-            MelloDrumConfig d = t->engine.drums;
+    } else if (ui->global_subpage == 2u) { /* GROOVE: SWING, for everything; LEAD, BASS, DRUMS their own or GLOBAL */
+        MelloDrumConfig d = t->engine.drums;
+        if (knob == 0u)
             d.swing = (uint16_t)clamp_i32((int32_t)d.swing + delta * 10, 0, 1000);
-            mello_engine_drums_set_config(&t->engine, &d);
+        else { /* below 0%: GLOBAL; up from GLOBAL: the global's value, then on from there */
+            int16_t *p = &d.swing_part[knob - 1u];
+            int32_t x = *p < 0 ? (delta > 0 ? (int32_t)d.swing - 10 : -1) : *p;
+            x += delta * 10;
+            *p = (int16_t)(x < 0 ? -1 : (x > 1000 ? 1000 : x));
         }
+        mello_engine_drums_set_config(&t->engine, &d);
     } else {
         if (knob == 0u)
             mello_transport_set_midi_channel(t,
@@ -5819,12 +5830,14 @@ static bool knob_norm_raw(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 10: v = (uint32_t)((d->feed ? 1u : 0u) + (d->feed_sound ? 1u : 0u)), m = 2u; break;
         case 11: v = d->roll; break;
         case 12: v = d->length - 1u, m = 15u; break;
-        case 14: v = d->vlen[ui->selected_drum_voice % MELLO_DRUM_VOICES], m = MELLO_DRUM_STEPS; break;
+        case 14: return false;
         case 15: v = d->level; break;
         case 16: v = d->drive; break;
         case 17: v = d->fold; break;
         case 18: v = d->duck; break;
-        case 19: v = d->bar_reset ? 1u : 0u, m = 1u; break;
+        case 20: v = d->vlen[ui->selected_drum_voice % MELLO_DRUM_VOICES], m = MELLO_DRUM_STEPS; break;
+        case 21: v = d->vdir[ui->selected_drum_voice % MELLO_DRUM_VOICES], m = MELLO_DRUM_DIRS - 1u; break;
+        case 22: v = d->bar_reset ? 1u : 0u, m = 1u; break;
         default: return false;
         }
     } else if (ui->page == MELLO_UI_SAMPLE_RESERVED) {
@@ -5853,8 +5866,9 @@ static bool knob_norm_raw(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
 #endif
     } else if (ui->page == MELLO_UI_RANDOM && ui->random_edit && k == 0u) {
         v = e->modr.rnd_amount[random_target_bitno(ui->random_sel)], m = 100u;
-    } else if (ui->page == MELLO_UI_GLOBAL && ui->global_subpage == 2u && k == 0u) {
-        v = e->drums.swing;
+    } else if (ui->page == MELLO_UI_GLOBAL && ui->global_subpage == 2u) {
+        int16_t s = k ? e->drums.swing_part[k - 1u] : 0;
+        v = k == 0u ? e->drums.swing : (uint32_t)(s < 0 ? e->drums.swing : s); /* GLOBAL: where the global is */
     } else if (ui->page == MELLO_UI_GLOBAL && ui->global_subpage == 0u && k == 0u) {
         v = e->project.bpm > 20u ? e->project.bpm - 20u : 0u, m = 230u; /* 20..250 BPM */
     } else
@@ -6308,11 +6322,17 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
             l[3] = "NOTEOUT";
             copy_s(v[3], ui->transport->midi_note_out_enabled ? "ON" : "OFF");
         } else if (ui->global_subpage == 2u) {
+            static const char *part[3] = {"LEAD", "BASS", "DRUMS"};
+            uint8_t pk;
             l[0] = "SWING";
             value_pct(v[0], e->drums.swing);
-            copy_s(v[1], "-");
-            copy_s(v[2], "-");
-            copy_s(v[3], "-");
+            for (pk = 0u; pk < 3u; ++pk) {
+                l[pk + 1u] = part[pk];
+                if (e->drums.swing_part[pk] < 0)
+                    copy_s(v[pk + 1u], "GLOBAL");
+                else
+                    value_pct(v[pk + 1u], (uint32_t)e->drums.swing_part[pk]);
+            }
         } else {
             l[0] = "LEAD";
             value_u(v[0], "", (uint32_t)ui->transport->midi_channel + 1u);
@@ -6487,8 +6507,9 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
         static const char *lab[DRUM_LAYERS][4] = {{"TUNE", "DECAY", "TONE", "LEVEL"},
                                                   {"PITCH", "DECAY", "CRUSH", "RATCH"},
                                                   {"CHANCE", "CRUSH", "FEED", "ROLL"},
-                                                  {"LENGTH", "FOLLOW", "V.LEN", "LEVEL"},
-                                                  {"DRIVE", "FOLD", "DUCK", "RESTART"}};
+                                                  {"LENGTH", "FOLLOW", "", "LEVEL"},
+                                                  {"DRIVE", "FOLD", "DUCK", ""},
+                                                  {"V.LEN", "DIR", "RESTART", ""}};
         const MelloDrumConfig *d = &e->drums;
         const MelloDrumVoice *dv = &d->voice[ui->selected_drum_voice % MELLO_DRUM_VOICES];
         const MelloDrumLock *dl =
@@ -6523,19 +6544,23 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
         } else if (L == 3u) {
             value_u(v[0], "", d->length);
             copy_s(v[1], d->follow ? "ON" : "OFF");
-            { /* the picked voice's own LENGTH, or the kit's */
-                uint8_t n = d->vlen[ui->selected_drum_voice % MELLO_DRUM_VOICES];
-                if (n)
-                    value_u(v[2], "", n);
-                else
-                    copy_s(v[2], "KIT");
-            }
+            copy_s(v[2], "-"); /* SPACE: MIX's DELAY and REVERB */
             value_pct(v[3], d->level);
-        } else {
+        } else if (L == 4u) {
             value_pct(v[0], d->drive);
             value_pct(v[1], d->fold);
             value_pct(v[2], d->duck);
-            copy_s(v[3], d->bar_reset ? "BAR" : "FREE");
+            copy_s(v[3], "-");
+        } else { /* LINE: the picked voice's own LENGTH (or the kit's), its way; RESTART for them all */
+            static const char *dir[MELLO_DRUM_DIRS] = {"FWD", "REV", "PING"};
+            uint8_t lv = ui->selected_drum_voice % MELLO_DRUM_VOICES, n = d->vlen[lv];
+            if (n)
+                value_u(v[0], "", n);
+            else
+                copy_s(v[0], "KIT");
+            copy_s(v[1], dir[d->vdir[lv] % MELLO_DRUM_DIRS]);
+            copy_s(v[2], d->bar_reset ? "BAR" : "FREE");
+            copy_s(v[3], "-");
         }
         break;
     }
@@ -7144,7 +7169,7 @@ static const char *layer_name(const MelloUi *ui)
     }
 #endif
     case MELLO_UI_DRUMS: {
-        static const char *drm[DRUM_LAYERS] = {"VOICE", "STEP", "VARY", "KIT", "DIST"};
+        static const char *drm[DRUM_LAYERS] = {"VOICE", "STEP", "VARY", "KIT", "DIST", "LINE"};
         return drm[ui->drum_subpage % DRUM_LAYERS];
     }
     case MELLO_UI_HOME: return ui->held_step == MELLO_UI_NO_STEP ? 0 : "HELD STEP";

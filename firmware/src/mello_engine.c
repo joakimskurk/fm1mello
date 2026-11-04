@@ -493,9 +493,14 @@ static bool queue_push(MelloEngine *e, const MelloEvent *in)
     MelloEvent late;
     const MelloEvent *ev = in;
     uint8_t pos, prev;
-    if (e->swing_off) { /* SWING: this pulse's sounds, late together */
+    if (e->swing_off) { /* SWING: this pulse's sounds late, each part by its own (DECISIONS "Swing per part") */
+        const MelloDrumConfig *d = &e->drums;
+        uint8_t part = in->type == MELLO_EVENT_DRUM_HIT                                           ? MELLO_SWING_DRUMS
+                       : in->type == MELLO_EVENT_SUB_NOTE_ON || in->type == MELLO_EVENT_SUB_NOTE_OFF ? MELLO_SWING_BASS
+                                                                                                    : MELLO_SWING_LEAD;
+        int32_t sw = d->swing_part[part] < 0 ? (int32_t)d->swing : d->swing_part[part];
         late = *in;
-        late.tick += e->swing_off;
+        late.tick += e->swing_off * (uint32_t)sw / 2000u; /* (swing_off: the pulse's ticks, on an odd one) */
         ev = &late;
     }
     if (e->q_count >= MELLO_EVENT_QUEUE_CAP) {
@@ -721,6 +726,7 @@ void mello_drum_defaults(MelloDrumConfig *c)
     memset(c, 0, sizeof(*c));
     c->length = 16u;
     c->swing = 0u;
+    c->swing_part[0] = c->swing_part[1] = c->swing_part[2] = -1; /* GLOBAL */
     c->level = 950u; /* 70% to 80% (2026-11-01), to 95% (2026-11-04): a little over the lead (DECISIONS "The mix") */
     c->space = 250u;
     c->roll = 500u;
@@ -743,8 +749,12 @@ static MelloDrumConfig sanitize_drum_config(MelloDrumConfig c)
     uint8_t i, k;
     if (c.length < 1u) c.length = 1u;
     if (c.length > MELLO_DRUM_STEPS) c.length = MELLO_DRUM_STEPS;
-    for (i = 0u; i < MELLO_DRUM_VOICES; ++i)
+    for (i = 0u; i < MELLO_DRUM_VOICES; ++i) {
         if (c.vlen[i] > MELLO_DRUM_STEPS) c.vlen[i] = MELLO_DRUM_STEPS;
+        if (c.vdir[i] >= MELLO_DRUM_DIRS) c.vdir[i] = MELLO_DRUM_DIR_FWD;
+    }
+    for (i = 0u; i < 3u; ++i)
+        if (c.swing_part[i] < -1 || c.swing_part[i] > 1000) c.swing_part[i] = -1;
     if (c.swing > 1000u) c.swing = 1000u;
     if (c.level > 1000u) c.level = 1000u;
     if (c.space > 1000u) c.space = 1000u;
@@ -831,16 +841,30 @@ uint8_t mello_drum_voice_length(const MelloDrumConfig *d, uint8_t v)
     uint8_t n = v < MELLO_DRUM_VOICES && d->vlen[v] ? d->vlen[v] : d->length;
     return n ? n : 1u;
 }
-static uint16_t drum_wrap(const MelloDrumConfig *d)
+/* A voice's cycle: its LENGTH, or with PING there and back (twice less the two ends) */
+static uint32_t drum_cycle(const MelloDrumConfig *d, uint8_t v)
+{
+    uint32_t n = mello_drum_voice_length(d, v);
+    return d->vdir[v] == MELLO_DRUM_DIR_PING && n > 1u ? 2u * n - 2u : n;
+}
+/* The step a voice plays at the count */
+static uint8_t drum_voice_step(const MelloDrumConfig *d, uint8_t v, uint32_t at)
+{
+    uint32_t n = mello_drum_voice_length(d, v), c = at % drum_cycle(d, v);
+    if (d->vdir[v] == MELLO_DRUM_DIR_REV) return (uint8_t)(n - 1u - c);
+    if (d->vdir[v] == MELLO_DRUM_DIR_PING && c >= n) return (uint8_t)(2u * n - 2u - c);
+    return (uint8_t)c;
+}
+static uint32_t drum_wrap(const MelloDrumConfig *d)
 {
     uint32_t w = 1u;
     uint8_t v;
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
-        uint32_t a = w, b = mello_drum_voice_length(d, v), t;
+        uint32_t a = w, b = drum_cycle(d, v), t;
         while (b) t = a % b, a = b, b = t; /* gcd */
-        w = w / a * mello_drum_voice_length(d, v);
+        w = w / a * drum_cycle(d, v);
     }
-    return (uint16_t)w;
+    return w;
 }
 
 void mello_engine_drums_set_config(MelloEngine *e, const MelloDrumConfig *config)
@@ -848,7 +872,7 @@ void mello_engine_drums_set_config(MelloEngine *e, const MelloDrumConfig *config
     if (!e || !config) return;
     e->drums = sanitize_drum_config(*config);
     e->drum_wrap = drum_wrap(&e->drums);
-    e->drum_pos = (uint16_t)(e->drum_pos % e->drum_wrap);
+    e->drum_pos %= e->drum_wrap;
 }
 
 void mello_engine_drums_roll(MelloEngine *e)
@@ -1033,13 +1057,13 @@ static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
 {
     MelloDrumConfig *d = &e->drums;
     uint8_t st, v, r;
-    uint16_t at = e->drum_pos;
+    uint32_t at = e->drum_pos;
     if (!d->on) return;
     e->drum_step = (int8_t)(at % (d->length ? d->length : 1u));
-    e->drum_pos = (uint16_t)((at + 1u) % (e->drum_wrap ? e->drum_wrap : 1u));
+    e->drum_pos = (at + 1u) % (e->drum_wrap ? e->drum_wrap : 1u);
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
         const MelloDrumLock *l;
-        st = (uint8_t)(at % mello_drum_voice_length(d, v)); /* each voice at its own place in its own LENGTH */
+        st = drum_voice_step(d, v, at); /* each voice at its own place in its own LENGTH, its own way */
         e->drum_vstep[v] = (int8_t)st;
         l = &d->lock[v][st];
         uint8_t n = l->ratchet < 1u ? 1u : l->ratchet > 4u ? 4u : l->ratchet;
@@ -4489,7 +4513,7 @@ bool mello_engine_undo_swap(MelloEngine *e)
         e->drums = e->undo_drums;
         e->undo_drums = d;
         e->drum_wrap = drum_wrap(&e->drums);
-        e->drum_pos = (uint16_t)(e->drum_pos % e->drum_wrap);
+        e->drum_pos %= e->drum_wrap;
         e->bass = e->undo_bass;
         e->undo_bass = b;
     }
@@ -5105,7 +5129,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     set_current_entry(e);
     if (!e->has_active_step) return false;
     /* SWING (DECISIONS.md "Drums"): everything this pulse sounds, on an odd sixteenth, comes this much late. */
-    e->swing_off = (e->absolute_pulse & 1u) ? mello_pulse_ticks(&e->project) * e->drums.swing / 2000u : 0u;
+    e->swing_off = (e->absolute_pulse & 1u) ? mello_pulse_ticks(&e->project) : 0u; /* queue_push: by part */
     seg = &e->runtime_segments[e->active_runtime_segment];
     pe = e->runtime_pulses[seg->offset + e->segment_pulse_pos];
     /* The performance keys: the sequence's own pulse goes into the history, and REVERSE / REPEAT play theirs. The
@@ -5341,12 +5365,11 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     pulse_ticks = mello_pulse_ticks(&e->project);
     if (e->drums.bar_reset && e->absolute_pulse % 16u == 0u) e->drum_pos = 0u; /* BAR: every bar's one */
     if (replay && e->drums.on && e->drums.length) { /* REVERSE / REPEAT: the drums' step of then */
-        uint16_t real = e->drum_pos;
+        uint32_t real = e->drum_pos;
         e->drum_pos = pp.drum;
         if (!e->drums.follow || pe.pulse_index == 0u) drums_tick(e, pulse_ticks);
-        e->drum_pos = (!e->drums.follow || real_pe.pulse_index == 0u)
-                          ? (uint16_t)((real + 1u) % (e->drum_wrap ? e->drum_wrap : 1u))
-                          : real; /* its own time underneath */
+        e->drum_pos = (!e->drums.follow || real_pe.pulse_index == 0u) ? (real + 1u) % (e->drum_wrap ? e->drum_wrap : 1u)
+                                                                       : real; /* its own time underneath */
     } else if (!e->drums.follow || pe.pulse_index == 0u)
         drums_tick(e, pulse_ticks);
     e->swing_off = 0u; /* the loop's and the slots' events stay on the grid */

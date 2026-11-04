@@ -3,7 +3,7 @@
 /* A length per voice (DECISIONS "A length per voice"): KICK 16, SNARE 16, HAT 12, GLITCH 7, each voice plays its own
  * steps in its own length; FREE they run on and meet again at the lengths' least common multiple (336), BAR they
  * all start over at every bar's one (and FREE at the project's RESET, as every part); V.LEN 0 is the kit's LENGTH, so an old project plays as before. RESET and a
- * stop start them over. Saved (SEC_DRUMS v3), and an old section reads as the kit's LENGTH, FREE. */
+ * stop start them over. DIR: REV backwards, PING there and back. Saved (SEC_DRUMS v4, with SWING per part), and an old section reads as the kit's LENGTH, FREE. */
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -106,6 +106,19 @@ int main(void)
             CHECK(at[k][v] == (int16_t)((k % 16u) % lens[v]), "BAR: voice %u at pulse %u played step %d", v, k,
                   at[k][v]);
 
+    /* DIR: the hat backwards over its 12, the glitch there and back over its 7 (a cycle of 12) */
+    d.bar_reset = false;
+    d.vdir[2] = MELLO_DRUM_DIR_REV, d.vdir[3] = MELLO_DRUM_DIR_PING;
+    mello_engine_drums_set_config(&e, &d);
+    play(48u, at);
+    for (k = 0u; k < 48u; ++k) {
+        uint32_t c = k % 12u;
+        CHECK(at[k][2] == (int16_t)(11u - k % 12u), "REV: the hat at pulse %u played step %d", k, at[k][2]);
+        CHECK(at[k][3] == (int16_t)(c < 7u ? c : 12u - c), "PING: the glitch at pulse %u played step %d", k, at[k][3]);
+    }
+    CHECK(e.drum_wrap == 48u, "16 16 12-REV 7-PING meet after %u, not 48", e.drum_wrap);
+    d.vdir[2] = d.vdir[3] = MELLO_DRUM_DIR_FWD;
+
     /* the longest the count can be */
     {
         static const uint8_t worst[4] = {16u, 15u, 13u, 11u};
@@ -123,6 +136,7 @@ int main(void)
         memset(flash, 0xFF, sizeof flash);
         memcpy(d.vlen, lens, sizeof d.vlen);
         d.bar_reset = true;
+        d.vdir[3] = MELLO_DRUM_DIR_PING, d.swing_part[MELLO_SWING_DRUMS] = 450;
         mello_engine_drums_set_config(&e, &d);
         {
             MelloFxConfig f = e.fx; /* (and FX's TRIM, SEC_FX v6, with them) */
@@ -139,7 +153,10 @@ int main(void)
         r = mello_storage_load(&s, &e);
         (void)r;
         CHECK(e.fx.trim_db == -3, "TRIM read back as %d", e.fx.trim_db);
-        CHECK(!memcmp(e.drums.vlen, lens, sizeof lens) && e.drums.bar_reset && e.drum_wrap == 336u,
+        CHECK(e.drums.vdir[3] == MELLO_DRUM_DIR_PING && e.drums.swing_part[MELLO_SWING_DRUMS] == 450 &&
+                  e.drums.swing_part[MELLO_SWING_LEAD] == -1,
+              "DIR and SWING per part not read back");
+        CHECK(!memcmp(e.drums.vlen, lens, sizeof lens) && e.drums.bar_reset && e.drum_wrap == 48u,
               "read back: %u %u %u %u, BAR %d", e.drums.vlen[0], e.drums.vlen[1], e.drums.vlen[2], e.drums.vlen[3],
               (int)e.drums.bar_reset);
     }

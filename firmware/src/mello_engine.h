@@ -420,7 +420,7 @@ typedef struct {
 #define MELLO_PERF_HISTORY 64u
 /* Where the other parts were at a pulse in the history, so REVERSE / REPEAT replay them too (ROADMAP E2 / F3). */
 typedef struct {
-    uint16_t drum;                               /* the drums' count (drum_pos) */
+    uint32_t drum;                               /* the drums' count (drum_pos) */
     uint8_t bass;                                /* BASS SEQ's next step */
     uint8_t chord_pos, chord_arp, chord_pattern; /* the chain's chord, its arpeggio's and pattern's place */
 } MelloPerfParts;
@@ -534,6 +534,8 @@ typedef struct {
 #define MELLO_DRUM_VOICES 4u
 #define MELLO_DRUM_STEPS  16u
 typedef enum { MELLO_DRUM_KICK = 0, MELLO_DRUM_SNARE, MELLO_DRUM_HAT, MELLO_DRUM_GLITCH } MelloDrumVoiceId;
+enum { MELLO_DRUM_DIR_FWD = 0, MELLO_DRUM_DIR_REV, MELLO_DRUM_DIR_PING, MELLO_DRUM_DIRS };
+enum { MELLO_SWING_LEAD = 0, MELLO_SWING_BASS, MELLO_SWING_DRUMS };
 /* GLITCH's kinds, by its TONE in quarters. */
 typedef enum {
     MELLO_GLITCH_BLEEP = 0,
@@ -566,8 +568,12 @@ typedef struct {
      * SNARE 16, HAT 12, GLITCH 7 is a polyrhythm. With BAR they all start over at every bar's one; FREE, they run on
      * until RESET, start or stop. */
     uint8_t vlen[4];
+    uint8_t vdir[4]; /* each voice's DIR (MELLO_DRUM_DIR_*) */
     bool bar_reset;
     uint16_t swing;  /* 0..1000: SWING, for everything: each odd sixteenth up to half a step late */
+    /* SWING per part (GLOBAL > GROOVE): the lead (and the chords, the samples), the bass, the drums; -1 GLOBAL (as
+     * SWING), else 0..1000 (DECISIONS "Swing per part") */
+    int16_t swing_part[3];
     uint16_t level;  /* 0..1000 */
     uint16_t space;  /* 0..1000: the send to the delay and reverb */
     uint16_t roll;   /* 0..1000: how much a roll changes */
@@ -1009,12 +1015,13 @@ typedef struct {
     int8_t bass_step;   /* the one playing, -1 stopped (the SUB page) */
     bool bass_glide_in; /* the last step glides into this one */
     MelloPrng drum_rng; /* chance and rolls: the other streams stay as they were */
-    uint16_t drum_pos;  /* the drums' steps counted since their start (each voice at drum_pos % its LENGTH), up to
-                         * drum_wrap: the lengths' least common multiple, where they all meet again */
-    uint16_t drum_wrap;
+    uint32_t drum_pos;  /* the drums' steps counted since their start (each voice at its place in its cycle: its
+                         * LENGTH, or twice less two with PING), up to drum_wrap: the cycles' least common multiple,
+                         * where they all meet again */
+    uint32_t drum_wrap;
     int8_t drum_step;   /* the one playing, -1 stopped (the DRUMS page): the kit's LENGTH's */
     int8_t drum_vstep[4]; /* each voice's (MELLO_DRUM_VOICES) */
-    uint32_t swing_off; /* SWING: ticks added to what this pulse queues (queue_push) */
+    uint32_t swing_off; /* SWING: an odd pulse's ticks (0 on an even one); queue_push adds each part's share */
     bool drone_open;
     uint8_t drone_note;
     uint8_t drone_step;

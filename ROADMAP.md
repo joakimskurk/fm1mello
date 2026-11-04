@@ -82,7 +82,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F27 | STYLE: RNDMZR rolls the band in a style, eight of them and ANY (DECISIONS "STYLE"). Done 2026-11-04 (0.5-f68); fourteen, and ACID's 303 in the bass (0.5-f69); the kit's, the bass's and (held back) the lead's sound in a style, one part at a time on RNDMZR held (0.5-f70); GLITCH (0.5-f71) | 2026-11-04 |
 | F26 | Gain compensation where a drive is turned (asked 2026-11-03 with F20). Done 2026-11-03 (0.5-f62): the kit's DRIVE/FOLD and a sample's DIST; the kick's TONE and the bass's DRIVE measured and already level (DECISIONS "Distortion keeps its level") | 2026-11-03 |
 | F28 | A length per voice in the drums (KICK 16, SNARE 16, HAT 12, GLITCH 7), restarting at every bar (BAR) or running free until RESET, start or stop (DECISIONS "A length per voice"). Done 2026-11-04 (0.5-f72): V.LEN on KIT, RESTART on DIST, saved (SEC_DRUMS v3) | 2026-11-04 |
-| F29 | The workshop's plan (2026-11-04), five waves: 1 the tempo never rolled, a roll on the one, the manual's defaults (0.5-f73); 2 the styles' levels (TRIM), LP + HP a band-pass (0.5-f74); 3 part locks, three rolls back, kept in a slot (0.5-f75); 4 swing per part, a direction and 32 steps per drum voice; 5 a melody-only STYLE, an overview, one struct per style | 2026-11-04 |
+| F29 | The workshop's plan (2026-11-04), five waves: 1 the tempo never rolled, a roll on the one, the manual's defaults (0.5-f73); 2 the styles' levels (TRIM), LP + HP a band-pass (0.5-f74); 3 part locks, three rolls back, kept in a slot (0.5-f75); 4 swing per part, a direction per drum voice (0.5-f76), 32 steps per drum voice; 5 a melody-only STYLE, an overview, one struct per style | 2026-11-04 |
 
 ### The order (waves)
 

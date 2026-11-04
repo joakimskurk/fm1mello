@@ -246,8 +246,9 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   walks and octave jumps between, an octave down; UNDO takes it back.
 - **Drums** (ARP > DRUMS). Kick, snare, hat and a glitch voice (bleep, chirp, crackle, stutter) on a 16-step
   pattern with accents, per-step pitch, decay, crush and ratchet locks, rolls, chance, swing (GLOBAL > GROOVE, for
-  everything), a length per voice (KIT's V.LEN: KICK 16, SNARE 16, HAT 12, GLITCH 7 is a polyrhythm; RESTART on DIST:
-  BAR starts them all over at every bar's one, FREE lets them run until RESET, start or stop), a kit drive with fold, DUCK (the kick's sidechain: the lead, sub and chords dip at each kick and
+  everything), a length and a direction per voice (LINE: V.LEN, KICK 16, SNARE 16, HAT 12, GLITCH 7 is a polyrhythm;
+  DIR forward, backwards or there and back; RESTART: BAR starts them all over at every bar's one, FREE lets them
+  run until RESET, start or stop), swing per part (GLOBAL > GROOVE: LEAD, BASS, DRUMS their own, or GLOBAL), a kit drive with fold, DUCK (the kick's sidechain: the lead, sub and chords dip at each kick and
   come back over 160 ms), and their sends on MIX. RNDMZR rolls them too with FEED on. The kick is built
   for weight: a driven sine from 38 to 90 Hz whose pitch falls from 3.5x over 90 ms, decaying up to 1.5 s.
 - **MIX** (GLO > MIX). The levels of lead, bass, chords and drums as faders, each with a mute (LD, BS, CH, DR);
@@ -308,7 +309,7 @@ K1-K4 with their default values.
 | BASS | ARP | TONE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | GLIDE 20MS · OCT -1 · F.DEC 300MS · ACCENT 50% |
 | GLOBAL | GLO | CLOCK | `TAP RST2 PERF MUT UNDO RNDMZR` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | GLOBAL | GLO | MIDI | `TAP RST2 PERF MUT UNDO RNDMZR` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
-| GLOBAL | GLO | GROOVE | `TAP RST2 PERF MUT UNDO RNDMZR` | SWING 0% · — · — · — |
+| GLOBAL | GLO | GROOVE | `TAP RST2 PERF MUT UNDO RNDMZR` | SWING 0% · LEAD GLOBAL · BASS GLOBAL · DRUMS GLOBAL |
 | SOUND | ENV | FILTER | `INIT PERF MUT UNDO RNDMZR` | CUT 3264HZ · RES 20% · DECAY 180MS · LEVEL 100% |
 | SOUND | ENV | OSC | `INIT PERF MUT UNDO RNDMZR` | WAVE SAW · PWM 50% · SLIDE 50MS · MASTER 75% |
 | SOUND | ENV | AMP ENV | `INIT PERF MUT UNDO RNDMZR` | ATTACK 5MS · DECAY 180MS · SUSTAIN 40% · RELEASE 120MS |
@@ -331,8 +332,9 @@ K1-K4 with their default values.
 | DRUMS | ARP | VOICE | `ON VOX ACC ROLL P M UNDO RNDMZR` | TONE 25% · TUNE 40% · DECAY 335MS · LEVEL 90% |
 | DRUMS | ARP | STEP | `ON VOX ACC ROLL P M UNDO RNDMZR` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | DRUMS | ARP | VARY | `ON VOX ACC ROLL P M UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
-| DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · V.LEN KIT · LEVEL 95% |
-| DRUMS | ARP | DIST | `ON VOX ACC ROLL P M UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · RESTART FREE |
+| DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · — · LEVEL 95% |
+| DRUMS | ARP | DIST | `ON VOX ACC ROLL P M UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · — |
+| DRUMS | ARP | LINE | `ON VOX ACC ROLL P M UNDO RNDMZR` | V.LEN KIT · DIR FWD · RESTART FREE · — |
 | CHORD | ARP | PLAY | `ON BASS POLY FIT P M UNDO RNDMZR` | MODE BROKEN · TRIG STEP · CHORDS 1 · GATE 72% |
 | CHORD | ARP | CHORD | `ON BASS POLY FIT P M UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
 | CHORD | ARP | VOICING | `ON BASS POLY FIT P M UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |

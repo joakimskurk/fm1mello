@@ -1595,10 +1595,10 @@ The product owner: "each line in the drum sequencer an independent length: kick 
 lovely polyrhythm, that can be reset at the next (global) one, or run free until the next reset, start or stop",
 inspired by skurkybeats (jhf.no).
 
-- **V.LEN** (DRUMS > KIT, K3, where SPACE was): the picked voice's own LENGTH, 1-16, or KIT (the kit's LENGTH, as
+- **V.LEN** (DRUMS > LINE since wave 4; first on KIT's K3, where SPACE was): the picked voice's own LENGTH, 1-16, or KIT (the kit's LENGTH, as
   every voice of an old project). Each voice plays its own steps in its own length; the rows past it are dim, and
   each row has its own playhead. REC writes a voice's hits within its own length, at its own place.
-- **RESTART** (DRUMS > DIST, K4): BAR, every voice starts over at every bar's one (sixteen sixteenths from the
+- **RESTART** (DRUMS > LINE since wave 4; first on DIST's K4): BAR, every voice starts over at every bar's one (sixteen sixteenths from the
   start, whatever the kit's LENGTH or the sequence's); FREE (the default, as before) they run on and meet again
   where their lengths do, the least common multiple (16 16 12 7: 336 steps, 21 bars), until the project's RESET,
   start or stop, which start every part over as they always did.
@@ -1651,6 +1651,18 @@ the tempo from 128 to 96. The product owner: "the tempo shall never be rolled".
   the third last roll, the tempo kept, the swap left alone so UNDO again returns to where the player was.
 - **Kept.** RNDMZR held and SAVE: the band as it plays into the first free pattern slot, named KEPT nn (the slots
   shown reach it); the readout says KEPT SLOT nn, or SLOTS FULL. Test: roll_locks.
+
+## Swing per part, a direction per drum voice (2026-11-04, the workshop's wave 4)
+
+- **Swing per part** (GLOBAL > GROOVE, K2-K4 beside SWING): LEAD (the lead, its chords and samples), BASS, DRUMS
+  each GLOBAL (as SWING, the default: an old project plays as it did) or their own 0..100%. Turned down past 0%,
+  GLOBAL; up from GLOBAL, from the global's value. The engine marks an odd pulse with its ticks and queue_push gives
+  each event its part's share (drum hits the drums', the sub's notes the bass's, everything else the lead's); a
+  straight hat under a swung bass, or the other way round. Saved: SEC_DRUMS v4 (with the drums, as SWING is).
+- **DIR per drum voice**: FWD, REV (backwards over its length), PING (there and back, the ends once: a cycle of
+  twice the length less two). On a new DRUMS layer, LINE, with V.LEN and RESTART (moved from KIT and DIST, where
+  they had been since 0.5-f72, never pushed): what a voice's line does, together. The drums' count is 32 bits now
+  (with PING the cycles' least common multiple can pass 65535). Saved: SEC_DRUMS v4. Tests: swing_global, drum_poly.
 
 ## Engineering process decisions
 
