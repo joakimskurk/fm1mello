@@ -1577,6 +1577,18 @@ too, held back, nothing crazy."
   opens the RANDOM page, as the hold did before (it opened while held; now on letting go, so the parts can be
   shown). Tests: roll_parts (each part alone touches nothing else; the UI's hold, key and release), style_roll.
 
+## GLITCH (2026-11-04)
+
+The product owner: "now all that is missing is a Richard Devine mode, super complex and glitchy". A style named
+for the sound, not the artist (as the others are), the most detailed of them: every part cut into microrhythms.
+
+| | tempo | lead | bass | drums | chords | sound |
+|---|---|---|---|---|---|---|
+| GLITCH | 100-150 | GROOVE, short; rolls of 2-6 on 38% of the notes, notes stuttered from the one before, the octave thrown (+2 now and then), a wave per step, some steps only now and then (55-100%) | IDM's, busier (6-10 notes), on a loop of 11-15 steps against the 16 of the lead and the beat, pulse or square, resonant, gliding | kicks off the grid, some stuttering; a snare that moves, ghosts, a roll into the one climbing in pitch; hats on 70% of the steps; the glitch voice on 40%; per step and voice rolls of 2-4, pitch (hats +-12, glitch +-24), decay and crush locks | none | 16T ping-pong, 60% feedback, a small room; the kit +-30% by the dice, folded, crushed, the glitch's kind by the dice |
+
+The lead's per-step wave and chance only within RANDOM's mask (WAVE, PROB), as everything of the lead. Test:
+style_roll (rolls, glitch hits, pitched locks, FOLD, the bass's loop).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

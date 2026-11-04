@@ -2,7 +2,8 @@
 /* Copyright (C) 2026 joakimskurk */
 /* STYLE (DECISIONS "STYLE"): RNDMZR rolls the band in a style. Each style has its marks: AMBIENT a drone under a
  * slow pad and no kick (DRONE no drums, JUNGLE fast); DUB, TECHNO, HOUSE and DEEP a kick on every beat and chords
- * stabbed off the beat; ACID a 303 bass on nearly every sixteenth with glides, no chords; MINIMAL few notes; ELECTRO no chords, hats on every sixteenth; IDM rolls; TRIPHOP and BREAKS
+ * stabbed off the beat; ACID a 303 bass on nearly every sixteenth with glides, no chords; MINIMAL few notes; ELECTRO no chords, hats on every sixteenth; IDM rolls; GLITCH rolls
+ * everywhere, pitched drum locks, a folded kit, the bass on a loop of 11 to 15; TRIPHOP and BREAKS
  * held chords. Where chords and a bass line play together, the bass's note is in the chord (the chords are read
  * from it, as FIT does). ANY never rolls the style it rolled before and goes round many; UNDO takes a roll back
  * whole (the sound, the effects and the sub too); with RANDOM's mask empty the lead's steps are left alone. */
@@ -115,6 +116,25 @@ int main(void)
                 CHECK(e.drums.hits[MELLO_DRUM_KICK] == 0x1111u && plays <= 9u, "MINIMAL: %u notes", plays);
                 break;
             case MELLO_STYLE_IDM: CHECK(rolls >= 1u, "IDM: no rolls"); break;
+            case MELLO_STYLE_GLITCH: { /* rolls in the lead and the kit, the glitch voice busy, pitched locks, the
+                                        * kit folded, the bass on a loop of its own */
+                unsigned glitch = 0u, pitched = 0u, v;
+                for (i = 0u; i < 16u; ++i) {
+                    glitch += (e.drums.hits[MELLO_DRUM_GLITCH] >> i) & 1u;
+                    for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
+                        rolls += e.drums.lock[v][i].ratchet >= 2u;
+                        pitched += e.drums.lock[v][i].pitch != 0;
+                    }
+                }
+                CHECK(rolls >= 8u && glitch >= 2u && pitched >= 8u && e.drums.fold > 0u && e.bass.on &&
+                          e.bass.length >= 11u && e.bass.length < 16u,
+                      "GLITCH (seed %u): %u rolls, %u glitches, %u pitched, FOLD %u, bass loop %u", seed, rolls, glitch,
+                      pitched, e.drums.fold, e.bass.length);
+#if MELLO_FEATURE_CHORD_MACHINE
+                CHECK(!e.chord.on, "GLITCH: chords on");
+#endif
+                break;
+            }
             default: /* TRIPHOP, BREAKS, OUTRUN */
 #if MELLO_FEATURE_CHORD_MACHINE
                 CHECK(e.chord.on && e.chord.mode == MELLO_CHORD_HOLD, "%s: no held chords", nm);

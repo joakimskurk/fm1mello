@@ -3634,7 +3634,7 @@ static void randomize_musical(MelloEngine *e, bool groove)
 #define STYLES (MELLO_STYLE_COUNT - MELLO_STYLE_AMBIENT)
 static const char *const STYLE_NAMES[MELLO_STYLE_COUNT] = {
     "OFF", "ANY", "AMBIENT", "DUB", "TRIPHOP", "TECHNO", "ACID", "ELECTRO", "BREAKS",
-    "IDM", "HOUSE", "DEEP", "MINIMAL", "JUNGLE", "DRONE", "OUTRUN"};
+    "IDM", "HOUSE", "DEEP", "MINIMAL", "JUNGLE", "DRONE", "OUTRUN", "GLITCH"};
 const char *mello_style_name(uint8_t style)
 {
     return STYLE_NAMES[style < MELLO_STYLE_COUNT ? style : 0u];
@@ -3655,11 +3655,11 @@ static void style_lead(MelloEngine *e, uint8_t st)
          oct = (mask & MELLO_RAND_OCTAVE) != 0u, pit = (mask & MELLO_RAND_PITCH) != 0u;
     /* how many of the notes it keeps (permille), and whether it holds them */
     static const uint16_t keep[STYLES] = {500u, 400u, 1000u, 1000u, 350u, 1000u, 1000u, 1000u,
-                                          1000u, 700u, 300u, 500u, 250u, 1000u};
+                                          1000u, 700u, 300u, 500u, 250u, 1000u, 750u};
     if (len > MELLO_MAX_STEPS) len = MELLO_MAX_STEPS;
     randomize_musical(e, st == MELLO_STYLE_TECHNO || st == MELLO_STYLE_ELECTRO || st == MELLO_STYLE_IDM ||
                              st == MELLO_STYLE_BREAKS || st == MELLO_STYLE_ACID || st == MELLO_STYLE_HOUSE ||
-                             st == MELLO_STYLE_MINIMAL || st == MELLO_STYLE_JUNGLE);
+                             st == MELLO_STYLE_MINIMAL || st == MELLO_STYLE_JUNGLE || st == MELLO_STYLE_GLITCH);
     for (i = 0u; i < len; ++i) {
         MelloStep *x = &e->project.steps[i];
         bool plays = x->gate != MELLO_GATE_REST && !x->skip;
@@ -3703,6 +3703,20 @@ static void style_lead(MelloEngine *e, uint8_t st)
         case MELLO_STYLE_IDM: /* rolls of three or four, the octave either way */
             if (rat && chance_permille(&e->gen_rng, 220u)) x->ratchet = (uint8_t)(3u + rng_bounded(&e->gen_rng, 2u));
             if (oct && chance_permille(&e->gen_rng, 250u)) x->octave = chance_permille(&e->gen_rng, 500u) ? 1 : -1;
+            break;
+        case MELLO_STYLE_GLITCH: /* cut up: rolls of two to six, notes stuttered from the one before, the octave
+                                  * thrown, a wave of its own per step, some only now and then */
+            if (gate) x->gate = MELLO_GATE_SINGLE;
+            if (rat) x->ratchet = chance_permille(&e->gen_rng, 380u) ? (uint8_t)(2u + rng_bounded(&e->gen_rng, 5u)) : 1u;
+            if (oct && chance_permille(&e->gen_rng, 300u))
+                x->octave = chance_permille(&e->gen_rng, 200u) ? 2 : (chance_permille(&e->gen_rng, 500u) ? 1 : -1);
+            if (pit && gate && i && chance_permille(&e->gen_rng, 200u)) x->pitch = e->project.steps[i - 1u].pitch;
+            if (acc) x->accent = chance_permille(&e->gen_rng, 400u);
+            if (sld) x->slide = chance_permille(&e->gen_rng, 150u);
+            if ((mask & MELLO_RAND_WAVE) && chance_permille(&e->gen_rng, 400u))
+                x->wave = (uint8_t)(1u + rng_bounded(&e->gen_rng, (uint32_t)MELLO_WAVE_PULSE + 1u));
+            if ((mask & MELLO_RAND_PROB) && chance_permille(&e->gen_rng, 300u))
+                x->probability = (uint16_t)(36000u + rng_bounded(&e->gen_rng, 29536u));
             break;
         default: break; /* TECHNO below, BREAKS as GROOVE wrote it */
         }
@@ -3836,6 +3850,23 @@ static void style_bass_line(MelloEngine *e, uint8_t st, MelloBassConfig *b, Mell
         bass_voice(b, 220u, 500u, 550u, 500u);
         return;
     }
+    case MELLO_STYLE_GLITCH: { /* IDM's, busier, on a loop of 11 to 15 against the lead's and the beat's 16 */
+        static const uint8_t tones[7] = {R, R, F5, T3, S7, O8, F4};
+        uint8_t notes, len = (uint8_t)(11u + rng_bounded(&e->gen_rng, 5u));
+        b->length = len;
+        notes = (uint8_t)(6u + rng_bounded(&e->gen_rng, 5u));
+        memset(b->steps, 0, sizeof b->steps);
+        b->steps[0].on = true, b->steps[0].accent = true;
+        for (i = 1u; i < notes; ++i) {
+            MelloBassStep *x = &b->steps[1u + rng_bounded(&e->gen_rng, len - 1u)];
+            x->on = true, x->tone = tones[rng_bounded(&e->gen_rng, 7u)];
+            x->octave = (int8_t)(chance_permille(&e->gen_rng, 350u) ? 1 : 0);
+            x->glide = chance_permille(&e->gen_rng, 400u);
+            x->accent = chance_permille(&e->gen_rng, 400u);
+        }
+        bass_voice(b, 120u, 700u, 650u, 700u);
+        return;
+    }
     default: return;
     }
     /* the dice: a note moved by a step, or a root made a fifth, now and then; the one left alone */
@@ -3881,8 +3912,9 @@ static void style_drums(MelloEngine *e, uint8_t st)
         /* MINIMAL */ {0x1111u, 0x1111u, 0x0000u, 0x0000u, 0x4444u, 0x0000u, 0x0000u, 0x0000u},
         /* JUNGLE */ {0x2401u, 0x0001u, 0x9290u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u},
         /* DRONE: none */ {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u},
-        /* OUTRUN */ {0x0101u, 0x0101u, 0x1010u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u}};
-    static const uint16_t swing[STYLES] = {0u, 120u, 280u, 0u, 60u, 0u, 160u, 0u, 80u, 200u, 90u, 0u, 0u, 0u};
+        /* OUTRUN */ {0x0101u, 0x0101u, 0x1010u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u},
+        /* GLITCH: dice */ {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u}};
+    static const uint16_t swing[STYLES] = {0u, 120u, 280u, 0u, 60u, 0u, 160u, 0u, 80u, 200u, 90u, 0u, 0u, 0u, 0u};
     const uint16_t *f = figs[st - MELLO_STYLE_AMBIENT];
     MelloDrumConfig d = e->drums;
     uint8_t v, k;
@@ -3933,6 +3965,38 @@ static void style_drums(MelloEngine *e, uint8_t st)
         }
         break;
     }
+    case MELLO_STYLE_GLITCH: { /* everything cut up: kicks off the grid that stutter, a snare that rolls into the
+                                * bar's end climbing, hats nearly everywhere in rolls of two to four, each pitched,
+                                * shortened and crushed on its own, the glitch voice all over, pitched far */
+        uint8_t kicks = (uint8_t)(4u + rng_bounded(&e->gen_rng, 4u)), v;
+        int8_t climb = (int8_t)rng_bounded(&e->gen_rng, 4u);
+        d.hits[MELLO_DRUM_KICK] = 1u, d.accents[MELLO_DRUM_KICK] = 1u;
+        for (k = 1u; k < kicks; ++k) d.hits[MELLO_DRUM_KICK] |= (uint16_t)(1u << (1u + rng_bounded(&e->gen_rng, 15u)));
+        d.hits[MELLO_DRUM_SNARE] = (uint16_t)((1u << (3u + rng_bounded(&e->gen_rng, 3u))) | (1u << (10u + rng_bounded(&e->gen_rng, 3u))));
+        d.accents[MELLO_DRUM_SNARE] = d.hits[MELLO_DRUM_SNARE];
+        d.voice[MELLO_DRUM_HAT].chance = 850u, d.voice[MELLO_DRUM_GLITCH].chance = 800u;
+        for (k = 0u; k < 16u; ++k) {
+            if (chance_permille(&e->gen_rng, 700u)) d.hits[MELLO_DRUM_HAT] |= (uint16_t)(1u << k);
+            if (chance_permille(&e->gen_rng, 400u)) d.hits[MELLO_DRUM_GLITCH] |= (uint16_t)(1u << k);
+            if (chance_permille(&e->gen_rng, 180u)) d.hits[MELLO_DRUM_SNARE] |= (uint16_t)(1u << k); /* ghosts */
+            for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
+                MelloDrumLock *l = &d.lock[v][k];
+                uint16_t roll = v == MELLO_DRUM_HAT ? 400u : v == MELLO_DRUM_GLITCH ? 350u : v == MELLO_DRUM_SNARE ? 250u : 120u;
+                if (chance_permille(&e->gen_rng, roll)) l->ratchet = (uint8_t)(2u + rng_bounded(&e->gen_rng, 3u));
+                if (v >= MELLO_DRUM_HAT) l->pitch = (int8_t)((int32_t)rng_bounded(&e->gen_rng, v == MELLO_DRUM_GLITCH ? 49u : 25u) - (v == MELLO_DRUM_GLITCH ? 24 : 12));
+                else if (l->ratchet > 1u) l->pitch = (int8_t)((int32_t)rng_bounded(&e->gen_rng, 13u) - 5);
+                if (chance_permille(&e->gen_rng, 300u)) l->decay = (int8_t)((int32_t)rng_bounded(&e->gen_rng, 161u) - 100);
+                if (v && chance_permille(&e->gen_rng, 250u)) l->crush = (uint8_t)rng_bounded(&e->gen_rng, 101u);
+            }
+        }
+        if (chance_permille(&e->gen_rng, 600u)) /* the roll into the one, climbing */
+            for (k = 13u; k < 16u; ++k) {
+                d.hits[MELLO_DRUM_SNARE] |= (uint16_t)(1u << k);
+                d.lock[MELLO_DRUM_SNARE][k].ratchet = (uint8_t)(2u + (k - 13u));
+                d.lock[MELLO_DRUM_SNARE][k].pitch = (int8_t)(climb + 4 * (int8_t)(k - 13u));
+            }
+        break;
+    }
     case MELLO_STYLE_DRONE: break;
     default: /* a ghost note or two, a roll into the bar's end */
         for (k = 0u; k < 16u; ++k)
@@ -3968,9 +4032,11 @@ static void style_kit(MelloEngine *e, uint8_t st)
         /* MINIMAL */ {420u, 300u, 350u, 700u, 100u, 700u, 850u, 60u, 900u, 600u, 100u, 0u},
         /* JUNGLE */ {450u, 300u, 400u, 750u, 350u, 550u, 650u, 120u, 600u, 900u, 300u, 200u},
         /* DRONE */ {400u, 400u, 200u, 500u, 300u, 300u, 800u, 150u, 300u, 300u, 0u, 0u},
-        /* OUTRUN */ {380u, 500u, 450u, 450u, 700u, 300u, 550u, 200u, 500u, 100u, 100u, 0u}};
+        /* OUTRUN */ {380u, 500u, 450u, 450u, 700u, 300u, 550u, 200u, 500u, 100u, 100u, 0u},
+        /* GLITCH */ {480u, 280u, 700u, 600u, 200u, 700u, 800u, 60u, 900u, 900u, 400u, 450u}};
     const uint16_t *t = k[st - MELLO_STYLE_AMBIENT];
-    uint16_t by = st == MELLO_STYLE_IDM ? 450u : 80u;
+    bool wide = st == MELLO_STYLE_IDM || st == MELLO_STYLE_GLITCH;
+    uint16_t by = st == MELLO_STYLE_IDM ? 450u : st == MELLO_STYLE_GLITCH ? 300u : 80u;
     MelloDrumConfig d = e->drums;
     uint8_t v;
     for (v = 0u; v < 3u; ++v) {
@@ -3978,12 +4044,14 @@ static void style_kit(MelloEngine *e, uint8_t st)
         d.voice[v].decay = dice(e, t[v * 3u + 1u], by);
         d.voice[v].tone = dice(e, t[v * 3u + 2u], by);
     }
-    d.voice[MELLO_DRUM_GLITCH].tone = st == MELLO_STYLE_IDM ? (uint16_t)rng_bounded(&e->gen_rng, 1001u) : t[9];
+    d.voice[MELLO_DRUM_GLITCH].tone = wide ? (uint16_t)rng_bounded(&e->gen_rng, 1001u) : t[9];
     d.voice[MELLO_DRUM_GLITCH].tune = dice(e, 500u, 300u);
     d.voice[MELLO_DRUM_SNARE].crush = dice(e, t[11], by / 2u);
     d.voice[MELLO_DRUM_HAT].crush = dice(e, t[11], by / 2u);
     d.drive = dice(e, t[10], by / 2u);
-    d.fold = st == MELLO_STYLE_IDM && chance_permille(&e->gen_rng, 400u) ? dice(e, 400u, 300u) : 0u;
+    d.fold = st == MELLO_STYLE_GLITCH                                  ? dice(e, 500u, 250u)
+             : st == MELLO_STYLE_IDM && chance_permille(&e->gen_rng, 400u) ? dice(e, 400u, 300u)
+                                                                           : 0u;
     mello_engine_drums_set_config(e, &d);
 }
 
@@ -4000,13 +4068,14 @@ static void style_bass_sound(MelloEngine *e, uint8_t st, MelloSubConfig *sub)
                    {MELLO_WAVE_TRIANGLE, 380u, 200u, 0u},  {MELLO_WAVE_SAW, 450u, 200u, 40u},
                    {MELLO_WAVE_TRIANGLE, 380u, 150u, 0u},  {MELLO_WAVE_SINE, 420u, 50u, 40u},
                    {MELLO_WAVE_SINE, 350u, 200u, 0u},      {MELLO_WAVE_SAW, 280u, 300u, 0u},
-                   {MELLO_WAVE_TRIANGLE, 450u, 0u, 0u},    {MELLO_WAVE_SAW, 320u, 150u, 0u}};
+                   {MELLO_WAVE_TRIANGLE, 450u, 0u, 0u},    {MELLO_WAVE_SAW, 320u, 150u, 0u},
+                   {MELLO_WAVE_PULSE, 350u, 350u, 30u}};
     uint8_t i = (uint8_t)(st - MELLO_STYLE_AMBIENT);
     sub->wave = t[i].wave, sub->cut = dice(e, t[i].cut, 40u), sub->drive = t[i].drive, sub->glide_ms = t[i].glide;
     if (st == MELLO_STYLE_ACID) {
         if (chance_permille(&e->gen_rng, 300u)) sub->wave = MELLO_WAVE_SQUARE; /* the 101's pulse */
         sub->decay_ms = 260u, sub->release_ms = 90u, sub->gate_amount = 1000u;
-    } else if (st == MELLO_STYLE_IDM) {
+    } else if (st == MELLO_STYLE_IDM || st == MELLO_STYLE_GLITCH) {
         static const MelloWaveform w[4] = {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, MELLO_WAVE_TRIANGLE};
         sub->wave = w[rng_bounded(&e->gen_rng, 4u)], sub->drive = dice(e, 300u, 250u);
     }
@@ -4078,7 +4147,7 @@ static void style_chords(MelloEngine *e, uint8_t st)
         c.attack_ms = 5u, c.release_ms = 400u, c.cut = 600u, c.fenv = 350u, c.space = 800u;
         hold = 8u, colour = chance_permille(&e->gen_rng, 500u) ? MELLO_CHORD_SUS2 : MELLO_CHORD_SEVENTH;
         break;
-    default: /* ACID, ELECTRO: no chords */
+    default: /* ACID, ELECTRO, GLITCH: no chords */
         c.on = false;
         mello_engine_chord_set_config(e, &c);
         return;
@@ -4137,7 +4206,8 @@ static void style_sound(MelloEngine *e, uint8_t st)
                    {3u, 90u, 80u, 200u, 500u, 2000u, 220u, 450u, 10u, true},       /* MINIMAL: 16D */
                    {20u, 500u, 900u, 400u, 800u, 5000u, 250u, 450u, 0u, false},    /* JUNGLE: 8N */
                    {300u, 1000u, 2000u, 750u, 1000u, 12000u, 350u, 600u, 13u, true}, /* DRONE: 1 BAR */
-                   {10u, 300u, 500u, 400u, 800u, 4000u, 250u, 350u, 0u, false}};   /* OUTRUN: 8N */
+                   {10u, 300u, 500u, 400u, 800u, 4000u, 250u, 350u, 0u, false},    /* OUTRUN: 8N */
+                   {2u, 70u, 60u, 200u, 400u, 1500u, 300u, 600u, 4u, true}};       /* GLITCH: 16T */
     uint8_t i = (uint8_t)(st - MELLO_STYLE_AMBIENT);
     MelloSoundConfig s = e->sound;
     MelloFxConfig f = e->fx;
@@ -4157,7 +4227,8 @@ static void style_sound(MelloEngine *e, uint8_t st)
                       {MELLO_WAVE_SINE, MELLO_WAVE_PULSE, 480u, 250u, 0u},        /* MINIMAL */
                       {MELLO_WAVE_SAW, MELLO_WAVE_TRIANGLE, 430u, 200u, 250u},    /* JUNGLE */
                       {MELLO_WAVE_SINE, MELLO_WAVE_TRIANGLE, 380u, 150u, 250u},   /* DRONE */
-                      {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 520u, 200u, 300u}};     /* OUTRUN */
+                      {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 520u, 200u, 300u},      /* OUTRUN */
+                      {MELLO_WAVE_PULSE, MELLO_WAVE_SQUARE, 560u, 350u, 100u}};   /* GLITCH */
     s.attack_ms = t[i].attack, s.decay_ms = t[i].decay, s.release_ms = t[i].release;
     s.osc_wave = chance_permille(&e->gen_rng, 500u) ? lead[i].a : lead[i].b;
     s.filter_cut = dice(e, lead[i].cut, 50u), s.filter_res = dice(e, lead[i].res, 40u);
@@ -4186,8 +4257,8 @@ uint8_t mello_engine_style_roll_parts(MelloEngine *e, uint8_t style, uint8_t par
     }
     mello_engine_undo_snapshot(e);
     if (parts & MELLO_PART_TEMPO) { /* the style's tempo, somewhere in its range (the UI hands it to the transport) */
-        static const uint8_t lo[STYLES] = {76u, 112u, 84u, 124u, 124u, 118u, 128u, 120u, 120u, 116u, 124u, 164u, 60u, 96u},
-                             span[STYLES] = {16u, 10u, 12u, 8u, 10u, 10u, 12u, 40u, 6u, 6u, 6u, 12u, 12u, 16u};
+        static const uint8_t lo[STYLES] = {76u, 112u, 84u, 124u, 124u, 118u, 128u, 120u, 120u, 116u, 124u, 164u, 60u, 96u, 100u},
+                             span[STYLES] = {16u, 10u, 12u, 8u, 10u, 10u, 12u, 40u, 6u, 6u, 6u, 12u, 12u, 16u, 50u};
         uint8_t i = (uint8_t)(st - MELLO_STYLE_AMBIENT);
         e->project.bpm = (uint16_t)(lo[i] + rng_bounded(&e->gen_rng, span[i] + 1u));
     }
