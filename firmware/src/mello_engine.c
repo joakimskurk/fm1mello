@@ -3688,12 +3688,99 @@ static void randomize_musical(MelloEngine *e, bool groove)
  * each with its own lead shape, bass line, beat, chords and a little of the sound, every part with some dice so no
  * two rolls of a style are alike. The tables below are by style, from AMBIENT. */
 #define STYLES (MELLO_STYLE_COUNT - MELLO_STYLE_AMBIENT)
-static const char *const STYLE_NAMES[MELLO_STYLE_COUNT] = {
-    "OFF", "ANY", "AMBIENT", "DUB", "TRIPHOP", "TECHNO", "ACID", "ELECTRO", "BREAKS",
-    "IDM", "HOUSE", "DEEP", "MINIMAL", "JUNGLE", "DRONE", "OUTRUN", "GLITCH"};
+/* Each style in one place (2026-11-04, DECISIONS "One struct per style"; it was nine tables side by side): its name;
+ * how many of the lead's notes it keeps (permille); the beat (KICK, SNARE, HAT, GLITCH: hits and accents) and its
+ * swing; the kit (kick, snare, hat: tune, decay, tone; the glitch's kind; DRIVE; CRUSH); the bass's wave, CUT, DRIVE,
+ * GLIDE; the lead's envelope, the reverb and the delay (wet, size, decay; wet, feedback, division, PING); the lead's
+ * colour (two waves, CUT, RES, DETUNE); TRIM. From AMBIENT, in MelloStyle's order. */
+typedef struct {
+    const char *name;
+    uint16_t keep;
+    uint16_t drums[8], swing;
+    uint16_t kit[12];
+    struct {
+        MelloWaveform wave;
+        uint16_t cut, drive, glide;
+    } bass;
+    struct {
+        uint16_t attack, decay, release, rev_wet, rev_size, rev_ms, dly_wet, dly_fb;
+        uint8_t div;
+        bool ping;
+    } sound;
+    struct {
+        MelloWaveform a, b;
+        uint16_t cut, res, detune;
+    } lead;
+    int8_t trim;
+} StyleDef;
+static const StyleDef STYLE_DEFS[STYLES] = {
+    {"AMBIENT", 500u, {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x1001u, 0x0000u, 0x0000u, 0x0000u}, 0u,
+     {400u, 400u, 200u, 500u, 300u, 300u, 800u, 150u, 300u, 300u, 0u, 0u},
+     {MELLO_WAVE_SINE, 500u, 0u, 0u}, {120u, 900u, 1600u, 600u, 900u, 9000u, 300u, 550u, 7u, true},
+     {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SINE, 450u, 150u, 200u}, -2},
+    {"DUB", 400u, {0x1111u, 0x1111u, 0x1000u, 0x1000u, 0x4444u, 0x4444u, 0x0000u, 0x0000u}, 120u,
+     {300u, 500u, 200u, 600u, 150u, 600u, 600u, 200u, 400u, 100u, 100u, 0u},
+     {MELLO_WAVE_SINE, 400u, 100u, 0u}, {5u, 220u, 300u, 300u, 700u, 4000u, 450u, 650u, 6u, true},
+     {MELLO_WAVE_SQUARE, MELLO_WAVE_SAW, 400u, 250u, 100u}, 0},
+    {"TRIPHOP", 1000u, {0x0501u, 0x0001u, 0x1010u, 0x1010u, 0x5555u, 0x1111u, 0x0000u, 0x0000u}, 280u,
+     {350u, 450u, 400u, 350u, 450u, 300u, 500u, 250u, 400u, 600u, 200u, 300u},
+     {MELLO_WAVE_TRIANGLE, 400u, 150u, 30u}, {10u, 400u, 600u, 350u, 700u, 3500u, 200u, 400u, 0u, false},
+     {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SQUARE, 420u, 200u, 150u}, -1},
+    {"TECHNO", 1000u, {0x1111u, 0x1111u, 0x1010u, 0x1010u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u}, 0u,
+     {350u, 600u, 600u, 500u, 300u, 700u, 650u, 120u, 700u, 800u, 350u, 0u},
+     {MELLO_WAVE_SAW, 300u, 300u, 0u}, {3u, 120u, 120u, 180u, 500u, 2000u, 150u, 300u, 10u, false},
+     {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 500u, 350u, 100u}, 0},
+    {"ACID", 350u, {0x1111u, 0x1111u, 0x1010u, 0x0000u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u}, 60u,
+     {400u, 450u, 500u, 550u, 250u, 600u, 700u, 100u, 800u, 300u, 250u, 0u},
+     {MELLO_WAVE_SAW, 220u, 250u, 60u}, {3u, 140u, 100u, 150u, 450u, 1800u, 180u, 350u, 10u, true},
+     {MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, 550u, 250u, 50u}, 1},
+    {"ELECTRO", 1000u, {0x0481u, 0x0081u, 0x1010u, 0x1010u, 0xFFFFu, 0x4444u, 0x0000u, 0x0000u}, 0u,
+     {250u, 800u, 300u, 700u, 200u, 500u, 900u, 60u, 900u, 100u, 150u, 0u},
+     {MELLO_WAVE_SQUARE, 350u, 200u, 20u}, {3u, 100u, 80u, 150u, 400u, 1500u, 180u, 250u, 1u, false},
+     {MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, 520u, 300u, 0u}, -1},
+    {"BREAKS", 1000u, {0x0401u, 0x0401u, 0x1290u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u}, 160u,
+     {450u, 350u, 400u, 600u, 400u, 400u, 600u, 180u, 500u, 600u, 300u, 100u},
+     {MELLO_WAVE_TRIANGLE, 380u, 200u, 0u}, {5u, 250u, 300u, 250u, 600u, 2500u, 200u, 350u, 0u, false},
+     {MELLO_WAVE_SAW, MELLO_WAVE_TRIANGLE, 480u, 250u, 150u}, 1},
+    {"IDM", 1000u, {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u}, 0u,
+     {500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 300u, 300u},
+     {MELLO_WAVE_SAW, 450u, 200u, 40u}, {3u, 180u, 250u, 300u, 650u, 3000u, 250u, 400u, 4u, true},
+     {MELLO_WAVE_SINE, MELLO_WAVE_PULSE, 500u, 300u, 200u}, -2},
+    {"HOUSE", 1000u, {0x1111u, 0x1111u, 0x1010u, 0x1010u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u}, 80u,
+     {400u, 450u, 400u, 500u, 280u, 650u, 650u, 200u, 600u, 300u, 150u, 0u},
+     {MELLO_WAVE_TRIANGLE, 380u, 150u, 0u}, {3u, 180u, 200u, 220u, 600u, 2500u, 150u, 300u, 6u, false},
+     {MELLO_WAVE_SQUARE, MELLO_WAVE_SAW, 520u, 200u, 150u}, 1},
+    {"DEEP", 700u, {0x1111u, 0x1111u, 0x1010u, 0x0000u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u}, 200u,
+     {380u, 500u, 250u, 650u, 120u, 500u, 550u, 220u, 400u, 100u, 50u, 150u},
+     {MELLO_WAVE_SINE, 420u, 50u, 40u}, {8u, 350u, 600u, 350u, 750u, 4000u, 250u, 450u, 6u, true},
+     {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SINE, 420u, 200u, 200u}, -1},
+    {"MINIMAL", 300u, {0x1111u, 0x1111u, 0x0000u, 0x0000u, 0x4444u, 0x0000u, 0x0000u, 0x0000u}, 90u,
+     {420u, 300u, 350u, 700u, 100u, 700u, 850u, 60u, 900u, 600u, 100u, 0u},
+     {MELLO_WAVE_SINE, 350u, 200u, 0u}, {3u, 90u, 80u, 200u, 500u, 2000u, 220u, 450u, 10u, true},
+     {MELLO_WAVE_SINE, MELLO_WAVE_PULSE, 480u, 250u, 0u}, 2},
+    {"JUNGLE", 500u, {0x2401u, 0x0001u, 0x9290u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u}, 0u,
+     {450u, 300u, 400u, 750u, 350u, 550u, 650u, 120u, 600u, 900u, 300u, 200u},
+     {MELLO_WAVE_SAW, 280u, 300u, 0u}, {20u, 500u, 900u, 400u, 800u, 5000u, 250u, 450u, 0u, false},
+     {MELLO_WAVE_SAW, MELLO_WAVE_TRIANGLE, 430u, 200u, 250u}, 1},
+    {"DRONE", 250u, {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u}, 0u,
+     {400u, 400u, 200u, 500u, 300u, 300u, 800u, 150u, 300u, 300u, 0u, 0u},
+     {MELLO_WAVE_TRIANGLE, 450u, 0u, 0u}, {300u, 1000u, 2000u, 750u, 1000u, 12000u, 350u, 600u, 13u, true},
+     {MELLO_WAVE_SINE, MELLO_WAVE_TRIANGLE, 380u, 150u, 250u}, 2},
+    {"OUTRUN", 1000u, {0x0101u, 0x0101u, 0x1010u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u}, 0u,
+     {380u, 500u, 450u, 450u, 700u, 300u, 550u, 200u, 500u, 100u, 100u, 0u},
+     {MELLO_WAVE_SAW, 320u, 150u, 0u}, {10u, 300u, 500u, 400u, 800u, 4000u, 250u, 350u, 0u, false},
+     {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 520u, 200u, 300u}, 0},
+    {"GLITCH", 750u, {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u}, 0u,
+     {480u, 280u, 700u, 600u, 200u, 700u, 800u, 60u, 900u, 900u, 400u, 450u},
+     {MELLO_WAVE_PULSE, 350u, 350u, 30u}, {2u, 70u, 60u, 200u, 400u, 1500u, 300u, 600u, 4u, true},
+     {MELLO_WAVE_PULSE, MELLO_WAVE_SQUARE, 560u, 350u, 100u}, 0},
+};
 const char *mello_style_name(uint8_t style)
 {
-    return STYLE_NAMES[style < MELLO_STYLE_COUNT ? style : 0u];
+    return style == MELLO_STYLE_OFF ? "OFF"
+           : style == MELLO_STYLE_ANY ? "ANY"
+           : style < MELLO_STYLE_COUNT ? STYLE_DEFS[style - MELLO_STYLE_AMBIENT].name
+                                       : "OFF";
 }
 /* the styles whose chords walk a progression over a drone that follows their root */
 static bool style_drones(uint8_t st)
@@ -3710,8 +3797,6 @@ static void style_lead(MelloEngine *e, uint8_t st)
          acc = (mask & MELLO_RAND_ACCENT) != 0u, sld = (mask & MELLO_RAND_SLIDE) != 0u,
          oct = (mask & MELLO_RAND_OCTAVE) != 0u, pit = (mask & MELLO_RAND_PITCH) != 0u;
     /* how many of the notes it keeps (permille), and whether it holds them */
-    static const uint16_t keep[STYLES] = {500u, 400u, 1000u, 1000u, 350u, 1000u, 1000u, 1000u,
-                                          1000u, 700u, 300u, 500u, 250u, 1000u, 750u};
     if (len > MELLO_MAX_STEPS) len = MELLO_MAX_STEPS;
     randomize_musical(e, st == MELLO_STYLE_TECHNO || st == MELLO_STYLE_ELECTRO || st == MELLO_STYLE_IDM ||
                              st == MELLO_STYLE_BREAKS || st == MELLO_STYLE_ACID || st == MELLO_STYLE_HOUSE ||
@@ -3719,7 +3804,7 @@ static void style_lead(MelloEngine *e, uint8_t st)
     for (i = 0u; i < len; ++i) {
         MelloStep *x = &e->project.steps[i];
         bool plays = x->gate != MELLO_GATE_REST && !x->skip;
-        if (gate && plays && i && !chance_permille(&e->gen_rng, keep[st - MELLO_STYLE_AMBIENT])) {
+        if (gate && plays && i && !chance_permille(&e->gen_rng, STYLE_DEFS[st - MELLO_STYLE_AMBIENT].keep)) {
             x->gate = MELLO_GATE_REST; /* fewer notes */
             continue;
         }
@@ -3954,29 +4039,12 @@ void mello_engine_style_bass(MelloEngine *e, uint8_t style)
 static void style_drums(MelloEngine *e, uint8_t st)
 {
     /* KICK, SNARE, HAT, GLITCH: hits and accents */
-    static const uint16_t figs[STYLES][8] = {
-        /* AMBIENT */ {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x1001u, 0x0000u, 0x0000u, 0x0000u},
-        /* DUB */ {0x1111u, 0x1111u, 0x1000u, 0x1000u, 0x4444u, 0x4444u, 0x0000u, 0x0000u},
-        /* TRIPHOP */ {0x0501u, 0x0001u, 0x1010u, 0x1010u, 0x5555u, 0x1111u, 0x0000u, 0x0000u},
-        /* TECHNO */ {0x1111u, 0x1111u, 0x1010u, 0x1010u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
-        /* ACID */ {0x1111u, 0x1111u, 0x1010u, 0x0000u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
-        /* ELECTRO */ {0x0481u, 0x0081u, 0x1010u, 0x1010u, 0xFFFFu, 0x4444u, 0x0000u, 0x0000u},
-        /* BREAKS */ {0x0401u, 0x0401u, 0x1290u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u},
-        /* IDM: dice */ {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u},
-        /* HOUSE */ {0x1111u, 0x1111u, 0x1010u, 0x1010u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
-        /* DEEP */ {0x1111u, 0x1111u, 0x1010u, 0x0000u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
-        /* MINIMAL */ {0x1111u, 0x1111u, 0x0000u, 0x0000u, 0x4444u, 0x0000u, 0x0000u, 0x0000u},
-        /* JUNGLE */ {0x2401u, 0x0001u, 0x9290u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u},
-        /* DRONE: none */ {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u},
-        /* OUTRUN */ {0x0101u, 0x0101u, 0x1010u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u},
-        /* GLITCH: dice */ {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u}};
-    static const uint16_t swing[STYLES] = {0u, 120u, 280u, 0u, 60u, 0u, 160u, 0u, 80u, 200u, 90u, 0u, 0u, 0u, 0u};
-    const uint16_t *f = figs[st - MELLO_STYLE_AMBIENT];
+    const uint16_t *f = STYLE_DEFS[st - MELLO_STYLE_AMBIENT].drums;
     MelloDrumConfig d = e->drums;
     uint8_t v, k;
     d.on = st != MELLO_STYLE_DRONE, d.follow = false, d.length = 16u;
     memset(d.vlen, 0, sizeof d.vlen), d.bar_reset = false; /* each voice the kit's 16, but GLITCH's and IDM's below */
-    d.swing = swing[st - MELLO_STYLE_AMBIENT];
+    d.swing = STYLE_DEFS[st - MELLO_STYLE_AMBIENT].swing;
     memset(d.lock, 0, sizeof d.lock);
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
         d.hits[v] = f[v * 2u], d.accents[v] = f[v * 2u + 1u], d.voice[v].chance = 1000u;
@@ -4084,23 +4152,7 @@ static uint16_t dice(MelloEngine *e, uint16_t v, uint16_t by)
 static void style_kit(MelloEngine *e, uint8_t st)
 {
     /* kick tune, decay, tone; snare tune, decay, tone; hat tune, decay, tone; glitch's kind; drive; crush */
-    static const uint16_t k[STYLES][12] = {
-        /* AMBIENT */ {400u, 400u, 200u, 500u, 300u, 300u, 800u, 150u, 300u, 300u, 0u, 0u},
-        /* DUB */ {300u, 500u, 200u, 600u, 150u, 600u, 600u, 200u, 400u, 100u, 100u, 0u},
-        /* TRIPHOP */ {350u, 450u, 400u, 350u, 450u, 300u, 500u, 250u, 400u, 600u, 200u, 300u},
-        /* TECHNO */ {350u, 600u, 600u, 500u, 300u, 700u, 650u, 120u, 700u, 800u, 350u, 0u},
-        /* ACID */ {400u, 450u, 500u, 550u, 250u, 600u, 700u, 100u, 800u, 300u, 250u, 0u},
-        /* ELECTRO */ {250u, 800u, 300u, 700u, 200u, 500u, 900u, 60u, 900u, 100u, 150u, 0u},
-        /* BREAKS */ {450u, 350u, 400u, 600u, 400u, 400u, 600u, 180u, 500u, 600u, 300u, 100u},
-        /* IDM */ {500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 300u, 300u},
-        /* HOUSE */ {400u, 450u, 400u, 500u, 280u, 650u, 650u, 200u, 600u, 300u, 150u, 0u},
-        /* DEEP */ {380u, 500u, 250u, 650u, 120u, 500u, 550u, 220u, 400u, 100u, 50u, 150u},
-        /* MINIMAL */ {420u, 300u, 350u, 700u, 100u, 700u, 850u, 60u, 900u, 600u, 100u, 0u},
-        /* JUNGLE */ {450u, 300u, 400u, 750u, 350u, 550u, 650u, 120u, 600u, 900u, 300u, 200u},
-        /* DRONE */ {400u, 400u, 200u, 500u, 300u, 300u, 800u, 150u, 300u, 300u, 0u, 0u},
-        /* OUTRUN */ {380u, 500u, 450u, 450u, 700u, 300u, 550u, 200u, 500u, 100u, 100u, 0u},
-        /* GLITCH */ {480u, 280u, 700u, 600u, 200u, 700u, 800u, 60u, 900u, 900u, 400u, 450u}};
-    const uint16_t *t = k[st - MELLO_STYLE_AMBIENT];
+    const uint16_t *t = STYLE_DEFS[st - MELLO_STYLE_AMBIENT].kit;
     bool wide = st == MELLO_STYLE_IDM || st == MELLO_STYLE_GLITCH;
     uint16_t by = st == MELLO_STYLE_IDM ? 450u : st == MELLO_STYLE_GLITCH ? 300u : 80u;
     MelloDrumConfig d = e->drums;
@@ -4125,19 +4177,9 @@ static void style_kit(MelloEngine *e, uint8_t st)
  * resonant filter (BASS SEQ's RES and ENV, set with the line), a little drive, the slides gliding. */
 static void style_bass_sound(MelloEngine *e, uint8_t st, MelloSubConfig *sub)
 {
-    static const struct {
-        MelloWaveform wave;
-        uint16_t cut, drive, glide;
-    } t[STYLES] = {{MELLO_WAVE_SINE, 500u, 0u, 0u},       {MELLO_WAVE_SINE, 400u, 100u, 0u},
-                   {MELLO_WAVE_TRIANGLE, 400u, 150u, 30u}, {MELLO_WAVE_SAW, 300u, 300u, 0u},
-                   {MELLO_WAVE_SAW, 220u, 250u, 60u},      {MELLO_WAVE_SQUARE, 350u, 200u, 20u},
-                   {MELLO_WAVE_TRIANGLE, 380u, 200u, 0u},  {MELLO_WAVE_SAW, 450u, 200u, 40u},
-                   {MELLO_WAVE_TRIANGLE, 380u, 150u, 0u},  {MELLO_WAVE_SINE, 420u, 50u, 40u},
-                   {MELLO_WAVE_SINE, 350u, 200u, 0u},      {MELLO_WAVE_SAW, 280u, 300u, 0u},
-                   {MELLO_WAVE_TRIANGLE, 450u, 0u, 0u},    {MELLO_WAVE_SAW, 320u, 150u, 0u},
-                   {MELLO_WAVE_PULSE, 350u, 350u, 30u}};
     uint8_t i = (uint8_t)(st - MELLO_STYLE_AMBIENT);
-    sub->wave = t[i].wave, sub->cut = dice(e, t[i].cut, 40u), sub->drive = t[i].drive, sub->glide_ms = t[i].glide;
+    sub->wave = STYLE_DEFS[i].bass.wave, sub->cut = dice(e, STYLE_DEFS[i].bass.cut, 40u);
+    sub->drive = STYLE_DEFS[i].bass.drive, sub->glide_ms = STYLE_DEFS[i].bass.glide;
     if (st == MELLO_STYLE_ACID) {
         if (chance_permille(&e->gen_rng, 300u)) sub->wave = MELLO_WAVE_SQUARE; /* the 101's pulse */
         sub->decay_ms = 260u, sub->release_ms = 90u, sub->gate_amount = 1000u;
@@ -4255,53 +4297,18 @@ static void style_chords_follow_bass(MelloEngine *e, uint8_t st)
  * of the style's, DETUNE a little (only where there is unison to spread). */
 static void style_sound(MelloEngine *e, uint8_t st)
 {
-    static const struct {
-        uint16_t attack, decay, release, rev_wet, rev_size, rev_ms, dly_wet, dly_fb;
-        uint8_t div;
-        bool ping;
-    } t[STYLES] = {{120u, 900u, 1600u, 600u, 900u, 9000u, 300u, 550u, 7u, true},   /* AMBIENT: 4D */
-                   {5u, 220u, 300u, 300u, 700u, 4000u, 450u, 650u, 6u, true},      /* DUB: 8D */
-                   {10u, 400u, 600u, 350u, 700u, 3500u, 200u, 400u, 0u, false},    /* TRIPHOP: 8N */
-                   {3u, 120u, 120u, 180u, 500u, 2000u, 150u, 300u, 10u, false},    /* TECHNO: 16D */
-                   {3u, 140u, 100u, 150u, 450u, 1800u, 180u, 350u, 10u, true},     /* ACID: 16D */
-                   {3u, 100u, 80u, 150u, 400u, 1500u, 180u, 250u, 1u, false},      /* ELECTRO: 16N */
-                   {5u, 250u, 300u, 250u, 600u, 2500u, 200u, 350u, 0u, false},     /* BREAKS: 8N */
-                   {3u, 180u, 250u, 300u, 650u, 3000u, 250u, 400u, 4u, true},      /* IDM: 16T */
-                   {3u, 180u, 200u, 220u, 600u, 2500u, 150u, 300u, 6u, false},     /* HOUSE: 8D */
-                   {8u, 350u, 600u, 350u, 750u, 4000u, 250u, 450u, 6u, true},      /* DEEP: 8D */
-                   {3u, 90u, 80u, 200u, 500u, 2000u, 220u, 450u, 10u, true},       /* MINIMAL: 16D */
-                   {20u, 500u, 900u, 400u, 800u, 5000u, 250u, 450u, 0u, false},    /* JUNGLE: 8N */
-                   {300u, 1000u, 2000u, 750u, 1000u, 12000u, 350u, 600u, 13u, true}, /* DRONE: 1 BAR */
-                   {10u, 300u, 500u, 400u, 800u, 4000u, 250u, 350u, 0u, false},    /* OUTRUN: 8N */
-                   {2u, 70u, 60u, 200u, 400u, 1500u, 300u, 600u, 4u, true}};       /* GLITCH: 16T */
+       /* GLITCH: 16T */
     uint8_t i = (uint8_t)(st - MELLO_STYLE_AMBIENT);
     MelloSoundConfig s = e->sound;
     MelloFxConfig f = e->fx;
-    static const struct {
-        MelloWaveform a, b;
-        uint16_t cut, res, detune;
-    } lead[STYLES] = {{MELLO_WAVE_TRIANGLE, MELLO_WAVE_SINE, 450u, 150u, 200u},   /* AMBIENT */
-                      {MELLO_WAVE_SQUARE, MELLO_WAVE_SAW, 400u, 250u, 100u},      /* DUB */
-                      {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SQUARE, 420u, 200u, 150u}, /* TRIPHOP */
-                      {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 500u, 350u, 100u},      /* TECHNO */
-                      {MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, 550u, 250u, 50u},     /* ACID */
-                      {MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, 520u, 300u, 0u},      /* ELECTRO */
-                      {MELLO_WAVE_SAW, MELLO_WAVE_TRIANGLE, 480u, 250u, 150u},    /* BREAKS */
-                      {MELLO_WAVE_SINE, MELLO_WAVE_PULSE, 500u, 300u, 200u},      /* IDM */
-                      {MELLO_WAVE_SQUARE, MELLO_WAVE_SAW, 520u, 200u, 150u},      /* HOUSE */
-                      {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SINE, 420u, 200u, 200u},   /* DEEP */
-                      {MELLO_WAVE_SINE, MELLO_WAVE_PULSE, 480u, 250u, 0u},        /* MINIMAL */
-                      {MELLO_WAVE_SAW, MELLO_WAVE_TRIANGLE, 430u, 200u, 250u},    /* JUNGLE */
-                      {MELLO_WAVE_SINE, MELLO_WAVE_TRIANGLE, 380u, 150u, 250u},   /* DRONE */
-                      {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 520u, 200u, 300u},      /* OUTRUN */
-                      {MELLO_WAVE_PULSE, MELLO_WAVE_SQUARE, 560u, 350u, 100u}};   /* GLITCH */
-    s.attack_ms = t[i].attack, s.decay_ms = t[i].decay, s.release_ms = t[i].release;
-    s.osc_wave = chance_permille(&e->gen_rng, 500u) ? lead[i].a : lead[i].b;
-    s.filter_cut = dice(e, lead[i].cut, 50u), s.filter_res = dice(e, lead[i].res, 40u);
-    if (s.unison > 1u) s.detune = dice(e, lead[i].detune, 50u);
-    f.reverb_wet = t[i].rev_wet, f.reverb_size = t[i].rev_size, f.reverb_decay_ms = t[i].rev_ms;
-    f.delay_wet = t[i].dly_wet, f.delay_feedback = t[i].dly_fb, f.delay_sync = true, f.delay_div = t[i].div;
-    f.delay_pingpong = t[i].ping;
+   /* GLITCH */
+    s.attack_ms = STYLE_DEFS[i].sound.attack, s.decay_ms = STYLE_DEFS[i].sound.decay, s.release_ms = STYLE_DEFS[i].sound.release;
+    s.osc_wave = chance_permille(&e->gen_rng, 500u) ? STYLE_DEFS[i].lead.a : STYLE_DEFS[i].lead.b;
+    s.filter_cut = dice(e, STYLE_DEFS[i].lead.cut, 50u), s.filter_res = dice(e, STYLE_DEFS[i].lead.res, 40u);
+    if (s.unison > 1u) s.detune = dice(e, STYLE_DEFS[i].lead.detune, 50u);
+    f.reverb_wet = STYLE_DEFS[i].sound.rev_wet, f.reverb_size = STYLE_DEFS[i].sound.rev_size, f.reverb_decay_ms = STYLE_DEFS[i].sound.rev_ms;
+    f.delay_wet = STYLE_DEFS[i].sound.dly_wet, f.delay_feedback = STYLE_DEFS[i].sound.dly_fb, f.delay_sync = true, f.delay_div = STYLE_DEFS[i].sound.div;
+    f.delay_pingpong = STYLE_DEFS[i].sound.ping;
     mello_engine_sound_set_config(e, &s);
     mello_engine_fx_set_config(e, &f);
 }
@@ -4394,9 +4401,8 @@ uint8_t mello_engine_style_roll_parts(MelloEngine *e, uint8_t style, uint8_t par
 #endif
     if (parts & MELLO_PART_SOUND) style_sound(e, st);
     if (roll_is_band(band)) { /* the band's level: the styles measured at 120 BPM, set within 1 dB of -13 dBFS */
-        static const int8_t trim[STYLES] = {-2, 0, -1, 0, 1, -1, 1, -2, 1, -1, 2, 1, 2, 0, 0};
         MelloFxConfig f = e->fx;
-        f.trim_db = trim[st - MELLO_STYLE_AMBIENT];
+        f.trim_db = STYLE_DEFS[st - MELLO_STYLE_AMBIENT].trim;
         mello_engine_fx_set_config(e, &f);
     }
     e->style_now = st;

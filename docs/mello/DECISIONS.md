@@ -1690,6 +1690,15 @@ LOOP, SLOT SEQ; ENV: SOUND, SAMPLE; LFO: LFO, DOT, EVOLVE; FX: DIST, DELAY, REVE
 MIX, GLOBAL), the one open lit; a white key goes there; letting go stays. A tap is as before (the next page). And
 RNDMZR held: "NO KEY, LET GO: RANDOM" lights up gold once letting go would open RANDOM (half a second, no part).
 
+## One struct per style (2026-11-04, the workshop's wave 5)
+
+Kari (the developer): a new style meant nine tables side by side, each indexed by the style, kept in step by hand.
+Now STYLE_DEFS holds one StyleDef per style: its name, the lead's keep, the beat and its swing, the kit, the bass's
+sound, the lead's envelope with the reverb and the delay, the lead's colour, TRIM. What each style does beyond the
+numbers (the lines, the dice) stays in the code by style. Proven the same: every style with eight seeds, the band
+and each part alone (840 rolls, with and without the chords), hashed before and after: identical. style_roll
+checks every style has an entry of its own.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

@@ -66,6 +66,7 @@ int main(void)
             const char *nm = mello_style_name(st);
             unsigned plays = 0u, rolls = 0u;
             fresh(seed);
+            CHECK(nm && nm[0] && strcmp(nm, "OFF") && strcmp(nm, "ANY"), "style %u has no entry of its own", st);
             CHECK(mello_engine_style_roll(&e, st) == st && e.style_now == st, "%s: not rolled", nm);
             CHECK(e.fx.trim_db >= -2 && e.fx.trim_db <= 2 &&
                       (st != MELLO_STYLE_AMBIENT || e.fx.trim_db == -2) && (st != MELLO_STYLE_MINIMAL || e.fx.trim_db == 2),
