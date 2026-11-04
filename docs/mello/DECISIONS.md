@@ -1552,6 +1552,31 @@ the lead plays short stabs an octave up over it. And six styles:
 The listening examples: each style rolled three times (RNDMZR pressed and twice more), 8 s at 84, 105 and 128 BPM:
 -13 .. -19 dBFS RMS, the three over a drone the loudest (a held note is a lot of energy).
 
+## One part at a time, and the sounds in a style (2026-11-04)
+
+The product owner, on the fourteen: "fantastic; I miss some variety in the drum sounds, and ACID could make the bass
+channel more like an actual SH-101 in sound. Once the whole thing is rolled it should be simpler to roll only one
+channel: play with holding RNDMZR and more choices, on the white keys." And then: "some roll on the lead's sound
+too, held back, nothing crazy."
+
+- **The kit's sound in a style.** A roll sets each drum voice's TUNE, DECAY and TONE, GLITCH's kind, the snare's and
+  hat's CRUSH and the kit's DRIVE from the style's table, each moved by the dice (+-8%; IDM +-45% and sometimes
+  FOLD): a long, driven TECHNO kick and a crisp clap, an ELECTRO boom with a ticking hat, a crushed TRIPHOP snare,
+  a tight high JUNGLE snare.
+- **The bass's sound in a style**, with its line: the wave, CUT, DRIVE, GLIDE. ACID is a SH-101: a saw (a square
+  three times in ten) into a low cut with the line's 78% resonance and 75% envelope, a little drive, slides
+  gliding (60 ms), a short decay and release; DUB and DEEP round sines, TECHNO and OUTRUN saws, ELECTRO a square,
+  JUNGLE a driven saw for the reese under the pads, IDM a wave by the dice.
+- **The lead's colour, held back**: one of two waves that suit the style, CUT +-5% and RES +-4% around the style's,
+  DETUNE +-5% where there is unison to spread. Nothing else of the lead's sound moves.
+- **One part at a time.** RNDMZR held a quarter of a second shows the parts on the screen and lights white keys 1-7:
+  LEAD, BASS, DRUMS (the beat), KIT (the drums' sound), CHORDS, SOUND (the lead's colour and envelope, the delay,
+  the reverb), TEMPO. A key rolls that part alone in the style that plays (with ANY, the last one rolled; with
+  STYLE OFF too), and letting go does nothing more. A new bass takes the chords' degrees with it (their rhythm,
+  colour and voice kept), so the bass stays in the chord. Undoable, each. Held half a second and let go with no key
+  opens the RANDOM page, as the hold did before (it opened while held; now on letting go, so the parts can be
+  shown). Tests: roll_parts (each part alone touches nothing else; the UI's hold, key and release), style_roll.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

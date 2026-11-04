@@ -226,13 +226,15 @@ static void verify_b5_from_every_advertised_page(void)
         MelloUi u;
         if (!has_slot(cases[i].hint, 10u)) continue; /* RNDMZR: the last black key */
         setup(&p, &t, &st, &u, cases[i].page);
-        { /* RNDMZR: a tap rolls the pattern, a hold of 0.5 s opens RANDOM */
+        { /* RNDMZR: a tap rolls the pattern, held 0.5 s and let go with no part key it opens RANDOM */
             int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
             uint32_t note = bit_u32(black_note(10u));
             MelloProject before = t.engine.project;
             mello_ui_set_held_notes(&u, note);
             mello_ui_input(&u, 100000u, 100u, 0u, 0u, 0u, note, enc);
             mello_ui_input(&u, 700000u, 700u, 0u, 0u, 0u, 0u, enc);
+            mello_ui_set_held_notes(&u, 0u);
+            mello_ui_input(&u, 750000u, 750u, 0u, 0u, 0u, 0u, enc);
             if (u.page != MELLO_UI_RANDOM) die(cases[i].name, "held RNDMZR did not open RANDOM");
             setup(&p, &t, &st, &u, cases[i].page);
             before = t.engine.project;

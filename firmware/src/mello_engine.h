@@ -1154,6 +1154,17 @@ typedef enum {
 } MelloStyle;
 const char *mello_style_name(uint8_t style);
 uint8_t mello_engine_style_roll(MelloEngine *engine, uint8_t style);
+/* One part of the band rolled again in a style (hold RNDMZR and a white key): with ANY the style that plays now. The
+ * bass takes the chords' degrees with it, so the harmony still fits. Undoable. Returns the style used. */
+#define MELLO_PART_LEAD   1u
+#define MELLO_PART_BASS   2u  /* the line and the bass's sound */
+#define MELLO_PART_DRUMS  4u  /* the beat */
+#define MELLO_PART_KIT    8u  /* the drums' sound */
+#define MELLO_PART_CHORDS 16u
+#define MELLO_PART_SOUND  32u /* the lead's envelope, the delay, the reverb */
+#define MELLO_PART_TEMPO  64u
+#define MELLO_PART_ALL    127u
+uint8_t mello_engine_style_roll_parts(MelloEngine *engine, uint8_t style, uint8_t parts);
 /* ROLL on BASS in a style: the bass line alone, as the style's roll writes it (OFF / ANY: the walking line) */
 void mello_engine_style_bass(MelloEngine *engine, uint8_t style);
 /* Undo: keep what a destructive edit is about to replace (randomize_steps_intensity does so itself), and swap it

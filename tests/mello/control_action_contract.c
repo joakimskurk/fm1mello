@@ -294,12 +294,14 @@ static void verify_random_navigation(void)
     MelloStorage st;
     MelloUi u;
     setup(&p, &t, &st, &u, MELLO_UI_HOME);
-    { /* RNDMZR held half a second opens RANDOM (a tap rolls) */
+    { /* RNDMZR held half a second and let go opens RANDOM (a tap rolls; a white key meanwhile, one part) */
         int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
         uint32_t note = 1u << 25; /* F#5, B10 */
         mello_ui_set_held_notes(&u, note);
         mello_ui_input(&u, 100000u, 100u, 0u, 0u, 0u, note, enc);
         mello_ui_input(&u, 700000u, 700u, 0u, 0u, 0u, 0u, enc);
+        mello_ui_set_held_notes(&u, 0u);
+        mello_ui_input(&u, 750000u, 750u, 0u, 0u, 0u, 0u, enc);
     }
     if (u.page != MELLO_UI_RANDOM) fail("B5 RANDOM", "RANDOM became inaccessible after EDIT cleanup");
     buttons(&u, 200u, bit_u32(MELLO_UI_BTN_EDIT), 0u);

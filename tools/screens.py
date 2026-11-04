@@ -205,6 +205,12 @@ def the_tour():
     t.keys(B5, 120)  # PERF tapped: PERFORM stays open
     t.shot("perform", "PERFORM", "—", "B5 PERF: the white keys are the performance actions, on every part")
     t.btn(HOME)
+    t.keys_down(B10)  # RNDMZR held: the parts the white keys roll
+    t.wait(400)
+    t.shot("rndmzr-held", "RNDMZR held", "—", "RNDMZR held: a white key rolls one part, in the style that plays",
+           settle=0)
+    t.keys(B10 | 1, 120)  # (white key 1, LEAD: so letting go opens no page)
+    t.btn(HOME)
     t.btn(LFO)
     t.btn(LFO)  # DOT, on its first matrix (ACCENT)
     for k in (0, 4, 9, 14, 17, 23):  # white keys: cells on (the shot shows which)

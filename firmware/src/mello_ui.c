@@ -1180,6 +1180,12 @@ static void rec_key_poll(MelloUi *ui, uint32_t now_ms)
 }
 
 static void perform_key(MelloUi *ui, uint32_t now_ms, uint8_t w);
+/* RNDMZR held: the white keys 1-7 roll one part of the band each (DECISIONS "One part at a time") */
+#define ROLL_PARTS 7u
+static const char *const ROLL_PART_NAMES[ROLL_PARTS] = {"LEAD", "BASS", "DRUMS", "KIT", "CHORDS", "SOUND", "TEMPO"};
+static const uint8_t ROLL_PART_BITS[ROLL_PARTS] = {MELLO_PART_LEAD,   MELLO_PART_BASS,  MELLO_PART_DRUMS, MELLO_PART_KIT,
+                                                   MELLO_PART_CHORDS, MELLO_PART_SOUND, MELLO_PART_TEMPO};
+static void ui_roll_part(MelloUi *ui, MelloEngine *e, uint8_t w, uint32_t now_ms);
 static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t held_buttons,
                               uint8_t note_index)
 {
@@ -1187,6 +1193,16 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
     int8_t w;
     bool pick_only;
     if (!e) return;
+    if (ui->rndmzr_down) { /* RNDMZR held: a white key rolls that part alone */
+        w = mello_ui_white_key_position(note_index);
+        if (w >= 0 && w < (int8_t)ROLL_PARTS) {
+            ui_roll_part(ui, e, (uint8_t)w, now_ms);
+            rebuild(ui);
+            persistent_dirty(ui, now_ms);
+            mark_edit(ui);
+        }
+        return;
+    }
 
     if (ui->page == MELLO_UI_SEQ_STEP && ui->step_pitch_mode) { /* EDIT on STEP: the keys set the pitch */
         set_pitch_from_key(ui, note_index);
@@ -2595,6 +2611,19 @@ static void ui_roll(MelloUi *ui, MelloEngine *e, uint32_t now_ms)
         mello_engine_randomize_steps_intensity(e, ui->random_intensity);
 }
 
+/* One part rolled again, in the style that plays (STYLE OFF: the last style rolled, or any) */
+static void ui_roll_part(MelloUi *ui, MelloEngine *e, uint8_t w, uint32_t now_ms)
+{
+    uint8_t style = ui->random_style != MELLO_STYLE_OFF ? ui->random_style
+                    : e->style_now ? e->style_now : MELLO_STYLE_ANY;
+    if (w >= ROLL_PARTS) return;
+    (void)mello_engine_style_roll_parts(e, style, ROLL_PART_BITS[w]);
+    if (ROLL_PART_BITS[w] == MELLO_PART_TEMPO && ui->transport) mello_transport_set_bpm(ui->transport, e->project.bpm);
+    ui->rndmzr_part = true;
+    show_readout(ui, MELLO_UI_READOUT_STYLE, now_ms);
+    ui->dirty |= MELLO_UI_DIRTY_ALL;
+}
+
 static const char *random_intensity_name(MelloRandomizeIntensity intensity)
 {
     return intensity == MELLO_RANDOMIZE_LOW       ? "LOW"
@@ -3079,6 +3108,7 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
     case MELLO_CTX_RNDMZR:
         ui->rndmzr_down = true; /* tap or hold: rndmzr_poll decides */
         ui->rndmzr_down_ms = now_ms;
+        ui->rndmzr_part = ui->rndmzr_menu = false;
         break;
     case MELLO_CTX_HOME_RANDOM:
         ui_roll(ui, e, now_ms);
@@ -3579,19 +3609,26 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
     rec_key_poll(ui, now_ms);
     perf_poll(ui, now_ms);
     if (encoder_delta) adjust_knobs(ui, encoder_delta, now_us, now_ms);
-    if (ui->rndmzr_down) { /* RNDMZR: let go = roll now; held half a second = the RANDOM page */
+    if (ui->rndmzr_down) { /* RNDMZR: a tap rolls the band; held, the white keys roll one part each; held half a
+                            * second and let go with none pressed, the RANDOM page */
         MelloEngine *e = eng(ui);
+        int32_t held = (int32_t)(now_ms - ui->rndmzr_down_ms);
         if (!(ui->held_notes & bit_u32(ui->rndmzr_key))) {
             ui->rndmzr_down = false;
-            if (e) {
+            if (ui->rndmzr_menu) ui->rndmzr_menu = false, ui->dirty |= MELLO_UI_DIRTY_ALL;
+            if (ui->rndmzr_part) {
+                /* a part was rolled: that was it */
+            } else if (held >= 500) {
+                if (ui->page != MELLO_UI_RANDOM) mello_ui_set_page(ui, MELLO_UI_RANDOM);
+            } else if (e) {
                 ui_roll(ui, e, now_ms);
                 rebuild(ui);
                 persistent_dirty(ui, now_ms);
                 mark_edit(ui);
             }
-        } else if ((int32_t)(now_ms - ui->rndmzr_down_ms) >= 500) {
-            ui->rndmzr_down = false;
-            if (ui->page != MELLO_UI_RANDOM) mello_ui_set_page(ui, MELLO_UI_RANDOM);
+        } else if (held >= 250 && !ui->rndmzr_menu) {
+            ui->rndmzr_menu = true; /* show what the white keys roll */
+            ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
         }
     }
 }
@@ -4256,6 +4293,28 @@ static void draw_perform(MelloUi *ui, const MelloUiDrawOps *o)
         ui_round_frame(o, x, y, 56, 28, asked ? UI_BRIGHT : on ? c : UI_LINE);
         o->text(o->ctx, x, (int16_t)(y + 6), 56, 0, PERFORM_NAMES[w], on ? UI_BRIGHT : c, 1);
     }
+}
+
+/* RNDMZR held: the parts the white keys roll, in the style that plays */
+static void draw_roll_menu(MelloUi *ui, const MelloUiDrawOps *o)
+{
+    MelloEngine *e = eng(ui);
+    uint8_t w;
+    char b[24];
+    o->fill(o->ctx, 0, 30, 240, 141, UI_BLACK);
+    (void)copy_s(copy_s(b, "ROLL ONE: "),
+                 mello_style_name(ui->random_style != MELLO_STYLE_OFF && ui->random_style != MELLO_STYLE_ANY
+                                      ? ui->random_style
+                                  : e && e->style_now ? e->style_now
+                                                      : MELLO_STYLE_ANY));
+    ui_spaced(o, 6, 33, 228, b, UI_DIM, 0);
+    for (w = 0u; w < ROLL_PARTS; ++w) {
+        int16_t x = (int16_t)(4 + (w % 4u) * 58), y = (int16_t)(50 + (w / 4u) * 30);
+        ui_round_fill(o, x, y, 56, 28, UI_PANEL);
+        ui_round_frame(o, x, y, 56, 28, UI_PURPLE);
+        o->text(o->ctx, x, (int16_t)(y + 6), 56, 0, ROLL_PART_NAMES[w], UI_BRIGHT, 1);
+    }
+    o->text(o->ctx, 6, 118, 228, 0, "NO KEY, LET GO: RANDOM", UI_DIM, 0);
 }
 
 static void draw_home(MelloUi *ui, const MelloUiDrawOps *o)
@@ -5284,9 +5343,12 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
                     q = copy_s(q, "  WHITE KEY = LEN");
                 }
             }
-        ui_round_fill(o, 2, 172, 236, 16, ui_mix(accent, UI_BLACK, 170));
-        o->text(o->ctx, 4, 172, 232, 0, b, UI_BRIGHT, 1);
-        return;
+        if (!*b && ui->rndmzr_menu) (void)copy_s(b, "A WHITE KEY ROLLS ONE PART");
+        if (*b) { /* (a held key with nothing to say: the strip as it is) */
+            ui_round_fill(o, 2, 172, 236, 16, ui_mix(accent, UI_BLACK, 170));
+            o->text(o->ctx, 4, 172, 232, 0, b, UI_BRIGHT, 1);
+            return;
+        }
     }
     if (ui->page_rec) { /* REC on a page (G3): what the keys write, in red */
         o->text(o->ctx, 4, 172, 232, 0,
@@ -7074,13 +7136,15 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
     }
     if (d & MELLO_UI_DIRTY_STATUS) d |= MELLO_UI_DIRTY_HEADER; /* G7: the count and the key are the header's */
     if (d & MELLO_UI_DIRTY_HEADER) draw_header(ui, &fitted);
-    if ((d & MELLO_UI_DIRTY_BODY) && ui->perform)
+    if ((d & MELLO_UI_DIRTY_BODY) && ui->rndmzr_menu)
+        draw_roll_menu(ui, &fitted);
+    else if ((d & MELLO_UI_DIRTY_BODY) && ui->perform)
         draw_perform(ui, &fitted);
     else if (d & MELLO_UI_DIRTY_BODY)
         draw_body(ui, &fitted);
-    else if ((d & MELLO_UI_DIRTY_HOME_PLAYHEAD) && ui->page == MELLO_UI_HOME && !ui->perform)
+    else if ((d & MELLO_UI_DIRTY_HOME_PLAYHEAD) && ui->page == MELLO_UI_HOME && !ui->perform && !ui->rndmzr_menu)
         draw_home_playhead(ui, &fitted);
-    else if ((d & MELLO_UI_DIRTY_SEQ_PLAYHEAD) && !ui->perform &&
+    else if ((d & MELLO_UI_DIRTY_SEQ_PLAYHEAD) && !ui->perform && !ui->rndmzr_menu &&
              (ui->page == MELLO_UI_SEQ_STEP || ui->page == MELLO_UI_RANDOM))
         draw_sequence_playhead(ui, &fitted);
     if (ui->readout) { /* G7: the readout over K1-K4 and the strip; the picture it changes stays in view */
@@ -7136,7 +7200,9 @@ static void calc_key_levels(MelloUi *ui, uint32_t *lit_out, uint32_t *glow_out)
     *lit_out = *glow_out = 0u;
     if (!e) return;
 #define WK(n) bit_u32(white_key_notes[(n) % 16u])
-    if (ui->perform) { /* PERFORM: a key with an action glows, lit while it acts (held, or a MUTE on) */
+    if (ui->rndmzr_menu) { /* RNDMZR held: the keys that roll a part glow */
+        for (i = 0u; i < ROLL_PARTS; ++i) glow |= WK(i);
+    } else if (ui->perform) { /* PERFORM: a key with an action glows, lit while it acts (held, or a MUTE on) */
         uint16_t held = perform_held(ui);
         for (i = 0u; i < 16u; ++i) {
             if (PERFORM_NAMES[i][0]) glow |= WK(i);

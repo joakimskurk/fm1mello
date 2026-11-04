@@ -3944,6 +3944,74 @@ static void style_drums(MelloEngine *e, uint8_t st)
     mello_engine_drums_set_config(e, &d);
 }
 
+/* The kit's sound in a style: each voice's TUNE, DECAY and TONE (GLITCH's TONE its kind), the snare's and the hat's
+ * CRUSH, the kit's DRIVE, each moved a little by the dice; IDM throws all of it wide. */
+static uint16_t dice(MelloEngine *e, uint16_t v, uint16_t by)
+{
+    int32_t x = (int32_t)v + (int32_t)rng_bounded(&e->gen_rng, 2u * by + 1u) - (int32_t)by;
+    return (uint16_t)(x < 0 ? 0 : (x > 1000 ? 1000 : x));
+}
+static void style_kit(MelloEngine *e, uint8_t st)
+{
+    /* kick tune, decay, tone; snare tune, decay, tone; hat tune, decay, tone; glitch's kind; drive; crush */
+    static const uint16_t k[STYLES][12] = {
+        /* AMBIENT */ {400u, 400u, 200u, 500u, 300u, 300u, 800u, 150u, 300u, 300u, 0u, 0u},
+        /* DUB */ {300u, 500u, 200u, 600u, 150u, 600u, 600u, 200u, 400u, 100u, 100u, 0u},
+        /* TRIPHOP */ {350u, 450u, 400u, 350u, 450u, 300u, 500u, 250u, 400u, 600u, 200u, 300u},
+        /* TECHNO */ {350u, 600u, 600u, 500u, 300u, 700u, 650u, 120u, 700u, 800u, 350u, 0u},
+        /* ACID */ {400u, 450u, 500u, 550u, 250u, 600u, 700u, 100u, 800u, 300u, 250u, 0u},
+        /* ELECTRO */ {250u, 800u, 300u, 700u, 200u, 500u, 900u, 60u, 900u, 100u, 150u, 0u},
+        /* BREAKS */ {450u, 350u, 400u, 600u, 400u, 400u, 600u, 180u, 500u, 600u, 300u, 100u},
+        /* IDM */ {500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 300u, 300u},
+        /* HOUSE */ {400u, 450u, 400u, 500u, 280u, 650u, 650u, 200u, 600u, 300u, 150u, 0u},
+        /* DEEP */ {380u, 500u, 250u, 650u, 120u, 500u, 550u, 220u, 400u, 100u, 50u, 150u},
+        /* MINIMAL */ {420u, 300u, 350u, 700u, 100u, 700u, 850u, 60u, 900u, 600u, 100u, 0u},
+        /* JUNGLE */ {450u, 300u, 400u, 750u, 350u, 550u, 650u, 120u, 600u, 900u, 300u, 200u},
+        /* DRONE */ {400u, 400u, 200u, 500u, 300u, 300u, 800u, 150u, 300u, 300u, 0u, 0u},
+        /* OUTRUN */ {380u, 500u, 450u, 450u, 700u, 300u, 550u, 200u, 500u, 100u, 100u, 0u}};
+    const uint16_t *t = k[st - MELLO_STYLE_AMBIENT];
+    uint16_t by = st == MELLO_STYLE_IDM ? 450u : 80u;
+    MelloDrumConfig d = e->drums;
+    uint8_t v;
+    for (v = 0u; v < 3u; ++v) {
+        d.voice[v].tune = dice(e, t[v * 3u], by);
+        d.voice[v].decay = dice(e, t[v * 3u + 1u], by);
+        d.voice[v].tone = dice(e, t[v * 3u + 2u], by);
+    }
+    d.voice[MELLO_DRUM_GLITCH].tone = st == MELLO_STYLE_IDM ? (uint16_t)rng_bounded(&e->gen_rng, 1001u) : t[9];
+    d.voice[MELLO_DRUM_GLITCH].tune = dice(e, 500u, 300u);
+    d.voice[MELLO_DRUM_SNARE].crush = dice(e, t[11], by / 2u);
+    d.voice[MELLO_DRUM_HAT].crush = dice(e, t[11], by / 2u);
+    d.drive = dice(e, t[10], by / 2u);
+    d.fold = st == MELLO_STYLE_IDM && chance_permille(&e->gen_rng, 400u) ? dice(e, 400u, 300u) : 0u;
+    mello_engine_drums_set_config(e, &d);
+}
+
+/* The bass's own sound in a style: the wave, CUT, DRIVE, GLIDE. ACID is a SH-101's: a saw (or a square) into a low,
+ * resonant filter (BASS SEQ's RES and ENV, set with the line), a little drive, the slides gliding. */
+static void style_bass_sound(MelloEngine *e, uint8_t st, MelloSubConfig *sub)
+{
+    static const struct {
+        MelloWaveform wave;
+        uint16_t cut, drive, glide;
+    } t[STYLES] = {{MELLO_WAVE_SINE, 500u, 0u, 0u},       {MELLO_WAVE_SINE, 400u, 100u, 0u},
+                   {MELLO_WAVE_TRIANGLE, 400u, 150u, 30u}, {MELLO_WAVE_SAW, 300u, 300u, 0u},
+                   {MELLO_WAVE_SAW, 220u, 250u, 60u},      {MELLO_WAVE_SQUARE, 350u, 200u, 20u},
+                   {MELLO_WAVE_TRIANGLE, 380u, 200u, 0u},  {MELLO_WAVE_SAW, 450u, 200u, 40u},
+                   {MELLO_WAVE_TRIANGLE, 380u, 150u, 0u},  {MELLO_WAVE_SINE, 420u, 50u, 40u},
+                   {MELLO_WAVE_SINE, 350u, 200u, 0u},      {MELLO_WAVE_SAW, 280u, 300u, 0u},
+                   {MELLO_WAVE_TRIANGLE, 450u, 0u, 0u},    {MELLO_WAVE_SAW, 320u, 150u, 0u}};
+    uint8_t i = (uint8_t)(st - MELLO_STYLE_AMBIENT);
+    sub->wave = t[i].wave, sub->cut = dice(e, t[i].cut, 40u), sub->drive = t[i].drive, sub->glide_ms = t[i].glide;
+    if (st == MELLO_STYLE_ACID) {
+        if (chance_permille(&e->gen_rng, 300u)) sub->wave = MELLO_WAVE_SQUARE; /* the 101's pulse */
+        sub->decay_ms = 260u, sub->release_ms = 90u, sub->gate_amount = 1000u;
+    } else if (st == MELLO_STYLE_IDM) {
+        static const MelloWaveform w[4] = {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, MELLO_WAVE_TRIANGLE};
+        sub->wave = w[rng_bounded(&e->gen_rng, 4u)], sub->drive = dice(e, 300u, 250u);
+    }
+}
+
 #if MELLO_FEATURE_CHORD_MACHINE
 /* The chords: their voice and how they are struck, and the chain from what the bass plays (FIT's reading) or, over
  * a drone, a progression the drone follows. */
@@ -4032,9 +4100,24 @@ static void style_chords(MelloEngine *e, uint8_t st)
     }
     mello_engine_chord_set_config(e, &c);
 }
+/* After the bass alone is rolled again: the chords read their degrees from it again (their holds, colour and voice
+ * kept), so the bass is still in the chord. Over a drone nothing to do: the drone follows the chords. */
+static void style_chords_follow_bass(MelloEngine *e, uint8_t st)
+{
+    MelloChordConfig c = e->chord;
+    uint8_t deg[8], slots, k, hold = c.steps[0].hold ? c.steps[0].hold : 16u;
+    if (!c.on || style_drones(st)) return;
+    slots = fit_read(e, hold, deg);
+    for (k = c.length; k < slots; ++k) c.steps[k] = c.steps[0];
+    c.length = slots;
+    for (k = 0u; k < slots; ++k) c.steps[k].degree = deg[k];
+    mello_engine_chord_set_config(e, &c);
+}
 #endif
 
-/* A little of the sound: the lead's envelope, the delay and the reverb. */
+/* A little of the sound: the lead's envelope, the delay and the reverb; and, held back (the product owner: "a
+ * little, nothing crazy"), the lead's colour: one of two waves that suit the style, CUT and RES a little either side
+ * of the style's, DETUNE a little (only where there is unison to spread). */
 static void style_sound(MelloEngine *e, uint8_t st)
 {
     static const struct {
@@ -4058,7 +4141,27 @@ static void style_sound(MelloEngine *e, uint8_t st)
     uint8_t i = (uint8_t)(st - MELLO_STYLE_AMBIENT);
     MelloSoundConfig s = e->sound;
     MelloFxConfig f = e->fx;
+    static const struct {
+        MelloWaveform a, b;
+        uint16_t cut, res, detune;
+    } lead[STYLES] = {{MELLO_WAVE_TRIANGLE, MELLO_WAVE_SINE, 450u, 150u, 200u},   /* AMBIENT */
+                      {MELLO_WAVE_SQUARE, MELLO_WAVE_SAW, 400u, 250u, 100u},      /* DUB */
+                      {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SQUARE, 420u, 200u, 150u}, /* TRIPHOP */
+                      {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 500u, 350u, 100u},      /* TECHNO */
+                      {MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, 550u, 250u, 50u},     /* ACID */
+                      {MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, 520u, 300u, 0u},      /* ELECTRO */
+                      {MELLO_WAVE_SAW, MELLO_WAVE_TRIANGLE, 480u, 250u, 150u},    /* BREAKS */
+                      {MELLO_WAVE_SINE, MELLO_WAVE_PULSE, 500u, 300u, 200u},      /* IDM */
+                      {MELLO_WAVE_SQUARE, MELLO_WAVE_SAW, 520u, 200u, 150u},      /* HOUSE */
+                      {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SINE, 420u, 200u, 200u},   /* DEEP */
+                      {MELLO_WAVE_SINE, MELLO_WAVE_PULSE, 480u, 250u, 0u},        /* MINIMAL */
+                      {MELLO_WAVE_SAW, MELLO_WAVE_TRIANGLE, 430u, 200u, 250u},    /* JUNGLE */
+                      {MELLO_WAVE_SINE, MELLO_WAVE_TRIANGLE, 380u, 150u, 250u},   /* DRONE */
+                      {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 520u, 200u, 300u}};     /* OUTRUN */
     s.attack_ms = t[i].attack, s.decay_ms = t[i].decay, s.release_ms = t[i].release;
+    s.osc_wave = chance_permille(&e->gen_rng, 500u) ? lead[i].a : lead[i].b;
+    s.filter_cut = dice(e, lead[i].cut, 50u), s.filter_res = dice(e, lead[i].res, 40u);
+    if (s.unison > 1u) s.detune = dice(e, lead[i].detune, 50u);
     f.reverb_wet = t[i].rev_wet, f.reverb_size = t[i].rev_size, f.reverb_decay_ms = t[i].rev_ms;
     f.delay_wet = t[i].dly_wet, f.delay_feedback = t[i].dly_fb, f.delay_sync = true, f.delay_div = t[i].div;
     f.delay_pingpong = t[i].ping;
@@ -4066,10 +4169,13 @@ static void style_sound(MelloEngine *e, uint8_t st)
     mello_engine_fx_set_config(e, &f);
 }
 
-uint8_t mello_engine_style_roll(MelloEngine *e, uint8_t style)
+uint8_t mello_engine_style_roll_parts(MelloEngine *e, uint8_t style, uint8_t parts)
 {
     uint8_t st = style;
-    if (!e) return MELLO_STYLE_OFF;
+    if (!e || !parts) return MELLO_STYLE_OFF;
+    if (st == MELLO_STYLE_ANY && parts != MELLO_PART_ALL && e->style_now >= MELLO_STYLE_AMBIENT &&
+        e->style_now < MELLO_STYLE_COUNT)
+        st = e->style_now; /* a part alone: in the style that plays */
     if (st == MELLO_STYLE_ANY) { /* a style, never the one before */
         do st = (uint8_t)(MELLO_STYLE_AMBIENT + rng_bounded(&e->gen_rng, STYLES));
         while (st == e->style_now);
@@ -4079,25 +4185,30 @@ uint8_t mello_engine_style_roll(MelloEngine *e, uint8_t style)
         return MELLO_STYLE_OFF;
     }
     mello_engine_undo_snapshot(e);
-    { /* the style's tempo, somewhere in its range (the transport takes it from the project: the UI's roll) */
+    if (parts & MELLO_PART_TEMPO) { /* the style's tempo, somewhere in its range (the UI hands it to the transport) */
         static const uint8_t lo[STYLES] = {76u, 112u, 84u, 124u, 124u, 118u, 128u, 120u, 120u, 116u, 124u, 164u, 60u, 96u},
                              span[STYLES] = {16u, 10u, 12u, 8u, 10u, 10u, 12u, 40u, 6u, 6u, 6u, 12u, 12u, 16u};
         uint8_t i = (uint8_t)(st - MELLO_STYLE_AMBIENT);
         e->project.bpm = (uint16_t)(lo[i] + rng_bounded(&e->gen_rng, span[i] + 1u));
     }
-    style_lead(e, st);
-    {
+    if (parts & MELLO_PART_LEAD) style_lead(e, st);
+    if (parts & MELLO_PART_BASS) {
         MelloBassConfig b = e->bass;
         MelloSubConfig sub = e->sub;
         style_bass_line(e, st, &b, &sub);
+        style_bass_sound(e, st, &sub);
         mello_engine_sub_set_config(e, &sub);
         mello_engine_bass_set_config(e, &b);
     }
-    style_drums(e, st);
+    if (parts & MELLO_PART_DRUMS) style_drums(e, st);
+    if (parts & MELLO_PART_KIT) style_kit(e, st);
 #if MELLO_FEATURE_CHORD_MACHINE
-    style_chords(e, st);
+    if (parts & MELLO_PART_CHORDS)
+        style_chords(e, st);
+    else if (parts & MELLO_PART_BASS)
+        style_chords_follow_bass(e, st);
 #endif
-    style_sound(e, st);
+    if (parts & MELLO_PART_SOUND) style_sound(e, st);
     e->style_now = st;
     sanitize_project(&e->project);
     if (e->playing)
@@ -4105,6 +4216,11 @@ uint8_t mello_engine_style_roll(MelloEngine *e, uint8_t style)
     else
         e->runtime_built = false;
     return st;
+}
+
+uint8_t mello_engine_style_roll(MelloEngine *e, uint8_t style)
+{
+    return mello_engine_style_roll_parts(e, style, MELLO_PART_ALL);
 }
 
 void mello_engine_undo_snapshot(MelloEngine *e)

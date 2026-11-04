@@ -189,6 +189,8 @@ typedef struct {
     bool audition_release;
     int8_t keys_octave; /* KEYS: OCT-/OCT+ move the keyboard, -2..+2 */
     bool rndmzr_down;   /* RNDMZR pressed: a tap rolls, a hold opens RANDOM */
+    bool rndmzr_part;   /* a white key rolled one part while it was held: nothing more on letting go */
+    bool rndmzr_menu;   /* held a moment: the parts the white keys roll are shown */
     uint8_t rndmzr_key;
     uint32_t rndmzr_down_ms;
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
