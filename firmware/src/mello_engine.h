@@ -860,6 +860,20 @@ typedef struct {
     int8_t dot_cell[MELLO_DOT_MATRIX_COUNT];
 } MelloPulseModState;
 
+/* The band as it was before a roll (DECISIONS "Three rolls back"): what UNDO swaps, kept for the last three rolls */
+#define MELLO_ROLL_BACK 3u
+typedef struct {
+    MelloProject project;
+    MelloSoundConfig sound;
+#if MELLO_FEATURE_CHORD_MACHINE
+    MelloChordConfig chord;
+#endif
+    MelloDrumConfig drums;
+    MelloBassConfig bass;
+    MelloFxConfig fx;
+    MelloSubConfig sub;
+} MelloRollBack;
+
 typedef struct {
     MelloProject project;
     bool playing;
@@ -962,6 +976,9 @@ typedef struct {
     /* RNDMZR's roll waiting for the bar's one while playing (DECISIONS "A roll lands on the one"): 0 none, 1 a
      * STYLE roll of roll_parts in roll_style (resolved), 2 the lead by roll_intensity */
     uint8_t roll_wait, roll_style, roll_parts, roll_intensity;
+    uint8_t roll_lock; /* MELLO_PART_* never rolled (RNDMZR held and B0-B5); not saved */
+    MelloRollBack roll_back[MELLO_ROLL_BACK]; /* before the last roll, the one before, the one before that */
+    uint8_t roll_back_n;
     bool undo_valid;
     bool undo_is_redo;  /* the last press was UNDO: the next puts the roll back */
     uint32_t undo_hash; /* the state as UNDO left it: an edit since means there is nothing to redo */
@@ -1177,6 +1194,9 @@ uint8_t mello_engine_style_roll(MelloEngine *engine, uint8_t style);
 uint8_t mello_engine_style_roll_at_bar(MelloEngine *engine, uint8_t style, uint8_t parts);
 void mello_engine_randomize_at_bar(MelloEngine *engine, MelloRandomizeIntensity intensity);
 void mello_engine_roll_cancel(MelloEngine *engine);
+/* The band as it was before the n-th last roll (0 the last), the tempo kept; UNDO's swap is left as it is, so a
+ * press of UNDO still goes back to where the player was before. False if there is no such roll. */
+bool mello_engine_roll_back(MelloEngine *engine, uint8_t n);
 /* One part of the band rolled again in a style (hold RNDMZR and a white key): with ANY the style that plays now. The
  * bass takes the chords' degrees with it, so the harmony still fits. Undoable. Returns the style used. */
 #define MELLO_PART_LEAD   1u

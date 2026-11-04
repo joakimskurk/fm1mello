@@ -78,6 +78,7 @@ typedef enum {
 #define MELLO_UI_READOUT_INTENSITY 7u
 #define MELLO_UI_READOUT_PATTERN   8u
 #define MELLO_UI_READOUT_STYLE     9u /* the style RNDMZR just rolled */
+#define MELLO_UI_READOUT_KEPT      10u /* RNDMZR + SAVE: kept in a slot */
 #define MELLO_UI_READOUT_MS        1200u /* how long the readout stays after the last detent */
 
 enum {
@@ -192,6 +193,10 @@ typedef struct {
     bool rndmzr_down;   /* RNDMZR pressed: a tap rolls, a hold opens RANDOM */
     bool rndmzr_part;   /* a white key rolled one part while it was held: nothing more on letting go */
     bool rndmzr_menu;   /* held a moment: the parts the white keys roll are shown */
+    bool undo_down;     /* UNDO held: white keys 1-3 go back to before the last three rolls */
+    bool undo_menu;     /* held a moment: those shown */
+    uint32_t undo_down_ms;
+    int8_t kept_slot;   /* RNDMZR + SAVE: the slot the band was kept in (-1: none free) */
     uint8_t rndmzr_key;
     uint32_t rndmzr_down_ms;
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */

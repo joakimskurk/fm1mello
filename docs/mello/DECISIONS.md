@@ -1639,6 +1639,19 @@ the tempo from 128 to 96. The product owner: "the tempo shall never be rolled".
   SWP opens out of the way; the change fades over ~10 ms each way. Held to the end, the mix is 8 dB under itself,
   not gone (perform_keys).
 
+## Locks, three rolls back, kept (2026-11-04, the workshop's wave 3)
+
+- **Locks.** RNDMZR held, B0-B5 lock LEAD, BASS, DRUMS, KIT, CHORDS, SOUND (the black key after each part's white
+  key; lit when locked, the part's box dim with LOCK). A locked part is never rolled: not by a tap of RNDMZR, not
+  alone, not by INT (the lead); locked chords do not follow a new bass (they may then clash; the lock is the
+  player's word). A band roll with everything locked does nothing. Not saved: a performance state, as PERFORM's.
+- **Three rolls back.** The band before each of the last three rolls (the sequence, sound, chords, drums, bass,
+  effects, sub: 1408 B each, 4.2 KB of the 9.9 KB free) is kept. UNDO pressed works as before (the swap: the last
+  roll or edit back, again forward); held, white keys 1-3 bring back the band before the last, the second last and
+  the third last roll, the tempo kept, the swap left alone so UNDO again returns to where the player was.
+- **Kept.** RNDMZR held and SAVE: the band as it plays into the first free pattern slot, named KEPT nn (the slots
+  shown reach it); the readout says KEPT SLOT nn, or SLOTS FULL. Test: roll_locks.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

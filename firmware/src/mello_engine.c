@@ -4295,15 +4295,56 @@ static uint8_t style_resolve(MelloEngine *e, uint8_t style, uint8_t parts)
     return st;
 }
 
+/* The band as it is, into the three rolls back (the oldest dropped) */
+static void roll_back_push(MelloEngine *e)
+{
+    MelloRollBack *b;
+    uint8_t i;
+    for (i = MELLO_ROLL_BACK - 1u; i > 0u; --i) e->roll_back[i] = e->roll_back[i - 1u]; /* (no memmove here) */
+    b = &e->roll_back[0];
+    b->project = e->project, b->sound = e->sound, b->drums = e->drums, b->bass = e->bass, b->fx = e->fx;
+    b->sub = e->sub;
+#if MELLO_FEATURE_CHORD_MACHINE
+    b->chord = e->chord;
+#endif
+    if (e->roll_back_n < MELLO_ROLL_BACK) e->roll_back_n++;
+}
+bool mello_engine_roll_back(MelloEngine *e, uint8_t n)
+{
+    const MelloRollBack *b;
+    uint16_t bpm;
+    if (!e || n >= e->roll_back_n) return false;
+    b = &e->roll_back[n];
+    bpm = e->project.bpm; /* the tempo is the player's */
+    e->project = b->project, e->project.bpm = bpm;
+    e->sound = b->sound;
+#if MELLO_FEATURE_CHORD_MACHINE
+    e->chord = b->chord;
+#endif
+    mello_engine_drums_set_config(e, &b->drums);
+    e->bass = b->bass, e->fx = b->fx, e->sub = b->sub;
+    sanitize_project(&e->project);
+    if (e->playing)
+        rebuild_preserving_phase(e);
+    else
+        e->runtime_built = false;
+    return true;
+}
+
 uint8_t mello_engine_style_roll_parts(MelloEngine *e, uint8_t style, uint8_t parts)
 {
-    uint8_t st;
+    uint8_t st, band = parts;
     if (!e || !(parts & MELLO_PART_ALL)) return MELLO_STYLE_OFF;
-    st = style_resolve(e, style, parts);
+    parts &= (uint8_t)(MELLO_PART_ALL & ~e->roll_lock); /* the locked parts stay (DECISIONS "Locks") */
+    if (!parts) return e->style_now;
+    st = style_resolve(e, style, band);
     if (st < MELLO_STYLE_AMBIENT || st >= MELLO_STYLE_COUNT) {
+        if (e->roll_lock & MELLO_PART_LEAD) return MELLO_STYLE_OFF;
+        roll_back_push(e);
         mello_engine_randomize_steps_intensity(e, MELLO_RANDOMIZE_MED);
         return MELLO_STYLE_OFF;
     }
+    roll_back_push(e);
     mello_engine_undo_snapshot(e);
     if (parts & MELLO_PART_LEAD) style_lead(e, st);
     if (parts & MELLO_PART_BASS) {
@@ -4319,11 +4360,11 @@ uint8_t mello_engine_style_roll_parts(MelloEngine *e, uint8_t style, uint8_t par
 #if MELLO_FEATURE_CHORD_MACHINE
     if (parts & MELLO_PART_CHORDS)
         style_chords(e, st);
-    else if (parts & MELLO_PART_BASS)
+    else if ((parts & MELLO_PART_BASS) && !(e->roll_lock & MELLO_PART_CHORDS)) /* (locked chords stay as they are) */
         style_chords_follow_bass(e, st);
 #endif
     if (parts & MELLO_PART_SOUND) style_sound(e, st);
-    if (parts == MELLO_PART_ALL) { /* the band's level: the styles measured at 120 BPM, set within 1 dB of -13 dBFS */
+    if (band == MELLO_PART_ALL) { /* the band's level: the styles measured at 120 BPM, set within 1 dB of -13 dBFS */
         static const int8_t trim[STYLES] = {-2, 0, -1, 0, 1, -1, 1, -2, 1, -1, 2, 1, 2, 0, 0};
         MelloFxConfig f = e->fx;
         f.trim_db = trim[st - MELLO_STYLE_AMBIENT];
@@ -4350,8 +4391,10 @@ static void roll_fire(MelloEngine *e)
     e->roll_wait = 0u;
     if (w == 1u)
         (void)mello_engine_style_roll_parts(e, e->roll_style, e->roll_parts);
-    else if (w == 2u)
+    else if (w == 2u && !(e->roll_lock & MELLO_PART_LEAD)) {
+        roll_back_push(e);
         mello_engine_randomize_steps_intensity(e, (MelloRandomizeIntensity)e->roll_intensity);
+    }
 }
 static bool roll_now(const MelloEngine *e)
 {

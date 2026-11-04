@@ -246,6 +246,7 @@ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage
     ui->page = MELLO_UI_HOME;
     ui->random_intensity = MELLO_RANDOMIZE_MED;
     ui->random_style = MELLO_STYLE_ANY; /* DECISIONS "STYLE": a press rolls the band in a style */
+    ui->kept_slot = -1;
     ui->selected_slot = 0u;
     ui->selected_tm_bit = 0u;
     ui->seen_step = 0xFFu;
@@ -1181,6 +1182,14 @@ static void rec_key_poll(MelloUi *ui, uint32_t now_ms)
 
 static void perform_key(MelloUi *ui, uint32_t now_ms, uint8_t w);
 /* RNDMZR held: the white keys 1-7 roll one part of the band each (DECISIONS "One part at a time") */
+static const uint8_t BLACK_KEY_NOTES[11] = {1u, 3u, 5u, 8u, 10u, 13u, 15u, 17u, 20u, 22u, 25u};
+static int8_t black_key_index(uint8_t note_index)
+{
+    int8_t b;
+    for (b = 0; b < 11; ++b)
+        if (BLACK_KEY_NOTES[b] == note_index) return b;
+    return -1;
+}
 #define ROLL_PARTS 6u /* (no TEMPO: the tempo is never rolled) */
 static const char *const ROLL_PART_NAMES[ROLL_PARTS] = {"LEAD", "BASS", "DRUMS", "KIT", "CHORDS", "SOUND"};
 static const uint8_t ROLL_PART_BITS[ROLL_PARTS] = {MELLO_PART_LEAD, MELLO_PART_BASS,   MELLO_PART_DRUMS,
@@ -1193,15 +1202,31 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
     int8_t w;
     bool pick_only;
     if (!e) return;
-    if (ui->rndmzr_down) { /* RNDMZR held: a white key rolls that part alone */
+    if (ui->rndmzr_down) { /* RNDMZR held: a white key rolls that part alone; B0-B5 lock it (DECISIONS "Locks") */
+        int8_t b = black_key_index(note_index);
         w = mello_ui_white_key_position(note_index);
         if (w >= 0 && w < (int8_t)ROLL_PARTS) {
             ui_roll_part(ui, e, (uint8_t)w, now_ms);
             rebuild(ui);
             persistent_dirty(ui, now_ms);
             mark_edit(ui);
+        } else if (b >= 0 && b < (int8_t)ROLL_PARTS) {
+            e->roll_lock ^= ROLL_PART_BITS[b];
+            ui->rndmzr_part = ui->rndmzr_menu = true; /* (nothing more on letting go; the parts shown) */
+            ui->dirty |= MELLO_UI_DIRTY_ALL;
         }
         return;
+    }
+    if (ui->undo_down) { /* UNDO held: white keys 1-3, the band before the last three rolls */
+        w = mello_ui_white_key_position(note_index);
+        if (w >= 0 && w < (int8_t)MELLO_ROLL_BACK && mello_engine_roll_back(e, (uint8_t)w)) {
+            ui->undo_menu = true;
+            rebuild(ui);
+            persistent_dirty(ui, now_ms);
+            mark_edit(ui);
+            ui->dirty |= MELLO_UI_DIRTY_ALL;
+        }
+        if (w >= 0 || black_key_index(note_index) >= 0) return;
     }
 
     if (ui->page == MELLO_UI_SEQ_STEP && ui->step_pitch_mode) { /* EDIT on STEP: the keys set the pitch */
@@ -2937,6 +2962,31 @@ static void save_selected_slot(MelloUi *ui, uint32_t now_ms)
     mark_edit(ui);
 }
 
+/* A favourite (DECISIONS "Kept"): the band as it plays into the first free slot ("KEPT nn"), the slots shown
+ * reaching it; full, nothing (the readout says so). */
+static void keep_in_slot(MelloUi *ui, uint32_t now_ms)
+{
+    MelloEngine *e = eng(ui);
+    char name[MELLO_SLOT_NAME_CHARS + 1u];
+    uint8_t i;
+    if (!e) return;
+    ui->kept_slot = -1;
+    for (i = 0u; i < MELLO_MAX_SLOTS; ++i)
+        if (!e->slots[i].valid) break;
+    if (i < MELLO_MAX_SLOTS) {
+        memset(name, 0, sizeof name);
+        (void)copy_s(name, "KEPT ");
+        name[5] = (char)('0' + ((i + 1u) / 10u) % 10u);
+        name[6] = (char)('0' + (i + 1u) % 10u);
+        (void)mello_engine_save_slot(e, i, name);
+        if (i >= e->visible_slot_count) mello_engine_set_visible_slot_count(e, (uint8_t)((i / 8u + 1u) * 8u));
+        ui->kept_slot = (int8_t)i;
+        persistent_dirty(ui, now_ms);
+        mark_edit(ui);
+    }
+    show_readout(ui, MELLO_UI_READOUT_KEPT, now_ms);
+}
+
 static void tap_tempo(MelloUi *ui, uint32_t now_ms)
 {
     uint32_t fresh[8], sum = 0u, numerator;
@@ -3128,6 +3178,7 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
         mark_edit(ui);
         break;
     case MELLO_CTX_UNDO:
+        ui->undo_down = true, ui->undo_down_ms = now_ms, ui->undo_menu = false; /* held: three rolls back */
         if (e->roll_wait) { /* a roll waiting for the one: taken back before it lands */
             mello_engine_roll_cancel(e);
             ui->dirty |= MELLO_UI_DIRTY_ALL;
@@ -3422,6 +3473,11 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
     if (pressed & bit_u32(MELLO_UI_BTN_ARP)) section_next(ui, MELLO_UI_BTN_ARP, 1);
     if (pressed & bit_u32(MELLO_UI_BTN_GLO)) section_next(ui, MELLO_UI_BTN_GLO, 1);
     if (pressed & bit_u32(MELLO_UI_BTN_ENV)) section_next(ui, MELLO_UI_BTN_ENV, 1);
+    if ((pressed & bit_u32(MELLO_UI_BTN_SAVE)) && ui->rndmzr_down) { /* RNDMZR + SAVE: kept, in the next free slot */
+        keep_in_slot(ui, now_ms);
+        ui->rndmzr_part = true; /* (nothing more on letting go of RNDMZR) */
+        pressed &= ~bit_u32(MELLO_UI_BTN_SAVE);
+    }
     if (pressed & bit_u32(MELLO_UI_BTN_SAVE)) {
         if (ui->page == MELLO_UI_SLOTS)
             save_selected_slot(ui, now_ms);
@@ -3472,7 +3528,7 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
 
 /* The black keys' note indices by strip position (0 = F#3 .. 10 = F#5): the 27 keys from F3 less the white ones. A
  * table, as perf_poll reads them on every input (a search there cost most of the main loop: 0.5-k1 .. f2). */
-static const uint8_t BLACK_KEY_NOTES[11] = {1u, 3u, 5u, 8u, 10u, 13u, 15u, 17u, 20u, 22u, 25u};
+
 
 /* HOME's performance keys act while held: which are held now goes to the engine (mello_engine_set_perf) on every
  * input; anywhere else, in KEYS or with a step held, none are. The strip shows held keys by name. */
@@ -3641,6 +3697,16 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
             }
         } else if (held >= 250 && !ui->rndmzr_menu) {
             ui->rndmzr_menu = true; /* show what the white keys roll */
+            ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
+        }
+    }
+    if (ui->undo_down) { /* UNDO held: a moment, and the rolls back are shown; let go, gone */
+        if (!(ui->held_notes & bit_u32(BLACK_KEY_NOTES[9]))) {
+            ui->undo_down = false;
+            if (ui->undo_menu) ui->undo_menu = false, ui->dirty |= MELLO_UI_DIRTY_ALL;
+        } else if ((int32_t)(now_ms - ui->undo_down_ms) >= 250 && !ui->undo_menu && eng(ui) &&
+                   eng(ui)->roll_back_n) {
+            ui->undo_menu = true;
             ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
         }
     }
@@ -4325,13 +4391,35 @@ static void draw_roll_menu(MelloUi *ui, const MelloUiDrawOps *o)
                                   : e && e->style_now ? e->style_now
                                                       : MELLO_STYLE_ANY));
     ui_spaced(o, 6, 33, 228, b, UI_DIM, 0);
-    for (w = 0u; w < ROLL_PARTS; ++w) {
+    for (w = 0u; w < ROLL_PARTS; ++w) { /* a locked part dim, LOCK under its name */
         int16_t x = (int16_t)(4 + (w % 4u) * 58), y = (int16_t)(50 + (w / 4u) * 30);
-        ui_round_fill(o, x, y, 56, 28, UI_PANEL);
-        ui_round_frame(o, x, y, 56, 28, UI_PURPLE);
-        o->text(o->ctx, x, (int16_t)(y + 6), 56, 0, ROLL_PART_NAMES[w], UI_BRIGHT, 1);
+        bool locked = e && (e->roll_lock & ROLL_PART_BITS[w]);
+        ui_round_fill(o, x, y, 56, 28, locked ? UI_BLACK : UI_PANEL);
+        ui_round_frame(o, x, y, 56, 28, locked ? UI_DIM : UI_PURPLE);
+        o->text(o->ctx, x, (int16_t)(y + (locked ? 2 : 6)), 56, 0, ROLL_PART_NAMES[w], locked ? UI_DIM : UI_BRIGHT, 1);
+        if (locked) o->text(o->ctx, x, (int16_t)(y + 15), 56, 0, "LOCK", UI_GOLD, 1);
     }
-    o->text(o->ctx, 6, 118, 228, 0, "NO KEY, LET GO: RANDOM", UI_DIM, 0);
+    o->text(o->ctx, 6, 112, 228, 0, "B0-B5: LOCK A PART", UI_DIM, 0);
+    o->text(o->ctx, 6, 128, 228, 0, "SAVE: KEEP IN A SLOT", UI_DIM, 0);
+    o->text(o->ctx, 6, 144, 228, 0, "NO KEY, LET GO: RANDOM", UI_DIM, 0);
+}
+
+/* UNDO held: the band before each of the last three rolls, on white keys 1-3 */
+static void draw_undo_menu(MelloUi *ui, const MelloUiDrawOps *o)
+{
+    static const char *const names[MELLO_ROLL_BACK] = {"1 ROLL", "2 ROLLS", "3 ROLLS"};
+    MelloEngine *e = eng(ui);
+    uint8_t w;
+    o->fill(o->ctx, 0, 30, 240, 141, UI_BLACK);
+    ui_spaced(o, 6, 33, 228, "BACK BEFORE", UI_DIM, 0);
+    for (w = 0u; e && w < MELLO_ROLL_BACK; ++w) {
+        int16_t x = (int16_t)(4 + w * 78);
+        bool there = w < e->roll_back_n;
+        ui_round_fill(o, x, 50, 74, 28, there ? UI_PANEL : UI_BLACK);
+        ui_round_frame(o, x, 50, 74, 28, there ? UI_GOLD : UI_DIM);
+        o->text(o->ctx, x, 56, 74, 0, names[w], there ? UI_BRIGHT : UI_DIM, 1);
+    }
+    o->text(o->ctx, 6, 112, 228, 0, "LET GO, UNDO AGAIN: BACK HERE", UI_DIM, 0);
 }
 
 static void draw_home(MelloUi *ui, const MelloUiDrawOps *o)
@@ -5365,6 +5453,7 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
                 }
             }
         if (!*b && ui->rndmzr_menu) (void)copy_s(b, "A WHITE KEY ROLLS ONE PART");
+        if (!*b && ui->undo_menu) (void)copy_s(b, "WHITE KEY 1-3: BACK BEFORE IT");
         if (*b) { /* (a held key with nothing to say: the strip as it is) */
             ui_round_fill(o, 2, 172, 236, 16, ui_mix(accent, UI_BLACK, 170));
             o->text(o->ctx, 4, 172, 232, 0, b, UI_BRIGHT, 1);
@@ -7114,6 +7203,12 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
         (void)copy_s(val, e->roll_wait == 2u  ? "LEAD"
                           : e->roll_wait == 1u ? mello_style_name(e->roll_style)
                                                : mello_style_name(e->style_now));
+    } else if (ui->readout == MELLO_UI_READOUT_KEPT) {
+        label = "KEPT";
+        if (ui->kept_slot < 0)
+            (void)copy_s(val, "SLOTS FULL");
+        else
+            (void)put_u32(copy_s(val, "SLOT "), (uint32_t)ui->kept_slot + 1u);
     } else if (ui->readout == MELLO_UI_READOUT_PATTERN && e) {
         label = "PATTERN";
         q = copy_s(val, "SLOT ");
@@ -7173,13 +7268,16 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
     if (d & MELLO_UI_DIRTY_HEADER) draw_header(ui, &fitted);
     if ((d & MELLO_UI_DIRTY_BODY) && ui->rndmzr_menu)
         draw_roll_menu(ui, &fitted);
+    else if ((d & MELLO_UI_DIRTY_BODY) && ui->undo_menu)
+        draw_undo_menu(ui, &fitted);
     else if ((d & MELLO_UI_DIRTY_BODY) && ui->perform)
         draw_perform(ui, &fitted);
     else if (d & MELLO_UI_DIRTY_BODY)
         draw_body(ui, &fitted);
-    else if ((d & MELLO_UI_DIRTY_HOME_PLAYHEAD) && ui->page == MELLO_UI_HOME && !ui->perform && !ui->rndmzr_menu)
+    else if ((d & MELLO_UI_DIRTY_HOME_PLAYHEAD) && ui->page == MELLO_UI_HOME && !ui->perform && !ui->rndmzr_menu &&
+             !ui->undo_menu)
         draw_home_playhead(ui, &fitted);
-    else if ((d & MELLO_UI_DIRTY_SEQ_PLAYHEAD) && !ui->perform && !ui->rndmzr_menu &&
+    else if ((d & MELLO_UI_DIRTY_SEQ_PLAYHEAD) && !ui->perform && !ui->rndmzr_menu && !ui->undo_menu &&
              (ui->page == MELLO_UI_SEQ_STEP || ui->page == MELLO_UI_RANDOM))
         draw_sequence_playhead(ui, &fitted);
     if (ui->readout) { /* G7: the readout over K1-K4 and the strip; the picture it changes stays in view */
@@ -7235,8 +7333,11 @@ static void calc_key_levels(MelloUi *ui, uint32_t *lit_out, uint32_t *glow_out)
     *lit_out = *glow_out = 0u;
     if (!e) return;
 #define WK(n) bit_u32(white_key_notes[(n) % 16u])
-    if (ui->rndmzr_menu) { /* RNDMZR held: the keys that roll a part glow */
-        for (i = 0u; i < ROLL_PARTS; ++i) glow |= WK(i);
+    if (ui->rndmzr_menu) { /* RNDMZR held: the keys that roll a part glow (a locked part's dark) */
+        for (i = 0u; i < ROLL_PARTS; ++i)
+            if (!(e->roll_lock & ROLL_PART_BITS[i])) glow |= WK(i);
+    } else if (ui->undo_menu) { /* UNDO held: the rolls there are to go back before */
+        for (i = 0u; i < e->roll_back_n; ++i) glow |= WK(i);
     } else if (ui->perform) { /* PERFORM: a key with an action glows, lit while it acts (held, or a MUTE on) */
         uint16_t held = perform_held(ui);
         for (i = 0u; i < 16u; ++i) {
@@ -7349,6 +7450,12 @@ static void calc_key_levels(MelloUi *ui, uint32_t *lit_out, uint32_t *glow_out)
             if (!a || a->verb == MELLO_CTX_NONE) continue;
             glow |= k;
             if (ctx_lit(ui, a->verb) > 0 || (ui->held_notes & k)) lit |= k;
+        }
+    if (ui->rndmzr_menu) /* RNDMZR held: B0-B5 lock the parts, lit when locked */
+        for (i = 0u; i < ROLL_PARTS; ++i) {
+            uint32_t k = bit_u32(BLACK_KEY_NOTES[i]);
+            glow |= k, lit &= ~k;
+            if (e->roll_lock & ROLL_PART_BITS[i]) lit |= k;
         }
     *lit_out = lit;
     *glow_out = glow & ~lit;
