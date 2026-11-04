@@ -922,7 +922,9 @@ void mello_engine_bass_roll(MelloEngine *e)
     /* the beats first: the one is the root; the others a root or a fifth, or the lead's chord tone when it has one */
     for (k = 0u; k < len; ++k) {
         MelloBassStep *s = &b.steps[k];
-        s->on = false, s->glide = false, s->accent = false, s->octave = -1, s->tone = MELLO_SUB_TONE_ROOT;
+        /* at the default line's octave (0): the voice itself sits an octave down since 2026-11-02, and -1 here put a
+         * rolled line a second octave under it (~33 Hz) */
+        s->on = false, s->glide = false, s->accent = false, s->octave = 0, s->tone = MELLO_SUB_TONE_ROOT;
         if (k % 4u) continue;
         if (k == 0u)
             beat_tone[k] = MELLO_SUB_TONE_ROOT;
@@ -949,7 +951,7 @@ void mello_engine_bass_roll(MelloEngine *e)
             s->tone = to == MELLO_SUB_TONE_FIFTH ? walk_to_fifth[rng_bounded(&e->gen_rng, 3u)]
                                                  : walk_to_root[rng_bounded(&e->gen_rng, 3u)];
         else if (k % 4u == 3u && r < 65u && to == MELLO_SUB_TONE_ROOT) /* an octave jump before the root */
-            s->tone = MELLO_SUB_TONE_ROOT, s->octave = 0;
+            s->tone = MELLO_SUB_TONE_ROOT, s->octave = 1;
         else if (lead_chord[k] && r < 85u)
             s->tone = lead_deg[k] == 0u ? MELLO_SUB_TONE_ROOT : (uint8_t)lead_deg[k];
         else

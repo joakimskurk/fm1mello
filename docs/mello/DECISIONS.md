@@ -1456,6 +1456,14 @@ The held effects cost ~6 points (FILL and ARP play every step; the sweeps and se
 than the old worst case's sequence, as FILL fills GROOVE's rests and doubles its ratchets. 17 points under the
 instruction-count ceiling; the device's CPU nn% (F24) is the measure that counts.
 
+## A rolled bass where the default sits (2026-11-04)
+
+The product owner: since the bass went an octave down, a rolled bass is often too deep, while the default line is
+fine. ROLL on BASS ("A bass line that fits", 2026-11-01) wrote every step at octave -1 and its jumps at 0, from
+when the voice itself sat an octave higher; the default line is at 0. Since "The bass an octave lower"
+(2026-11-02) a rolled line sat a whole octave under the default, around C1 (33 Hz) at OCT -1. A roll now writes
+the default line's octave, 0, and its jumps at +1. Test: bass_roll.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (C) 2026 joakimskurk */
 /* ROLL on BASS (DECISIONS.md "A bass line that fits"): a rolled BASS SEQ line is never sporadic (five to eleven of
- * sixteen steps), starts on the root on the one, sits an octave down except for octave jumps, puts roots, fifths or
+ * sixteen steps), starts on the root on the one, sits at the default line's octave (0) but for octave jumps, puts roots, fifths or
  * the lead's chord tones on the beats, keeps to tones in the scale, glides only into a step that plays, turns BASS
  * SEQ on, differs from roll to roll, and is undone by UNDO. The lead is MUSICAL's roll, so the beats have chord
  * tones to follow. */
@@ -51,8 +51,8 @@ int main(void)
               "roll %u: the one is not an accented root", (unsigned)s);
         for (k = 0u; k < 16u; ++k) {
             const MelloBassStep *b = &e.bass.steps[k];
-            CHECK(b->octave == -1 || (b->octave == 0 && b->tone == MELLO_SUB_TONE_ROOT),
-                  "roll %u step %u: octave %d tone %u (an octave down, or a root jumped up)", (unsigned)s, k,
+            CHECK(b->octave == 0 || (b->octave == 1 && b->tone == MELLO_SUB_TONE_ROOT),
+                  "roll %u step %u: octave %d tone %u (the default line's, or a root jumped up)", (unsigned)s, k,
                   b->octave, b->tone);
             CHECK(b->tone <= MELLO_SUB_TONE_OCTAVE, "roll %u step %u: tone %u", (unsigned)s, k, b->tone);
             if (b->on && b->glide)
