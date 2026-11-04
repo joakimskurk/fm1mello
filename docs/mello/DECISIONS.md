@@ -1699,6 +1699,28 @@ numbers (the lines, the dice) stays in the code by style. Proven the same: every
 and each part alone (840 rolls, with and without the chords), hashed before and after: identical. style_roll
 checks every style has an entry of its own.
 
+## The reverb glides (2026-11-04)
+
+The product owner, on the 0.5-f80 demo: "glitch in the reverb, definitely there". Found by rendering the reverb's
+wet return alone and looking for lone spikes in its second difference: 52 in the 96 s, some repeating at a line's
+length (a click going round). Two causes, both fixed:
+
+- **The modulation's depth was unsigned.** RV3_MOD_DEPTH_Q8 is `20 * 256 / RV3_RATE_DIV` and RV3_RATE_DIV is `2u`,
+  so `sn * RV3_MOD_DEPTH_Q8` was unsigned: with the sine below zero the swing came out near +512 samples, clamped to
+  the line's longest, and back as the sine rose; a jump of 106-138 samples twice a cycle on each of the eight
+  lines, since the modulation went in. With the modulation off: no clicks; with the cast: none. (Likely ROADMAP
+  F16's "noise" too.) The lines now swing the +-10 samples meant.
+- **SIZE changed while the tail rang** (every STYLE roll; a knob) moved every read at once: the tail broke. The
+  lines now glide to their new lengths, 1/8 sample per 16 network samples (a bend of ~13 cents, a 400-sample change
+  in ~2.3 s); the three diffusers (no fractional read) take theirs once the tail has died away; silent, at once.
+  With the cast alone the style changes still clicked (3, at 24.8 s, and 4-13x the residual at each change).
+- A correction of the interpolating allpass's state where the read crosses a whole sample was tried: no difference
+  once the cast was in; left out.
+
+Test: reverb_glide (no line's read moves more than 2 samples a millisecond through a SIZE change; within the swing of
+SIZE's length after; no lone spike in the tail). fx_sends now measures what the bass's sends add (the difference of
+two takes), not the sum's level, which a held low note's reverb can lower (it did by 0.03 dB with the lines right).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

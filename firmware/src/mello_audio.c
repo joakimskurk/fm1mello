@@ -1689,6 +1689,7 @@ static const int16_t RV3_ETA_Q15[256] = {
     -6513,
 };
 #define RV3_MOD_EVERY 16u
+#define RV3_GLIDE_Q8  32u /* a line's length moves 32/256 of a sample every RV3_MOD_EVERY network samples */
 static const uint32_t RV3_MOD_INC[8] = {30190u, 40904u, 50643u, 60383u, 71096u, 83758u, 98367u, 123690u};
 
 static uint16_t rv3_scaled_cap(uint32_t total, uint16_t full)
@@ -1767,13 +1768,20 @@ static void reverb_configure(MelloAudio *a)
     a->reverb_feedback_q15 = (uint16_t)(sum / 8u);
     a->reverb_delay_a = a->reverb_line_delay[0];
     a->reverb_delay_b = a->reverb_line_delay[7];
+    /* A SIZE changed while the tail rings (a STYLE roll, a knob) moved every read at once: the tail broke, a click
+     * that then went round the lines (DECISIONS "The reverb glides"). Now the lines glide to their new lengths
+     * (reverb_network_step) and the diffusers take theirs once the tail has died away; silent, at once. */
+    for (i = 0u; i < 8u; ++i)
+        if (!a->reverb_live || !a->reverb_line_dq8[i]) a->reverb_line_dq8[i] = (uint32_t)a->reverb_line_delay[i] << 8;
+    for (i = 0u; i < 3u; ++i)
+        if (!a->reverb_live || !a->reverb_ap_now[i]) a->reverb_ap_now[i] = a->reverb_ap_delay[i];
 }
 static int32_t rv3_allpass(MelloAudio *a, uint16_t which, int32_t x, uint16_t g)
 {
     uint16_t cap, delay, pos, rp, off;
     int32_t z, y, w;
     cap = a->reverb_ap_cap[which];
-    delay = a->reverb_ap_delay[which];
+    delay = a->reverb_ap_now[which];
     pos = a->reverb_ap_pos[which];
     off = a->reverb_ap_offset[which];
     if (cap < 4u || delay < 1u) return x;
@@ -1829,9 +1837,16 @@ static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int3
             a->reverb_mod_phase[i] = ph + RV3_MOD_INC[i] * RV3_MOD_EVERY * RV3_RATE_DIV;
             sn = s0 + (((s1 - s0) * (int32_t)((ph >> 16) & 0xFFu)) >> 8);
             cap = a->reverb_line_cap[i];
-            dq8 = (uint32_t)((int32_t)((uint32_t)a->reverb_line_delay[i] << 8) +
-                             ((sn * RV3_MOD_DEPTH_Q8) >> 15)) -
-                  128u;
+            { /* the line's length gliding to where SIZE put it: 1/8 sample per update, a bend of ~13 cents */
+                uint32_t to = (uint32_t)a->reverb_line_delay[i] << 8, now = a->reverb_line_dq8[i];
+                now = now + RV3_GLIDE_Q8 < to ? now + RV3_GLIDE_Q8 : now > to + RV3_GLIDE_Q8 ? now - RV3_GLIDE_Q8 : to;
+                a->reverb_line_dq8[i] = now;
+                /* (int32_t): RV3_RATE_DIV is unsigned, so the depth was, and so was the product: with the sine below
+                 * zero the swing came out near +512 samples and the line jumped to its longest, and back as the sine
+                 * rose; twice a cycle on each of the eight lines, a click going round (DECISIONS "The reverb
+                 * glides"; ROADMAP F16's noise) */
+                dq8 = (uint32_t)((int32_t)now + ((sn * (int32_t)RV3_MOD_DEPTH_Q8) >> 15)) - 128u;
+            }
             if (dq8 < 256u) dq8 = 256u;
             if (cap > 3u && dq8 > ((uint32_t)cap - 2u) << 8) dq8 = ((uint32_t)cap - 2u) << 8;
             /* the delay is di + 0.5 + fr / 256: Thiran's sweet spot, 0.5..1.5 samples past di */
@@ -3036,8 +3051,10 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                  * delay's tail guard used to keep it running for nothing). */
                 if (send > 8 || send < -8)
                     a->reverb_live = ms_samples(a->fx.reverb_decay_ms) + 2048u;
-                else if (a->reverb_live)
-                    a->reverb_live--;
+                else if (a->reverb_live && !--a->reverb_live) { /* the tail gone: the diffusers where SIZE put them */
+                    uint8_t k;
+                    for (k = 0u; k < 3u; ++k) a->reverb_ap_now[k] = a->reverb_ap_delay[k];
+                }
             }
             if (a->perf_fx & 3u || a->sweep_pos[0] | a->sweep_pos[1]) sweep_step(a, &mix_l, &mix_r); /* the sweeps */
             /* MASTER and the output's gain, then the limiter: nothing leaves above -1 dBFS but a 3 ms attack's edge */

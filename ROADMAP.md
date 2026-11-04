@@ -69,7 +69,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F13 | The lights by one rule (E8, G5). Done 2026-11-03 (0.5-f55); the glow costs 2 points of the chip | 2026-11-02, 8 |
 | F14 | EVOLVE, DOT and the LFO seen moving: a second thumb on the modulated value (E7 (2)). Done 2026-11-03 (0.5-f56) | 2026-11-02, 7 |
 | F15 | GROOVE, a second MUSICAL: rolls, ties, ghost notes, rests (E10). Done 2026-11-03 (0.5-f58) | 2026-11-02, 10 |
-| F16 | The reverb's noise confirmed or found (E5): a recording from the emulator, then the FM-1 | 2026-11-02, 5 |
+| F16 | The reverb's noise confirmed or found (E5): a recording from the emulator, then the FM-1. Found 2026-11-04 in the emulator's renders (0.5-f81): the reverb's modulation was unsigned, its lines jumped; fixed, with SIZE gliding (DECISIONS "The reverb glides"); the FM-1 still to hear | 2026-11-02, 5 |
 | F17 | Music units on the remaining pages (Phase 3). Done 2026-11-03 (0.5-f57): KEY's ROOT a note (C4), a LOOP slot's KEY a pitch class (D); the other bare numbers are counts | 2026-10-29 |
 | F18 | HOME's own black keys once PERFORM exists (G4). Done 2026-11-03: - + RST CLR stay, MUT went to B6 | 2026-11-03, 6 |
 | F19 | DOT's picture: "much better than the HTML" was asked; it kept its own body in C3. Looked at 2026-11-03 on the new screen: it holds (the grid fills the taller body, the read position, trail and route numbers show); no redraw. The UI map's DOT shots were all empty matrices, stopped; a playing shot with cells on (dot-playing) is in the README's tour | 2026-10-29 (h3) |

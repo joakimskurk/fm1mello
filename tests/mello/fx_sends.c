@@ -39,8 +39,10 @@ typedef struct {
     int16_t cut;  /* the lead's CUTOFF, or -1 */
 } Case;
 
-/* 6 s of the part alone, 100 BPM, the energy (dB) of the last 5 */
-static double render(const Case *c)
+/* 6 s of the part alone, 100 BPM, the energy (dB) of the last 5; the samples kept (keep, if given) */
+#define KEEP (6000u * 45u * 2u)
+static int16_t keep_zero[KEEP], keep_full[KEEP];
+static double render_keep(const Case *c, int16_t *keep)
 {
     MelloProject p;
     MelloFxConfig fx;
@@ -48,6 +50,7 @@ static double render(const Case *c)
     int32_t out[96];
     double acc = 0;
     unsigned n = 0u;
+    uint32_t kn = 0u;
     mello_project_defaults(&p);
     p.bpm = 100;
     if (c->part == BASS_ONLY)
@@ -82,10 +85,24 @@ static double render(const Case *c)
         mello_transport_poll_ahead(&t, ms * 1000u, MELLO_TRANSPORT_LOOKAHEAD_US);
         memset(out, 0, sizeof out);
         mello_audio_render(&a, out, fr, ms * 1000u, t.engine.project.bpm);
-        if (ms >= 1000u)
-            for (i = 0; i < fr * 2u; ++i) acc += (double)out[i] * out[i], ++n;
+        for (i = 0; i < fr * 2u; ++i) {
+            if (keep && kn < KEEP) keep[kn++] = (int16_t)(out[i] > 32767 ? 32767 : out[i] < -32767 ? -32767 : out[i]);
+            if (ms >= 1000u) acc += (double)out[i] * out[i], ++n;
+        }
     }
     return 10.0 * log10(acc / n / (32768.0 * 32768.0) + 1e-20);
+}
+static double render(const Case *c)
+{
+    return render_keep(c, 0);
+}
+/* what the sends added: the energy (dB) of the difference of two takes alike but for them */
+static double added(void)
+{
+    double acc = 0;
+    uint32_t i;
+    for (i = 44100u * 2u; i < KEEP; ++i) acc += ((double)keep_full[i] - keep_zero[i]) * ((double)keep_full[i] - keep_zero[i]);
+    return 10.0 * log10(acc / (KEEP - 44100u * 2u) / (32768.0 * 32768.0) + 1e-20);
 }
 
 #define FLASH_SIZE (MELLO_STORAGE_BANK0_ADDR + 2u * MELLO_STORAGE_BANK_SIZE)
@@ -127,9 +144,13 @@ int main(void)
     { /* the bass: its sends at 0 sound as the effects off; at 100% more; the lead's CUTOFF leaves it alone */
         Case c0 = {BASS_ONLY, -1, true, -1}, c1 = {BASS_ONLY, 0, false, -1}, c2 = {BASS_ONLY, 1000, false, -1},
              c3 = {BASS_ONLY, -1, true, 1000}, c4 = {BASS_ONLY, -1, true, 50};
-        dry = render(&c0), zero = render(&c1), full = render(&c2), cut_hi = render(&c3), cut_lo = render(&c4);
+        dry = render(&c0), zero = render_keep(&c1, keep_zero), full = render_keep(&c2, keep_full);
+        cut_hi = render(&c3), cut_lo = render(&c4);
         CHECK(fabs(zero - dry) < 0.01, "the bass with its sends at 0: %.2f dB, with the effects off %.2f", zero, dry);
-        CHECK(full - dry > 0.05, "the bass with its sends at 100%%: %.2f dB, dry %.2f", full, dry);
+        /* the sends add the effects' returns: what they add, not the sum's level (a held low note's reverb may come
+         * back against it: the total can even dip, as it does since the reverb's lines stopped jumping, 0.5-f81) */
+        CHECK(added() > dry - 30.0, "the bass with its sends at 100%%: the returns %.2f dB, dry %.2f", added(), dry);
+        printf("fx_sends: the bass's sends at 100%% add %.2f dB (the sum %.2f, dry %.2f)\n", added(), full, dry);
         CHECK(fabs(cut_hi - cut_lo) < 0.01, "the lead's CUTOFF moved the bass: %.2f dB at 100%%, %.2f at 5%%",
               cut_hi, cut_lo);
     }

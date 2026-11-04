@@ -341,11 +341,13 @@ typedef struct {
     uint16_t reverb_pre_cap;
     uint16_t reverb_ap_offset[3];
     uint16_t reverb_ap_cap[3];
-    uint16_t reverb_ap_delay[3];
+    uint16_t reverb_ap_delay[3]; /* where SIZE puts them; reverb_ap_now follows once the tail has died away */
+    uint16_t reverb_ap_now[3];
     uint16_t reverb_ap_pos[3];
     uint16_t reverb_line_offset[8];
     uint16_t reverb_line_cap[8];
-    uint16_t reverb_line_delay[8];
+    uint16_t reverb_line_delay[8]; /* where SIZE puts them; reverb_line_dq8 glides there (Q8 samples) */
+    uint32_t reverb_line_dq8[8];
     uint16_t reverb_line_pos[8];
     uint16_t reverb_line_feedback_q15[8];
     uint32_t reverb_mod_phase[8]; /* slow delay modulation per FDN line (reverb_network_step) */
