@@ -983,6 +983,8 @@ typedef struct {
      * STYLE roll of roll_parts in roll_style (resolved), 2 the lead by roll_intensity */
     uint8_t roll_wait, roll_style, roll_parts, roll_intensity;
     uint8_t roll_lock; /* MELLO_PART_* never rolled (RNDMZR held and B0-B5); not saved */
+    uint8_t countin;   /* pulses of count-in left before the sequence moves (a take's: 16, a bar) */
+    bool click;        /* a take's click on every beat (the UI sets it while recording over silent drums) */
     MelloRollBack roll_back[MELLO_ROLL_BACK]; /* before the last roll, the one before, the one before that */
     uint8_t roll_back_n;
     bool undo_valid;
@@ -1148,6 +1150,7 @@ void mello_engine_chord_set_config(MelloEngine *engine, const MelloChordConfig *
  * lead's, the bass off), so the bass is always in the chord; again, over the same bass, the next of four variants.
  * Turns the chords on and SUB ROOT off; undoable. */
 void mello_engine_chord_fit(MelloEngine *engine);
+void mello_engine_chord_fit_quiet(MelloEngine *engine); /* the same, inside the UNDO already taken (a take's) */
 void mello_engine_chord_reset(MelloEngine *engine);
 uint8_t mello_engine_resolve_chord_notes(const MelloEngine *engine, uint8_t chord_step,
                                          uint8_t out_notes[MELLO_CHORD_MAX_VOICES]);

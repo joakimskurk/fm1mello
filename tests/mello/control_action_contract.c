@@ -93,6 +93,7 @@ static void verify_rec_reserved(void)
         page = u.page;
         st.dirty = false;
         buttons(&u, 100u, bit_u32(MELLO_UI_BTN_REC), bit_u32(MELLO_UI_BTN_EDIT) | bit_u32(MELLO_UI_BTN_REC));
+        buttons(&u, 150u, 0u, bit_u32(MELLO_UI_BTN_EDIT)); /* (REC acts when let go: a tap, not a hold) */
         if (page == MELLO_UI_SEQ_STEP || page == MELLO_UI_SUB || page == MELLO_UI_DRUMS
 #if MELLO_FEATURE_CHORD_MACHINE
             || page == MELLO_UI_CHORD
@@ -101,6 +102,11 @@ static void verify_rec_reserved(void)
             if (u.page != page || u.page_rec != (uint8_t)page ||
                 memcmp(&before.project, &t.engine.project, sizeof before.project) || u.tap_count)
                 fail(pages[i].name, "REC did not start recording the page's part (or wrote)");
+        } else if (page == MELLO_UI_HOME) { /* REC on HOME: straight into KEYS recording the sequence, nothing written
+                                            * (DECISIONS "Record it yourself, easily") */
+            if (u.page != page || !u.keys_mode || !u.keys_rec || u.keys_rec_target != MELLO_UI_REC_SEQ ||
+                memcmp(&before.project, &t.engine.project, sizeof before.project) || u.tap_count)
+                fail(pages[i].name, "REC did not start recording the sequence (or wrote)");
         } else if (u.page != page || memcmp(&before, &t.engine, sizeof before) || st.dirty || u.tap_count)
             fail(pages[i].name, "REC is not reserved/inert");
     }

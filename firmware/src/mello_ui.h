@@ -79,6 +79,7 @@ typedef enum {
 #define MELLO_UI_READOUT_PATTERN   8u
 #define MELLO_UI_READOUT_STYLE     9u /* the style RNDMZR just rolled */
 #define MELLO_UI_READOUT_KEPT      10u /* RNDMZR + SAVE: kept in a slot */
+#define MELLO_UI_READOUT_TAKE      11u /* a take ended: locked (and the chords fitted) */
 #define MELLO_UI_READOUT_MS        1200u /* how long the readout stays after the last detent */
 
 enum {
@@ -198,6 +199,11 @@ typedef struct {
     bool sect_menu;
     uint32_t sect_down_ms;
     bool undo_down;     /* UNDO held: white keys 1-3 go back to before the last three rolls */
+    bool rec_down;      /* REC pressed: a tap starts or stops a take (or goes on to the next target), a hold of half a
+                         * second let go starts it from empty, white keys 1-4 meanwhile pick SEQ, BASS, CHORD, DRUMS */
+    bool rec_menu, rec_used, rec_click_off, take_fit, rec_ready;
+    uint8_t rec_wrote; /* the take's targets that were written, bit = MELLO_UI_REC_* */
+    uint32_t rec_down_ms, rec_now_ms;
     bool undo_menu;     /* held a moment: those shown */
     uint32_t undo_down_ms;
     int8_t kept_slot;   /* RNDMZR + SAVE: the slot the band was kept in (-1: none free) */

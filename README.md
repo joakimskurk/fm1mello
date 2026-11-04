@@ -60,7 +60,7 @@ Ten screens, drawn by the firmware itself (`make screens`): what you see, and wh
 | <img src="docs/screens/home-rolled.png" width="240" alt="HOME after a roll"> | **RNDMZR**, the last black key. A tap rolls the band in a style (STYLE on the RANDOM page; ANY, a new style each time); playing, the roll lands on the next bar's one (RNDMZR lit until then, the style it will be shown); UNDO, the key before it, takes the roll back (and again puts it forward). |
 | <img src="docs/screens/rndmzr-held.png" width="240" alt="RNDMZR held"> | **Hold RNDMZR** and a white key rolls one part again, in the style that plays: 1 LEAD, 2 BASS (the line and its sound), 3 DRUMS (the beat), 4 KIT (the drums' sound), 5 CHORDS, 6 SOUND (the lead's colour, the delay, the reverb). B0-B5 lock the same parts (a locked part is never rolled), SAVE keeps the band in the first free slot. Held half a second and let go with no key: the RANDOM page. **Hold UNDO** and white keys 1-3 bring back the band as it was before each of the last three rolls (the tempo kept); UNDO again goes back to where you were. |
 | <img src="docs/screens/home-held-step.png" width="240" alt="A step held"> | **Hold a white key.** That step's pitch, pulses, ratchet and gate come onto K1-K4, its flags (SKIP, ACC, SLD, SUB) onto the first black keys. A tap mutes or unmutes the step. |
-| <img src="docs/screens/home-rec.png" width="240" alt="REC in KEYS"> | **Tap EDIT, then REC.** The keys are a keyboard, lit where the scale has a tone, and REC picks what they write: the sequence, the bass line or the chords. Stopped, each key is the next step; playing, the step under the clock. |
+| <img src="docs/screens/home-rec.png" width="240" alt="REC in KEYS"> | **Tap REC.** The keys are a keyboard, lit where the scale has a tone, recording the sequence; REC again goes on to the bass line, the chords, the drums, then off. Stopped, each key is the next step; playing, the step under the clock. **Hold REC**: white keys 1-4 pick SEQ, BASS, CHORD, DRUMS, B0 the click (and a bar's count-in when PLAY starts a take); let go after half a second with neither and the take starts from empty. A take ends locked against RNDMZR, and a new bass gets its chords fitted. |
 | <img src="docs/screens/home-macros.png" width="240" alt="HOME, MACROS"> | **Hold EDIT.** MACROS: now each knob picks what it turns, from the performance parameters (RES, ATTACK, RELEASE, DELAY, REVERB, LFO, NOISE, the levels, SWING and more). Tap EDIT to leave; the choice is saved with the project. |
 | <img src="docs/screens/step-trig.png" width="240" alt="SEQ > STEP"> | **SEQ.** The STEP page: the picked step's values, the picture drawn from them. SELECT turns the layers (TRIG, NOTE, FLAGS, SEQ); SEQ again goes on to SEGMENT, LOOP CYCLE and SLOT SEQ. With EDIT on, a white key sets the step's pitch. |
 | <img src="docs/screens/sound-filter.png" width="240" alt="ENV > SOUND"> | **ENV.** The lead's sound: cutoff, resonance, decay and level first (K1-K4 so on every voice), the wave and PWM on OSC, the envelope, follower, grit, second oscillator and the rest on SELECT. INIT (B1) puts the sound back. ENV again: the sample layer. |
@@ -88,7 +88,7 @@ The FM-1's panel is printed, so its names are the firmware's names. What each co
 | **PLAY** | Start and stop. The LED blinks on the beat. |
 | **SAVE** | Saves the project (a save that cannot be made says NOSAVE or FULL in red in the header). Held: the pattern slots. |
 | **EDIT** | The page's mode: KEYS on HOME (the keys become a keyboard, lit where the scale has a tone), the pitch mode on STEP. Held on HOME: MACROS, where each of K1-K4 picks what it turns. |
-| **REC** | In KEYS: what the keys write, SEQ, BASS, CHORD, then off. Stopped, each key writes the next step; playing, the step under the clock. SEL writes a rest. |
+| **REC** | A tap: record (on HOME the sequence, straight into KEYS; again: BASS, CHORD, DRUMS, off; on STEP, BASS, CHORD, DRUMS that page's part). Held: white keys 1-4 the target, B0 the click; held half a second and let go: from empty. Stopped, each key writes the next step; playing, the step under the clock. SEL writes a rest. |
 | **MASTER** (the knob) | The output level, in hardware. |
 
 The screen, top to bottom: one line saying where you are as `PAGE > LAYER` (`DRUMS > KIT`; the layer alone where
@@ -146,8 +146,15 @@ at once; playing, on the next beat (framed bright until then; a second tap takes
 **REC where you are.** On STEP, BASS, CHORD and DRUMS the REC button records that page's part, from its picked step:
 stopped, each key writes the next step (SEL a rest); playing, the step under the clock, or the next once more than
 half a pulse has gone, and a key that lands on the step already sounding is heard at once. Each key sounds in the
-part's own voice. REC again, another page or PLAY's stop ends the take; one UNDO takes it back. On HOME, EDIT then REC
-does the same for the sequence, the bass or the chords, REC cycling between them.
+part's own voice. REC again, another page or PLAY's stop ends the take; one UNDO takes it back. On HOME a tap of REC
+does the same for the sequence (no EDIT first), REC cycling on to the bass, the chords and the drums.
+
+**Your own over the generated.** A take that wrote something ends locked against RNDMZR (LOCK on RNDMZR's parts,
+unlocked with RNDMZR held and B0-B5), so you can roll the band around your idea; a bass take (or a lead take with no
+bass) gets the chords fitted to it, inside the take's one UNDO. Hold REC half a second and let go to start the take
+from empty: the part's steps go to rests (the bass line off, the chords off until a key writes one, the drums'
+hits gone, their sound kept). With the click on (B0 while REC is held; on by default), PLAY starting a take counts in
+a bar, and the take clicks on every beat while the drums are silent.
 
 ## HOME
 

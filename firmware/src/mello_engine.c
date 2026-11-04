@@ -1052,6 +1052,20 @@ static void bass_tick(MelloEngine *e, uint8_t pulses, uint8_t main_step)
         e->bass_glide_in = false;
 }
 
+/* The click (count-in and a take's beat, DECISIONS "Record it yourself, easily"): the hat, short, higher on the one */
+static void click(MelloEngine *e, bool one)
+{
+    MelloEvent ev;
+    memset(&ev, 0, sizeof ev);
+    ev.type = MELLO_EVENT_DRUM_HIT;
+    ev.tick = e->now_tick;
+    ev.sample_slot = MELLO_DRUM_HAT;
+    ev.note = (uint8_t)(one ? 76u : 69u);
+    ev.velocity = one ? 120u : 90u;
+    ev.drum_decay = -70;
+    (void)queue_push(e, &ev);
+}
+
 /* One drum step: its hits (each with CHANCE), RATCH spread over the step, rising; SWING moves them with the rest
  * (queue_push). */
 static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
@@ -1126,7 +1140,17 @@ static uint8_t fit_read(const MelloEngine *e, uint8_t hold, uint8_t deg[8])
     return slots;
 }
 
+static void chord_fit(MelloEngine *e, bool undoable);
 void mello_engine_chord_fit(MelloEngine *e)
+{
+    chord_fit(e, true);
+}
+/* After a take (DECISIONS "Record it yourself, easily"): FIT inside the take's own UNDO */
+void mello_engine_chord_fit_quiet(MelloEngine *e)
+{
+    chord_fit(e, false);
+}
+static void chord_fit(MelloEngine *e, bool undoable)
 {
     const ScaleDef *sd;
     MelloChordConfig c;
@@ -1140,7 +1164,7 @@ void mello_engine_chord_fit(MelloEngine *e)
     key = (key ^ slots) * 16777619u;
     var = key == e->chord_fit_key ? (uint8_t)((e->chord_fit_var + 1u) % 4u) : 0u;
     e->chord_fit_key = key, e->chord_fit_var = var;
-    mello_engine_undo_snapshot(e);
+    if (undoable) mello_engine_undo_snapshot(e);
     c = e->chord;
     c.on = true;
     c.sub_root = false; /* the bass is the chords' root already: moved by them as well, it would go twice */
@@ -1867,6 +1891,7 @@ void mello_engine_stop(MelloEngine *e)
     e->playing = false;
     e->queued_slot = -1;
     if (e->roll_wait) roll_fire(e); /* a roll waiting for the one: now, with no one to wait for */
+    e->countin = 0u;
     e->perf.mix_mute ^= e->perf.mute_req; /* PERFORM's mutes asked for, with no beat to wait for now */
     e->perf.mute_req = 0u;
     /* Source STOP always clears Loop Cycle hold/count. Position returns to 0 only when ON;
@@ -5138,6 +5163,13 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     if (e && e->playing && e->roll_wait && e->absolute_pulse % 16u == 0u) roll_fire(e); /* RNDMZR's, on the one */
     if (!e || !e->playing || !e->has_active_step || !e->runtime_built || e->runtime_segment_count == 0u)
         return false;
+    if (e->countin) { /* a bar's count-in before a take (DECISIONS "Record it yourself, easily"): the click alone */
+        pulse_ticks = mello_pulse_ticks(&e->project);
+        if (e->countin % 4u == 0u) click(e, e->countin == 16u);
+        e->countin--;
+        e->now_tick += pulse_ticks;
+        return true;
+    }
 
     if (e->perf_restart) { /* RESTART: the first step, and the loop's one, now */
         e->perf_restart = false;
@@ -5397,6 +5429,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     } else if (!e->drums.follow || pe.pulse_index == 0u)
         drums_tick(e, pulse_ticks);
     e->swing_off = 0u; /* the loop's and the slots' events stay on the grid */
+    if (e->click && e->absolute_pulse % 4u == 0u) click(e, e->absolute_pulse % 16u == 0u); /* a take's click */
     next_tick = e->now_tick + pulse_ticks;
     e->absolute_pulse++;
     if (e->perf.mute_req && e->absolute_pulse % 4u == 0u) /* PERFORM's mutes come in on the beat */

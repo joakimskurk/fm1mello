@@ -262,6 +262,7 @@ int main(void)
             sunk[1].type != MELLO_EVENT_NOTE_OFF || sunk[1].note != 60u)
             return fail("a key in KEYS did not play C4 while held");
         mello_ui_input(&u, 0u, 30200u, rec, 0u, rec, 0u, e);
+        mello_ui_input(&u, 0u, 30250u, 0u, rec, 0u, 0u, e); /* (REC acts when let go: a tap, not a hold) */
         if (!u.keys_rec) return fail("REC in KEYS did not start step-record");
         mello_ui_set_held_notes(&u, 1u << 10); /* D#4 = 63: a note of C minor */
         mello_ui_input(&u, 0u, 30300u, 0u, 0u, 0u, 1u << 10, e);
@@ -277,9 +278,13 @@ int main(void)
             mello_ui_set_held_notes(&u, 0u);
             if (mello_resolve_step_midi(&t.engine.project, &t.engine.project.steps[1]) != 48u)
                 return fail("step-record did not write C3 an octave down");
-            { /* REC cycles SEQ, BASS, CHORD, then off (2026-11-01): round to off */
+            { /* REC cycles SEQ, BASS, CHORD, DRUMS, then off (2026-11-01, DRUMS 2026-11-04): round to off, a tap
+                 * each (REC acts when let go) */
                 uint32_t rt = 30330u, guard = 0u;
-                while (u.keys_rec && guard++ < 4u) mello_ui_input(&u, 0u, rt += 2u, rec, 0u, rec, 0u, e);
+                while (u.keys_rec && guard++ < 5u) {
+                    mello_ui_input(&u, 0u, rt += 1u, rec, 0u, rec, 0u, e);
+                    mello_ui_input(&u, 0u, rt += 1u, 0u, rec, 0u, 0u, e);
+                }
             }
             mello_ui_input(&u, 0u, 30340u, up, 0u, up, 0u, e);
             mello_ui_input(&u, 0u, 30350u, up, 0u, up, 0u, e); /* OCT+ twice: C5 */

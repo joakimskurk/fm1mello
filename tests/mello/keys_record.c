@@ -223,7 +223,10 @@ int main(void)
     CHECK(e->chord.steps[1].shape == MELLO_CHORD_TRIAD, "the iv alone stays a triad");
 #endif
 
-    /* REC once more: off, KEYS as before */
+    /* REC once more: DRUMS (DECISIONS "Record it yourself, easily"); and again: off, KEYS as before */
+    tap_button(MELLO_UI_BTN_REC);
+    render();
+    CHECK(strstr(header, "REC > DRUMS"), "REC four times: DRUMS, the header reads \"%s\"", header);
     tap_button(MELLO_UI_BTN_REC);
     render();
     CHECK(!ui.keys_rec && strstr(header, "KEYS"), "REC round again: off, the header reads \"%s\"", header);

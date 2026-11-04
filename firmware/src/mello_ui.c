@@ -283,12 +283,14 @@ void mello_ui_attach_sample_bank(MelloUi *ui, MelloSampleBank *bank)
 }
 
 static void page_rec_stop(MelloUi *ui);
+static void take_end(MelloUi *ui);
 void mello_ui_set_page(MelloUi *ui, MelloUiPage page)
 {
     if (!ui) return;
     if (page > MELLO_UI_MIX) page = MELLO_UI_HOME;
     if (ui->page == page) return;
     page_rec_stop(ui); /* REC on a page ends with it */
+    take_end(ui);      /* (and HOME's) */
     ui->page = page;
     ui->readout = 0u; /* it belonged to the old page */
     ui->step_pitch_mode = false;
@@ -982,6 +984,7 @@ static void rec_key_down(MelloUi *ui, uint8_t note_index, uint8_t pos, uint32_t 
 /* A key in KEYS mode. Note keys run F3 (MIDI 53) .. G5. Playing without REC: the key is the new root. Otherwise the
  * key rule first: a note off the scale rounds to the nearest on it (CHROMATIC: as played); then REC writes it where
  * its target is (the next step stopped, the clock's step playing), and stopped it sounds the lead. */
+static void drum_rec_key(MelloUi *ui, uint8_t note_index, uint32_t now_us);
 static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
 {
     MelloEngine *e = eng(ui);
@@ -989,6 +992,11 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
     uint8_t midi = (uint8_t)(m < 12 ? 12 : m > 108 ? 108 : m), heard;
     bool running, hear;
     if (!e) return;
+    if (ui->keys_rec && ui->keys_rec_target == MELLO_UI_REC_DRUMS) { /* REC > DRUMS on HOME: as REC on DRUMS */
+        drum_rec_key(ui, note_index, now_us);
+        return;
+    }
+    if (ui->keys_rec) ui->rec_wrote |= (uint8_t)(1u << ui->keys_rec_target);
     running = ui->transport->running;
     hear = !running;
     if (running && !ui->keys_rec) {
@@ -1135,6 +1143,7 @@ static void drum_rec_key(MelloUi *ui, uint8_t note_index, uint32_t now_us)
             ui->keys_rec_pos = (uint8_t)((pos + 1u) % len);
         }
         d.hits[v] |= 1ul << pos;
+        ui->rec_wrote |= (uint8_t)(1u << ui->keys_rec_target);
         ui->drum_bank = pos / 16u; /* (the step written in view) */
         d.on = true;
         ui->drum_rec_voice = v, ui->drum_rec_step = pos;
@@ -1175,13 +1184,193 @@ static uint8_t page_rec_target(MelloUiPage page)
     default: return 0u;
     }
 }
+/* A take ends (DECISIONS "Record it yourself, easily"): what was played is locked against the rolls, and the chords
+ * are fitted to a new bass (or to the lead with no bass), inside the take's one UNDO; the click stops. */
+static void show_readout(MelloUi *ui, uint8_t what, uint32_t now_ms);
+static void take_end(MelloUi *ui)
+{
+    MelloEngine *e = eng(ui);
+    if (!e || !ui->keys_rec) return;
+    e->click = false;
+    e->countin = 0u;
+    if (ui->rec_wrote) {
+        static const uint8_t part[5] = {0u, MELLO_PART_LEAD, MELLO_PART_BASS, MELLO_PART_CHORDS, MELLO_PART_DRUMS};
+        uint8_t t, w = ui->rec_wrote;
+        for (t = 1u; t <= MELLO_UI_REC_DRUMS; ++t) /* every part the take wrote */
+            if (w & (1u << t)) e->roll_lock |= part[t];
+        ui->take_fit = false;
+#if MELLO_FEATURE_CHORD_MACHINE
+        if (e->chord.on && !(w & (1u << MELLO_UI_REC_CHORD)) && !(e->roll_lock & MELLO_PART_CHORDS) &&
+            ((w & (1u << MELLO_UI_REC_BASS)) || ((w & (1u << MELLO_UI_REC_SEQ)) && !(e->bass.on && e->sub.on)))) {
+            mello_engine_chord_fit_quiet(e);
+            ui->take_fit = true;
+        }
+#endif
+        show_readout(ui, MELLO_UI_READOUT_TAKE, ui->rec_now_ms);
+    }
+    ui->rec_wrote = 0u;
+}
+/* A take starts: UNDO's one snapshot, unless one is going on (a new target in it: the same take) */
+static void take_start(MelloUi *ui, uint8_t target)
+{
+    MelloEngine *e = eng(ui);
+    if (!e) return;
+    if (!ui->keys_rec) mello_engine_undo_snapshot(e), ui->rec_wrote = 0u;
+    ui->keys_rec = true;
+    ui->keys_rec_target = target;
+    ui->keys_rec_last = 0u;
+    ui->rec_key = 0xFFu;
+}
+/* The part a take writes, empty (REC held): the sequence's steps rests, the bass line's off, the chords off until a
+ * key writes one, the drums' hits gone (their sound kept) */
+static void take_empty(MelloUi *ui)
+{
+    MelloEngine *e = eng(ui);
+    uint8_t i, v;
+    if (!e || !ui->keys_rec) return;
+    switch (ui->keys_rec_target) {
+    case MELLO_UI_REC_SEQ:
+        for (i = 0u; i < MELLO_MAX_STEPS; ++i) e->project.steps[i].gate = MELLO_GATE_REST, e->project.steps[i].skip = false;
+        rebuild(ui);
+        break;
+    case MELLO_UI_REC_BASS: {
+        MelloBassConfig b = e->bass;
+        MelloSubConfig sub = e->sub;
+        for (i = 0u; i < MELLO_BASS_STEPS; ++i) b.steps[i].on = false, b.steps[i].glide = false;
+        b.on = true, sub.on = true;
+        if (sub.mode == MELLO_SUB_MODE_DRONE) sub.mode = MELLO_SUB_MODE_STEP;
+        mello_engine_sub_set_config(e, &sub);
+        mello_engine_bass_set_config(e, &b);
+        break;
+    }
+#if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_UI_REC_CHORD: {
+        MelloChordConfig c = e->chord;
+        c.on = false, c.length = 1u;
+        c.steps[0].degree = 0u;
+        mello_engine_chord_set_config(e, &c);
+        break;
+    }
+#endif
+    case MELLO_UI_REC_DRUMS: {
+        MelloDrumConfig d = e->drums;
+        for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
+            d.hits[v] = d.accents[v] = 0u;
+            for (i = 0u; i < MELLO_DRUM_STEPS; ++i) memset(&d.lock[v][i], 0, sizeof d.lock[v][i]), d.lock[v][i].ratchet = 1u;
+        }
+        d.on = true;
+        mello_engine_drums_set_config(e, &d);
+        break;
+    }
+    default: break;
+    }
+    ui->keys_rec_pos = 0u; /* from step 1 */
+    mark_edit(ui);
+    ui->dirty |= MELLO_UI_DIRTY_ALL;
+}
 static void page_rec_stop(MelloUi *ui)
 {
     if (!ui->page_rec) return;
+    take_end(ui);
     ui->page_rec = 0u;
     ui->keys_rec = false;
     ui->rec_key = 0xFFu;
     ui->dirty |= MELLO_UI_DIRTY_ALL;
+}
+
+/* REC's gestures (DECISIONS "Record it yourself, easily"). A tap: on a page with a part (STEP, BASS, CHORD, DRUMS)
+ * that part's take on or off; on HOME straight into KEYS recording the sequence (no EDIT first), and in KEYS on to
+ * the next target, SEQ, BASS, CHORD, DRUMS, then off. Held, white keys 1-4 pick the target (on HOME), B0 the click;
+ * held half a second and let go with neither, the take from empty. */
+static uint8_t rec_last_target(void)
+{
+    return MELLO_UI_REC_DRUMS;
+}
+static void rec_pick(MelloUi *ui, uint8_t target)
+{
+    if (ui->page != MELLO_UI_HOME) mello_ui_set_page(ui, MELLO_UI_HOME);
+    ui->keys_mode = true;
+    take_start(ui, target);
+    ui->keys_rec_pos = 0u;
+    ui->dirty |= MELLO_UI_DIRTY_ALL;
+}
+static void rec_tap(MelloUi *ui)
+{
+    uint8_t pt = page_rec_target(ui->page);
+    if (ui->page != MELLO_UI_HOME && pt) {
+        if (ui->page_rec)
+            page_rec_stop(ui);
+        else {
+            take_start(ui, pt);
+            ui->page_rec = (uint8_t)ui->page;
+            ui->keys_rec_pos = pt == MELLO_UI_REC_SEQ     ? ui->selected_step
+                               : pt == MELLO_UI_REC_BASS  ? ui->selected_sub_x_step
+                               : pt == MELLO_UI_REC_DRUMS ? ui->selected_drum_step
+#if MELLO_FEATURE_CHORD_MACHINE
+                                                          : ui->selected_chord_step;
+#else
+                                                          : 0u;
+#endif
+        }
+    } else if (ui->page == MELLO_UI_HOME) {
+        uint8_t next = (uint8_t)(ui->keys_rec_target + 1u);
+#if !MELLO_FEATURE_CHORD_MACHINE
+        if (next == MELLO_UI_REC_CHORD) next++;
+#endif
+        if (!ui->keys_mode || !ui->keys_rec) {
+            ui->keys_mode = true;
+            take_start(ui, MELLO_UI_REC_SEQ);
+        } else if (ui->keys_rec_target < rec_last_target())
+            take_start(ui, next); /* (the same take: one UNDO) */
+        else {
+            take_end(ui);
+            ui->keys_rec = false;
+        }
+        ui->keys_rec_pos = 0u; /* from step 1 */
+    } else
+        return;
+    mark_full(ui);
+}
+static void rec_from_empty(MelloUi *ui)
+{
+    if (!ui->keys_rec) {
+        uint8_t pt = page_rec_target(ui->page);
+        if (ui->page != MELLO_UI_HOME && pt)
+            rec_tap(ui); /* the page's part */
+        else
+            rec_pick(ui, MELLO_UI_REC_SEQ);
+    }
+    take_empty(ui);
+}
+/* REC down: let go soon, a tap; held, the menu; held half a second and let go with nothing picked, from empty */
+static void rec_poll(MelloUi *ui, uint32_t now_ms, uint32_t held_buttons, uint32_t released_buttons)
+{
+    MelloEngine *e = eng(ui);
+    if (ui->keys_rec || ui->rec_down) ui->rec_now_ms = now_ms; /* (for the take's readout when it ends) */
+    if (ui->rec_down) {
+        int32_t held = (int32_t)(now_ms - ui->rec_down_ms);
+        if (!(held_buttons & bit_u32(MELLO_UI_BTN_REC)) || (released_buttons & bit_u32(MELLO_UI_BTN_REC))) {
+            ui->rec_down = false;
+            if (ui->rec_menu) ui->rec_menu = false, ui->dirty |= MELLO_UI_DIRTY_ALL;
+            if (!ui->rec_used) {
+                if (held >= 500)
+                    rec_from_empty(ui);
+                else
+                    rec_tap(ui);
+            }
+        } else if (held >= 250 && !ui->rec_menu) {
+            ui->rec_menu = true;
+            ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
+        } else if (held >= 500 && ui->rec_menu && !ui->rec_used && !ui->rec_ready) {
+            ui->rec_ready = true; /* letting go now: from empty (the line lit) */
+            ui->dirty |= MELLO_UI_DIRTY_BODY;
+        }
+        if (!ui->rec_down) ui->rec_ready = false;
+    }
+    if (e) { /* a take's click: recording, the click on, the drums silent */
+        bool drums = e->drums.on && (e->drums.hits[0] | e->drums.hits[1] | e->drums.hits[2] | e->drums.hits[3]);
+        e->click = ui->keys_rec && !ui->rec_click_off && !drums;
+    }
 }
 
 /* SEL while recording: a rest where the next key would have gone. A chain of chords has no rests. */
@@ -1213,6 +1402,7 @@ static void rec_rest(MelloUi *ui, uint32_t now_us)
     } else
         return;
     ui->rec_key = 0xFFu;
+    ui->rec_wrote |= (uint8_t)(1u << ui->keys_rec_target);
     mark_edit(ui);
     ui->dirty |= MELLO_UI_DIRTY_BODY;
 }
@@ -1293,6 +1483,23 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
     int8_t w;
     bool pick_only;
     if (!e) return;
+    if (ui->rec_down) { /* REC held: white keys 1-4 the take's target, B0 the click (DECISIONS "Record it yourself,
+                        * easily") */
+        int8_t b = black_key_index(note_index);
+        w = mello_ui_white_key_position(note_index);
+        if (w >= 0 && w < 4) {
+#if !MELLO_FEATURE_CHORD_MACHINE
+            if (w == 2) return;
+#endif
+            rec_pick(ui, (uint8_t)(w + 1));
+            ui->rec_used = true;
+        } else if (b == 0) {
+            ui->rec_click_off = !ui->rec_click_off;
+            ui->rec_used = true;
+            ui->dirty |= MELLO_UI_DIRTY_ALL;
+        }
+        return;
+    }
     if (ui->rndmzr_down) { /* RNDMZR held: a white key rolls that part alone; B0-B5 lock it (DECISIONS "Locks") */
         int8_t b = black_key_index(note_index);
         w = mello_ui_white_key_position(note_index);
@@ -3523,9 +3730,11 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
         if (ui->transport->running) {
             mello_transport_stop(ui->transport);
             page_rec_stop(ui); /* G3: stopping ends a take */
-        } else
+        } else {
             /* Start one lookahead out, so the first step reaches the audio before its block, like the rest. */
             mello_transport_start(ui->transport, now_us + MELLO_TRANSPORT_LOOKAHEAD_US);
+            if (ui->keys_rec && !ui->rec_click_off) ui->transport->engine.countin = 16u; /* a take: a bar's count-in */
+        }
         ui->dirty |= MELLO_UI_DIRTY_HEADER | MELLO_UI_DIRTY_STATUS | MELLO_UI_DIRTY_LEDS;
     }
     if (pressed & bit_u32(MELLO_UI_BTN_HOME)) {
@@ -3559,47 +3768,11 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
             ui->edit_down_ms = now_ms;
         }
     }
-    if ((pressed & bit_u32(MELLO_UI_BTN_REC)) && ui->page != MELLO_UI_HOME && page_rec_target(ui->page)) {
-        /* G3: REC records the page's part; again, it stops. One UNDO takes the take back. */
-        if (ui->page_rec)
-            page_rec_stop(ui);
-        else {
-            mello_engine_undo_snapshot(e);
-            ui->page_rec = (uint8_t)ui->page;
-            ui->keys_rec = true;
-            ui->keys_rec_target = page_rec_target(ui->page);
-            ui->keys_rec_pos = ui->keys_rec_target == MELLO_UI_REC_SEQ     ? ui->selected_step
-                               : ui->keys_rec_target == MELLO_UI_REC_BASS  ? ui->selected_sub_x_step
-                               : ui->keys_rec_target == MELLO_UI_REC_DRUMS ? ui->selected_drum_step
-#if MELLO_FEATURE_CHORD_MACHINE
-                                                                           : ui->selected_chord_step;
-#else
-                                                                           : 0u;
-#endif
-            ui->keys_rec_last = 0u;
-            ui->rec_key = 0xFFu;
-            ui->dirty |= MELLO_UI_DIRTY_ALL;
-        }
-    }
-    if ((pressed & bit_u32(MELLO_UI_BTN_REC)) && ui->page == MELLO_UI_HOME && ui->keys_mode) {
-        /* REC cycles what the keys write: SEQ, BASS, CHORD, then off; a recording is one UNDO */
-#if MELLO_FEATURE_CHORD_MACHINE
-        const uint8_t last = MELLO_UI_REC_CHORD;
-#else
-        const uint8_t last = MELLO_UI_REC_BASS;
-#endif
-        if (!ui->keys_rec) {
-            MelloEngine *e = eng(ui);
-            if (e) mello_engine_undo_snapshot(e);
-            ui->keys_rec = true;
-            ui->keys_rec_target = MELLO_UI_REC_SEQ;
-        } else if (ui->keys_rec_target < last)
-            ui->keys_rec_target++;
-        else
-            ui->keys_rec = false;
-        ui->keys_rec_pos = 0u; /* from step 1 */
-        ui->keys_rec_last = 0u;
-        mark_full(ui);
+    if (pressed & bit_u32(MELLO_UI_BTN_REC)) { /* REC: a tap or a hold, decided in rec_poll (DECISIONS "Record it
+                                                * yourself, easily") */
+        ui->rec_down = true;
+        ui->rec_down_ms = now_ms;
+        ui->rec_menu = ui->rec_used = false;
     }
     /* Page buttons (UI_ICEBERG.md): from elsewhere a button opens its page on the first layer, so the screen never
      * depends on history; pressed again on its own page it goes to the next layer. */
@@ -3823,6 +3996,7 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
                 ui->macro_mode = false;
             else {
                 ui->keys_mode = !ui->keys_mode; /* KEYS: the keys are a keyboard */
+                take_end(ui);
                 ui->keys_rec = false;
                 ui->keys_rec_pos = 0u;
             }
@@ -3830,6 +4004,7 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
         } else if ((int32_t)(now_ms - ui->edit_down_ms) >= 500) {
             ui->edit_down = false;
             ui->macro_mode = true;
+            take_end(ui);
             ui->keys_mode = ui->keys_rec = false;
             mark_full(ui);
         }
@@ -3838,6 +4013,7 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
     for (i = 0u; i < 27u; ++i)
         if (note_pressed & bit_u32(i)) handle_note_press(ui, now_us, now_ms, held_buttons, i);
     rec_key_poll(ui, now_ms);
+    rec_poll(ui, now_ms, held_buttons, released_buttons);
     perf_poll(ui, now_ms);
     if (encoder_delta) adjust_knobs(ui, encoder_delta, now_us, now_ms);
     if (ui->rndmzr_down) { /* RNDMZR: a tap rolls the band; held, the white keys roll one part each; held half a
@@ -4570,6 +4746,27 @@ static void draw_roll_menu(MelloUi *ui, const MelloUiDrawOps *o)
             ui->rndmzr_ready && !ui->rndmzr_part ? UI_GOLD : UI_DIM, 0); /* lit once letting go opens it */
 }
 
+/* REC held: what a take records (white keys 1-4), the click (B0), and, held on, a take from empty */
+static void draw_rec_menu(MelloUi *ui, const MelloUiDrawOps *o)
+{
+    static const char *const names[4] = {"SEQ", "BASS", "CHORD", "DRUMS"};
+    uint8_t w;
+    o->fill(o->ctx, 0, 30, 240, 141, UI_BLACK);
+    ui_spaced(o, 6, 33, 228, "RECORD", UI_DIM, 0);
+    for (w = 0u; w < 4u; ++w) {
+        int16_t x = (int16_t)(4 + w * 58);
+        bool on = ui->keys_rec && ui->keys_rec_target == w + 1u;
+#if !MELLO_FEATURE_CHORD_MACHINE
+        if (w == 2u) continue;
+#endif
+        ui_round_fill(o, x, 50, 56, 28, on ? UI_TRACK : UI_PANEL);
+        ui_round_frame(o, x, 50, 56, 28, on ? UI_WHITE : UI_CORAL);
+        o->text(o->ctx, x, 56, 56, 0, names[w], UI_BRIGHT, 1);
+    }
+    o->text(o->ctx, 6, 96, 228, 0, ui->rec_click_off ? "B0: CLICK OFF" : "B0: CLICK ON (AND A BAR IN)", UI_DIM, 0);
+    o->text(o->ctx, 6, 120, 228, 0, "NO KEY, LET GO: FROM EMPTY", ui->rec_ready ? UI_GOLD : UI_DIM, 0);
+}
+
 /* A section button held: its pages on the white keys, the one open lit */
 static void draw_section_menu(MelloUi *ui, const MelloUiDrawOps *o)
 {
@@ -4699,6 +4896,7 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
     p = copy_s(b, ui->page == MELLO_UI_HOME && ui->keys_mode
                       ? (ui->keys_rec ? (ui->keys_rec_target == MELLO_UI_REC_BASS    ? "REC > BASS"
                                          : ui->keys_rec_target == MELLO_UI_REC_CHORD ? "REC > CHORD"
+                                         : ui->keys_rec_target == MELLO_UI_REC_DRUMS ? "REC > DRUMS"
                                                                                      : "REC > SEQ")
                                       : "HOME KEYS")
                   : ui->page == MELLO_UI_HOME && ui->macro_mode ? "HOME MACROS"
@@ -5641,6 +5839,7 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
         if (!*b && ui->rndmzr_menu) (void)copy_s(b, "A WHITE KEY ROLLS ONE PART");
         if (!*b && ui->undo_menu) (void)copy_s(b, "WHITE KEY 1-3: BACK BEFORE IT");
         if (!*b && ui->sect_menu) (void)copy_s(b, "LET GO TO STAY HERE");
+        if (!*b && ui->rec_menu) (void)copy_s(b, "WHITE 1-4: WHAT  B0: CLICK");
         if (*b) { /* (a held key with nothing to say: the strip as it is) */
             ui_round_fill(o, 2, 172, 236, 16, ui_mix(accent, UI_BLACK, 170));
             o->text(o->ctx, 4, 172, 232, 0, b, UI_BRIGHT, 1);
@@ -7405,6 +7604,9 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
         (void)copy_s(val, e->roll_wait == 2u  ? "LEAD"
                           : e->roll_wait == 1u ? mello_style_name(e->roll_style)
                                                : mello_style_name(e->style_now));
+    } else if (ui->readout == MELLO_UI_READOUT_TAKE) {
+        label = "TAKE";
+        (void)copy_s(val, ui->take_fit ? "LOCKED, FIT" : "LOCKED");
     } else if (ui->readout == MELLO_UI_READOUT_KEPT) {
         label = "KEPT";
         if (ui->kept_slot < 0)
@@ -7468,7 +7670,9 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
     }
     if (d & MELLO_UI_DIRTY_STATUS) d |= MELLO_UI_DIRTY_HEADER; /* G7: the count and the key are the header's */
     if (d & MELLO_UI_DIRTY_HEADER) draw_header(ui, &fitted);
-    if ((d & MELLO_UI_DIRTY_BODY) && ui->rndmzr_menu)
+    if ((d & MELLO_UI_DIRTY_BODY) && ui->rec_menu)
+        draw_rec_menu(ui, &fitted);
+    else if ((d & MELLO_UI_DIRTY_BODY) && ui->rndmzr_menu)
         draw_roll_menu(ui, &fitted);
     else if ((d & MELLO_UI_DIRTY_BODY) && ui->undo_menu)
         draw_undo_menu(ui, &fitted);
@@ -7479,9 +7683,10 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
     else if (d & MELLO_UI_DIRTY_BODY)
         draw_body(ui, &fitted);
     else if ((d & MELLO_UI_DIRTY_HOME_PLAYHEAD) && ui->page == MELLO_UI_HOME && !ui->perform && !ui->rndmzr_menu &&
-             !ui->undo_menu && !ui->sect_menu)
+             !ui->undo_menu && !ui->sect_menu && !ui->rec_menu)
         draw_home_playhead(ui, &fitted);
     else if ((d & MELLO_UI_DIRTY_SEQ_PLAYHEAD) && !ui->perform && !ui->rndmzr_menu && !ui->undo_menu && !ui->sect_menu &&
+             !ui->rec_menu &&
              (ui->page == MELLO_UI_SEQ_STEP || ui->page == MELLO_UI_RANDOM))
         draw_sequence_playhead(ui, &fitted);
     if (ui->readout) { /* G7: the readout over K1-K4 and the strip; the picture it changes stays in view */
@@ -7542,6 +7747,9 @@ static void calc_key_levels(MelloUi *ui, uint32_t *lit_out, uint32_t *glow_out)
             if (!(e->roll_lock & ROLL_PART_BITS[i])) glow |= WK(i);
     } else if (ui->undo_menu) { /* UNDO held: the rolls there are to go back before */
         for (i = 0u; i < e->roll_back_n; ++i) glow |= WK(i);
+    } else if (ui->rec_menu) { /* REC held: the four targets, the one recording lit */
+        for (i = 0u; i < 4u; ++i) glow |= WK(i);
+        if (ui->keys_rec && ui->keys_rec_target >= 1u && ui->keys_rec_target <= 4u) lit |= WK(ui->keys_rec_target - 1u);
     } else if (ui->sect_menu) { /* a section held: its pages, the one open lit */
         const UiSection *sc = section_of(ui->sect_btn);
         uint8_t at = section_place(ui, ui->sect_btn);
@@ -7662,6 +7870,11 @@ static void calc_key_levels(MelloUi *ui, uint32_t *lit_out, uint32_t *glow_out)
             glow |= k;
             if (ctx_lit(ui, a->verb) > 0 || (ui->held_notes & k)) lit |= k;
         }
+    if (ui->rec_menu) { /* REC held: B0 the click, lit when on */
+        uint32_t k = bit_u32(BLACK_KEY_NOTES[0]);
+        glow |= k, lit &= ~k;
+        if (!ui->rec_click_off) lit |= k;
+    }
     if (ui->rndmzr_menu) /* RNDMZR held: B0-B5 lock the parts, lit when locked */
         for (i = 0u; i < ROLL_PARTS; ++i) {
             uint32_t k = bit_u32(BLACK_KEY_NOTES[i]);

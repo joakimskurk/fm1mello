@@ -1737,6 +1737,32 @@ the reverb, the samples, the screen) is separate and as full (1.3 KB free).
 - The large one left: the pattern slots (47 KB) could live in flash, read when one is played and written with the
   project; it changes how a slot is saved, so it waits for the product owner's word and, best, an FM-1.
 
+## Record it yourself, easily (2026-11-04)
+
+The product owner: "we have had an extreme focus on generating music; it should be as easy to record your own ideas,
+from scratch or over something generated. The function is there, but is it easy enough?" It was not: REC did
+nothing on HOME until EDIT; there was no empty start (CLEAR gives the default scale run); no click or count-in; the
+drums could only be recorded on their page; and a take was rolled away by the next RNDMZR, the chords not following
+it. Now:
+
+- **REC is a tap or a hold**, decided when it is let go. A tap on HOME goes straight into KEYS recording the
+  sequence; in KEYS on to BASS, CHORD, DRUMS (new: the keys' first four white keys play the kit, as REC on DRUMS),
+  then off; on STEP, BASS, CHORD, DRUMS it records that page's part, as before.
+- **REC held** a quarter of a second shows RECORD: white keys 1-4 pick the target (on HOME, the take going on: one
+  UNDO), B0 turns the click on or off; held half a second and let go with neither, the take from empty: the
+  sequence's steps rests, the bass line off (BASS SEQ and the sub on), the chords off until a key writes one, the
+  drums' hits and locks gone (the kit's sound kept). "From empty" is the replace; a tap layers. (A first pass that
+  replaced what it passed was weighed and left: it would have made adding a few notes to a generated line hard.)
+- **The click** (on by default; B0 in RECORD): PLAY starting a take counts in a bar (four clicks; the sequence moves
+  after it), and a take clicks on every beat while the drums are silent (off, or no hits). The click is the hat,
+  short, higher on the one; through the drums' bus, so MIX's DR mute silences it too.
+- **A take ends** (REC round to off, REC on a page, EDIT, another page, PLAY's stop on a page): every part it wrote is
+  locked against RNDMZR (the locks of wave 3), and a bass take (or a lead take with no bass playing) fits the chords
+  to it (FIT's triads), inside the take's one UNDO; the readout says TAKE LOCKED (, FIT).
+- Not yet: MIDI notes in (they still are not played or recorded); a length that grows while recording from empty.
+  Test: rec_easy; keys_record, ui_home_perform and control_action_contract follow REC's tap on letting go, DRUMS in
+  the round and HOME's REC no longer inert.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.
