@@ -1041,17 +1041,76 @@ static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
 }
 
 #if MELLO_FEATURE_CHORD_MACHINE
+/* FIT: a chord every eight sixteenths over the loop (the bass line's length, or the sequence's), each on the scale
+ * degree heard at its start: the bass line's first note in its eight steps, or with the bass off the lead's first
+ * note; nothing heard, the tonic. Pressed again over the same notes, the next variant: 0 triads on those degrees, 1
+ * sevenths, 2 colour (sus2 on the tonic and the fourth, sus4 on the fifth), 3 the chord whose third the note is (two
+ * degrees down, in first inversion, so the note stays the lowest). The bass's note is in the chord every time. */
+void mello_engine_chord_fit(MelloEngine *e)
+{
+    const ScaleDef *sd;
+    MelloChordConfig c;
+    uint8_t n, len, slots, k, j, deg[8], var;
+    uint32_t key = 2166136261u;
+    bool bass;
+    if (!e) return;
+    sd = &SCALES[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR];
+    n = sd->n;
+    bass = e->bass.on && e->sub.on && e->bass.length;
+    len = bass ? e->bass.length : (e->project.seq_len ? e->project.seq_len : 16u);
+    slots = (uint8_t)(len / 8u);
+    if (slots < 1u) slots = 1u;
+    if (slots > 8u) slots = 8u;
+    for (k = 0u; k < slots; ++k) {
+        int16_t d = -1;
+        for (j = 0u; j < 8u && d < 0; ++j) {
+            uint8_t at = (uint8_t)(k * 8u + j);
+            if (bass) {
+                const MelloBassStep *b = &e->bass.steps[at % e->bass.length];
+                if (b->on) d = b->tone == MELLO_SUB_TONE_OCTAVE ? 0 : (int16_t)(b->tone % n);
+            } else {
+                const MelloStep *st = &e->project.steps[at % len];
+                if (st->gate != MELLO_GATE_REST && !st->skip) d = (int16_t)((st->pitch < 0 ? 0 : st->pitch) % n);
+            }
+        }
+        deg[k] = d < 0 ? 0u : (uint8_t)d;
+        key = (key ^ (uint32_t)(deg[k] + 1u)) * 16777619u;
+    }
+    key = (key ^ slots) * 16777619u;
+    var = key == e->chord_fit_key ? (uint8_t)((e->chord_fit_var + 1u) % 4u) : 0u;
+    e->chord_fit_key = key, e->chord_fit_var = var;
+    mello_engine_undo_snapshot(e);
+    c = e->chord;
+    c.on = true;
+    c.sub_root = false; /* the bass is the chords' root already: moved by them as well, it would go twice */
+    c.chain = MELLO_CHORD_CHAIN_STEPS;
+    c.length = slots;
+    for (k = 0u; k < slots; ++k) {
+        MelloChordStep *cs = &c.steps[k];
+        uint8_t d = deg[k];
+        cs->hold = 8u, cs->inversion = 0u, cs->spread = 1u, cs->octave = -1, cs->degree = d;
+        cs->shape = MELLO_CHORD_TRIAD;
+        if (var == 1u)
+            cs->shape = MELLO_CHORD_SEVENTH;
+        else if (var == 2u)
+            cs->shape = d == 0u || d == 3u ? MELLO_CHORD_SUS2 : d == 4u ? MELLO_CHORD_SUS4 : MELLO_CHORD_TRIAD;
+        else if (var == 3u)
+            cs->degree = (uint8_t)((d + n - 2u) % n), cs->inversion = 1u;
+    }
+    mello_engine_chord_set_config(e, &c);
+}
+
 void mello_chord_defaults(MelloChordConfig *c)
 {
     uint8_t i;
-    static const uint8_t deg[4] = {0u, 5u, 3u, 4u};
     if (!c) return;
     memset(c, 0, sizeof(*c));
     c->on = false;
     c->trigger = MELLO_CHORD_TRIGGER_STEP;
     c->mode = MELLO_CHORD_BROKEN; /* SUB MELLO: a broken chord, the delay making it a chord */
     c->poly = false;
-    c->length = 4u;
+    c->length = 1u; /* one chord, the tonic: it fits whatever stays in the key; FIT and RNDMZR make the rest (2026-11-04;
+                     * was four, i VI iv v, whatever the bass played: DECISIONS "FIT") */
     c->voices = 3u;
     c->level = 130u; /* E4: was 320, then 180 (2026-11-04: 130, ~6 dB under the lead; DECISIONS "The mix") */
     c->wave = MELLO_WAVE_SAW;
@@ -1074,7 +1133,7 @@ void mello_chord_defaults(MelloChordConfig *c)
     c->drift = 0u;
     c->drift_depth = 3u;
     for (i = 0u; i < MELLO_CHORD_MAX_STEPS; ++i) {
-        c->steps[i].degree = deg[i % 4u];
+        c->steps[i].degree = 0u;
         c->steps[i].shape = MELLO_CHORD_TRIAD;
         c->steps[i].inversion = 0u;
         c->steps[i].octave = -1;

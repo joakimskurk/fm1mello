@@ -27,7 +27,7 @@ static const MapCase cases[] = {
     {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B2:LOOP B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
     {"SUB", MELLO_UI_SUB, "B0:ON B1:SEQ B2:ROLL B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
 #if MELLO_FEATURE_CHORD_MACHINE
-    {"CHORD", MELLO_UI_CHORD, "B0:ON B1:BASS B2:POLY B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"CHORD", MELLO_UI_CHORD, "B0:ON B1:BASS B2:POLY B3:FIT B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
 #endif
     {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B2:RST2 B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
     {"SOUND", MELLO_UI_SOUND_RESERVED, "B1:INIT B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
@@ -208,7 +208,7 @@ static void verify_every_page_and_inactive_slot(void)
         }
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    if (active != 116u) die("MAP", "active slot count != 116 with Chord"); /* +1: PING (F25) */
+    if (active != 117u) die("MAP", "active slot count != 117 with Chord"); /* +1: PING (F25), +1 FIT */
 #else
     if (active != 108u) die("MAP", "active slot count != 108 without Chord");
 #endif

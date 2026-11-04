@@ -39,7 +39,8 @@ static void start(MelloChordChain chain, bool odd)
     c.mode = MELLO_CHORD_HOLD;
     c.chain = chain;
     c.length = 4u;
-    for (i = 0u; i < 4u; ++i) c.steps[i].hold = 4u;
+    for (i = 0u; i < 4u; ++i) /* i VI iv v (a new project's chain is one tonic chord since FIT) */
+        c.steps[i].hold = 4u, c.steps[i].degree = (uint8_t)(i == 1u ? 5u : i == 2u ? 3u : i == 3u ? 4u : 0u);
     mello_engine_chord_set_config(&e, &c);
     mello_engine_start(&e);
 }

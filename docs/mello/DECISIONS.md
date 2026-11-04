@@ -1482,6 +1482,25 @@ limiter's 3 ms attack (the HTML's) let 142 samples in 7.5 s through to full scal
 attack is 1 ms now, and what still gets past -1 dBFS bends towards full scale (T + e H / (e + H)) instead of being
 clipped: none reaches it, the peak is -0.2 dBFS. The divide runs only on those samples.
 
+## FIT (2026-11-04)
+
+The product owner: "the chords always play the same default chords whatever; they must be chords that fit over the
+root; they often clash with bass lines; something smarter, or simpler to start with, that can easily be mutated by
+hand or with a key". Why it clashed: a new chain was i VI iv v (Cm Ab Fm Gm in C minor) whatever played; BASS SEQ
+and ROLL on BASS write the key's roots and fifths, not the chord's (SUB ROOT, which moves the bass with the chord,
+is off by default); and RNDMZR leaves the chords alone unless CHORD is in its mask. Chosen of the proposals, A and B:
+
+- **A. One chord to start.** A new project's chain is one chord, the tonic (every step's degree the tonic, so a
+  longer chain starts neutral too). It fits whatever stays in the key. Saved projects keep their chains.
+- **B. FIT** (B3 on CHORD). The chain made from what plays: a chord every eight sixteenths over the loop (the bass
+  line's length, or the sequence's), each on the scale degree heard at its start, the bass line's first note in
+  those eight steps (the lead's with the bass off; nothing heard, the tonic). The chords go on, on the clock chain
+  (HOLD 8), and SUB ROOT off (the bass is their root already; moved by them as well it would move twice). Pressed
+  again over the same notes it steps through variants: sevenths; colour (sus2 on the tonic and the fourth, sus4 on
+  the fifth); the chord two degrees down in first inversion, whose third the bass note is; then the triads again.
+  Over another bass it starts at the triads. In every variant the bass's note is one of the chord's
+  (tests/mello/chord_fit.c plays them and checks each half bar). Undoable; the variant is not saved.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

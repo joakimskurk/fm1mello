@@ -38,7 +38,10 @@ static void setup(MelloChordMode mode, bool lead, uint8_t strum)
     c.voices = 4u;
     c.voice_lead = lead;
     c.strum_ms = strum;
-    for (unsigned i = 0u; i < 4u; ++i) c.steps[i].hold = 1u, c.steps[i].shape = MELLO_CHORD_SEVENTH;
+    c.length = 4u; /* i VI iv v (a new project's chain is one tonic chord since FIT) */
+    for (unsigned i = 0u; i < 4u; ++i)
+        c.steps[i].hold = 1u, c.steps[i].shape = MELLO_CHORD_SEVENTH,
+        c.steps[i].degree = (uint8_t)(i == 1u ? 5u : i == 2u ? 3u : i == 3u ? 4u : 0u);
     mello_engine_chord_set_config(&e, &c);
     mello_engine_start(&e);
 }

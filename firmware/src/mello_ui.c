@@ -595,6 +595,7 @@ typedef enum {
     MELLO_CTX_CHORD_TOGGLE,
     MELLO_CTX_CHORD_SUB_ROOT, /* CHORD: the sub (and BASS SEQ) on the chord's root */
     MELLO_CTX_CHORD_POLY,     /* CHORD: the four voices, or SUB MELLO */
+    MELLO_CTX_CHORD_FIT,      /* CHORD: the chain made from the bass (or the lead); again, a variant */
     MELLO_CTX_MIX_LEAD,       /* MIX: B0-B3 mute a part (lit while it plays) */
     MELLO_CTX_MIX_SUB,
     MELLO_CTX_MIX_CHORD,
@@ -725,6 +726,7 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
     [MELLO_UI_CHORD] = {[0] = {MELLO_CTX_CHORD_TOGGLE, "ON"},
                         [1] = {MELLO_CTX_CHORD_SUB_ROOT, "BASS"},
                         [2] = {MELLO_CTX_CHORD_POLY, "POLY"},
+                        [3] = {MELLO_CTX_CHORD_FIT, "FIT"},
                         [5] = {MELLO_CTX_PERF, "PERF"},
                         [6] = {MELLO_CTX_MUTATE, "MUT"},
                         [9] = {MELLO_CTX_UNDO, "UNDO"},
@@ -3194,6 +3196,12 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
         mark_edit(ui);
         break;
     }
+    case MELLO_CTX_CHORD_FIT:
+        mello_engine_chord_fit(e);
+        persistent_dirty(ui, now_ms);
+        mark_edit(ui);
+        ui->dirty |= MELLO_UI_DIRTY_ALL;
+        break;
 #endif
     case MELLO_CTX_GLOBAL_TAP: tap_tempo(ui, now_ms); break;
     case MELLO_CTX_SOUND_INIT:

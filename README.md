@@ -221,8 +221,11 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   even that shows a "~" and plays the longest it can) or free, with feedback and LO CUT (120 Hz on a new project);
   PING (B2) sends the echoes left and right in turn (it reads the line at twice the time, so its reach is half)
   and HI CUT on its echoes, and a reverb with size, decay, pre-delay and tone.
-- **Chords** (ARP > CHORD). A chain of up to eight chords in the key (degree, shape, inversion, spread, octave),
-  sounded one of two ways, B2 POLY picking it per project. SUB MELLO (a new project's) is one voice that plays the
+- **Chords** (ARP > CHORD). A chain of up to eight chords in the key (degree, shape, inversion, spread, octave);
+  a new project starts on one, the tonic. B3 FIT makes the chain from what plays: a chord every half bar on the
+  bass line's note there (the lead's with the bass off), so the bass is always in the chord; pressed again over the
+  same bass, sevenths, then colour (sus), then the chord whose third the bass note is, then the triads again.
+  The chain is sounded one of two ways, B2 POLY picking it per project. SUB MELLO (a new project's) is one voice that plays the
   chord's tones one at a time: BROKEN (low, high, middle, high, the default), WALK (the chord's tones on the beats,
   the scale's steps between), arpeggios up, down or both ways, a pattern, STAB (the top tone) or HOLD (the top tone
   held), the delay making the line a chord. POLY is four voices with a Juno-like chorus and STRUM, the chords
@@ -321,16 +324,16 @@ K1-K4 with their default values.
 | DRUMS | ARP | VARY | `ON VOX ACC ROLL P M UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
 | DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · — · LEVEL 70% |
 | DRUMS | ARP | DIST | `ON VOX ACC ROLL P M UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · — |
-| CHORD | ARP | PLAY | `ON BASS POLY PERF MUT UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
-| CHORD | ARP | CHORD | `ON BASS POLY PERF MUT UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
-| CHORD | ARP | VOICING | `ON BASS POLY PERF MUT UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
-| CHORD | ARP | GRID | `ON BASS POLY PERF MUT UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
-| CHORD | ARP | PATTERN | `ON BASS POLY PERF MUT UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
-| CHORD | ARP | FILTER | `ON BASS POLY PERF MUT UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LEVEL 18% |
-| CHORD | ARP | TONE | `ON BASS POLY PERF MUT UNDO RNDMZR` | WAVE SAW · — · LINK OFF · — |
-| CHORD | ARP | MOTION | `ON BASS POLY PERF MUT UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
-| CHORD | ARP | AMP | `ON BASS POLY PERF MUT UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
-| CHORD | ARP | HARMONY | `ON BASS POLY PERF MUT UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
+| CHORD | ARP | PLAY | `ON BASS POLY FIT P M UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
+| CHORD | ARP | CHORD | `ON BASS POLY FIT P M UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
+| CHORD | ARP | VOICING | `ON BASS POLY FIT P M UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
+| CHORD | ARP | GRID | `ON BASS POLY FIT P M UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
+| CHORD | ARP | PATTERN | `ON BASS POLY FIT P M UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
+| CHORD | ARP | FILTER | `ON BASS POLY FIT P M UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LEVEL 18% |
+| CHORD | ARP | TONE | `ON BASS POLY FIT P M UNDO RNDMZR` | WAVE SAW · — · LINK OFF · — |
+| CHORD | ARP | MOTION | `ON BASS POLY FIT P M UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
+| CHORD | ARP | AMP | `ON BASS POLY FIT P M UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
+| CHORD | ARP | HARMONY | `ON BASS POLY FIT P M UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
 | MIX | GLO | LEVEL | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 42% · CHORD 18% · DRUMS 70% |
 | MIX | GLO | DELAY | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 0% · CHORD 60% · DRUMS 25% |
 | MIX | GLO | REVERB | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 20% · CHORD 60% · DRUMS 25% |

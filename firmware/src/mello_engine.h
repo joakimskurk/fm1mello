@@ -925,6 +925,8 @@ typedef struct {
     uint8_t chord_voiced[MELLO_CHORD_MAX_VOICES]; /* the chord sounding, as voiced (voice leading) */
     uint8_t chord_voiced_n;
     uint8_t chord_voiced_slot; /* which chain chord it is (0xFF: none yet) */
+    uint32_t chord_fit_key;    /* FIT: what it read the last time (the degrees heard), and its variant then */
+    uint8_t chord_fit_var;
     uint8_t
         chord_prev[MELLO_CHORD_MAX_VOICES]; /* the chord before it, as voiced: voice leading's reference */
     uint8_t chord_prev_n;
@@ -1099,6 +1101,10 @@ void mello_engine_sub_set_config(MelloEngine *engine, const MelloSubConfig *conf
 void mello_engine_sub_reset_x(MelloEngine *engine);
 #if MELLO_FEATURE_CHORD_MACHINE
 void mello_engine_chord_set_config(MelloEngine *engine, const MelloChordConfig *config);
+/* FIT (DECISIONS "FIT"): the chord chain made from what plays, a chord every half bar on the bass's note there (the
+ * lead's, the bass off), so the bass is always in the chord; again, over the same bass, the next of four variants.
+ * Turns the chords on and SUB ROOT off; undoable. */
+void mello_engine_chord_fit(MelloEngine *engine);
 void mello_engine_chord_reset(MelloEngine *engine);
 uint8_t mello_engine_resolve_chord_notes(const MelloEngine *engine, uint8_t chord_step,
                                          uint8_t out_notes[MELLO_CHORD_MAX_VOICES]);
