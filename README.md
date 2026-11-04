@@ -77,7 +77,7 @@ The FM-1's panel is printed, so its names are the firmware's names. What each co
 | Control | What it is |
 |---|---|
 | **HOME** | The sequence, the four sound macros, the performance keys. From anywhere. |
-| **SEQ, ENV, LFO, FX, ARP, SEL, GLO** | The sections. A press opens the section's first page; a press on the section you are in goes to its next page. |
+| **SEQ, ENV, LFO, FX, ARP, SEL, GLO** | The sections. A press opens the section's first page; a press on the section you are in goes to its next page. Held (all but SEL), the section's pages on the white keys: a key goes there. |
 | **ALGORITHM** (encoder) | The page within the section. |
 | **SELECT** (encoder) | The layer within the page. The picked step or cell never moves with it. |
 | **K1-K4** | The four values of the layer, always musical, never navigation. The screen's footer names them. |

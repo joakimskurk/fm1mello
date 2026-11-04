@@ -1682,6 +1682,14 @@ before, a roll of the band sets every part, and turns on what the style plays) o
 only the parts that are on, so drums, chords or a bass that are off stay off; the lead, its sound and the effects
 always roll. Still a roll of the band (a new style each time, its TRIM). Not saved (as STYLE). Test: roll_locks.
 
+## An overview (2026-11-04, the workshop's wave 5)
+
+Sara (a first-time user) lost her way among 75 pages and layers; Jonas: "not fewer functions, a map". A section
+button held 0.4 s (SEQ, ENV, LFO, FX, ARP, GLO) shows that section's pages on the white keys (SEQ: STEP, SEGMENT,
+LOOP, SLOT SEQ; ENV: SOUND, SAMPLE; LFO: LFO, DOT, EVOLVE; FX: DIST, DELAY, REVERB; ARP: BASS, DRUMS, CHORD; GLO:
+MIX, GLOBAL), the one open lit; a white key goes there; letting go stays. A tap is as before (the next page). And
+RNDMZR held: "NO KEY, LET GO: RANDOM" lights up gold once letting go would open RANDOM (half a second, no part).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

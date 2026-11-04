@@ -247,6 +247,7 @@ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage
     ui->random_intensity = MELLO_RANDOMIZE_MED;
     ui->random_style = MELLO_STYLE_ANY; /* DECISIONS "STYLE": a press rolls the band in a style */
     ui->kept_slot = -1;
+    ui->sect_btn = 0xFFu;
     ui->selected_slot = 0u;
     ui->selected_tm_bit = 0u;
     ui->seen_step = 0xFFu;
@@ -403,6 +404,95 @@ static void section_next(MelloUi *ui, uint8_t button, int dir)
     }
     default: break;
     }
+}
+
+/* The overview (DECISIONS "An overview"): a section button held shows its pages on the white keys, the one open
+ * lit; a key goes there. The names, in each section's order. */
+typedef struct {
+    uint8_t btn, n;
+    const char *name[4];
+} UiSection;
+static const UiSection SECTIONS[] = {
+    {MELLO_UI_BTN_SEQ, 4u, {"STEP", "SEGMENT", "LOOP", "SLOT SEQ"}},
+    {MELLO_UI_BTN_ENV, 2u, {"SOUND", "SAMPLE", "", ""}},
+    {MELLO_UI_BTN_LFO, 3u, {"LFO", "DOT", "EVOLVE", ""}},
+    {MELLO_UI_BTN_FX, 3u, {"DIST", "DELAY", "REVERB", ""}},
+#if MELLO_FEATURE_CHORD_MACHINE
+    {MELLO_UI_BTN_ARP, 3u, {"BASS", "DRUMS", "CHORD", ""}},
+#else
+    {MELLO_UI_BTN_ARP, 2u, {"BASS", "DRUMS", "", ""}},
+#endif
+    {MELLO_UI_BTN_GLO, 2u, {"MIX", "GLOBAL", "", ""}},
+};
+#define UI_SECTIONS (sizeof SECTIONS / sizeof SECTIONS[0])
+static const UiSection *section_of(uint8_t btn)
+{
+    uint8_t i;
+    for (i = 0u; i < UI_SECTIONS; ++i)
+        if (SECTIONS[i].btn == btn) return &SECTIONS[i];
+    return 0;
+}
+/* where in its section the page open is (0xFF: elsewhere) */
+static uint8_t section_place(const MelloUi *ui, uint8_t btn)
+{
+    switch (btn) {
+    case MELLO_UI_BTN_SEQ:
+        return ui->page == MELLO_UI_SEQ_STEP      ? 0u
+               : ui->page == MELLO_UI_SEQ_SEGMENT ? 1u
+               : ui->page == MELLO_UI_SEQ_LOOP    ? 2u
+               : ui->page == MELLO_UI_SEQ_SLOTSEQ ? 3u
+                                                  : 0xFFu;
+    case MELLO_UI_BTN_ENV:
+        return ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage != 2u ? 0u
+               : ui->page == MELLO_UI_SAMPLE_RESERVED                         ? 1u
+                                                                              : 0xFFu;
+    case MELLO_UI_BTN_LFO:
+        return ui->page == MELLO_UI_SOUND_RESERVED && ui->sound_subpage == 2u ? 0u
+               : ui->page == MELLO_UI_DOT                                     ? 1u
+               : ui->page == MELLO_UI_TURING                                  ? 2u
+                                                                              : 0xFFu;
+    case MELLO_UI_BTN_FX: return ui->page == MELLO_UI_AUDIO_FX ? fx_group(ui->fx_subpage) : 0xFFu;
+    case MELLO_UI_BTN_ARP:
+        return ui->page == MELLO_UI_SUB     ? 0u
+               : ui->page == MELLO_UI_DRUMS ? 1u
+#if MELLO_FEATURE_CHORD_MACHINE
+               : ui->page == MELLO_UI_CHORD ? 2u
+#endif
+                                            : 0xFFu;
+    case MELLO_UI_BTN_GLO:
+        return ui->page == MELLO_UI_MIX ? 0u : ui->page == MELLO_UI_GLOBAL ? 1u : 0xFFu;
+    default: return 0xFFu;
+    }
+}
+static void section_go(MelloUi *ui, uint8_t btn, uint8_t k)
+{
+    static const MelloUiPage seq[4] = {MELLO_UI_SEQ_STEP, MELLO_UI_SEQ_SEGMENT, MELLO_UI_SEQ_LOOP,
+                                       MELLO_UI_SEQ_SLOTSEQ};
+    static const uint8_t fx_first[3] = {0u, 1u, 3u};
+    switch (btn) {
+    case MELLO_UI_BTN_SEQ: open_page(ui, seq[k % 4u]); break;
+    case MELLO_UI_BTN_ENV: open_page(ui, k ? MELLO_UI_SAMPLE_RESERVED : MELLO_UI_SOUND_RESERVED); break;
+    case MELLO_UI_BTN_LFO:
+        if (k == 0u)
+            open_page(ui, MELLO_UI_SOUND_RESERVED), ui->sound_subpage = 2u;
+        else
+            open_page(ui, k == 1u ? MELLO_UI_DOT : MELLO_UI_TURING);
+        break;
+    case MELLO_UI_BTN_FX:
+        open_page(ui, MELLO_UI_AUDIO_FX);
+        ui->fx_subpage = fx_first[k % 3u];
+        break;
+    case MELLO_UI_BTN_ARP:
+#if MELLO_FEATURE_CHORD_MACHINE
+        open_page(ui, k == 0u ? MELLO_UI_SUB : k == 1u ? MELLO_UI_DRUMS : MELLO_UI_CHORD);
+#else
+        open_page(ui, k == 0u ? MELLO_UI_SUB : MELLO_UI_DRUMS);
+#endif
+        break;
+    case MELLO_UI_BTN_GLO: open_page(ui, k ? MELLO_UI_GLOBAL : MELLO_UI_MIX); break;
+    default: return;
+    }
+    ui->dirty |= MELLO_UI_DIRTY_ALL;
 }
 
 static void seq_button(MelloUi *ui)
@@ -1217,6 +1307,15 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
             ui->dirty |= MELLO_UI_DIRTY_ALL;
         }
         return;
+    }
+    if (ui->sect_btn != 0xFFu) { /* a section button held: a white key goes to that page of it */
+        const UiSection *sc = section_of(ui->sect_btn);
+        w = mello_ui_white_key_position(note_index);
+        if (sc && w >= 0 && w < (int8_t)sc->n) {
+            section_go(ui, ui->sect_btn, (uint8_t)w);
+            ui->sect_menu = true;
+        }
+        if (w >= 0) return;
     }
     if (ui->undo_down) { /* UNDO held: white keys 1-3, the band before the last three rolls */
         w = mello_ui_white_key_position(note_index);
@@ -3213,7 +3312,7 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
     case MELLO_CTX_RNDMZR:
         ui->rndmzr_down = true; /* tap or hold: rndmzr_poll decides */
         ui->rndmzr_down_ms = now_ms;
-        ui->rndmzr_part = ui->rndmzr_menu = false;
+        ui->rndmzr_part = ui->rndmzr_menu = ui->rndmzr_ready = false;
         break;
     case MELLO_CTX_HOME_RANDOM:
         ui_roll(ui, e, now_ms);
@@ -3694,6 +3793,17 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
         ui->audition_key = 0xFFu;
     }
     handle_buttons(ui, now_us, now_ms, pressed_buttons, held_buttons);
+    for (i = 0u; i < UI_SECTIONS; ++i) /* a section button down: held a moment, the overview */
+        if (pressed_buttons & bit_u32(SECTIONS[i].btn)) ui->sect_btn = SECTIONS[i].btn, ui->sect_down_ms = now_ms;
+    if (ui->sect_btn != 0xFFu) {
+        if (!(held_buttons & bit_u32(ui->sect_btn)) || (released_buttons & bit_u32(ui->sect_btn))) {
+            ui->sect_btn = 0xFFu;
+            if (ui->sect_menu) ui->sect_menu = false, ui->dirty |= MELLO_UI_DIRTY_ALL;
+        } else if ((int32_t)(now_ms - ui->sect_down_ms) >= 400 && !ui->sect_menu) {
+            ui->sect_menu = true;
+            ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
+        }
+    }
     if (ui->save_down) {
         if (!(held_buttons & bit_u32(MELLO_UI_BTN_SAVE)) || (released_buttons & bit_u32(MELLO_UI_BTN_SAVE))) {
             ui->save_down = false; /* let go early: save the project now */
@@ -3750,6 +3860,9 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
         } else if (held >= 250 && !ui->rndmzr_menu) {
             ui->rndmzr_menu = true; /* show what the white keys roll */
             ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_LEDS;
+        } else if (held >= 500 && !ui->rndmzr_part && !ui->rndmzr_ready) {
+            ui->rndmzr_ready = true; /* letting go now opens RANDOM: the line lit */
+            ui->dirty |= MELLO_UI_DIRTY_BODY;
         }
     }
     if (ui->undo_down) { /* UNDO held: a moment, and the rolls back are shown; let go, gone */
@@ -4453,7 +4566,23 @@ static void draw_roll_menu(MelloUi *ui, const MelloUiDrawOps *o)
     }
     o->text(o->ctx, 6, 112, 228, 0, "B0-B5: LOCK A PART", UI_DIM, 0);
     o->text(o->ctx, 6, 128, 228, 0, "SAVE: KEEP IN A SLOT", UI_DIM, 0);
-    o->text(o->ctx, 6, 144, 228, 0, "NO KEY, LET GO: RANDOM", UI_DIM, 0);
+    o->text(o->ctx, 6, 144, 228, 0, "NO KEY, LET GO: RANDOM",
+            ui->rndmzr_ready && !ui->rndmzr_part ? UI_GOLD : UI_DIM, 0); /* lit once letting go opens it */
+}
+
+/* A section button held: its pages on the white keys, the one open lit */
+static void draw_section_menu(MelloUi *ui, const MelloUiDrawOps *o)
+{
+    const UiSection *sc = section_of(ui->sect_btn);
+    uint8_t w, at = section_place(ui, ui->sect_btn);
+    o->fill(o->ctx, 0, 30, 240, 141, UI_BLACK);
+    ui_spaced(o, 6, 33, 228, "A WHITE KEY GOES THERE", UI_DIM, 0);
+    for (w = 0u; sc && w < sc->n; ++w) {
+        int16_t x = (int16_t)(4 + (w % 4u) * 58);
+        ui_round_fill(o, x, 50, 56, 28, w == at ? UI_TRACK : UI_PANEL);
+        ui_round_frame(o, x, 50, 56, 28, w == at ? UI_WHITE : UI_CYAN);
+        o->text(o->ctx, x, 56, 56, 0, sc->name[w], UI_BRIGHT, 1);
+    }
 }
 
 /* UNDO held: the band before each of the last three rolls, on white keys 1-3 */
@@ -5511,6 +5640,7 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
             }
         if (!*b && ui->rndmzr_menu) (void)copy_s(b, "A WHITE KEY ROLLS ONE PART");
         if (!*b && ui->undo_menu) (void)copy_s(b, "WHITE KEY 1-3: BACK BEFORE IT");
+        if (!*b && ui->sect_menu) (void)copy_s(b, "LET GO TO STAY HERE");
         if (*b) { /* (a held key with nothing to say: the strip as it is) */
             ui_round_fill(o, 2, 172, 236, 16, ui_mix(accent, UI_BLACK, 170));
             o->text(o->ctx, 4, 172, 232, 0, b, UI_BRIGHT, 1);
@@ -7342,14 +7472,16 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
         draw_roll_menu(ui, &fitted);
     else if ((d & MELLO_UI_DIRTY_BODY) && ui->undo_menu)
         draw_undo_menu(ui, &fitted);
+    else if ((d & MELLO_UI_DIRTY_BODY) && ui->sect_menu)
+        draw_section_menu(ui, &fitted);
     else if ((d & MELLO_UI_DIRTY_BODY) && ui->perform)
         draw_perform(ui, &fitted);
     else if (d & MELLO_UI_DIRTY_BODY)
         draw_body(ui, &fitted);
     else if ((d & MELLO_UI_DIRTY_HOME_PLAYHEAD) && ui->page == MELLO_UI_HOME && !ui->perform && !ui->rndmzr_menu &&
-             !ui->undo_menu)
+             !ui->undo_menu && !ui->sect_menu)
         draw_home_playhead(ui, &fitted);
-    else if ((d & MELLO_UI_DIRTY_SEQ_PLAYHEAD) && !ui->perform && !ui->rndmzr_menu && !ui->undo_menu &&
+    else if ((d & MELLO_UI_DIRTY_SEQ_PLAYHEAD) && !ui->perform && !ui->rndmzr_menu && !ui->undo_menu && !ui->sect_menu &&
              (ui->page == MELLO_UI_SEQ_STEP || ui->page == MELLO_UI_RANDOM))
         draw_sequence_playhead(ui, &fitted);
     if (ui->readout) { /* G7: the readout over K1-K4 and the strip; the picture it changes stays in view */
@@ -7410,6 +7542,11 @@ static void calc_key_levels(MelloUi *ui, uint32_t *lit_out, uint32_t *glow_out)
             if (!(e->roll_lock & ROLL_PART_BITS[i])) glow |= WK(i);
     } else if (ui->undo_menu) { /* UNDO held: the rolls there are to go back before */
         for (i = 0u; i < e->roll_back_n; ++i) glow |= WK(i);
+    } else if (ui->sect_menu) { /* a section held: its pages, the one open lit */
+        const UiSection *sc = section_of(ui->sect_btn);
+        uint8_t at = section_place(ui, ui->sect_btn);
+        for (i = 0u; sc && i < sc->n; ++i) glow |= WK(i);
+        if (at != 0xFFu) lit |= WK(at);
     } else if (ui->perform) { /* PERFORM: a key with an action glows, lit while it acts (held, or a MUTE on) */
         uint16_t held = perform_held(ui);
         for (i = 0u; i < 16u; ++i) {

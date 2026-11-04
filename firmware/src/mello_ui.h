@@ -193,6 +193,10 @@ typedef struct {
     bool rndmzr_down;   /* RNDMZR pressed: a tap rolls, a hold opens RANDOM */
     bool rndmzr_part;   /* a white key rolled one part while it was held: nothing more on letting go */
     bool rndmzr_menu;   /* held a moment: the parts the white keys roll are shown */
+    bool rndmzr_ready;  /* held half a second, no key: letting go opens RANDOM (the line says so, lit) */
+    uint8_t sect_btn;   /* a section button held (0xFF none): a moment, and its pages shown on the white keys */
+    bool sect_menu;
+    uint32_t sect_down_ms;
     bool undo_down;     /* UNDO held: white keys 1-3 go back to before the last three rolls */
     bool undo_menu;     /* held a moment: those shown */
     uint32_t undo_down_ms;
