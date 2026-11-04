@@ -94,6 +94,23 @@ static void tap_button(uint8_t b)
     in(1u << b, 0u, 1u << b, 0u);
     in(0u, 1u << b, 0u, 0u);
 }
+static void turn(uint8_t which, int16_t d)
+{
+    int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
+    enc[which] = d;
+    ms += 50u;
+    mello_ui_input(&ui, ms * 1000u, ms, 0u, 0u, 0u, 0u, enc);
+}
+static void knob(uint8_t k, int16_t d) /* K1-K4, a detent at a time (no acceleration) */
+{
+    int16_t i, n = d < 0 ? -d : d;
+    for (i = 0; i < n; ++i) turn((uint8_t)(MELLO_UI_ENC_KNOB1 + k), d < 0 ? -1 : 1);
+}
+static void select_turn(int16_t d)
+{
+    int16_t i, n = d < 0 ? -d : d;
+    for (i = 0; i < n; ++i) turn(MELLO_UI_ENC_SELECT, d < 0 ? -1 : 1);
+}
 static void key(uint8_t note_index) /* MIDI 53 + note_index at OCT 0 */
 {
     mello_ui_set_held_notes(&ui, 1u << note_index);
@@ -159,7 +176,7 @@ int main(void)
     /* REC > SEQ, stopped: the keys write step 1, 2, 3 ..., a key off the scale rounded */
     tap_button(MELLO_UI_BTN_REC);
     render();
-    CHECK(strstr(header, "REC > SEQ"), "REC once: SEQ, the header reads \"%s\"", header);
+    CHECK(strstr(header, "STEP SEQ 1/16"), "REC once: SEQ (stopped: step entry), the header reads \"%s\"", header);
     CHECK(ui.keys_rec && ui.keys_rec_target == MELLO_UI_REC_SEQ, "the target is SEQ");
     for (i = 0u; i < 16u; ++i) e->project.steps[i].pitch = 0, e->project.steps[i].octave = 0;
     key(7u);  /* C4 */
@@ -177,7 +194,7 @@ int main(void)
     /* REC > BASS: root, fifth, the root an octave up */
     tap_button(MELLO_UI_BTN_REC);
     render();
-    CHECK(strstr(header, "REC > BASS"), "REC twice: BASS, the header reads \"%s\"", header);
+    CHECK(strstr(header, "STEP BASS"), "REC twice: BASS, the header reads \"%s\"", header);
     CHECK(ui.keys_rec_pos == 0u, "a new target starts at step 1");
     key(7u);  /* C4: ROOT, octave 0 */
     key(14u); /* G4: FIFTH */
@@ -197,7 +214,7 @@ int main(void)
     /* REC > CHORD: a key a chord, the chain as long as you have played; a second key held names the shape */
     tap_button(MELLO_UI_BTN_REC);
     render();
-    CHECK(strstr(header, "REC > CHORD"), "REC thrice: CHORD, the header reads \"%s\"", header);
+    CHECK(strstr(header, "STEP CHORD"), "REC thrice: CHORD, the header reads \"%s\"", header);
     key(7u); /* C: degree i */
     CHECK(e->chord.on && e->chord.length == 1u && e->chord.steps[0].degree == 0u,
           "one key: a chain of one, the tonic (on %d, length %u, degree %u)", e->chord.on, e->chord.length,
@@ -226,7 +243,7 @@ int main(void)
     /* REC once more: DRUMS (DECISIONS "Record it yourself, easily"); and again: off, KEYS as before */
     tap_button(MELLO_UI_BTN_REC);
     render();
-    CHECK(strstr(header, "REC > DRUMS"), "REC four times: DRUMS, the header reads \"%s\"", header);
+    CHECK(strstr(header, "STEP DRUMS"), "REC four times: DRUMS, the header reads \"%s\"", header);
     tap_button(MELLO_UI_BTN_REC);
     render();
     CHECK(!ui.keys_rec && strstr(header, "KEYS"), "REC round again: off, the header reads \"%s\"", header);
@@ -298,7 +315,9 @@ int main(void)
         printf("playing: the key landed on step %u with the clock at %u\n", which + 1u, at + 1u);
     }
 
-    { /* stopped: SEL is a rest, a long key a held note (SEQ) or a glide (BASS) */
+    { /* stopped (step entry, DECISIONS "Step entry"): SEL is a rest; a key held and K1-K4 turned is that step's PULSE,
+       * RATCH, GATE, ACC SLD (BASS: GLIDE, ACCENT, OCT), and the next steps get the same; SELECT moves the cursor; a
+       * key held long no longer makes a held note by itself */
         mello_project_defaults(&p);
         mello_transport_init(&t, &p, 1u, midi, NULL);
         mello_ui_init(&ui, &t, &st);
@@ -314,22 +333,51 @@ int main(void)
         mello_ui_set_held_notes(&ui, 1u << 14);
         in(0u, 0u, 0u, 1u << 14);
         for (i = 0u; i < 8u; ++i) in(0u, 0u, 0u, 0u); /* 400 ms */
+        CHECK(e->project.steps[2].gate == MELLO_GATE_SINGLE, "a long key made a held note by itself (%d)",
+              e->project.steps[2].gate);
+        knob(0u, 1);  /* K1: PULSE 2 */
+        knob(2u, 2);  /* K3: GATE SINGLE, MULTI, HOLD */
         mello_ui_set_held_notes(&ui, 0u);
         in(0u, 0u, 0u, 0u);
-        CHECK(e->project.steps[2].gate == MELLO_GATE_HOLD, "a long key: a held note (%d)",
-              e->project.steps[2].gate);
+        CHECK(e->project.steps[2].pulses == 2u && e->project.steps[2].gate == MELLO_GATE_HOLD,
+              "the held key's step: PULSE %u, GATE %d", e->project.steps[2].pulses, e->project.steps[2].gate);
         key(9u);
-        CHECK(e->project.steps[3].gate != MELLO_GATE_HOLD, "a short key is not");
+        CHECK(e->project.steps[3].pulses == 2u && e->project.steps[3].gate == MELLO_GATE_HOLD,
+              "the next step did not get the same (PULSE %u, GATE %d)", e->project.steps[3].pulses,
+              e->project.steps[3].gate);
+        knob(0u, -1), knob(2u, -2); /* nothing held: what the next steps get, back to PULSE 1, SINGLE */
+        CHECK(e->project.steps[3].pulses == 2u, "with no key held, K1 changed the step before");
+        select_turn(-2); /* SELECT: the cursor back two, to step 3 */
+        CHECK(ui.keys_rec_pos == 2u && ui.selected_step == 2u, "SELECT did not move the cursor (next %u)",
+              ui.keys_rec_pos + 1u);
+        key(10u); /* step 3 written again */
+        CHECK(e->project.steps[2].pulses == 1u && e->project.steps[2].gate == MELLO_GATE_SINGLE &&
+                  ui.keys_rec_pos == 3u,
+              "the key at the cursor did not overwrite step 3 as set (PULSE %u)", e->project.steps[2].pulses);
         tap_button(MELLO_UI_BTN_REC); /* BASS */
         key(7u);
         tap_button(MELLO_UI_BTN_SEL);
         CHECK(!e->bass.steps[1].on, "SEL: a bass rest");
         mello_ui_set_held_notes(&ui, 1u << 14);
         in(0u, 0u, 0u, 1u << 14);
-        for (i = 0u; i < 8u; ++i) in(0u, 0u, 0u, 0u);
+        knob(0u, 1); /* K1: GLIDE on */
         mello_ui_set_held_notes(&ui, 0u);
         in(0u, 0u, 0u, 0u);
-        CHECK(e->bass.steps[2].glide, "a long bass key: a glide");
+        CHECK(e->bass.steps[2].glide, "K1 with the bass key held: no glide");
+#if MELLO_FEATURE_CHORD_MACHINE
+        tap_button(MELLO_UI_BTN_REC); /* CHORD: a chord held, K1 its HOLD, K3 its inversion */
+        mello_ui_set_held_notes(&ui, 1u << 7);
+        in(0u, 0u, 0u, 1u << 7);
+        knob(0u, 1); /* HOLD 8 -> 16 */
+        knob(2u, 1); /* INV 1 */
+        mello_ui_set_held_notes(&ui, 0u);
+        in(0u, 0u, 0u, 0u);
+        CHECK(e->chord.steps[0].hold == 16u && e->chord.steps[0].inversion == 1u,
+              "a held chord's K1/K3: HOLD %u, INV %u", e->chord.steps[0].hold, e->chord.steps[0].inversion);
+        key(12u); /* the next chord: HOLD 16 as set, no inversion */
+        CHECK(e->chord.steps[1].hold == 16u && e->chord.steps[1].inversion == 0u, "the next chord's HOLD %u",
+              e->chord.steps[1].hold);
+#endif
     }
 
     { /* playing: a key kept down carries the note on to the steps the clock reaches */

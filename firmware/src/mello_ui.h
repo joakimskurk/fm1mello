@@ -203,6 +203,9 @@ typedef struct {
                          * second let go starts it from empty, white keys 1-4 meanwhile pick SEQ, BASS, CHORD, DRUMS */
     bool rec_menu, rec_used, rec_click_off, take_fit, rec_ready;
     uint8_t rec_wrote; /* the take's targets that were written, bit = MELLO_UI_REC_* */
+    /* Step entry (REC stopped on HOME, DECISIONS "Step entry"): what the next step gets, kept from step to step:
+     * SEQ's PULSE, RATCH, GATE, ACC (bit 0) and SLD (bit 1); BASS's GLIDE and ACCENT; CHORD's HOLD and SHAPE */
+    uint8_t se_pulses, se_ratchet, se_gate, se_flags, se_bass, se_hold, se_shape;
     uint32_t rec_down_ms, rec_now_ms;
     bool undo_menu;     /* held a moment: those shown */
     uint32_t undo_down_ms;

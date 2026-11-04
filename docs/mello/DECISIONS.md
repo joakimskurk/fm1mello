@@ -1763,6 +1763,28 @@ it. Now:
   Test: rec_easy; keys_record, ui_home_perform and control_action_contract follow REC's tap on letting go, DRUMS in
   the round and HOME's REC no longer inert.
 
+## Step entry (2026-11-04)
+
+The product owner: "a mode for recording is to have record while stopped: a punch-in step by step, and in this mode
+K1-4 are parameters per step, so you can hold the note you push in and choose the most important parameters, like
+how many pulses a step lasts. It must be thought through." And: SELECT, not ALGORITHM, moves between the steps.
+
+- **When**: REC on HOME (KEYS) with the sequencer stopped. The header reads STEP, the target and the cursor
+  (`STEP SEQ 3/16`; a chord chain's slot alone). Playing, nothing changes: K1-K4 the macros, SELECT the tempo, a
+  key the step under the clock.
+- **The keys are a keyboard**, F3-G5 (not a key a step): each writes its note at the cursor and the cursor moves on;
+  SEL a rest. **SELECT** moves the cursor back or on (the step framed on HOME), to put a note right; a key there
+  writes over it.
+- **K1-K4 are the step's.** With the key just played still held: that step's, and what the next get. With none held:
+  what the next steps get. What is set stays (PULSE 2: every note from there lasts two pulses until changed). SEQ:
+  PULSE, RATCH, GATE (SINGLE, MULTI, HOLD; a rest is SEL), ACC SLD (-, ACC, SLD, both). BASS: GLIDE, ACCENT, and the
+  held key's OCT. CHORD: HOLD (2, 4, 8, 16, 32), SHAPE, and the held chord's INV and OCT (the second-key shapes
+  stay). DRUMS: the last hit's PITCH, DECAY, CRUSH, RATCH, held or not (keys 5-8 do as before).
+- **A key held long no longer makes a held note or a glide** on HOME: it is held to turn the knobs, and GATE and
+  GLIDE say it. (REC on the STEP, BASS and CHORD pages keeps it: there the page's own knobs edit the picked step.)
+- Test: keys_record (PULSE and GATE on the held step, the next step the same, nothing held leaves the step before,
+  SELECT back and over, the bass's GLIDE, the chord's HOLD and INV).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

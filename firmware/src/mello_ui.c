@@ -248,6 +248,7 @@ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage
     ui->random_style = MELLO_STYLE_ANY; /* DECISIONS "STYLE": a press rolls the band in a style */
     ui->kept_slot = -1;
     ui->sect_btn = 0xFFu;
+    ui->se_pulses = ui->se_ratchet = 1u, ui->se_gate = MELLO_GATE_SINGLE, ui->se_hold = 8u; /* step entry's start */
     ui->selected_slot = 0u;
     ui->selected_tm_bit = 0u;
     ui->seen_step = 0xFFu;
@@ -1034,6 +1035,8 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
         b.steps[pos].on = true;
         b.steps[pos].tone = (uint8_t)(idx > MELLO_SUB_TONE_SEVENTH ? MELLO_SUB_TONE_SEVENTH : idx);
         b.steps[pos].octave = (int8_t)clamp_i32(oct, -2, 2);
+        if (!running) /* step entry: GLIDE and ACCENT as set (DECISIONS "Step entry") */
+            b.steps[pos].glide = (ui->se_bass & 1u) != 0u, b.steps[pos].accent = (ui->se_bass & 2u) != 0u;
         b.on = true;
         mello_engine_bass_set_config(e, &b);
         if (!running) ui->keys_rec_pos = (uint8_t)((pos + 1u) % len);
@@ -1072,8 +1075,12 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
             c.steps[pos].degree = idx;
             c.steps[pos].octave =
                 (int8_t)clamp_i32(oct - 1, -2, 2); /* at the root's octave: -1, the default */
+            if (!running) /* step entry: HOLD and SHAPE as set */
+                c.steps[pos].hold = ui->se_hold, c.steps[pos].shape = (MelloChordShape)ui->se_shape,
+                c.steps[pos].inversion = 0u;
             if (!running) {
                 c.length = (uint8_t)(pos + 1u); /* the chain is what you have played */
+                rec_key_down(ui, note_index, pos, now_us); /* (held: K1-K4 are this chord's) */
                 ui->keys_rec_last = pos;
                 ui->keys_rec_last_midi = midi;
                 ui->keys_rec_pos = (uint8_t)((pos + 1u) % MELLO_CHORD_MAX_STEPS);
@@ -1095,7 +1102,11 @@ static void keys_note(MelloUi *ui, uint8_t note_index, uint32_t now_us)
         s->pitch = found.pitch;
         s->octave = found.octave;
         s->skip = false;
-        if (s->gate == MELLO_GATE_REST || s->gate == MELLO_GATE_HOLD) s->gate = MELLO_GATE_SINGLE;
+        if (!running) { /* step entry: PULSE, RATCH, GATE, ACC, SLD as set (DECISIONS "Step entry") */
+            s->pulses = ui->se_pulses, s->ratchet = ui->se_ratchet, s->gate = (MelloGateMode)ui->se_gate;
+            s->accent = (ui->se_flags & 1u) != 0u, s->slide = (ui->se_flags & 2u) != 0u;
+        } else if (s->gate == MELLO_GATE_REST || s->gate == MELLO_GATE_HOLD)
+            s->gate = MELLO_GATE_SINGLE;
         ui->selected_step = pos;
         if (!running) ui->keys_rec_pos = (uint8_t)((pos + 1u) % len);
         rec_key_down(ui, note_index, pos, now_us);
@@ -1416,15 +1427,19 @@ static void rec_key_poll(MelloUi *ui, uint32_t now_ms)
     bool bass;
     uint8_t len, next, cur;
     if (ui->rec_key == 0xFFu) return;
-    if (!e || !ui->keys_rec || ui->keys_rec_target == MELLO_UI_REC_CHORD ||
-        !(ui->held_notes & bit_u32(ui->rec_key))) {
+    if (!e || !ui->keys_rec || !(ui->held_notes & bit_u32(ui->rec_key))) {
         ui->rec_key = 0xFFu;
+        ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_FOOTER; /* step entry: the cursor and K1-K4 again */
         return;
     }
+    if (ui->keys_rec_target == MELLO_UI_REC_CHORD) return; /* a chord held: K1-K4 are its, nothing carries on */
     bass = ui->keys_rec_target == MELLO_UI_REC_BASS;
     len = bass ? e->bass.length : e->project.seq_len;
     if (!len) len = 1u;
     if (!ui->transport->running) {
+        /* Stopped, a key held no longer makes a held note or a glide (DECISIONS "Step entry"): it is held to turn
+         * K1-K4 on its step, where GATE and GLIDE are. (REC_LONG_MS stays for the pages' REC.) */
+        if (ui->page == MELLO_UI_HOME) return;
         if (ui->rec_key_long || now_ms - ui->rec_key_ms < REC_LONG_MS) return;
         ui->rec_key_long = true;
         if (bass) {
@@ -1921,11 +1936,122 @@ static void adjust_home_macro(MelloUi *ui, uint8_t knob, int16_t delta)
     }
 }
 
+/* Step entry (DECISIONS "Step entry"): REC on HOME with the sequencer stopped. The keys write a step at the cursor
+ * and move it on; SELECT moves the cursor; K1-K4 are the step's: with the key just written still held, that step
+ * (and what the next ones get), with none held, what the next steps get. */
+static bool step_entry(const MelloUi *ui)
+{
+    return ui->page == MELLO_UI_HOME && ui->keys_mode && ui->keys_rec && !ui->transport->running;
+}
+static bool step_entry_held(const MelloUi *ui)
+{
+    return ui->rec_key != 0xFFu && (ui->held_notes & bit_u32(ui->rec_key));
+}
+static void step_entry_adjust(MelloUi *ui, uint8_t knob, int16_t delta)
+{
+    MelloEngine *e = eng(ui);
+    bool held = step_entry_held(ui);
+    int32_t up = delta > 0 ? 1 : -1;
+    if (!e) return;
+    switch (ui->keys_rec_target) {
+    case MELLO_UI_REC_SEQ: {
+        static const uint8_t gates[3] = {MELLO_GATE_SINGLE, MELLO_GATE_MULTI, MELLO_GATE_HOLD};
+        uint8_t gi = ui->se_gate == MELLO_GATE_MULTI ? 1u : ui->se_gate == MELLO_GATE_HOLD ? 2u : 0u;
+        MelloStep *st = &e->project.steps[ui->rec_key_pos % MELLO_MAX_STEPS];
+        if (held) { /* start from the step as it is */
+            ui->se_pulses = st->pulses, ui->se_ratchet = st->ratchet;
+            gi = st->gate == MELLO_GATE_MULTI ? 1u : st->gate == MELLO_GATE_HOLD ? 2u : 0u;
+            ui->se_flags = (uint8_t)((st->accent ? 1u : 0u) | (st->slide ? 2u : 0u));
+        }
+        if (knob == 0u) ui->se_pulses = (uint8_t)clamp_i32((int32_t)ui->se_pulses + up, 1, 8);
+        if (knob == 1u) ui->se_ratchet = (uint8_t)clamp_i32((int32_t)ui->se_ratchet + up, 1, 8);
+        if (knob == 2u) gi = (uint8_t)clamp_i32((int32_t)gi + up, 0, 2);
+        if (knob == 3u) ui->se_flags = (uint8_t)clamp_i32((int32_t)ui->se_flags + up, 0, 3); /* -, ACC, SLD, both */
+        ui->se_gate = gates[gi];
+        if (held) {
+            st->pulses = ui->se_pulses, st->ratchet = ui->se_ratchet, st->gate = (MelloGateMode)ui->se_gate;
+            st->accent = (ui->se_flags & 1u) != 0u, st->slide = (ui->se_flags & 2u) != 0u;
+            rebuild(ui);
+        }
+        break;
+    }
+    case MELLO_UI_REC_BASS: {
+        MelloBassConfig b = e->bass;
+        MelloBassStep *st = &b.steps[ui->rec_key_pos % MELLO_BASS_STEPS];
+        if (held) ui->se_bass = (uint8_t)((st->glide ? 1u : 0u) | (st->accent ? 2u : 0u));
+        if (knob == 0u) ui->se_bass = (uint8_t)((ui->se_bass & ~1u) | (up > 0 ? 1u : 0u)); /* GLIDE */
+        if (knob == 1u) ui->se_bass = (uint8_t)((ui->se_bass & ~2u) | (up > 0 ? 2u : 0u)); /* ACCENT */
+        if (held) {
+            st->glide = (ui->se_bass & 1u) != 0u, st->accent = (ui->se_bass & 2u) != 0u;
+            if (knob == 2u) st->octave = (int8_t)clamp_i32((int32_t)st->octave + up, -2, 2); /* OCT: this step's */
+            mello_engine_bass_set_config(e, &b);
+        }
+        break;
+    }
+#if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_UI_REC_CHORD: {
+        static const uint8_t holds[5] = {2u, 4u, 8u, 16u, 32u};
+        MelloChordConfig c = e->chord;
+        MelloChordStep *cs = &c.steps[ui->keys_rec_last % MELLO_CHORD_MAX_STEPS];
+        uint8_t hi = 2u, k;
+        if (held) ui->se_hold = cs->hold, ui->se_shape = (uint8_t)cs->shape;
+        for (k = 0u; k < 5u; ++k)
+            if (holds[k] <= ui->se_hold) hi = k;
+        if (knob == 0u) ui->se_hold = holds[clamp_i32((int32_t)hi + up, 0, 4)];
+        if (knob == 1u) ui->se_shape = (uint8_t)clamp_i32((int32_t)ui->se_shape + up, 0, MELLO_CHORD_SHAPE_COUNT - 1);
+        if (held) {
+            cs->hold = ui->se_hold, cs->shape = (MelloChordShape)ui->se_shape;
+            if (knob == 2u) cs->inversion = (uint8_t)clamp_i32((int32_t)cs->inversion + up, 0, 3);
+            if (knob == 3u) cs->octave = (int8_t)clamp_i32((int32_t)cs->octave + up, -2, 2);
+            mello_engine_chord_set_config(e, &c);
+        }
+        break;
+    }
+#endif
+    case MELLO_UI_REC_DRUMS: { /* the last hit's locks, held or not */
+        MelloDrumConfig d = e->drums;
+        MelloDrumLock *l = &d.lock[ui->drum_rec_voice % MELLO_DRUM_VOICES][ui->drum_rec_step % MELLO_DRUM_STEPS];
+        if (knob == 0u) l->pitch = (int8_t)clamp_i32((int32_t)l->pitch + up, -24, 24);
+        if (knob == 1u) l->decay = (int8_t)clamp_i32((int32_t)l->decay + up * 10, -100, 100);
+        if (knob == 2u) l->crush = (uint8_t)clamp_i32((int32_t)l->crush + up * 10, 0, 100);
+        if (knob == 3u) l->ratchet = (uint8_t)clamp_i32((int32_t)l->ratchet + up, 1, 4);
+        mello_engine_drums_set_config(e, &d);
+        break;
+    }
+    default: return;
+    }
+    mark_edit(ui);
+    ui->dirty |= MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_BODY;
+}
+
+/* the header in step entry: STEP, the target, the cursor's step of the length ("STEP SEQ 3/16") */
+static const char *step_entry_header(const MelloUi *ui)
+{
+    static char b[24];
+    static const char *nm[5] = {"", "SEQ", "BASS", "CHORD", "DRUMS"};
+    const MelloEngine *e = &ui->transport->engine;
+    uint8_t t = ui->keys_rec_target <= 4u ? ui->keys_rec_target : 1u,
+            len = t == MELLO_UI_REC_BASS    ? e->bass.length
+                  : t == MELLO_UI_REC_DRUMS ? e->drums.length
+#if MELLO_FEATURE_CHORD_MACHINE
+                  : t == MELLO_UI_REC_CHORD ? MELLO_CHORD_MAX_STEPS
+#endif
+                                            : e->project.seq_len;
+    char *q = copy_s(copy_s(copy_s(b, "STEP "), nm[t]), " ");
+    q = put_u32(q, (uint32_t)(ui->keys_rec_pos % (len ? len : 1u)) + 1u);
+    if (t != MELLO_UI_REC_CHORD) (void)put_u32(copy_s(q, "/"), len);
+    return b;
+}
+
 static void adjust_home(MelloUi *ui, uint8_t knob, int16_t delta)
 {
     MelloEngine *e = eng(ui);
     MelloStep *s;
     if (!e || !delta) return;
+    if (step_entry(ui)) { /* step entry: K1-K4 are the step's */
+        step_entry_adjust(ui, knob, delta);
+        return;
+    }
     if (ui->held_step == MELLO_UI_NO_STEP) {
         adjust_home_macro(ui, knob, delta);
         return;
@@ -3200,7 +3326,22 @@ static void adjust_knobs(MelloUi *ui, const int16_t enc_in[MELLO_UI_ENCODER_COUN
         MelloEngine *e = eng(ui);
         int16_t ds = (int16_t)(enc[MELLO_UI_ENC_SELECT]), da = enc[MELLO_UI_ENC_ALGORITHM],
                 dp = enc[MELLO_UI_ENC_PRESETS];
-        if (ds && e) {
+        if (ds && e && step_entry(ui)) { /* step entry: SELECT moves the cursor (DECISIONS "Step entry") */
+            uint8_t len = ui->keys_rec_target == MELLO_UI_REC_BASS    ? e->bass.length
+                          : ui->keys_rec_target == MELLO_UI_REC_DRUMS ? e->drums.length
+#if MELLO_FEATURE_CHORD_MACHINE
+                          : ui->keys_rec_target == MELLO_UI_REC_CHORD ? MELLO_CHORD_MAX_STEPS
+#endif
+                                                                      : e->project.seq_len;
+            if (!len) len = 1u;
+            ui->keys_rec_pos = wrap_u8((int32_t)ui->keys_rec_pos + (ds > 0 ? 1 : -1), len);
+            if (ui->keys_rec_target == MELLO_UI_REC_SEQ) {
+                ui->selected_step = ui->keys_rec_pos;
+                ui->step_bank = ui->keys_rec_pos / 16u;
+            }
+            ui->rec_key = 0xFFu; /* (a step moved to is not the one just written) */
+            ui->dirty |= MELLO_UI_DIRTY_ALL;
+        } else if (ds && e) {
             mello_transport_set_bpm(ui->transport,
                                     (uint16_t)clamp_i32((int32_t)e->project.bpm + ds, 20, 250));
             mark_edit(ui);
@@ -4643,7 +4784,10 @@ static void draw_home_step(MelloUi *ui, const MelloUiDrawOps *o, uint8_t i)
     segment = ui_segment_for_step(&e->project, i);
     seg = ui_segment_colour(segment);
     active = ui->transport->running && ui->transport->display_step == i;
-    selected = ui->selected_step == i && (ui->held_step != MELLO_UI_NO_STEP || !ui->transport->running);
+    if (step_entry(ui) && ui->keys_rec_target == MELLO_UI_REC_SEQ) /* step entry: the step held, or the cursor */
+        selected = i == (step_entry_held(ui) ? ui->rec_key_pos : ui->keys_rec_pos % e->project.seq_len);
+    else
+        selected = ui->selected_step == i && (ui->held_step != MELLO_UI_NO_STEP || !ui->transport->running);
     /* the cap: this step's piece of its segment's line (bright for the picked step's segment), white under the
      * playhead */
     o->fill(o->ctx, x, 46, w, 2,
@@ -4894,7 +5038,8 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
         if (layer) o->text(o->ctx, x, 7, (int16_t)(136 - x), 0, layer, accent, 0); /* in the page's colour */
     }
     p = copy_s(b, ui->page == MELLO_UI_HOME && ui->keys_mode
-                      ? (ui->keys_rec ? (ui->keys_rec_target == MELLO_UI_REC_BASS    ? "REC > BASS"
+                      ? (ui->keys_rec && !ui->transport->running ? step_entry_header(ui)
+                         : ui->keys_rec ? (ui->keys_rec_target == MELLO_UI_REC_BASS    ? "REC > BASS"
                                          : ui->keys_rec_target == MELLO_UI_REC_CHORD ? "REC > CHORD"
                                          : ui->keys_rec_target == MELLO_UI_REC_DRUMS ? "REC > DRUMS"
                                                                                      : "REC > SEQ")
@@ -6268,6 +6413,58 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
     case MELLO_UI_HOME: {
         uint8_t si = ui->selected_step < MELLO_MAX_STEPS ? ui->selected_step : 0u;
         MelloStep *s = &e->project.steps[si];
+        if (step_entry(ui)) { /* step entry: the step's (the one held), or what the next gets */
+            bool held = step_entry_held(ui);
+            switch (ui->keys_rec_target) {
+            case MELLO_UI_REC_SEQ: {
+                static const char *fl[4] = {"-", "ACC", "SLD", "ACC SLD"};
+                const MelloStep *st = &e->project.steps[ui->rec_key_pos % MELLO_MAX_STEPS];
+                l[0] = "PULSE", l[1] = "RATCH", l[2] = "GATE", l[3] = "ACC SLD";
+                value_u(v[0], "", held ? st->pulses : ui->se_pulses);
+                value_u(v[1], "", held ? st->ratchet : ui->se_ratchet);
+                copy_s(v[2], gate_name(held ? st->gate : (MelloGateMode)ui->se_gate));
+                copy_s(v[3], fl[held ? (st->accent ? 1u : 0u) | (st->slide ? 2u : 0u) : ui->se_flags & 3u]);
+                break;
+            }
+            case MELLO_UI_REC_BASS: {
+                const MelloBassStep *st = &e->bass.steps[ui->rec_key_pos % MELLO_BASS_STEPS];
+                uint8_t f = held ? (uint8_t)((st->glide ? 1u : 0u) | (st->accent ? 2u : 0u)) : ui->se_bass;
+                l[0] = "GLIDE", l[1] = "ACCENT", l[2] = "OCT";
+                copy_s(v[0], f & 1u ? "ON" : "OFF");
+                copy_s(v[1], f & 2u ? "ON" : "OFF");
+                if (held)
+                    value_i(v[2], "", st->octave);
+                else
+                    copy_s(v[2], "-");
+                copy_s(v[3], "-");
+                break;
+            }
+#if MELLO_FEATURE_CHORD_MACHINE
+            case MELLO_UI_REC_CHORD: {
+                const MelloChordStep *cs = &e->chord.steps[ui->keys_rec_last % MELLO_CHORD_MAX_STEPS];
+                l[0] = "HOLD", l[1] = "SHAPE", l[2] = "INV", l[3] = "OCT";
+                value_u(v[0], "", held ? cs->hold : ui->se_hold);
+                copy_s(v[1], chord_shape_name((MelloChordShape)(held ? cs->shape : ui->se_shape)));
+                if (held)
+                    value_u(v[2], "", cs->inversion), value_i(v[3], "", cs->octave);
+                else
+                    copy_s(v[2], "-"), copy_s(v[3], "-");
+                break;
+            }
+#endif
+            default: { /* DRUMS: the last hit's */
+                const MelloDrumLock *dl =
+                    &e->drums.lock[ui->drum_rec_voice % MELLO_DRUM_VOICES][ui->drum_rec_step % MELLO_DRUM_STEPS];
+                l[0] = "PITCH", l[1] = "DECAY", l[2] = "CRUSH", l[3] = "RATCH";
+                (void)copy_s(put_i32(v[0], dl->pitch), " ST");
+                (void)copy_s(put_i32(v[1], dl->decay), "%");
+                (void)copy_s(put_u32(v[2], dl->crush), "%");
+                value_u(v[3], "", dl->ratchet);
+                break;
+            }
+            }
+            break;
+        }
         if (ui->held_step == MELLO_UI_NO_STEP) { /* the four macros, whatever they are set to */
             for (k = 0u; k < 4u; ++k) {
                 l[k] = macro_name(e->macros.id[k]);

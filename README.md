@@ -173,7 +173,16 @@ scale are lit and the others dark, on the LEDs and in the strip; a dark key stil
 one (CHROMATIC lights them all). Playing, a key is the new root. REC then cycles what the keys write: SEQ, BASS,
 CHORD, off. Stopped, each key writes the next step from step 1 (a chord chain grows as you play it; hold a second
 key over the first for the shape: a second SUS2, a fourth SUS4, a fifth POWER, a seventh SEVENTH; under the first for
-the inversion: the third, the fifth). SEL writes a rest. A key held long makes a held note, or a glide on the bass.
+the inversion: the third, the fifth). SEL writes a rest.
+
+**Step entry** (REC on HOME with the sequencer stopped; the header reads `STEP SEQ 3/16`). The keys are a keyboard:
+each key writes its note at the cursor (the step framed) and the cursor moves on; SELECT moves the cursor back or
+on, to put a note right. K1-K4 are the step's, not the macros: with the key just played still held, that step's;
+with none held, what the next steps get, and what you set stays for the steps after (set PULSE 2 and every note
+from there lasts two pulses until you change it). SEQ: PULSE (how many pulses the step lasts), RATCH, GATE (SINGLE,
+MULTI, HOLD), ACC SLD. BASS: GLIDE, ACCENT, and OCT for the key held. CHORD: HOLD (2, 4, 8, 16, 32 sixteenths),
+SHAPE, and INV and OCT for the chord held. DRUMS: the last hit's PITCH, DECAY, CRUSH, RATCH. Playing, K1-K4 are the
+macros again and SELECT the tempo.
 Playing, a key writes the step under the clock, or the next one past half a pulse, and a key kept down carries on
 over the next steps, so a line goes down pass by pass. UNDO takes the whole recording back.
 
