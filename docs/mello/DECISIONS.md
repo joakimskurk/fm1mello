@@ -1438,6 +1438,24 @@ kept). Where real room is, by the host bench (make bench, the worst case): the d
 and OSC 2 ~16%, the reverb ~14%, the chords ~15%. Each would change how something sounds or is built, so none was
 touched unasked; the glow LEDs' 2 points (F13) are the key scan's, in the HAL.
 
+## Everything on at once, measured (2026-11-04)
+
+Asked for: a run with everything active, modulation, the synth's parameters and the performance effects, its
+CPU measured and its sound sent, on a GROOVE sequence. mello_engine_stress (the worst case) now also turns EVOLVE on
+with every route and two sound routes (NOISE, FM); a MELLO_STRESS_GROOVE build rolls its sequence with GROOVE. The
+held effects go through the real keys: tools/emu_cpu.sh takes more of fm1-emu's --keys in EMU_KEYS, and the run
+taps B5 PERF and holds FILL, ARP, ACCENT, LP SWP, HP SWP, THROW and WASH together. fm1-emu, 0.5-f66:
+
+| | the chip |
+|---|---|
+| everything on, GROOVE, nothing held | 76.9% |
+| everything on, GROOVE, the seven effects held | 82.7% |
+| the worst case (MULTI ratchets everywhere), the seven held | 81.6% |
+
+The held effects cost ~6 points (FILL and ARP play every step; the sweeps and sends). With GROOVE they cost more
+than the old worst case's sequence, as FILL fills GROOVE's rests and doubles its ratchets. 17 points under the
+instruction-count ceiling; the device's CPU nn% (F24) is the measure that counts.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

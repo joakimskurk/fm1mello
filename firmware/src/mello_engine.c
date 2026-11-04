@@ -4744,11 +4744,27 @@ void mello_engine_stress(MelloEngine *e)
     modr = e->modr;
     modr.dot_target[0] = MELLO_DEST_CUTOFF;
     modr.dot_target[1] = MELLO_DEST_PITCH;
+    modr.tm_dest[0] = MELLO_DEST_NOISE; /* EVOLVE's sound routes */
+    modr.tm_dest[1] = MELLO_DEST_FM;
+    modr.tm_depth[0] = modr.tm_depth[1] = 500;
     mello_engine_mod_routing_set(e, &modr);
+    {
+        MelloTmConfig tm = e->tm; /* EVOLVE on, every route */
+        tm.on = true;
+        tm.mutation_prob = 250u;
+        tm.routes = MELLO_TM_ROUTE_LENGTH | MELLO_TM_ROUTE_FILTER | MELLO_TM_ROUTE_OCTAVE | MELLO_TM_ROUTE_DECAY |
+                    MELLO_TM_ROUTE_RETRIG;
+        tm.depth_gate = tm.depth_filter = tm.depth_octave = tm.depth_decay = 500u;
+        mello_engine_tm_set_config(e, &tm);
+    }
     for (i = 0u; i < MELLO_DOT_MATRIX_COUNT; ++i) {
         dot = e->dot[i];
         dot.cells = 0xFFFFu;
         dot.amount = 500u;
         mello_engine_dot_set_config(e, (MelloDotTarget)i, &dot);
     }
+#ifdef MELLO_STRESS_GROOVE /* a listening build: the same, the sequence rolled with GROOVE (a seed's own) */
+    mello_engine_set_randomize_mask(e, MELLO_RAND_DEFAULT);
+    mello_engine_randomize_steps_intensity(e, MELLO_RANDOMIZE_GROOVE);
+#endif
 }

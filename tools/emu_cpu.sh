@@ -9,6 +9,7 @@
 #   FM1_EMU   the fm1-emu directory (default: ~/fm1-emu-0.3.0/fm1-emu-0.3.0-linux-x86_64); a Linux binary, so
 #             on a Mac it runs in Docker (ubuntu:24.04).
 #   EMU_LOG   a file to keep the emulator's reports in (the playing run's, then the silent run's)
+#   EMU_KEYS  more of fm1-emu's --keys for the playing run (times in ms, within 1600 .. 5600), e.g. PERFORM held
 # A -DMELLO_STRESS build (MELLO_CFLAGS=-DMELLO_STRESS ./build.sh ...) plays the worst case (mello_engine_stress).
 set -e
 PKG="$1"
@@ -29,7 +30,7 @@ emu() {    # ms, keys, log
     fi
     grep -q "in an ISR" "$3" || { cat "$3"; echo "emu_cpu: no report"; exit 1; }
 }
-emu $((SILENT_MS + PLAY_MS)) "$SILENT_MS:PLAY" "$WORK/play.txt"
+emu $((SILENT_MS + PLAY_MS)) "$SILENT_MS:PLAY${EMU_KEYS:+,$EMU_KEYS}" "$WORK/play.txt"
 emu $SILENT_MS "" "$WORK/silent.txt"
 [ -n "$EMU_LOG" ] && cat "$WORK/play.txt" "$WORK/silent.txt" >"$EMU_LOG"
 isr_total() {    # M ISR instructions in the whole run
