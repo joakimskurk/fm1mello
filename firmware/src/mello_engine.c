@@ -1834,11 +1834,13 @@ void mello_engine_start(MelloEngine *e)
     }
 }
 
+static void roll_fire(MelloEngine *e);
 void mello_engine_stop(MelloEngine *e)
 {
     if (!e) return;
     e->playing = false;
     e->queued_slot = -1;
+    if (e->roll_wait) roll_fire(e); /* a roll waiting for the one: now, with no one to wait for */
     e->perf.mix_mute ^= e->perf.mute_req; /* PERFORM's mutes asked for, with no beat to wait for now */
     e->perf.mute_req = 0u;
     /* Source STOP always clears Loop Cycle hold/count. Position returns to 0 only when ON;
@@ -4278,28 +4280,30 @@ static void style_sound(MelloEngine *e, uint8_t st)
     mello_engine_fx_set_config(e, &f);
 }
 
-uint8_t mello_engine_style_roll_parts(MelloEngine *e, uint8_t style, uint8_t parts)
+/* ANY made a style: for a part alone the style that plays, for the band a style never the one before */
+static uint8_t style_resolve(MelloEngine *e, uint8_t style, uint8_t parts)
 {
     uint8_t st = style;
-    if (!e || !parts) return MELLO_STYLE_OFF;
     if (st == MELLO_STYLE_ANY && parts != MELLO_PART_ALL && e->style_now >= MELLO_STYLE_AMBIENT &&
         e->style_now < MELLO_STYLE_COUNT)
-        st = e->style_now; /* a part alone: in the style that plays */
-    if (st == MELLO_STYLE_ANY) { /* a style, never the one before */
+        st = e->style_now;
+    if (st == MELLO_STYLE_ANY) {
         do st = (uint8_t)(MELLO_STYLE_AMBIENT + rng_bounded(&e->gen_rng, STYLES));
         while (st == e->style_now);
     }
+    return st;
+}
+
+uint8_t mello_engine_style_roll_parts(MelloEngine *e, uint8_t style, uint8_t parts)
+{
+    uint8_t st;
+    if (!e || !(parts & MELLO_PART_ALL)) return MELLO_STYLE_OFF;
+    st = style_resolve(e, style, parts);
     if (st < MELLO_STYLE_AMBIENT || st >= MELLO_STYLE_COUNT) {
         mello_engine_randomize_steps_intensity(e, MELLO_RANDOMIZE_MED);
         return MELLO_STYLE_OFF;
     }
     mello_engine_undo_snapshot(e);
-    if (parts & MELLO_PART_TEMPO) { /* the style's tempo, somewhere in its range (the UI hands it to the transport) */
-        static const uint8_t lo[STYLES] = {76u, 112u, 84u, 124u, 124u, 118u, 128u, 120u, 120u, 116u, 124u, 164u, 60u, 96u, 100u},
-                             span[STYLES] = {16u, 10u, 12u, 8u, 10u, 10u, 12u, 40u, 6u, 6u, 6u, 12u, 12u, 16u, 50u};
-        uint8_t i = (uint8_t)(st - MELLO_STYLE_AMBIENT);
-        e->project.bpm = (uint16_t)(lo[i] + rng_bounded(&e->gen_rng, span[i] + 1u));
-    }
     if (parts & MELLO_PART_LEAD) style_lead(e, st);
     if (parts & MELLO_PART_BASS) {
         MelloBassConfig b = e->bass;
@@ -4330,6 +4334,41 @@ uint8_t mello_engine_style_roll_parts(MelloEngine *e, uint8_t style, uint8_t par
 uint8_t mello_engine_style_roll(MelloEngine *e, uint8_t style)
 {
     return mello_engine_style_roll_parts(e, style, MELLO_PART_ALL);
+}
+
+/* A roll on the one (DECISIONS "A roll lands on the one"): what waits, played */
+static void roll_fire(MelloEngine *e)
+{
+    uint8_t w = e->roll_wait;
+    e->roll_wait = 0u;
+    if (w == 1u)
+        (void)mello_engine_style_roll_parts(e, e->roll_style, e->roll_parts);
+    else if (w == 2u)
+        mello_engine_randomize_steps_intensity(e, (MelloRandomizeIntensity)e->roll_intensity);
+}
+static bool roll_now(const MelloEngine *e)
+{
+    return !e->playing || e->absolute_pulse % 16u == 0u;
+}
+uint8_t mello_engine_style_roll_at_bar(MelloEngine *e, uint8_t style, uint8_t parts)
+{
+    uint8_t st;
+    if (!e || !(parts & MELLO_PART_ALL)) return MELLO_STYLE_OFF;
+    st = style_resolve(e, style, parts);
+    if (st < MELLO_STYLE_AMBIENT || st >= MELLO_STYLE_COUNT) st = MELLO_STYLE_OFF;
+    e->roll_wait = 1u, e->roll_style = st, e->roll_parts = parts;
+    if (roll_now(e)) roll_fire(e);
+    return st;
+}
+void mello_engine_randomize_at_bar(MelloEngine *e, MelloRandomizeIntensity intensity)
+{
+    if (!e) return;
+    e->roll_wait = 2u, e->roll_intensity = (uint8_t)intensity;
+    if (roll_now(e)) roll_fire(e);
+}
+void mello_engine_roll_cancel(MelloEngine *e)
+{
+    if (e) e->roll_wait = 0u;
 }
 
 void mello_engine_undo_snapshot(MelloEngine *e)
@@ -4383,6 +4422,7 @@ bool mello_engine_undo_swap(MelloEngine *e)
     p = e->project;
     e->project = e->undo_project;
     e->undo_project = p;
+    e->project.bpm = p.bpm; /* the tempo is the player's: UNDO leaves it (DECISIONS "The tempo is the player's") */
     s = e->sound;
     e->sound = e->undo_sound;
     e->undo_sound = s;
@@ -4997,6 +5037,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     int8_t auto_slot = -1;
     uint8_t i;
 
+    if (e && e->playing && e->roll_wait && e->absolute_pulse % 16u == 0u) roll_fire(e); /* RNDMZR's, on the one */
     if (!e || !e->playing || !e->has_active_step || !e->runtime_built || e->runtime_segment_count == 0u)
         return false;
 

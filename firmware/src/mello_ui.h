@@ -115,6 +115,7 @@ typedef struct {
     uint8_t selected_drum_voice;
     uint8_t selected_drum_step;
     int8_t seen_drum_step;
+    uint8_t seen_roll_wait; /* a roll waited for the one: when it lands, everything drawn again */
     int8_t seen_bass_step;
 
     uint8_t step_subpage;    /* TRIG, NOTE, FLAGS, SEQ */

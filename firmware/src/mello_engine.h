@@ -956,6 +956,9 @@ typedef struct {
     MelloFxConfig undo_fx;     /* a STYLE roll sets the effects and the sub too */
     MelloSubConfig undo_sub;
     uint8_t style_now; /* the style the last STYLE roll played (MelloStyle) */
+    /* RNDMZR's roll waiting for the bar's one while playing (DECISIONS "A roll lands on the one"): 0 none, 1 a
+     * STYLE roll of roll_parts in roll_style (resolved), 2 the lead by roll_intensity */
+    uint8_t roll_wait, roll_style, roll_parts, roll_intensity;
     bool undo_valid;
     bool undo_is_redo;  /* the last press was UNDO: the next puts the roll back */
     uint32_t undo_hash; /* the state as UNDO left it: an edit since means there is nothing to redo */
@@ -1165,6 +1168,12 @@ typedef enum {
 } MelloStyle;
 const char *mello_style_name(uint8_t style);
 uint8_t mello_engine_style_roll(MelloEngine *engine, uint8_t style);
+/* RNDMZR's roll as the player hears it: stopped (or at the one) at once, playing on the next bar's one (the 16th
+ * pulse), ANY resolved now so the style can be shown. Another press before then replaces it; cancel takes it back;
+ * a stop plays it at once. Returns the style that will play (OFF: a roll of the lead). */
+uint8_t mello_engine_style_roll_at_bar(MelloEngine *engine, uint8_t style, uint8_t parts);
+void mello_engine_randomize_at_bar(MelloEngine *engine, MelloRandomizeIntensity intensity);
+void mello_engine_roll_cancel(MelloEngine *engine);
 /* One part of the band rolled again in a style (hold RNDMZR and a white key): with ANY the style that plays now. The
  * bass takes the chords' degrees with it, so the harmony still fits. Undoable. Returns the style used. */
 #define MELLO_PART_LEAD   1u
@@ -1173,8 +1182,7 @@ uint8_t mello_engine_style_roll(MelloEngine *engine, uint8_t style);
 #define MELLO_PART_KIT    8u  /* the drums' sound */
 #define MELLO_PART_CHORDS 16u
 #define MELLO_PART_SOUND  32u /* the lead's envelope, the delay, the reverb */
-#define MELLO_PART_TEMPO  64u
-#define MELLO_PART_ALL    127u
+#define MELLO_PART_ALL    63u /* (the tempo is never rolled: DECISIONS "The tempo is the player's") */
 uint8_t mello_engine_style_roll_parts(MelloEngine *engine, uint8_t style, uint8_t parts);
 /* ROLL on BASS in a style: the bass line alone, as the style's roll writes it (OFF / ANY: the walking line) */
 void mello_engine_style_bass(MelloEngine *engine, uint8_t style);

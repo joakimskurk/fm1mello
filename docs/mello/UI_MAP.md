@@ -1,4 +1,4 @@
-# UI map (generated 2026-10-31, from the code at b6ef874)
+# UI map (generated 2026-10-31, from the code at b6ef874; values checked against the code 2026-11-04)
 
 Every page and layer, rendered in host mode: the panel button that opens it, the strip (the black keys B0..B10) and
 K1-K4's labels with their default values. The text rows are kept by hand with the code (the tests rotary_mapping_parity, control_authoritative_mapping and ui_glossary pin them); the pictures come from `make screens`.
@@ -7,7 +7,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 |---|---|---|---|---|---|
 | <img src="../screens/home.png" width="96" alt="HOME —"> | HOME | HOME | — | `- + RST CLR P M UNDO RNDMZR` | CUTOFF 3264HZ · DECAY 180MS · SPACE 24% · DRIVE 0% |
 | <img src="../screens/perform.png" width="96" alt="PERFORM —"> | PERFORM | B5 PERF | — | `- + RST CLR P M UNDO RNDMZR` | the page's K1-K4; the white keys: FILL, ARP, REVERSE, ACCENT, REP 8, REP 4, REP 2, REP 1, LP SWP, HP SWP, THROW, WASH, LD OFF, BS OFF, CH OFF, DR OFF |
-| <img src="../screens/rndmzr-held.png" width="96" alt="RNDMZR held —"> | RNDMZR held | hold RNDMZR | — | `- + RST CLR P M UNDO RNDMZR` | the page's K1-K4; the white keys roll one part: LEAD, BASS, DRUMS, KIT, CHORDS, SOUND, TEMPO |
+| <img src="../screens/rndmzr-held.png" width="96" alt="RNDMZR held —"> | RNDMZR held | hold RNDMZR | — | `- + RST CLR P M UNDO RNDMZR` | the page's K1-K4; the white keys roll one part: LEAD, BASS, DRUMS, KIT, CHORDS, SOUND |
 | <img src="../screens/home-macros.png" width="96" alt="HOME MACROS"> | HOME | hold EDIT | MACROS | `- + RST CLR P M UNDO RNDMZR` | each knob picks what it turns (CUTOFF, RES, DECAY, ATTACK, RELEASE, SPACE, DRIVE, DELAY, FDBK, REVERB, SIZE, LFO HZ, LFO AMT, PWM, NOISE, DETUNE, OSC 2, FM, SAT, MODENV, SUB LVL, LEAD, BASS, CHORD, DRUMS, SWING) |
 | <img src="../screens/step-trig.png" width="96" alt="STEP TRIG"> | STEP | SEQ | TRIG | `SKIP PERF MUT UNDO RNDMZR` | PITCH +0 · PULSE 1 · RATCH 1 · GATE SINGLE |
 | <img src="../screens/step-note.png" width="96" alt="STEP NOTE"> | STEP | SEQ | NOTE | `SKIP PERF MUT UNDO RNDMZR` | OCT +0 · PROB 100% · SAMP 1 · WAVE SND |
@@ -37,7 +37,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/bass-play.png" width="96" alt="BASS PLAY"> | BASS | ARP | PLAY | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
 | <img src="../screens/bass-seq.png" width="96" alt="BASS SEQ"> | BASS | ARP | SEQ | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
 | <img src="../screens/bass-step.png" width="96" alt="BASS STEP"> | BASS | ARP | STEP | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
-| <img src="../screens/bass-filter.png" width="96" alt="BASS FILTER"> | BASS | ARP | FILTER | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | CUT 242.0HZ · RES 0% · ENV 0% · LEVEL 42% |
+| <img src="../screens/bass-filter.png" width="96" alt="BASS FILTER"> | BASS | ARP | FILTER | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | CUT 242.0HZ · RES 0% · ENV 0% · LEVEL 75% |
 | <img src="../screens/bass-voice.png" width="96" alt="BASS VOICE"> | BASS | ARP | VOICE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | WAVE SINE · DECAY 160MS · RELEASE 120MS · DRIVE 0% |
 | <img src="../screens/bass-tone.png" width="96" alt="BASS TONE"> | BASS | ARP | TONE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | GLIDE 20MS · OCT -1 · F.DEC 300MS · ACCENT 50% |
 | <img src="../screens/global-clock.png" width="96" alt="GLOBAL CLOCK"> | GLOBAL | GLO | CLOCK | `TAP RST2 PERF MUT UNDO RNDMZR` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
@@ -65,19 +65,19 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/drums-voice.png" width="96" alt="DRUMS VOICE"> | DRUMS | ARP | VOICE | `ON VOX ACC ROLL P M UNDO RNDMZR` | TONE 25% · TUNE 40% · DECAY 335MS · LEVEL 90% |
 | <img src="../screens/drums-step.png" width="96" alt="DRUMS STEP"> | DRUMS | ARP | STEP | `ON VOX ACC ROLL P M UNDO RNDMZR` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | <img src="../screens/drums-vary.png" width="96" alt="DRUMS VARY"> | DRUMS | ARP | VARY | `ON VOX ACC ROLL P M UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
-| <img src="../screens/drums-kit.png" width="96" alt="DRUMS KIT"> | DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · V.LEN KIT · LEVEL 70% |
+| <img src="../screens/drums-kit.png" width="96" alt="DRUMS KIT"> | DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · V.LEN KIT · LEVEL 95% |
 | <img src="../screens/drums-dist.png" width="96" alt="DRUMS DIST"> | DRUMS | ARP | DIST | `ON VOX ACC ROLL P M UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · RESTART FREE |
-| <img src="../screens/chord-play.png" width="96" alt="CHORD PLAY"> | CHORD | ARP | PLAY | `ON BASS POLY FIT P M UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
+| <img src="../screens/chord-play.png" width="96" alt="CHORD PLAY"> | CHORD | ARP | PLAY | `ON BASS POLY FIT P M UNDO RNDMZR` | MODE BROKEN · TRIG STEP · CHORDS 1 · GATE 72% |
 | <img src="../screens/chord-chord.png" width="96" alt="CHORD CHORD"> | CHORD | ARP | CHORD | `ON BASS POLY FIT P M UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
 | <img src="../screens/chord-voicing.png" width="96" alt="CHORD VOICING"> | CHORD | ARP | VOICING | `ON BASS POLY FIT P M UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
 | <img src="../screens/chord-grid.png" width="96" alt="CHORD GRID"> | CHORD | ARP | GRID | `ON BASS POLY FIT P M UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
 | <img src="../screens/chord-pattern.png" width="96" alt="CHORD PATTERN"> | CHORD | ARP | PATTERN | `ON BASS POLY FIT P M UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
-| <img src="../screens/chord-filter.png" width="96" alt="CHORD FILTER"> | CHORD | ARP | FILTER | `ON BASS POLY FIT P M UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LEVEL 18% |
+| <img src="../screens/chord-filter.png" width="96" alt="CHORD FILTER"> | CHORD | ARP | FILTER | `ON BASS POLY FIT P M UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LEVEL 13% |
 | <img src="../screens/chord-tone.png" width="96" alt="CHORD TONE"> | CHORD | ARP | TONE | `ON BASS POLY FIT P M UNDO RNDMZR` | WAVE SAW · — · LINK OFF · — |
-| <img src="../screens/chord-motion.png" width="96" alt="CHORD MOTION"> | CHORD | ARP | MOTION | `ON BASS POLY FIT P M UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
+| <img src="../screens/chord-motion.png" width="96" alt="CHORD MOTION"> | CHORD | ARP | MOTION | `ON BASS POLY FIT P M UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT STEPS |
 | <img src="../screens/chord-amp.png" width="96" alt="CHORD AMP"> | CHORD | ARP | AMP | `ON BASS POLY FIT P M UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
 | <img src="../screens/chord-harmony.png" width="96" alt="CHORD HARMONY"> | CHORD | ARP | HARMONY | `ON BASS POLY FIT P M UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
-| <img src="../screens/mix.png" width="96" alt="MIX LEVEL"> | MIX | GLO | LEVEL | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 42% · CHORD 18% · DRUMS 70% |
+| <img src="../screens/mix.png" width="96" alt="MIX LEVEL"> | MIX | GLO | LEVEL | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 75% · CHORD 13% · DRUMS 95% |
 | <img src="../screens/mix-delay.png" width="96" alt="MIX DELAY"> | MIX | GLO | DELAY | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 0% · CHORD 60% · DRUMS 25% |
 | <img src="../screens/mix-reverb.png" width="96" alt="MIX REVERB"> | MIX | GLO | REVERB | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 20% · CHORD 60% · DRUMS 25% |
 

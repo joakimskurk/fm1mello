@@ -1609,6 +1609,22 @@ inspired by skurkybeats (jhf.no).
   time; IDM sometimes the hat on 12 (threes against the fours) and the glitch on 7, BAR; every other style KIT.
   A drum ROLL rolls each voice over its own length. Test: drum_poly.
 
+## The tempo is the player's; a roll lands on the one (2026-11-04)
+
+From the workshop (a simulated one: musicians, users, a developer): a tap of RNDMZR in the middle of a set moved
+the tempo from 128 to 96. The product owner: "the tempo shall never be rolled".
+
+- **The tempo is never rolled**: not by a STYLE roll, not by a part (TEMPO is gone from the parts on RNDMZR held:
+  six keys now), and UNDO leaves the tempo as it is (the snapshot still keeps the project; the tempo is put back
+  after the swap). The styles' tempo ranges in the tables above are now what each style suits, not what it sets.
+- **A roll lands on the one.** Playing, RNDMZR's roll (the band, a part, or the lead by INT) waits for the next
+  bar's one (every 16th pulse from the start) and lands there, as a slot does at the loop's end; the style it will
+  be is chosen at the press and shown (ON THE ONE), and RNDMZR stays lit until it lands. Another press before then
+  replaces it; UNDO takes it back; a stop plays it at once. Stopped, at once, as before. Test: roll_on_the_one.
+- The manual's defaults checked against the code (a dump of every page's K1-K4): BASS LEVEL 75%, CHORD PLAY BROKEN /
+  STEP / one chord, CHORD LEVEL 13%, NEXT STEPS, the kit's LEVEL 95%, MIX; the install line (it named f55, and
+  `make screens` takes the splash's version from it); the chords' notes out (on the lead's channel).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

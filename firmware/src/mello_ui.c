@@ -1181,10 +1181,10 @@ static void rec_key_poll(MelloUi *ui, uint32_t now_ms)
 
 static void perform_key(MelloUi *ui, uint32_t now_ms, uint8_t w);
 /* RNDMZR held: the white keys 1-7 roll one part of the band each (DECISIONS "One part at a time") */
-#define ROLL_PARTS 7u
-static const char *const ROLL_PART_NAMES[ROLL_PARTS] = {"LEAD", "BASS", "DRUMS", "KIT", "CHORDS", "SOUND", "TEMPO"};
-static const uint8_t ROLL_PART_BITS[ROLL_PARTS] = {MELLO_PART_LEAD,   MELLO_PART_BASS,  MELLO_PART_DRUMS, MELLO_PART_KIT,
-                                                   MELLO_PART_CHORDS, MELLO_PART_SOUND, MELLO_PART_TEMPO};
+#define ROLL_PARTS 6u /* (no TEMPO: the tempo is never rolled) */
+static const char *const ROLL_PART_NAMES[ROLL_PARTS] = {"LEAD", "BASS", "DRUMS", "KIT", "CHORDS", "SOUND"};
+static const uint8_t ROLL_PART_BITS[ROLL_PARTS] = {MELLO_PART_LEAD, MELLO_PART_BASS,   MELLO_PART_DRUMS,
+                                                   MELLO_PART_KIT,  MELLO_PART_CHORDS, MELLO_PART_SOUND};
 static void ui_roll_part(MelloUi *ui, MelloEngine *e, uint8_t w, uint32_t now_ms);
 static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t held_buttons,
                               uint8_t note_index)
@@ -2612,13 +2612,13 @@ static void adjust_presets(MelloUi *ui, int16_t delta)
 static void show_readout(MelloUi *ui, uint8_t what, uint32_t now_ms);
 static void ui_roll(MelloUi *ui, MelloEngine *e, uint32_t now_ms)
 {
+    /* playing, on the next bar's one (RNDMZR lit until then; UNDO takes it back) */
     if (ui->random_style != MELLO_STYLE_OFF) {
-        (void)mello_engine_style_roll(e, ui->random_style);
-        if (ui->transport) mello_transport_set_bpm(ui->transport, e->project.bpm); /* the style's tempo */
+        (void)mello_engine_style_roll_at_bar(e, ui->random_style, MELLO_PART_ALL);
         show_readout(ui, MELLO_UI_READOUT_STYLE, now_ms);
         ui->dirty |= MELLO_UI_DIRTY_ALL;
     } else
-        mello_engine_randomize_steps_intensity(e, ui->random_intensity);
+        mello_engine_randomize_at_bar(e, ui->random_intensity);
 }
 
 /* One part rolled again, in the style that plays (STYLE OFF: the last style rolled, or any) */
@@ -2627,8 +2627,7 @@ static void ui_roll_part(MelloUi *ui, MelloEngine *e, uint8_t w, uint32_t now_ms
     uint8_t style = ui->random_style != MELLO_STYLE_OFF ? ui->random_style
                     : e->style_now ? e->style_now : MELLO_STYLE_ANY;
     if (w >= ROLL_PARTS) return;
-    (void)mello_engine_style_roll_parts(e, style, ROLL_PART_BITS[w]);
-    if (ROLL_PART_BITS[w] == MELLO_PART_TEMPO && ui->transport) mello_transport_set_bpm(ui->transport, e->project.bpm);
+    (void)mello_engine_style_roll_at_bar(e, style, ROLL_PART_BITS[w]);
     ui->rndmzr_part = true;
     show_readout(ui, MELLO_UI_READOUT_STYLE, now_ms);
     ui->dirty |= MELLO_UI_DIRTY_ALL;
@@ -3127,8 +3126,10 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
         mark_edit(ui);
         break;
     case MELLO_CTX_UNDO:
-        if (mello_engine_undo_swap(e)) {
-            if (ui->transport) mello_transport_set_bpm(ui->transport, e->project.bpm); /* (a STYLE roll's tempo) */
+        if (e->roll_wait) { /* a roll waiting for the one: taken back before it lands */
+            mello_engine_roll_cancel(e);
+            ui->dirty |= MELLO_UI_DIRTY_ALL;
+        } else if (mello_engine_undo_swap(e)) {
             persistent_dirty(ui, now_ms);
             mark_edit(ui);
         }
@@ -3663,6 +3664,10 @@ void mello_ui_tick(MelloUi *ui)
                 ui->dirty |= MELLO_UI_DIRTY_BODY;
             }
         }
+    }
+    if (ui->seen_roll_wait != e->roll_wait) { /* RNDMZR's roll asked for, or landed on the one */
+        ui->seen_roll_wait = e->roll_wait;
+        ui->dirty |= MELLO_UI_DIRTY_ALL;
     }
     run = ui->transport->running ? 1u : 0u;
     step_changed = ui->seen_step != ui->transport->display_step;
@@ -5230,6 +5235,7 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     switch (v) {
     case MELLO_CTX_DOT_TOGGLE: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].off ? 0 : 1;
     case MELLO_CTX_BASS_SEQ: return e->bass.on ? 1 : 0;
+    case MELLO_CTX_HOME_RANDOM: return e->roll_wait ? 1 : 0; /* a roll waiting for the one */
     case MELLO_CTX_DOT_FOLLOW: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].follow ? 1 : 0;
     case MELLO_CTX_DOT_RESET: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].reset ? 1 : 0;
     case MELLO_CTX_DOT_REVERSE:
@@ -7097,8 +7103,10 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
         label = "RANDOM";
         (void)copy_s(val, random_intensity_name(ui->random_intensity));
     } else if (ui->readout == MELLO_UI_READOUT_STYLE && e) {
-        label = "STYLE";
-        (void)copy_s(val, mello_style_name(e->style_now));
+        label = e->roll_wait ? "ON THE ONE" : "STYLE"; /* a roll waiting for the bar's one */
+        (void)copy_s(val, e->roll_wait == 2u  ? "LEAD"
+                          : e->roll_wait == 1u ? mello_style_name(e->roll_style)
+                                               : mello_style_name(e->style_now));
     } else if (ui->readout == MELLO_UI_READOUT_PATTERN && e) {
         label = "PATTERN";
         q = copy_s(val, "SLOT ");

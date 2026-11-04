@@ -3,8 +3,9 @@
 /* One part at a time (DECISIONS "One part at a time"). The engine: after a TECHNO roll, each part rolled alone in the
  * style that plays changes that part and nothing else (BASS: the line and its sound, the chords' degrees following
  * it so the bass is still in the chord; DRUMS: the beat, not the kit's sound; KIT: the sound, not the beat; LEAD,
- * CHORDS, SOUND, TEMPO). The UI: RNDMZR held and a white key rolls that part alone, letting go then does nothing
- * more; held half a second with no key, the RANDOM page; a tap, the whole band. */
+ * CHORDS, SOUND; never the tempo). The UI: RNDMZR held and a white key rolls that part alone, letting go then does nothing
+ * more; held half a second with no key, the RANDOM page; a tap, the whole band; playing, on the next bar's one, and UNDO
+ * before then takes it back. */
 #include <stdio.h>
 #include <string.h>
 
@@ -77,6 +78,10 @@ static void engine_part(void)
         was = e;
         CHECK(mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_BASS) == MELLO_STYLE_TECHNO,
               "a part rolled with ANY left the style that plays");
+        { /* (TECHNO's bass has few dice: a roll may give the same line; a few more) */
+            uint8_t k;
+            for (k = 0u; k < 4u && SAME(bass); ++k) (void)mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_BASS);
+        }
         CHECK(!SAME(bass) && SAME(project.steps) && SAME(drums) && SAME(fx) && SAME(sound) &&
                   e.project.bpm == was.project.bpm,
               "BASS changed more than the bass");
@@ -103,9 +108,9 @@ static void engine_part(void)
         (void)mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_SOUND);
         CHECK(SAME(project.steps) && SAME(bass) && SAME(drums) && !(SAME(sound) && SAME(fx)), "SOUND not the sound alone");
         was = e;
-        (void)mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_TEMPO);
-        CHECK(SAME(project.steps) && SAME(bass) && e.project.bpm >= 124u && e.project.bpm <= 132u,
-              "TEMPO: %u BPM, or more than the tempo", e.project.bpm);
+        (void)mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_ALL);
+        CHECK(e.project.bpm == was.project.bpm, "a roll of everything changed the tempo (%u, was %u)", e.project.bpm,
+              was.project.bpm);
 #if MELLO_FEATURE_CHORD_MACHINE
         was = e;
         (void)mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_CHORDS);
@@ -161,6 +166,30 @@ static void ui_part(void)
     mello_ui_input(&u, 3800000u, 3800u, 0u, 0u, 0u, 0u, enc);
     CHECK(u.page == MELLO_UI_RANDOM && !memcmp(lead, t.engine.project.steps, sizeof lead),
           "a long hold did not open RANDOM, or rolled");
+
+    /* playing: a tap waits for the one, RNDMZR lit; UNDO before then takes it back, and nothing lands */
+    {
+        uint32_t undo = 1u << black_note(9u), us;
+        mello_ui_set_page(&u, MELLO_UI_HOME);
+        mello_transport_start(&t, 4000000u);
+        mello_transport_poll_ahead(&t, 4200000u, MELLO_TRANSPORT_LOOKAHEAD_US); /* a few pulses into the bar */
+        memcpy(lead, t.engine.project.steps, sizeof lead);
+        mello_ui_set_held_notes(&u, rnd);
+        mello_ui_input(&u, 4210000u, 4210u, 0u, 0u, 0u, rnd, enc);
+        mello_ui_set_held_notes(&u, 0u);
+        mello_ui_input(&u, 4250000u, 4250u, 0u, 0u, 0u, 0u, enc);
+        CHECK(t.engine.roll_wait && !memcmp(lead, t.engine.project.steps, sizeof lead),
+              "playing, a tap of RNDMZR did not wait for the one");
+        mello_ui_set_held_notes(&u, undo);
+        mello_ui_input(&u, 4300000u, 4300u, 0u, 0u, 0u, undo, enc);
+        mello_ui_set_held_notes(&u, 0u);
+        mello_ui_input(&u, 4350000u, 4350u, 0u, 0u, 0u, 0u, enc);
+        CHECK(!t.engine.roll_wait, "UNDO did not take the waiting roll back");
+        for (us = 4400000u; us < 12000000u; us += 100000u)
+            mello_transport_poll_ahead(&t, us, MELLO_TRANSPORT_LOOKAHEAD_US);
+        CHECK(!memcmp(lead, t.engine.project.steps, sizeof lead), "the roll UNDO took back landed anyway");
+        mello_transport_stop(&t);
+    }
 }
 
 int main(void)

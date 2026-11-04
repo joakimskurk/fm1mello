@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f55.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f73.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -57,8 +57,8 @@ Ten screens, drawn by the firmware itself (`make screens`): what you see, and wh
 | <img src="docs/screens/splash.png" width="240" alt="The splash"> | **Switch on.** The splash shows the version while the project loads from flash. Then HOME. |
 | <img src="docs/screens/home.png" width="240" alt="HOME"> | **HOME.** Sixteen steps as bars: the height is the pitch, the note is written on the bar, the segments A-D sit over them in their colours. Under them the four macros on K1-K4, and at the bottom, over the keys, what the black keys do here. The header reads the key sounding and the length. |
 | <img src="docs/screens/home-playing.png" width="240" alt="HOME, playing"> | **PLAY.** The playing step is bright, the LED blinks on the beat and the header counts the beats to the RESET (`21/32`: the 21st sixteenth of the two bars; with RESET on FREE, the step of the sequence). SELECT is the tempo (shown as you turn it), PRESETS the pattern slot. |
-| <img src="docs/screens/home-rolled.png" width="240" alt="HOME after a roll"> | **RNDMZR**, the last black key. A tap rolls the band in a style (STYLE on the RANDOM page; ANY, a new style each time); UNDO, the key before it, takes the roll back (and again puts it forward). |
-| <img src="docs/screens/rndmzr-held.png" width="240" alt="RNDMZR held"> | **Hold RNDMZR** and a white key rolls one part again, in the style that plays: 1 LEAD, 2 BASS (the line and its sound), 3 DRUMS (the beat), 4 KIT (the drums' sound), 5 CHORDS, 6 SOUND (the lead's colour, the delay, the reverb), 7 TEMPO. Held half a second and let go with no key: the RANDOM page. |
+| <img src="docs/screens/home-rolled.png" width="240" alt="HOME after a roll"> | **RNDMZR**, the last black key. A tap rolls the band in a style (STYLE on the RANDOM page; ANY, a new style each time); playing, the roll lands on the next bar's one (RNDMZR lit until then, the style it will be shown); UNDO, the key before it, takes the roll back (and again puts it forward). |
+| <img src="docs/screens/rndmzr-held.png" width="240" alt="RNDMZR held"> | **Hold RNDMZR** and a white key rolls one part again, in the style that plays: 1 LEAD, 2 BASS (the line and its sound), 3 DRUMS (the beat), 4 KIT (the drums' sound), 5 CHORDS, 6 SOUND (the lead's colour, the delay, the reverb). Held half a second and let go with no key: the RANDOM page. |
 | <img src="docs/screens/home-held-step.png" width="240" alt="A step held"> | **Hold a white key.** That step's pitch, pulses, ratchet and gate come onto K1-K4, its flags (SKIP, ACC, SLD, SUB) onto the first black keys. A tap mutes or unmutes the step. |
 | <img src="docs/screens/home-rec.png" width="240" alt="REC in KEYS"> | **Tap EDIT, then REC.** The keys are a keyboard, lit where the scale has a tone, and REC picks what they write: the sequence, the bass line or the chords. Stopped, each key is the next step; playing, the step under the clock. |
 | <img src="docs/screens/home-macros.png" width="240" alt="HOME, MACROS"> | **Hold EDIT.** MACROS: now each knob picks what it turns, from the performance parameters (RES, ATTACK, RELEASE, DELAY, REVERB, LFO, NOISE, the levels, SWING and more). Tap EDIT to leave; the choice is saved with the project. |
@@ -259,9 +259,10 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   each moves (AMOUNTS); the intensity on K1. MUSICAL rolls a phrase, not noise; GROOVE the same phrase with rolls, ties, ghost
   notes and the rests that answer them. STYLE on K2: with a style (ANY, a new project's, picks one each time and never the
   one before) a tap of RNDMZR rolls the whole band in it, the lead within the mask, the bass line, the beat, the
-  chords, the tempo and some of the sound: AMBIENT, DUB, TRIPHOP, TECHNO, ACID, ELECTRO, BREAKS, IDM, HOUSE, DEEP,
+  chords and some of the sound (never the tempo: that is the player's, and UNDO leaves it too): AMBIENT, DUB, TRIPHOP, TECHNO, ACID, ELECTRO, BREAKS, IDM, HOUSE, DEEP,
   MINIMAL, JUNGLE, DRONE, OUTRUN, GLITCH, its name shown
-  as it lands. OFF rolls the lead alone, as INT says. UNDO takes a roll back whole.
+  as it lands. OFF rolls the lead alone, as INT says. Playing, every roll of RNDMZR waits for the next bar's one;
+  UNDO before then takes it back. UNDO takes a roll back whole.
 
 ## Every page's knobs and keys
 
@@ -300,7 +301,7 @@ K1-K4 with their default values.
 | BASS | ARP | PLAY | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
 | BASS | ARP | SEQ | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
 | BASS | ARP | STEP | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
-| BASS | ARP | FILTER | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | CUT 242.0HZ · RES 0% · ENV 0% · LEVEL 42% |
+| BASS | ARP | FILTER | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | CUT 242.0HZ · RES 0% · ENV 0% · LEVEL 75% |
 | BASS | ARP | VOICE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | WAVE SINE · DECAY 160MS · RELEASE 120MS · DRIVE 0% |
 | BASS | ARP | TONE | `ON SEQ ROLL PERF MUT UNDO RNDMZR` | GLIDE 20MS · OCT -1 · F.DEC 300MS · ACCENT 50% |
 | GLOBAL | GLO | CLOCK | `TAP RST2 PERF MUT UNDO RNDMZR` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
@@ -328,19 +329,19 @@ K1-K4 with their default values.
 | DRUMS | ARP | VOICE | `ON VOX ACC ROLL P M UNDO RNDMZR` | TONE 25% · TUNE 40% · DECAY 335MS · LEVEL 90% |
 | DRUMS | ARP | STEP | `ON VOX ACC ROLL P M UNDO RNDMZR` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | DRUMS | ARP | VARY | `ON VOX ACC ROLL P M UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
-| DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · V.LEN KIT · LEVEL 70% |
+| DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · V.LEN KIT · LEVEL 95% |
 | DRUMS | ARP | DIST | `ON VOX ACC ROLL P M UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · RESTART FREE |
-| CHORD | ARP | PLAY | `ON BASS POLY FIT P M UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
+| CHORD | ARP | PLAY | `ON BASS POLY FIT P M UNDO RNDMZR` | MODE BROKEN · TRIG STEP · CHORDS 1 · GATE 72% |
 | CHORD | ARP | CHORD | `ON BASS POLY FIT P M UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
 | CHORD | ARP | VOICING | `ON BASS POLY FIT P M UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |
 | CHORD | ARP | GRID | `ON BASS POLY FIT P M UNDO RNDMZR` | MODE HORIZ · LENGTH 16 · DEPTH 100% · FOLLOW OFF |
 | CHORD | ARP | PATTERN | `ON BASS POLY FIT P M UNDO RNDMZR` | MASK 1 · LENGTH 8 · — · — |
-| CHORD | ARP | FILTER | `ON BASS POLY FIT P M UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LEVEL 18% |
+| CHORD | ARP | FILTER | `ON BASS POLY FIT P M UNDO RNDMZR` | CUT 783.0HZ · RES 18% · ENV 22% · LEVEL 13% |
 | CHORD | ARP | TONE | `ON BASS POLY FIT P M UNDO RNDMZR` | WAVE SAW · — · LINK OFF · — |
-| CHORD | ARP | MOTION | `ON BASS POLY FIT P M UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT TRIG |
+| CHORD | ARP | MOTION | `ON BASS POLY FIT P M UNDO RNDMZR` | F.ATK 8MS · F.DEC 700MS · — · NEXT STEPS |
 | CHORD | ARP | AMP | `ON BASS POLY FIT P M UNDO RNDMZR` | ATTACK 40MS · DECAY 900MS · SUSTAIN 75% · RELEASE 900MS |
 | CHORD | ARP | HARMONY | `ON BASS POLY FIT P M UNDO RNDMZR` | FOLLOW OFF · DRIFT 0% · DEPTH ALL · — |
-| MIX | GLO | LEVEL | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 42% · CHORD 18% · DRUMS 70% |
+| MIX | GLO | LEVEL | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 75% · CHORD 13% · DRUMS 95% |
 | MIX | GLO | DELAY | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 0% · CHORD 60% · DRUMS 25% |
 | MIX | GLO | REVERB | `LD BS CH DR PERF MUT UNDO RNDMZR` | LEAD 100% · BASS 20% · CHORD 60% · DRUMS 25% |
 
@@ -354,7 +355,7 @@ a slot for the next bar. 64 slots, all full, fit the bank.
 MIDI in comes over USB and over the FM-1's TRS jack (Dinghy 0.4's parser: channel messages, clock and transport;
 SysEx only over USB); MIDI out goes over USB. With SYNC set to SLAVE (GLOBAL > CLOCK) the sequencer follows clock,
 start, continue and stop from either input; notes in are not played (the sequencer is the player). Notes out go for
-the lead and the bass on their channels (NOTE OUT) and for the drums on channel 10 as General MIDI. In the emulators
+the lead and the bass on their channels (NOTE OUT), the chords on the lead's, and for the drums on channel 10 as General MIDI. In the emulators
 MIDI arrives through the jack: fm1-emu's `--keys 'T:midi:903c64'` and the web emulator's MIDI in both feed UART1, so
 from 0.5-f28 on SkurkyMello hears them.
 

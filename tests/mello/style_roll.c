@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (C) 2026 joakimskurk */
 /* STYLE (DECISIONS "STYLE"): RNDMZR rolls the band in a style. Each style has its marks: AMBIENT a drone under a
- * slow pad and no kick (DRONE no drums, JUNGLE fast); DUB, TECHNO, HOUSE and DEEP a kick on every beat and chords
+ * slow pad and no kick (DRONE no drums); DUB, TECHNO, HOUSE and DEEP a kick on every beat and chords
  * stabbed off the beat; ACID a 303 bass on nearly every sixteenth with glides, no chords; MINIMAL few notes; ELECTRO no chords, hats on every sixteenth; IDM rolls; GLITCH rolls
  * everywhere, pitched drum locks, a folded kit, the bass on a loop of 11 to 15; TRIPHOP and BREAKS
  * held chords. Where chords and a bass line play together, the bass's note is in the chord (the chords are read
@@ -80,7 +80,6 @@ int main(void)
                 CHECK(e.sub.mode == MELLO_SUB_MODE_DRONE && !e.bass.on, "%s: no drone", nm);
                 if (st == MELLO_STYLE_AMBIENT) CHECK(e.drums.hits[MELLO_DRUM_KICK] == 0u, "AMBIENT: a kick");
                 if (st == MELLO_STYLE_DRONE) CHECK(!e.drums.on, "DRONE: drums");
-                if (st == MELLO_STYLE_JUNGLE) CHECK(e.project.bpm >= 164u, "JUNGLE at %u BPM", e.project.bpm);
 #if MELLO_FEATURE_CHORD_MACHINE
                 CHECK(e.chord.on && e.chord.poly && e.chord.mode == MELLO_CHORD_HOLD && e.chord.sub_root &&
                           e.chord.attack_ms >= 400u,
