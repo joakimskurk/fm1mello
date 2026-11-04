@@ -314,6 +314,9 @@ typedef struct {
      * goes to the delay and to the reverb, 0..1000, before the effect's own WET */
     uint16_t send_dly[MELLO_SEND_PARTS];
     uint16_t send_rev[MELLO_SEND_PARTS];
+    /* TRIM (FX > REVERB RETURNS, K4): the whole output by -6..+6 dB, before the limiter; a STYLE roll sets it so the
+     * styles sit at one level (DECISIONS "The styles' level") */
+    int8_t trim_db;
 } MelloFxConfig;
 
 typedef struct {

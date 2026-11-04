@@ -322,6 +322,7 @@ typedef struct {
     uint8_t perf_fx;
     uint32_t sweep_pos[2];
     int32_t sweep_f[2], sweep_mix[2]; /* their coefficients, worked out every 16 samples */
+    int32_t sweep_band; /* 0..4096: LP SWP's output from low-pass to band-pass, while HP SWP is held with it */
     int32_t sweep_s[2][2][2];
     int32_t throw_q12, wash_q12;
     uint32_t perf_tail;

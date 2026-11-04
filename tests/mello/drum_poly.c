@@ -124,6 +124,11 @@ int main(void)
         memcpy(d.vlen, lens, sizeof d.vlen);
         d.bar_reset = true;
         mello_engine_drums_set_config(&e, &d);
+        {
+            MelloFxConfig f = e.fx; /* (and FX's TRIM, SEC_FX v6, with them) */
+            f.trim_db = -3;
+            mello_engine_fx_set_config(&e, &f);
+        }
         mello_storage_init(&s, &io, NULL);
         mello_storage_request_save(&s, t);
         for (; t <= 30000u && w != MELLO_STORAGE_SAVE_WRITTEN; t += 100u) w = mello_storage_poll(&s, &e, t, true);
@@ -133,6 +138,7 @@ int main(void)
         mello_storage_init(&s, &io, NULL);
         r = mello_storage_load(&s, &e);
         (void)r;
+        CHECK(e.fx.trim_db == -3, "TRIM read back as %d", e.fx.trim_db);
         CHECK(!memcmp(e.drums.vlen, lens, sizeof lens) && e.drums.bar_reset && e.drum_wrap == 336u,
               "read back: %u %u %u %u, BAR %d", e.drums.vlen[0], e.drums.vlen[1], e.drums.vlen[2], e.drums.vlen[3],
               (int)e.drums.bar_reset);

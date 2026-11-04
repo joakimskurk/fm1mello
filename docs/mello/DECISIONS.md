@@ -1625,6 +1625,20 @@ the tempo from 128 to 96. The product owner: "the tempo shall never be rolled".
   STEP / one chord, CHORD LEVEL 13%, NEXT STEPS, the kit's LEVEL 95%, MIX; the install line (it named f55, and
   `make screens` takes the splash's version from it); the chords' notes out (on the lead's channel).
 
+## The styles' level; LP and HP together (2026-11-04, the workshop's wave 2)
+
+- **TRIM** (FX > REVERB RETURNS, K4, where nothing was): the whole output by -6..+6 dB in whole dB, on MASTER's
+  ramp before the limiter (10^(dB/20) in Q12 from a table, outside the sample loop). Saved: SEC_FX v6 (older: 0 dB).
+- **A STYLE roll of the band sets TRIM** so the styles sit at one level: measured with four seeds each at 120 BPM
+  (8 s, the first 2 s left out), they spread from -10.6 (AMBIENT, IDM) to -15.3 dBFS (MINIMAL); with AMBIENT -2,
+  TRIPHOP -1, ACID +1, ELECTRO -1, BREAKS +1, IDM -2, HOUSE +1, DEEP -1, MINIMAL +2, JUNGLE +1, DRONE +2 (the
+  others 0) they sit at -12.6 .. -13.4. The mix's faders stay the player's: a roll never moves them. A part rolled
+  alone leaves TRIM.
+- **LP SWP and HP SWP held together** closed on each other into near silence. Now LP SWP's filter gives its band
+  (the state variable filter's band output, by 4/5 for the damping's 1.25): a resonant band gliding down, while HP
+  SWP opens out of the way; the change fades over ~10 ms each way. Held to the end, the mix is 8 dB under itself,
+  not gone (perform_keys).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

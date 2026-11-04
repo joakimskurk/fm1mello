@@ -4,7 +4,8 @@
  * - ARP: every pulse plays, root, third, fifth, octave of the step's note, round; let go, the sequence as it was.
  * - ACCENT: every lead note accented (121, as an accented step) and every drum hit at 127.
  * - The mutes, playing: asked for, they come in on the next beat (a pulse that is a multiple of 4), not at once.
- * - LP SWP / HP SWP: held, the mix's highs (lows) fall away over the sweep (by 10 dB at least).
+ * - LP SWP / HP SWP: held, the mix's highs (lows) fall away over the sweep (by 10 dB at least); both held, a band
+ *   gliding down, not silence (within 14 dB of the mix).
  * - THROW: with the delay's WET at 0, the music goes into the delay all the same and its echo is heard after;
  *   WASH: so with the reverb. Built with the output's gain at 0 dB (run_mello.sh). */
 #include <math.h>
@@ -93,6 +94,7 @@ static void engine_part(void)
     CHECK((e.perf.mix_mute & 2u) && !e.perf.mute_req, "a mute asked for before STOP was left waiting");
 }
 
+static double held_all; /* the whole mix's energy at the sweep's end (dB) */
 /* 3.6 s of the default pattern; fx held from 1 s to 2.6 s (a sweep closes in 1.5 s); energy per window (dB): highs (diff) and all */
 static void render(uint8_t fx, bool wet_off, double *hi_held, double *all_after, double *lo_held)
 {
@@ -100,7 +102,7 @@ static void render(uint8_t fx, bool wet_off, double *hi_held, double *all_after,
     MelloFxConfig f;
     uint32_t ms, i;
     int32_t out[96], prev = 0;
-    double hh = 0, aa = 0, ll = 0, lp = 0;
+    double hh = 0, aa = 0, ll = 0, lp = 0, ha = 0;
     mello_project_defaults(&p);
     mello_transport_init(&t, &p, 4u, 0, 0);
     f = t.engine.fx;
@@ -122,17 +124,23 @@ static void render(uint8_t fx, bool wet_off, double *hi_held, double *all_after,
             prev = x;
             lp += ((double)x - lp) / 64.0; /* below ~110 Hz */
             if (ms >= 2300u && ms < 2600u) ll += lp * lp;
-            if (ms >= 2300u && ms < 2600u) hh += (double)d * d; /* the sweep at its end */
+            if (ms >= 2300u && ms < 2600u) hh += (double)d * d, ha += (double)x * x; /* the sweep at its end */
             if (ms >= 2900u) aa += (double)x * x;               /* after the music stopped */
         }
     }
+    held_all = 10 * log10(ha + 1);
     *hi_held = 10 * log10(hh + 1), *all_after = 10 * log10(aa + 1), *lo_held = 10 * log10(ll + 1);
 }
 
 static void audio_part(void)
 {
-    double hi0, hi_lp, hi_hp, after0, after_throw, after_wash, lo0, lo_hp, x;
+    double hi0, hi_lp, hi_hp, after0, after_throw, after_wash, lo0, lo_hp, x, all0, all_band;
     render(0u, true, &hi0, &after0, &lo0);
+    all0 = held_all;
+    render(MELLO_PERF_FX_LP | MELLO_PERF_FX_HP, true, &x, &x, &x);
+    all_band = held_all;
+    CHECK(all_band > all0 - 14.0, "LP and HP SWP held together all but silent (%.1f dB against %.1f)", all_band, all0);
+    printf("perform_keys: the mix %.1f dB, with LP and HP SWP held together (a band) %.1f\n", all0, all_band);
     render(MELLO_PERF_FX_LP, true, &hi_lp, &x, &x);
     render(MELLO_PERF_FX_HP, true, &hi_hp, &x, &lo_hp);
     render(MELLO_PERF_FX_THROW, true, &x, &after_throw, &x);

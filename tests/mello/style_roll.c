@@ -67,6 +67,9 @@ int main(void)
             unsigned plays = 0u, rolls = 0u;
             fresh(seed);
             CHECK(mello_engine_style_roll(&e, st) == st && e.style_now == st, "%s: not rolled", nm);
+            CHECK(e.fx.trim_db >= -2 && e.fx.trim_db <= 2 &&
+                      (st != MELLO_STYLE_AMBIENT || e.fx.trim_db == -2) && (st != MELLO_STYLE_MINIMAL || e.fx.trim_db == 2),
+                  "%s: TRIM %d", nm, e.fx.trim_db);
             for (i = 0u; i < 16u; ++i) {
                 const MelloStep *x = &e.project.steps[i];
                 plays += x->gate != MELLO_GATE_REST && !x->skip;

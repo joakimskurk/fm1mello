@@ -377,6 +377,7 @@ static MelloSampleConfig sanitize_sample_config(MelloSampleConfig c)
 
 static MelloFxConfig sanitize_fx_config(MelloFxConfig c)
 {
+    c.trim_db = clamp_i8(c.trim_db, -6, 6);
     c.dist_amount = clamp_amount(c.dist_amount);
     c.dist_mix = clamp_amount(c.dist_mix);
     c.dist_character = clamp_amount(c.dist_character);
@@ -4322,6 +4323,12 @@ uint8_t mello_engine_style_roll_parts(MelloEngine *e, uint8_t style, uint8_t par
         style_chords_follow_bass(e, st);
 #endif
     if (parts & MELLO_PART_SOUND) style_sound(e, st);
+    if (parts == MELLO_PART_ALL) { /* the band's level: the styles measured at 120 BPM, set within 1 dB of -13 dBFS */
+        static const int8_t trim[STYLES] = {-2, 0, -1, 0, 1, -1, 1, -2, 1, -1, 2, 1, 2, 0, 0};
+        MelloFxConfig f = e->fx;
+        f.trim_db = trim[st - MELLO_STYLE_AMBIENT];
+        mello_engine_fx_set_config(e, &f);
+    }
     e->style_now = st;
     sanitize_project(&e->project);
     if (e->playing)

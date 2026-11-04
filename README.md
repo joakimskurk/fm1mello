@@ -122,7 +122,8 @@ where it would have been. FILL rolls the snare, plays every step of the bass lin
 step; ARP plays the lead's note as an arpeggio, root, third, fifth, octave; REVERSE and REPEAT replay the drums, the
 bass line and the chords' figures with the lead; ACCENT accents every note and hit. LP SWP and HP SWP sweep a filter
 over the whole mix (closed in 1.5 s, open again a quarter of a second after); THROW sends everything into the delay
-with its feedback up, WASH into the reverb, and their tails ring on when let go. The MUTEs latch (MIX's): stopped,
+with its feedback up, WASH into the reverb, and their tails ring on when let go. LP SWP and HP SWP held together are a band
+gliding down. The MUTEs latch (MIX's): stopped,
 at once; playing, on the next beat (framed bright until then; a second tap takes it back). Never saved or undone.
 
 ### The white keys, page by page
@@ -221,7 +222,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   (32N to 1 BAR, triplets and dotted; past 1.49 s the line runs at half rate and reaches 2.97 s, a division past
   even that shows a "~" and plays the longest it can) or free, with feedback and LO CUT (120 Hz on a new project);
   PING (B2) sends the echoes left and right in turn (it reads the line at twice the time, so its reach is half)
-  and HI CUT on its echoes, and a reverb with size, decay, pre-delay and tone.
+  and HI CUT on its echoes, and a reverb with size, decay, pre-delay and tone. TRIM (REVERB RETURNS, K4) sets
+  the whole output by -6..+6 dB; a STYLE roll sets it so every style plays at about the same level.
 - **Chords** (ARP > CHORD). A chain of up to eight chords in the key (degree, shape, inversion, spread, octave);
   a new project starts on one, the tonic. B3 FIT makes the chain from what plays: a chord every half bar on the
   bass line's note there (the lead's with the bass off), so the bass is always in the chord; pressed again over the
@@ -321,7 +323,7 @@ K1-K4 with their default values.
 | AUDIO FX | FX | DELAY SEND | `PRE-DIST PING P M UNDO RNDMZR` | WET 12% · FDBK 32% · LO CUT 120HZ · HI CUT 72% |
 | AUDIO FX | FX | DELAY CONFIG | `PRE-DIST PING P M UNDO RNDMZR` | SYNC ON · DIV 8N · TIME 250MS · LEVEL 75% |
 | AUDIO FX | FX | REVERB ROOM | `PRE-DIST PING P M UNDO RNDMZR` | WET 24% · SIZE 70% · DECAY 6.0S · TONE 62% |
-| AUDIO FX | FX | REVERB RETURNS | `PRE-DIST PING P M UNDO RNDMZR` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · — |
+| AUDIO FX | FX | REVERB RETURNS | `PRE-DIST PING P M UNDO RNDMZR` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · TRIM 0 DB |
 | SAMPLE | ENV | MAIN | `ON PERF MUT UNDO RNDMZR` | LEVEL 70% · DIST 0% · TRACK ON · LOOP OFF |
 | SAMPLE | ENV | PITCH | `ON PERF MUT UNDO RNDMZR` | COARSE +0 · FINE +0 · LEVEL 70% · DIST 0% |
 | SAMPLE | ENV | TRIM | `ON PERF MUT UNDO RNDMZR` | START 0% · END 100% · TRACK ON · LOOP OFF |

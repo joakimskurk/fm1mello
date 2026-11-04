@@ -57,7 +57,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/fx-delay-send.png" width="96" alt="AUDIO FX DELAY SEND"> | AUDIO FX | FX | DELAY SEND | `PRE-DIST PING P M UNDO RNDMZR` | WET 12% · FDBK 32% · LO CUT 120HZ · HI CUT 72% |
 | <img src="../screens/fx-delay-config.png" width="96" alt="AUDIO FX DELAY CONFIG"> | AUDIO FX | FX | DELAY CONFIG | `PRE-DIST PING P M UNDO RNDMZR` | SYNC ON · DIV 8N · TIME 250MS · LEVEL 75% |
 | <img src="../screens/fx-reverb-room.png" width="96" alt="AUDIO FX REVERB ROOM"> | AUDIO FX | FX | REVERB ROOM | `PRE-DIST PING P M UNDO RNDMZR` | WET 24% · SIZE 70% · DECAY 6.0S · TONE 62% |
-| <img src="../screens/fx-reverb-returns.png" width="96" alt="AUDIO FX REVERB RETURNS"> | AUDIO FX | FX | REVERB RETURNS | `PRE-DIST PING P M UNDO RNDMZR` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · — |
+| <img src="../screens/fx-reverb-returns.png" width="96" alt="AUDIO FX REVERB RETURNS"> | AUDIO FX | FX | REVERB RETURNS | `PRE-DIST PING P M UNDO RNDMZR` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · TRIM 0 DB |
 | <img src="../screens/sample-main.png" width="96" alt="SAMPLE MAIN"> | SAMPLE | ENV | MAIN | `ON PERF MUT UNDO RNDMZR` | LEVEL 70% · DIST 0% · TRACK ON · LOOP OFF |
 | <img src="../screens/sample-pitch.png" width="96" alt="SAMPLE PITCH"> | SAMPLE | ENV | PITCH | `ON PERF MUT UNDO RNDMZR` | COARSE +0 · FINE +0 · LEVEL 70% · DIST 0% |
 | <img src="../screens/sample-trim.png" width="96" alt="SAMPLE TRIM"> | SAMPLE | ENV | TRIM | `ON PERF MUT UNDO RNDMZR` | START 0% · END 100% · TRACK ON · LOOP OFF |

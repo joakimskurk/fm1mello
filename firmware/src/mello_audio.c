@@ -2138,7 +2138,12 @@ static void apply_pending(MelloAudio *a)
         ramp_to(&a->rp_cut, a->config.filter_cut, 50u, j);
         ramp_to(&a->rp_res, a->config.filter_res, 50u, j);
         /* the gains in Q12 (the reverb return's 1050/1000, reverbReturnGain, folded into its level) */
-        ramp_to(&a->rp_master, permille_q12(a->config.master_level), 50u, j);
+        { /* MASTER with TRIM (-6..+6 dB, 10^(dB/20) in Q12) */
+            static const int16_t TRIM_Q12[13] = {2053, 2304, 2585, 2900, 3254, 3651, 4096,
+                                                 4596, 5157, 5786, 6492, 7284, 8173};
+            int32_t t = a->fx.trim_db < -6 ? -6 : a->fx.trim_db > 6 ? 6 : a->fx.trim_db;
+            ramp_to(&a->rp_master, (permille_q12(a->config.master_level) * TRIM_Q12[t + 6]) >> 12, 50u, j);
+        }
         ramp_to(&a->rp_rev_send, permille_q12(a->reverb_send_permille), 80u, j);
         ramp_to(&a->rp_rev_level, permille_q12((int32_t)a->fx.reverb_level * 1050 / 1000), 80u, j);
         ramp_to(&a->rp_dly_send, permille_q12(a->fx.delay_wet), 100u, j);
@@ -2433,8 +2438,13 @@ static const int32_t SWEEP_F_Q15[2][33] = {
 static void sweep_step(MelloAudio *a, int32_t *l, int32_t *r)
 {
     uint8_t k;
+    /* Both held (DECISIONS "LP and HP together"): the two would close on each other into silence; instead LP SWP's
+     * filter gives its band (a resonant band gliding down) and HP SWP opens out of the way. The change is faded
+     * over ~10 ms each way, so pressing the second key does not click. */
+    bool band = (a->perf_fx & 3u) == 3u;
+    a->sweep_band = band ? (a->sweep_band < 4096 - 8 ? a->sweep_band + 8 : 4096) : (a->sweep_band > 8 ? a->sweep_band - 8 : 0);
     for (k = 0u; k < 2u; ++k) {
-        bool held = (a->perf_fx >> k) & 1u;
+        bool held = ((a->perf_fx >> k) & 1u) && !(band && k == 1u);
         uint32_t pos = a->sweep_pos[k], i, fr;
         int32_t f, mixq, c;
         pos = held ? (pos + SWEEP_UP < SWEEP_FULL ? pos + SWEEP_UP : SWEEP_FULL) : (pos > SWEEP_DOWN ? pos - SWEEP_DOWN : 0u);
@@ -2457,6 +2467,8 @@ static void sweep_step(MelloAudio *a, int32_t *l, int32_t *r)
             s[1] += (int32_t)(((int64_t)f * hp) >> 15);                         /* band */
             s[0] = clamp32(s[0], -262143, 262143), s[1] = clamp32(s[1], -262143, 262143);
             y = k ? hp : s[0];
+            if (!k && a->sweep_band) /* towards the band (with the damping's 1.25 back out of it) */
+                y += (int32_t)(((int64_t)(s[1] * 4 / 5 - y) * a->sweep_band) >> 12);
             *x += (int32_t)(((int64_t)(y - *x) * mixq) >> 12);
         }
     }

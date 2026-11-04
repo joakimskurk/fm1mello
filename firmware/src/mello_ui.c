@@ -2406,6 +2406,8 @@ static void adjust_audio_fx(MelloUi *ui, uint8_t knob, int16_t delta)
             c.reverb_level = (uint16_t)clamp_i32((int32_t)c.reverb_level + delta * 20, 0, 3000);
         else if (knob == 2u)
             c.dist_level = (uint16_t)clamp_i32((int32_t)c.dist_level + delta * 10, 200, 1400);
+        else /* TRIM: the whole output, a dB a detent */
+            c.trim_db = (int8_t)clamp_i32((int32_t)c.trim_db + (delta > 0 ? 1 : -1), -6, 6);
     }
     mello_engine_fx_set_config(e, &c);
     mark_edit(ui);
@@ -5624,6 +5626,7 @@ static bool knob_norm_raw(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 16: v = f->reverb_pre_ms, m = 120u; break;
         case 17: v = f->reverb_level, m = 3000u; break;
         case 18: v = f->dist_level, m = 1400u; break;
+        case 19: v = (uint32_t)(f->trim_db + 6), m = 12u; break;
         default: return false;
         }
     } else if (ui->page == MELLO_UI_SEQ_STEP) { /* the ranges as each adjust_* clamps them */
@@ -6384,7 +6387,11 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
             value_pct(v[1], e->fx.reverb_level);
             l[2] = "D.LEVEL";
             value_pct(v[2], e->fx.dist_level);
-            copy_s(v[3], "-");
+            l[3] = "TRIM";
+            {
+                char *q = e->fx.trim_db > 0 ? copy_s(v[3], "+") : v[3];
+                (void)copy_s(put_i32(q, e->fx.trim_db), " DB");
+            }
         }
         break;
     case MELLO_UI_DRUMS: {
@@ -7064,7 +7071,7 @@ static const char *full_label(const char *l)
         {"DEC", "DECAY"},         {"SUS", "SUSTAIN"},      {"REL", "RELEASE"},
         {"PWM", "PULSE WIDTH"},   {"FDBK", "FEEDBACK"},    {"AMT", "AMOUNT"},
         {"CHAR", "CHARACTER"},    {"RATCH", "RATCHET"},    {"OCT", "OCTAVE"},
-        {"PRE", "PRE-DELAY"},     {"DIV", "DIVISION"},     {"D.LEVEL", "DIST LEVEL"},
+        {"PRE", "PRE-DELAY"},     {"DIV", "DIVISION"},     {"D.LEVEL", "DIST LEVEL"}, {"TRIM", "OUTPUT TRIM"},
         {"SUBOSC", "SUB OSC"},    {"PROB", "PROBABILITY"}, {"LEN", "LENGTH"},
         {"DEP", "DEPTH"},         {"ACC", "ACCENT"},       {"V.CUT", "VEL > CUTOFF"},
         {"V.LVL", "VEL > LEVEL"}, {"KEYTRK", "KEY TRACK"}, {"V.ENV", "VEL > MOD ENV"},
