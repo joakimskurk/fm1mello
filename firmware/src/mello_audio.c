@@ -1916,9 +1916,9 @@ static int32_t delay_read(MelloAudio *a, int32_t delay_q8, int32_t lc[2])
         /* The two one-poles' states in Q8, their output rounded: in Q0 the shift floored, a few LSB stayed in the
          * feedback for ever and the unit never counted as silent (autosave never ran; audio_silence_regression). */
         int32_t k = a->delay_lc_k;
-        lc[0] += (int32_t)(((int64_t)((d << 8) - lc[0]) * k) >> 15);
+        lc[0] += (int32_t)(((int64_t)(d * 256 - lc[0]) * k) >> 15); /* (* 256: a shift of a negative is undefined) */
         d -= (lc[0] + 128) >> 8;
-        lc[1] += (int32_t)(((int64_t)((d << 8) - lc[1]) * k) >> 15);
+        lc[1] += (int32_t)(((int64_t)(d * 256 - lc[1]) * k) >> 15);
         d -= (lc[1] + 128) >> 8;
     }
     return d;
