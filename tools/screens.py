@@ -29,8 +29,8 @@ W = H = 240
 # Dinghy's panel ids (platform.c), the same as MelloUiButton / MelloUiEncoder
 OCT_DOWN, OCT_UP, FX, SEL, ENV, LFO, EDIT, GLO, HOME, SAVE, ARP, SEQ, PLAY, REC = range(14)
 ENC_SELECT = 0
-B10 = 1 << 25  # the last black key, RNDMZR: key 25 of the 27 the UI counts (16 white, 11 black)
-B5 = 1 << 13  # PERF: the sixth black key
+B9 = 1 << 22  # RNDMZR, the black key before PERF (2026-11-04): key 22 of the 27 the UI counts (16 white, 11 black)
+B10 = 1 << 25  # PERF: the last black key (2026-11-04)
 WHITE3 = 1 << 4  # the third white key (E)
 
 GAP = 80  # ms between two inputs
@@ -124,8 +124,8 @@ def the_tour():
     t.btn(SEQ)
     t.shot("slotseq", "SLOT SEQ", "—")
 
-    # RANDOM: RNDMZR (B10) held; SELECT toggles LINKS; EDIT is the amounts
-    t.keys(B10, 700)
+    # RANDOM: RNDMZR (B9) held; SELECT toggles LINKS; EDIT is the amounts
+    t.keys(B9, 700)
     t.shot("random-mask", "RANDOM", "MASK")
     t.sel()
     t.shot("random-links", "RANDOM", "LINKS")
@@ -187,7 +187,7 @@ def the_tour():
     t.btn(PLAY)
     t.wait(2600)
     t.shot("home-playing", None, None, "PLAY: the playing step bright, the LED on the beat", settle=0)
-    t.keys(B10, 120)  # a tap on RNDMZR: a roll
+    t.keys(B9, 120)  # a tap on RNDMZR: a roll
     t.shot("home-rolled", None, None, "RNDMZR tapped: a new sequence from the RANDOM page's mask", settle=700)
     t.keys_down(WHITE3)
     t.shot("home-held-step", None, None, "A white key held: that step's pitch, pulses, ratchet and gate on the knobs")
@@ -202,14 +202,14 @@ def the_tour():
     t.sel()  # DIST was left open: round to VOICE
     t.shot("drums-playing", None, None, "ARP > DRUMS while playing")
     t.btn(HOME)
-    t.keys(B5, 120)  # PERF tapped: PERFORM stays open
-    t.shot("perform", "PERFORM", "—", "B5 PERF: the white keys are the performance actions, on every part")
+    t.keys(B10, 120)  # PERF tapped: PERFORM stays open
+    t.shot("perform", "PERFORM", "—", "B10 PERF: the white keys are the performance actions, on every part")
     t.btn(HOME)
-    t.keys_down(B10)  # RNDMZR held: the parts the white keys roll
+    t.keys_down(B9)  # RNDMZR held: the parts the white keys roll
     t.wait(400)
     t.shot("rndmzr-held", "RNDMZR held", "—", "RNDMZR held: a white key rolls one part, in the style that plays",
            settle=0)
-    t.keys(B10 | 1, 120)  # (white key 1, LEAD: so letting go opens no page)
+    t.keys(B9 | 1, 120)  # (white key 1, LEAD: so letting go opens no page)
     t.btn(HOME)
     t.btn(LFO)
     t.btn(LFO)  # DOT, on its first matrix (ACCENT)

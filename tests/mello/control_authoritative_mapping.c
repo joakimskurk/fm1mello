@@ -15,29 +15,29 @@ typedef struct {
 } MapCase;
 
 static const MapCase cases[] = {
-    {"HOME", MELLO_UI_HOME, "B0:- B1:+ B3:RST B4:CLR B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"STEP", MELLO_UI_SEQ_STEP, "B1:SKIP B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B0:EVEN B1:A B2:B B3:C B4:D B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"LOOP", MELLO_UI_SEQ_LOOP, "B0:ON B1:RST B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B0:ON B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"RANDOM", MELLO_UI_RANDOM, "B0:NONE B1:ALL B2:CLR B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"SLOTS", MELLO_UI_SLOTS, "B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"DOT", MELLO_UI_DOT, "B0:ON B1:RND B2:RST B3:FLW B4:REV B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B2:LOOP B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"SUB", MELLO_UI_SUB, "B0:ON B1:SEQ B2:ROLL B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"HOME", MELLO_UI_HOME, "B0:- B1:+ B3:RST B4:CLR B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"STEP", MELLO_UI_SEQ_STEP, "B1:SKIP B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"SEGMENT", MELLO_UI_SEQ_SEGMENT, "B0:EVEN B1:A B2:B B3:C B4:D B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"LOOP", MELLO_UI_SEQ_LOOP, "B0:ON B1:RST B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, "B0:ON B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"RANDOM", MELLO_UI_RANDOM, "B0:NONE B1:ALL B2:CLR B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"KEY/SCALE", MELLO_UI_KEY_SCALE, "B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"SLOTS", MELLO_UI_SLOTS, "B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"DOT", MELLO_UI_DOT, "B0:ON B1:RND B2:RST B3:FLW B4:REV B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"TURING", MELLO_UI_TURING, "B0:ON B1:RND B2:LOOP B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"SUB", MELLO_UI_SUB, "B0:ON B1:SEQ B2:ROLL B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
 #if MELLO_FEATURE_CHORD_MACHINE
-    {"CHORD", MELLO_UI_CHORD, "B0:ON B1:BASS B2:POLY B3:FIT B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"CHORD", MELLO_UI_CHORD, "B0:ON B1:BASS B2:POLY B3:FIT B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
 #endif
-    {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B2:RST2 B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"SOUND", MELLO_UI_SOUND_RESERVED, "B1:INIT B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B1:PRE-DIST B2:PING B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
-    {"DRUMS", MELLO_UI_DRUMS, "B0:ON B1:VOX B2:ACC B3:ROLL B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"GLOBAL", MELLO_UI_GLOBAL, "B1:TAP B2:RST2 B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"SOUND", MELLO_UI_SOUND_RESERVED, "B1:INIT B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"AUDIO FX", MELLO_UI_AUDIO_FX, "B1:PRE-DIST B2:PING B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"SAMPLE", MELLO_UI_SAMPLE_RESERVED, "B0:ON B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
+    {"DRUMS", MELLO_UI_DRUMS, "B0:ON B1:VOX B2:ACC B3:ROLL B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
 #if MELLO_FEATURE_CHORD_MACHINE
-    {"MIX", MELLO_UI_MIX, "B0:LD B1:BS B2:CH B3:DR B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"MIX", MELLO_UI_MIX, "B0:LD B1:BS B2:CH B3:DR B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
 #else
-    {"MIX", MELLO_UI_MIX, "B0:LD B1:BS B3:DR B5:PERF B6:MUT B9:UNDO B10:RNDMZR"},
+    {"MIX", MELLO_UI_MIX, "B0:LD B1:BS B3:DR B6:MUT B8:UNDO B9:RNDMZR B10:PERF"},
 #endif
 };
 
@@ -224,11 +224,11 @@ static void verify_b5_from_every_advertised_page(void)
         MelloTransport t;
         MelloStorage st;
         MelloUi u;
-        if (!has_slot(cases[i].hint, 10u)) continue; /* RNDMZR: the last black key */
+        if (!has_slot(cases[i].hint, 9u)) continue; /* RNDMZR: B9, beside PERF (2026-11-04) */
         setup(&p, &t, &st, &u, cases[i].page);
         { /* RNDMZR: a tap rolls the pattern, held 0.5 s and let go with no part key it opens RANDOM */
             int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
-            uint32_t note = bit_u32(black_note(10u));
+            uint32_t note = bit_u32(black_note(9u));
             MelloProject before = t.engine.project;
             mello_ui_set_held_notes(&u, note);
             mello_ui_input(&u, 100000u, 100u, 0u, 0u, 0u, note, enc);
@@ -238,7 +238,7 @@ static void verify_b5_from_every_advertised_page(void)
             if (u.page != MELLO_UI_RANDOM) die(cases[i].name, "held RNDMZR did not open RANDOM");
             setup(&p, &t, &st, &u, cases[i].page);
             before = t.engine.project;
-            black(&u, 100u, 10u);
+            black(&u, 100u, 9u);
             if (!memcmp(&before.steps, &t.engine.project.steps, sizeof before.steps) &&
                 cases[i].page != MELLO_UI_RANDOM)
                 die(cases[i].name, "a tap on RNDMZR did not roll");

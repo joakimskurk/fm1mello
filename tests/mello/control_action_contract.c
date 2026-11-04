@@ -173,7 +173,7 @@ static void verify_context_actions(void)
     setup(&p, &t, &st, &u, MELLO_UI_RANDOM);
     before = t.engine;
     st.dirty = false;
-    black(&u, 100u, 10u); /* RNDMZR: the same key on every page, the last */
+    black(&u, 100u, 9u); /* RNDMZR: the same key on every page, B9 (2026-11-04) */
     if (!memcmp(&before, &t.engine, sizeof before) || !st.dirty) fail("RANDOM B5", "RNDMZR did not reroll");
     t.engine.project.steps[0].pitch = 9;
     st.dirty = false;
@@ -302,7 +302,7 @@ static void verify_random_navigation(void)
     setup(&p, &t, &st, &u, MELLO_UI_HOME);
     { /* RNDMZR held half a second and let go opens RANDOM (a tap rolls; a white key meanwhile, one part) */
         int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
-        uint32_t note = 1u << 25; /* F#5, B10 */
+        uint32_t note = 1u << 22; /* D#5, B9: RNDMZR (2026-11-04) */
         mello_ui_set_held_notes(&u, note);
         mello_ui_input(&u, 100000u, 100u, 0u, 0u, 0u, note, enc);
         mello_ui_input(&u, 700000u, 700u, 0u, 0u, 0u, 0u, enc);
@@ -321,7 +321,7 @@ static void verify_manual_black_note_exception(void)
     MelloStorage st;
     MelloUi u;
     int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
-    uint8_t note = black_note(5u);
+    uint8_t note = black_note(10u);
     setup(&p, &t, &st, &u, MELLO_UI_SEQ_STEP);
     u.selected_step = 0u;
     t.engine.project.steps[0].pitch = 9;

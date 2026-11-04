@@ -126,13 +126,14 @@ static void ui_part(void)
     static MelloStorage st;
     static MelloUi u;
     int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
-    uint32_t rnd = 1u << black_note(10u), bass_key = 1u << white_note(1u);
+    uint32_t rnd = 1u << black_note(9u), bass_key = 1u << white_note(1u);
     MelloStep lead[MELLO_MAX_STEPS];
     MelloBassConfig b;
     mello_project_defaults(&p);
     mello_transport_init(&t, &p, 5u, 0, 0);
     mello_storage_init(&st, 0, 0);
     mello_ui_init(&u, &t, &st);
+    u.random_intensity = MELLO_RANDOMIZE_MUSICAL; /* (STYLE rolls with MUSICAL or GROOVE: DECISIONS "Happy accidents") */
     mello_ui_set_page(&u, MELLO_UI_HOME);
 
     /* a tap: the whole band */
@@ -169,7 +170,7 @@ static void ui_part(void)
 
     /* playing: a tap waits for the one, RNDMZR lit; UNDO before then takes it back, and nothing lands */
     {
-        uint32_t undo = 1u << black_note(9u), us;
+        uint32_t undo = 1u << black_note(8u), us;
         mello_ui_set_page(&u, MELLO_UI_HOME);
         mello_transport_start(&t, 4000000u);
         mello_transport_poll_ahead(&t, 4200000u, MELLO_TRANSPORT_LOOKAHEAD_US); /* a few pulses into the bar */

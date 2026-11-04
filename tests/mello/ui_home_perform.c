@@ -150,8 +150,8 @@ int main(void)
         uint8_t b0 = 0u, b1 = 0u, b2 = 0u, i, n = 0u;
         for (i = 0u; i < 27u; ++i)
             if (mello_ui_white_key_position(i) < 0) {
-                if (n == 10u) b0 = i; /* RNDMZR, the last black key */
-                if (n == 9u) b1 = i;  /* UNDO, beside it */
+                if (n == 9u) b0 = i; /* RNDMZR, B9 (2026-11-04) */
+                if (n == 8u) b1 = i;  /* UNDO, B8 beside it */
                 if (n == 2u) b2 = i;  /* MUT */
                 ++n;
             }

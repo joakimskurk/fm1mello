@@ -62,7 +62,7 @@ int main(void)
     CHECK(t.engine.sound.osc_wave == MELLO_WAVE_SAW && !t.engine.sound.noise_level &&
               t.engine.sound.unison == 1u && t.engine.sound.filter_cut == d.filter_cut,
           "INIT twice did not restore the default sound");
-    mello_ui_input(&u, 3000000u, 3000u, 0u, 0u, 0u, 1u << black_note(9u), 0); /* UNDO */
+    mello_ui_input(&u, 3000000u, 3000u, 0u, 0u, 0u, 1u << black_note(8u), 0); /* UNDO */
     CHECK(t.engine.sound.osc_wave == MELLO_WAVE_SQUARE && t.engine.sound.noise_level == 600u,
           "UNDO did not undo INIT");
     puts("PASS: RNDMZR rolls the pattern only by default; OSC 2 OFF; INIT twice restores the sound, UNDO "

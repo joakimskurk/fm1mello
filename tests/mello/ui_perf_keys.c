@@ -62,7 +62,7 @@ static int ui_part(void)
     static MelloStorage st;
     static MelloUi u;
     int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
-    uint32_t perf = 1u << black_note(5u), mut = 1u << black_note(6u), fill = 1u << white_note(0u),
+    uint32_t perf = 1u << black_note(10u), mut = 1u << black_note(6u), fill = 1u << white_note(0u),
              rep4 = 1u << white_note(5u), lead = 1u << white_note(12u);
     MelloStep before;
     MelloStep steps[MELLO_MAX_STEPS];

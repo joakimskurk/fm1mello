@@ -123,13 +123,14 @@ static void ui_part(void)
     static MelloUi u;
     static MelloStep lead[MELLO_MAX_STEPS];
     int16_t enc[MELLO_UI_ENCODER_COUNT] = {0};
-    uint32_t rnd = 1u << black_note(10u), undo = 1u << black_note(9u), b1 = 1u << black_note(1u),
+    uint32_t rnd = 1u << black_note(9u), undo = 1u << black_note(8u), b1 = 1u << black_note(1u),
              w2 = 1u << white_note(1u);
     uint8_t k;
     mello_project_defaults(&p);
     mello_transport_init(&t, &p, 5u, 0, 0);
     mello_storage_init(&st, 0, 0);
     mello_ui_init(&u, &t, &st);
+    u.random_intensity = MELLO_RANDOMIZE_MUSICAL; /* (STYLE rolls with MUSICAL or GROOVE: DECISIONS "Happy accidents") */
     mello_ui_set_page(&u, MELLO_UI_HOME);
 
     /* RNDMZR held, B1: BASS locked; letting go rolls nothing */

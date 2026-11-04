@@ -1785,6 +1785,29 @@ how many pulses a step lasts. It must be thought through." And: SELECT, not ALGO
 - Test: keys_record (PULSE and GATE on the held step, the next step the same, nothing held leaves the step before,
   SELECT back and over, the bass's GLIDE, the chord's HOLD and INV).
 
+## Happy accidents, a clean slate, the right end (2026-11-04)
+
+The product owner: "we don't need to show what genre it is when we randomize; I thought this was only under GROOVE";
+"I feel I have lost some happy accidents when randomizing, especially on medium and high, because there are rules
+underneath"; "sometimes you just want a clean slate: an INIT, a clear"; and the black keys' right end "UNDO -
+RNDMZR - - P".
+
+- **Happy accidents.** STYLE (RANDOM's K2) now rolls the band only with INT on MUSICAL or GROOVE; LOW, MED and HIGH
+  roll the lead raw, as before the styles (and the drums with FEED). With LOW-HIGH, K2 reads "-". A part rolled
+  alone (RNDMZR held and a white key) still uses the style. The default stays MED: a new project's tap is raw.
+- **Less on the screen.** No style name when RNDMZR rolls (it was a readout); RNDMZR stays lit while a roll waits
+  for the one. RNDMZR held reads ROLL ONE PART.
+- **A clean slate.** HOME's CLR tapped twice (as before, armed then confirmed) empties the sequence's steps to rests
+  (it gave the default scale run, the HTML's CLEAR; the loop cycle's steps reset as before). RANDOM's CLR stays the
+  HTML's CLEAR (ui_control_parity pins it). CLR held a second is
+  INIT (mello_engine_init_clean): the steps rests; the bass, the chords and the drums off and empty; the lead's sound
+  and the effects (TRIM too) a new project's; the locks off. The tempo, the key, the length, the slots, the DOT and
+  EVOLVE settings are kept; one UNDO takes it back (what UNDO keeps: DOT and EVOLVE are outside it, and so INIT
+  leaves them). The readout says INIT, CLEAN SLATE.
+- **The right end.** B8 UNDO, B9 RNDMZR, B10 PERF, the last key (they were B9, B10 and B5); B5 is free for the pages
+  now, B6 MUTATE where it was. fm1-emu's key ids: UNDO k34, RNDMZR k36, PERF k39 (tools/emu_smoke.sh and
+  emu_stack.sh, Dinghy-side tools, follow). Tests: clean_slate; the contracts' tables moved.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

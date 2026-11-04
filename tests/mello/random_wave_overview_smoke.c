@@ -344,7 +344,7 @@ static void check_ui_contract(void)
     if (ui.random_intensity != MELLO_RANDOMIZE_HIGH) die("R1 did not select HIGH");
     expected = t.engine;
     mello_engine_randomize_steps_intensity(&expected, MELLO_RANDOMIZE_HIGH);
-    mello_ui_input(&ui, 0, 1, 0, 0, 0, 1u << 25, 0); /* RNDMZR: F#5, the same key on every page */
+    mello_ui_input(&ui, 0, 1, 0, 0, 0, 1u << 22, 0); /* RNDMZR: D#5 (B9), the same key on every page */
     if (memcmp(&expected.project, &t.engine.project, sizeof expected.project) ||
         memcmp(&expected.sound, &t.engine.sound, sizeof expected.sound) ||
         expected.gen_rng.state != t.engine.gen_rng.state)

@@ -1109,6 +1109,12 @@ bool mello_engine_restore_working(MelloEngine *engine, const MelloPatternSlot *s
 bool mello_engine_import_slot(MelloEngine *engine, uint8_t index, const MelloPatternSlot *slot);
 void mello_engine_clear_pattern(MelloEngine *engine);
 void mello_engine_clear_slots(MelloEngine *engine);
+/* INIT (CLR held, DECISIONS "A clean slate"): the sequence's steps rests; the bass, the chords and the drums off and
+ * empty; the lead's sound and the effects as a new project's; the locks off. The tempo, the key, the length, the
+ * slots kept. One UNDO takes it back. */
+void mello_engine_init_clean(MelloEngine *engine);
+/* CLR (tapped twice): the sequence's steps rests, nothing else (it gave the default scale run before) */
+void mello_engine_clear_steps(MelloEngine *engine);
 bool mello_engine_save_slot(MelloEngine *engine, uint8_t index, const char *name);
 bool mello_engine_request_slot(MelloEngine *engine, uint8_t index);
 bool mello_engine_slot_valid(const MelloEngine *engine, uint8_t index);

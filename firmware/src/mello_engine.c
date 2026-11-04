@@ -2604,6 +2604,64 @@ bool mello_engine_import_slot(MelloEngine *e, uint8_t index, const MelloPatternS
     return true;
 }
 
+void mello_engine_clear_steps(MelloEngine *e)
+{
+    uint8_t i;
+    if (!e) return;
+    mello_engine_clear_pattern(e); /* as CLEAR always did (the loop cycle's steps too), and then */
+    for (i = 0u; i < MELLO_MAX_STEPS; ++i) e->project.steps[i].gate = MELLO_GATE_REST, e->project.steps[i].skip = false;
+    sanitize_project(&e->project);
+    if (e->playing)
+        rebuild_preserving_phase(e);
+    else
+        e->runtime_built = false;
+}
+
+void mello_engine_init_clean(MelloEngine *e)
+{
+    MelloProject d;
+    MelloBassConfig b;
+    MelloSubConfig s;
+    MelloDrumConfig dr;
+    MelloSoundConfig snd;
+    MelloFxConfig fx;
+    uint8_t i, v;
+    if (!e) return;
+    mello_engine_undo_snapshot(e);
+    mello_project_defaults(&d);
+    for (i = 0u; i < MELLO_MAX_STEPS; ++i) e->project.steps[i] = d.steps[i], e->project.steps[i].gate = MELLO_GATE_REST;
+    mello_bass_defaults(&b);
+    b.on = false;
+    for (i = 0u; i < MELLO_BASS_STEPS; ++i) b.steps[i].on = false;
+    mello_engine_bass_set_config(e, &b);
+    mello_sub_defaults(&s);
+    s.on = false;
+    mello_engine_sub_set_config(e, &s);
+#if MELLO_FEATURE_CHORD_MACHINE
+    {
+        MelloChordConfig c;
+        mello_chord_defaults(&c);
+        c.on = false;
+        mello_engine_chord_set_config(e, &c);
+    }
+#endif
+    mello_drum_defaults(&dr);
+    dr.on = false;
+    for (v = 0u; v < MELLO_DRUM_VOICES; ++v) dr.hits[v] = dr.accents[v] = 0u;
+    mello_engine_drums_set_config(e, &dr);
+    mello_sound_defaults(&snd);
+    mello_engine_sound_set_config(e, &snd);
+    mello_fx_defaults(&fx);
+    mello_engine_fx_set_config(e, &fx);
+    e->roll_lock = 0u;
+    e->style_now = MELLO_STYLE_OFF;
+    sanitize_project(&e->project);
+    if (e->playing)
+        rebuild_preserving_phase(e);
+    else
+        e->runtime_built = false;
+}
+
 void mello_engine_clear_slots(MelloEngine *e)
 {
     if (!e) return;
