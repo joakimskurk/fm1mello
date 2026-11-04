@@ -4682,6 +4682,7 @@ void mello_engine_stress(MelloEngine *e)
     fx.reverb_wet = 500u;
     fx.reverb_size = 800u;
     fx.reverb_decay_ms = 8000u;
+    fx.delay_pingpong = true; /* PING: the second tap's read and filters */
     mello_engine_fx_set_config(e, &fx);
     sub = e->sub;
     sub.on = true;

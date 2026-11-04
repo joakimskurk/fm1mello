@@ -2428,12 +2428,16 @@ static void sweep_step(MelloAudio *a, int32_t *l, int32_t *r)
         pos = held ? (pos + SWEEP_UP < SWEEP_FULL ? pos + SWEEP_UP : SWEEP_FULL) : (pos > SWEEP_DOWN ? pos - SWEEP_DOWN : 0u);
         a->sweep_pos[k] = pos;
         if (!pos) {
-            memset(a->sweep_s[k], 0, sizeof a->sweep_s[k]);
+            if (a->sweep_mix[k]) memset(a->sweep_s[k], 0, sizeof a->sweep_s[k]), a->sweep_mix[k] = 0;
             continue;
         }
-        i = pos >> 15, fr = pos & 0x7FFFu; /* 32 steps of 2^15 */
-        f = SWEEP_F_Q15[k][i] + (i < 32u ? (int32_t)(((SWEEP_F_Q15[k][i + 1u] - SWEEP_F_Q15[k][i]) * (int32_t)fr) >> 15) : 0);
-        mixq = pos >= (SWEEP_FULL >> 3) ? 4096 : (int32_t)(pos >> 5); /* faded in over the first eighth */
+        if (!(a->rendered_frames & 15u) || !a->sweep_mix[k]) { /* the coefficient every 16 samples */
+            i = pos >> 15, fr = pos & 0x7FFFu;                    /* 32 steps of 2^15 */
+            a->sweep_f[k] = SWEEP_F_Q15[k][i] +
+                            (i < 32u ? (int32_t)(((SWEEP_F_Q15[k][i + 1u] - SWEEP_F_Q15[k][i]) * (int32_t)fr) >> 15) : 0);
+            a->sweep_mix[k] = pos >= (SWEEP_FULL >> 3) ? 4096 : (int32_t)(pos >> 5) | 1; /* faded in, the first eighth */
+        }
+        f = a->sweep_f[k], mixq = a->sweep_mix[k];
         for (c = 0; c < 2; ++c) {
             int32_t *x = c ? r : l, *s = a->sweep_s[k][c], hp, y;
             s[0] += (int32_t)(((int64_t)f * s[1]) >> 15);                       /* low */
@@ -2975,8 +2979,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 int32_t dr, dl, in = mul_q12(fx_dly, dly_send);
                 if (a->throw_q12) in += mul_q12(fx_all, a->throw_q12) / 2; /* THROW: everything, at half */
                 dl = delay_tick(a, in, perf_fb(a, dly_fb), delay_q8, &dr);
-                mix_l += mul_q12(dl, dly_level);
-                mix_r += mul_q12(dr, dly_level);
+                dl = mul_q12(dl, dly_level);
+                mix_l += dl;
+                mix_r += a->fx.delay_pingpong ? mul_q12(dr, dly_level) : dl; /* without PING the same */
             }
 #if MELLO_FEATURE_CHORD_MACHINE
             mix_l += mul_q12(chord_l, 2753); /* 0.672: 800 x 840 as the lead's dry */

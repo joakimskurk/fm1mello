@@ -1412,6 +1412,32 @@ as before. The sweeps cost CPU only while they move; THROW and WASH a few multip
 (ARP's notes, ACCENT, a mute on the beat, the sweeps' highs and lows, THROW's and WASH's tails), ui_perf_keys.
 dinghy.c (Dinghy's file) hands the engine's held effects to the audio, as it does the mutes.
 
+## Bugs and resources looked at (2026-11-04)
+
+Asked for: a look for bugs and at what the firmware uses. Found and fixed, each in its own commit: a label on a
+box drawn on black (fit_bg, from F12: 78 screens), a mute asked for on PERFORM left waiting across STOP, and an
+undefined left shift of a negative in the delay's LO CUT (make sanitize failed in nine tests on it; it passes
+again). A stack-buffer-overflow ASan reported once came from editing a header during the run, and is not there in
+a clean run.
+
+Where it stands (0.5-f65, fm1-emu, instructions; the device's GLOBAL > CLOCK CPU nn% is the truth, F24):
+
+| | |
+|---|---|
+| the default pattern | 37.5% of the chip |
+| the worst case (every part, every effect, PING; mello_engine_stress) | 80.3% (72.7% in 0.5-f40) |
+| RAM (.data + .bss) | 88128 B of 98304: 10.2 KB free, the build's guard at 2 KB |
+| the stacks (tools/emu_stack.sh) | user 3.2 of 23.75 KB, system 1.1 of 7.75 KB |
+
+The worst case now has PING on (the second tap's read and filters). PERFORM's held effects are not in it: the UI
+writes the held keys over them on every input, so a stress build cannot hold them (a first try measured nothing);
+they cost a few multiplies a sample (THROW, WASH) and two state variable filters a channel while a sweep moves, its
+coefficient now worked out every 16 samples. Tried and measured: inlining the delay's read (0.1 point, not kept),
+one multiply for the delay's return without PING (kept), caching the kit's DRIVE makeup (nothing measurable, not
+kept). Where real room is, by the host bench (make bench, the worst case): the drums ~26%, the lead's unison ~19%
+and OSC 2 ~16%, the reverb ~14%, the chords ~15%. Each would change how something sounds or is built, so none was
+touched unasked; the glow LEDs' 2 points (F13) are the key scan's, in the HAL.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.
