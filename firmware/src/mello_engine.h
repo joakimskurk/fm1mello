@@ -1144,6 +1144,12 @@ typedef enum {
     MELLO_STYLE_ELECTRO,
     MELLO_STYLE_BREAKS,
     MELLO_STYLE_IDM,
+    MELLO_STYLE_HOUSE, /* 2026-11-04, the second six */
+    MELLO_STYLE_DEEP,
+    MELLO_STYLE_MINIMAL,
+    MELLO_STYLE_JUNGLE,
+    MELLO_STYLE_DRONE,
+    MELLO_STYLE_OUTRUN,
     MELLO_STYLE_COUNT
 } MelloStyle;
 const char *mello_style_name(uint8_t style);

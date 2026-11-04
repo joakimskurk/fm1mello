@@ -1534,6 +1534,24 @@ Rendered from a new project, 10 s each, the styles sit within ~3 dB of each othe
 AMBIENT the dense ones on top). INT is not used while a style is on (the style picks MUSICAL or GROOVE);
 random_wave_overview_smoke tests INT with STYLE OFF.
 
+**Six more, and ACID's bass (the same day).** The product owner, on the examples: "fantastic, but I miss an actual
+acid bass on ACID; expand a bit more for versatility". ACID's 303 is now the bass: BASS SEQ on nearly every
+sixteenth (the root most, the minor third, fifth, seventh, the octave), a quarter of them an octave up, glides and
+accents by chance, the bass filter's resonance 78%, its envelope 75% and accents that open it (85%), a short decay;
+the lead plays short stabs an octave up over it. And six styles:
+
+| | tempo | lead | bass | drums | chords | sound |
+|---|---|---|---|---|---|---|
+| HOUSE | 120-126 | GROOVE, short, off-beat accents | off the beat, bouncing to the octave | four on the floor, clap, off-beat hat, sixteenths | sevenths pushed off the beat (3 6 10 13, or 3 6 11 14) | 8D delay |
+| DEEP | 116-122 | MUSICAL, half held | round and long, the seventh gliding home | four on the floor, rim, swung hats | minor sevenths, long released, twice a bar | 8D ping-pong, chorus |
+| MINIMAL | 124-130 | a few clicks of notes | three short ones | four on the floor, off-beat hat, glitch clicks | one sus4 stab a bar, or none | 16D ping-pong |
+| JUNGLE | 164-176 | a slow held line | a drone under the pads' root | a chopped break, rolling ghost snares | slow pads, a chord every two bars | 8N delay, a long room |
+| DRONE | 60-72 | very few notes, held, gliding | a drone | none | the slowest pads (1.8 s attack, 4 s release), sus2 | a 12 s reverb, a bar's ping-pong |
+| OUTRUN | 96-112 | MUSICAL | eighths, root and octave | kick 1 and 3, backbeat, eighths | held triads | big room |
+
+The listening examples: each style rolled three times (RNDMZR pressed and twice more), 8 s at 84, 105 and 128 BPM:
+-13 .. -19 dBFS RMS, the three over a drone the loudest (a held note is a lot of energy).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

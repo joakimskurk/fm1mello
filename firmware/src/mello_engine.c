@@ -3630,91 +3630,94 @@ static void randomize_musical(MelloEngine *e, bool groove)
  * not feel the same every time". The oompah was the defaults working together: BROKEN's Alberti figure in the
  * chords, a bass walking root and fifth on the beats, a rock beat. A STYLE roll writes the whole band in one style,
  * each with its own lead shape, bass line, beat, chords and a little of the sound, every part with some dice so no
- * two rolls of a style are alike. */
-static const char *const STYLE_NAMES[MELLO_STYLE_COUNT] = {"OFF",    "ANY",  "AMBIENT", "DUB", "TRIPHOP",
-                                                           "TECHNO", "ACID", "ELECTRO", "BREAKS", "IDM"};
+ * two rolls of a style are alike. The tables below are by style, from AMBIENT. */
+#define STYLES (MELLO_STYLE_COUNT - MELLO_STYLE_AMBIENT)
+static const char *const STYLE_NAMES[MELLO_STYLE_COUNT] = {
+    "OFF", "ANY", "AMBIENT", "DUB", "TRIPHOP", "TECHNO", "ACID", "ELECTRO", "BREAKS",
+    "IDM", "HOUSE", "DEEP", "MINIMAL", "JUNGLE", "DRONE", "OUTRUN"};
 const char *mello_style_name(uint8_t style)
 {
     return STYLE_NAMES[style < MELLO_STYLE_COUNT ? style : 0u];
 }
+/* the styles whose chords walk a progression over a drone that follows their root */
+static bool style_drones(uint8_t st)
+{
+    return st == MELLO_STYLE_AMBIENT || st == MELLO_STYLE_JUNGLE || st == MELLO_STYLE_DRONE;
+}
 
-/* The lead: MUSICAL's phrase or GROOVE's, then shaped; only what RANDOM's mask lets change. ACID writes its own. */
+/* The lead: MUSICAL's phrase or GROOVE's, then shaped; only what RANDOM's mask lets change. */
 static void style_lead(MelloEngine *e, uint8_t st)
 {
-    const ScaleDef *sd = &SCALES[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR];
     uint16_t mask = e->randomize.mask;
-    uint8_t len = e->project.seq_len ? e->project.seq_len : 16u, i, n = sd->n;
+    uint8_t len = e->project.seq_len ? e->project.seq_len : 16u, i;
     bool gate = (mask & MELLO_RAND_GATE) != 0u, rat = (mask & MELLO_RAND_RATCHET) != 0u,
          acc = (mask & MELLO_RAND_ACCENT) != 0u, sld = (mask & MELLO_RAND_SLIDE) != 0u,
          oct = (mask & MELLO_RAND_OCTAVE) != 0u, pit = (mask & MELLO_RAND_PITCH) != 0u;
+    /* how many of the notes it keeps (permille), and whether it holds them */
+    static const uint16_t keep[STYLES] = {500u, 400u, 1000u, 1000u, 350u, 1000u, 1000u, 1000u,
+                                          1000u, 700u, 300u, 500u, 250u, 1000u};
     if (len > MELLO_MAX_STEPS) len = MELLO_MAX_STEPS;
-    if (st == MELLO_STYLE_ACID) { /* a 303's line: nearly every sixteenth, the root most, slides and accents */
-        static const uint8_t pick[8] = {0u, 0u, 0u, 0u, 2u, 4u, 6u, 255u}; /* 255: the octave */
-        for (i = 0u; i < len; ++i) {
-            MelloStep *x = &e->project.steps[i];
-            uint8_t d = pick[rng_bounded(&e->gen_rng, 8u)];
-            if (pit) x->pitch = (int8_t)(d == 255u ? n : d % n), x->octave = 0;
-            if (oct && chance_permille(&e->gen_rng, 220u)) x->octave = 1;
-            if (gate) x->gate = i && chance_permille(&e->gen_rng, 160u) ? MELLO_GATE_REST : MELLO_GATE_SINGLE;
-            if (rat) x->ratchet = 1u;
-            if (sld) x->slide = chance_permille(&e->gen_rng, 300u);
-            if (acc) x->accent = chance_permille(&e->gen_rng, 350u);
-            if (mask & MELLO_RAND_PULSES) x->pulses = 1u;
-            if (mask & MELLO_RAND_SKIP) x->skip = false;
-        }
-        for (i = len; mask && i < MELLO_MAX_STEPS; ++i) e->project.steps[i] = e->project.steps[i % len];
-        return;
-    }
     randomize_musical(e, st == MELLO_STYLE_TECHNO || st == MELLO_STYLE_ELECTRO || st == MELLO_STYLE_IDM ||
-                             st == MELLO_STYLE_BREAKS);
+                             st == MELLO_STYLE_BREAKS || st == MELLO_STYLE_ACID || st == MELLO_STYLE_HOUSE ||
+                             st == MELLO_STYLE_MINIMAL || st == MELLO_STYLE_JUNGLE);
     for (i = 0u; i < len; ++i) {
         MelloStep *x = &e->project.steps[i];
-        bool plays = x->gate != MELLO_GATE_REST && !x->skip, weak = (i & 1u) != 0u;
+        bool plays = x->gate != MELLO_GATE_REST && !x->skip;
+        if (gate && plays && i && !chance_permille(&e->gen_rng, keep[st - MELLO_STYLE_AMBIENT])) {
+            x->gate = MELLO_GATE_REST; /* fewer notes */
+            continue;
+        }
+        if (!plays) continue;
         switch (st) {
-        case MELLO_STYLE_AMBIENT: /* few notes, each held into the next, gliding now and then */
-            if (gate && plays && i && chance_permille(&e->gen_rng, weak ? 650u : 300u))
-                x->gate = MELLO_GATE_REST;
-            else if (gate && plays)
-                x->gate = MELLO_GATE_HOLD;
+        case MELLO_STYLE_AMBIENT:
+        case MELLO_STYLE_DRONE: /* each held into the next, gliding */
+        case MELLO_STYLE_JUNGLE: /* a slow line over a fast beat */
+            if (gate) x->gate = MELLO_GATE_HOLD;
             if (rat) x->ratchet = 1u;
             if (acc) x->accent = false;
-            if (sld) x->slide = chance_permille(&e->gen_rng, 300u);
+            if (sld) x->slide = chance_permille(&e->gen_rng, st == MELLO_STYLE_DRONE ? 500u : 300u);
             break;
-        case MELLO_STYLE_DUB: /* sparse, short: the delay plays the rest */
-            if (gate && plays && i && chance_permille(&e->gen_rng, 600u)) x->gate = MELLO_GATE_REST;
-            else if (gate && plays) x->gate = MELLO_GATE_SINGLE;
-            if (rat) x->ratchet = 1u;
-            break;
-        case MELLO_STYLE_TRIPHOP: /* long, lazy notes */
-            if (gate && plays && chance_permille(&e->gen_rng, 500u)) x->gate = MELLO_GATE_HOLD;
-            if (rat) x->ratchet = 1u;
-            if (sld && plays) x->slide = chance_permille(&e->gen_rng, 200u);
-            break;
-        case MELLO_STYLE_TECHNO: /* one bar's motif of four sixteenths, over and over; accents off the beat */
-            if (i >= 4u && pit && gate) {
-                MelloStep m = e->project.steps[i % 4u];
-                *x = m;
-            }
-            if (acc) x->accent = (i % 4u) == 2u;
-            if (rat) x->ratchet = 1u;
-            break;
-        case MELLO_STYLE_ELECTRO: /* staccato, robotic, the octave jumping */
-            if (gate && plays) x->gate = MELLO_GATE_SINGLE;
+        case MELLO_STYLE_DUB:     /* short: the delay plays the rest */
+        case MELLO_STYLE_MINIMAL: /* a click of a note */
+        case MELLO_STYLE_ACID:    /* a stab over the 303 */
+        case MELLO_STYLE_HOUSE:
+            if (gate) x->gate = MELLO_GATE_SINGLE;
             if (rat) x->ratchet = 1u;
             if (sld) x->slide = false;
-            if (oct && plays) x->octave = chance_permille(&e->gen_rng, 200u) ? 1 : 0;
+            if (acc && st == MELLO_STYLE_HOUSE) x->accent = (i % 4u) == 2u;
+            if (oct && st == MELLO_STYLE_ACID) x->octave = 1;
+            break;
+        case MELLO_STYLE_TRIPHOP: /* long, lazy notes */
+        case MELLO_STYLE_DEEP:
+        case MELLO_STYLE_OUTRUN:
+            if (gate && chance_permille(&e->gen_rng, st == MELLO_STYLE_OUTRUN ? 300u : 500u)) x->gate = MELLO_GATE_HOLD;
+            if (rat) x->ratchet = 1u;
+            if (sld) x->slide = st != MELLO_STYLE_OUTRUN && chance_permille(&e->gen_rng, 200u);
+            break;
+        case MELLO_STYLE_ELECTRO: /* staccato, robotic, the octave jumping */
+            if (gate) x->gate = MELLO_GATE_SINGLE;
+            if (rat) x->ratchet = 1u;
+            if (sld) x->slide = false;
+            if (oct) x->octave = chance_permille(&e->gen_rng, 200u) ? 1 : 0;
             break;
         case MELLO_STYLE_IDM: /* rolls of three or four, the octave either way */
-            if (rat && plays && chance_permille(&e->gen_rng, 220u)) x->ratchet = (uint8_t)(3u + rng_bounded(&e->gen_rng, 2u));
-            if (oct && plays && chance_permille(&e->gen_rng, 250u)) x->octave = chance_permille(&e->gen_rng, 500u) ? 1 : -1;
+            if (rat && chance_permille(&e->gen_rng, 220u)) x->ratchet = (uint8_t)(3u + rng_bounded(&e->gen_rng, 2u));
+            if (oct && chance_permille(&e->gen_rng, 250u)) x->octave = chance_permille(&e->gen_rng, 500u) ? 1 : -1;
             break;
-        default: break; /* BREAKS: GROOVE as it is */
+        default: break; /* TECHNO below, BREAKS as GROOVE wrote it */
         }
     }
+    if (st == MELLO_STYLE_TECHNO) /* one bar's motif of four sixteenths, over and over; accents off the beat */
+        for (i = 0u; i < len; ++i) {
+            MelloStep *x = &e->project.steps[i];
+            if (i >= 4u && pit && gate) *x = e->project.steps[i % 4u];
+            if (acc) x->accent = (i % 4u) == 2u;
+            if (rat) x->ratchet = 1u;
+        }
     for (i = len; mask && i < MELLO_MAX_STEPS; ++i) e->project.steps[i] = e->project.steps[i % len];
 }
 
-/* A bass line in a style, from a figure (steps, tone, octave), with some dice; the voice's decay to suit. */
+/* A bass line in a style, from a figure (steps, tone, octave), with some dice; the voice's filter to suit. */
 typedef struct {
     uint8_t k, tone;
     int8_t octave;
@@ -3729,65 +3732,97 @@ static void bass_figure(MelloBassConfig *b, const StyleNote *f, uint8_t count)
         x->on = true, x->tone = f[i].tone, x->octave = f[i].octave, x->glide = f[i].glide, x->accent = f[i].accent;
     }
 }
+static void bass_voice(MelloBassConfig *b, uint16_t decay, uint16_t env, uint16_t res, uint16_t accent)
+{
+    b->env_decay_ms = decay, b->env = env, b->res = res, b->accent = accent;
+}
 static void style_bass_line(MelloEngine *e, uint8_t st, MelloBassConfig *b, MelloSubConfig *sub)
 {
     enum { R = MELLO_SUB_TONE_ROOT, T3 = MELLO_SUB_TONE_THIRD, F4 = MELLO_SUB_TONE_FOURTH, F5 = MELLO_SUB_TONE_FIFTH,
-           S7 = MELLO_SUB_TONE_SEVENTH };
+           S7 = MELLO_SUB_TONE_SEVENTH, O8 = MELLO_SUB_TONE_OCTAVE };
     uint8_t i;
     b->length = 16u, b->follow = false;
     sub->on = true;
     if (sub->mode == MELLO_SUB_MODE_DRONE) sub->mode = MELLO_SUB_MODE_STEP;
     b->on = true;
-    switch (st) {
-    case MELLO_STYLE_AMBIENT: /* no line: one low note held, moving with the chords' root */
+    if (style_drones(st)) { /* no line: one low note held, moving with the chords' root */
         b->on = false;
         sub->mode = MELLO_SUB_MODE_DRONE;
-        break;
+        return;
+    }
+    switch (st) {
     case MELLO_STYLE_DUB: {
         static const StyleNote f[4] = {{0, R, 0, false, true}, {6, R, 0, false, false}, {8, R, 0, false, false},
                                        {14, F5, 0, true, false}};
-        bass_figure(b, f, 4u);
-        b->env_decay_ms = 700u, b->env = 150u, b->res = 150u;
+        bass_figure(b, f, 4u), bass_voice(b, 700u, 150u, 150u, 500u);
         break;
     }
     case MELLO_STYLE_TRIPHOP: {
         static const StyleNote f[5] = {{0, R, 0, false, true}, {7, R, 0, false, false}, {10, F5, 0, true, false},
                                        {11, F4, 0, false, false}, {14, S7, 0, true, false}};
-        bass_figure(b, f, 5u);
-        b->env_decay_ms = 450u, b->env = 250u, b->res = 300u;
+        bass_figure(b, f, 5u), bass_voice(b, 450u, 250u, 300u, 500u);
         break;
     }
     case MELLO_STYLE_TECHNO: { /* the off-beat eighths, the sixteenths after them now and then */
         static const StyleNote f[4] = {{2, R, 0, false, true}, {6, R, 0, false, true}, {10, R, 0, false, true},
                                        {14, R, 0, false, true}};
-        bass_figure(b, f, 4u);
+        bass_figure(b, f, 4u), bass_voice(b, 140u, 450u, 450u, 500u);
         for (i = 3u; i < 16u; i += 4u)
             if (chance_permille(&e->gen_rng, 350u)) b->steps[i].on = true, b->steps[i].tone = R, b->steps[i].octave = 1;
-        b->env_decay_ms = 140u, b->env = 450u, b->res = 450u;
         break;
     }
-    case MELLO_STYLE_ACID: { /* the lead is the 303; the bass a low pedal under it */
-        static const StyleNote f[2] = {{0, R, 0, false, true}, {8, R, 0, false, false}};
-        bass_figure(b, f, 2u);
-        b->env_decay_ms = 260u, b->env = 100u, b->res = 100u;
-        break;
+    case MELLO_STYLE_ACID: { /* the 303: nearly every sixteenth, the root most, slides, accents, the octave up */
+        static const uint8_t pick[8] = {R, R, R, R, T3, F5, S7, O8};
+        memset(b->steps, 0, sizeof b->steps);
+        for (i = 0u; i < 16u; ++i) {
+            MelloBassStep *x = &b->steps[i];
+            if (i && !chance_permille(&e->gen_rng, 800u)) continue;
+            x->on = true, x->tone = i ? pick[rng_bounded(&e->gen_rng, 8u)] : R;
+            x->octave = (int8_t)(chance_permille(&e->gen_rng, 250u) ? 1 : 0);
+            x->glide = chance_permille(&e->gen_rng, 300u);
+            x->accent = i == 0u || chance_permille(&e->gen_rng, 350u);
+        }
+        bass_voice(b, 170u, 750u, 780u, 850u); /* the squelch: resonance, the envelope, accents that open it */
+        return;
     }
     case MELLO_STYLE_ELECTRO: {
         static const StyleNote f[6] = {{0, R, 0, false, true}, {3, R, 0, false, false}, {6, R, 1, false, false},
                                        {10, F5, 0, false, true}, {11, R, 0, true, false}, {14, R, 0, false, false}};
-        bass_figure(b, f, 6u);
-        b->env_decay_ms = 180u, b->env = 550u, b->res = 500u;
+        bass_figure(b, f, 6u), bass_voice(b, 180u, 550u, 500u, 500u);
         break;
     }
     case MELLO_STYLE_BREAKS: {
         static const StyleNote f[5] = {{0, R, 0, false, true}, {6, R, 0, false, false}, {10, R, 0, false, true},
                                        {11, F5, 0, true, false}, {14, S7, 0, false, false}};
-        bass_figure(b, f, 5u);
-        b->env_decay_ms = 280u, b->env = 350u, b->res = 300u;
+        bass_figure(b, f, 5u), bass_voice(b, 280u, 350u, 300u, 500u);
         break;
     }
+    case MELLO_STYLE_HOUSE: { /* off the beat, bouncing to the octave */
+        static const StyleNote f[6] = {{2, R, 0, false, true}, {3, R, 1, false, false}, {6, R, 0, false, false},
+                                       {10, R, 0, false, true}, {11, R, 1, false, false}, {14, F5, 0, false, false}};
+        bass_figure(b, f, 6u), bass_voice(b, 200u, 300u, 250u, 500u);
+        break;
+    }
+    case MELLO_STYLE_DEEP: { /* round and long, the seventh gliding home */
+        static const StyleNote f[4] = {{0, R, 0, false, true}, {7, R, 0, false, false}, {10, S7, 0, true, false},
+                                       {11, R, 0, false, false}};
+        bass_figure(b, f, 4u), bass_voice(b, 520u, 140u, 100u, 400u);
+        break;
+    }
+    case MELLO_STYLE_MINIMAL: { /* a few short ones */
+        static const StyleNote f[3] = {{0, R, 0, false, true}, {3, R, 0, false, false}, {10, R, 0, false, false}};
+        bass_figure(b, f, 3u), bass_voice(b, 110u, 300u, 350u, 500u);
+        break;
+    }
+    case MELLO_STYLE_OUTRUN: { /* eighths, root and octave */
+        static const StyleNote f[8] = {{0, R, 0, false, true}, {2, R, 1, false, false}, {4, R, 0, false, false},
+                                       {6, R, 1, false, false}, {8, R, 0, false, true}, {10, R, 1, false, false},
+                                       {12, R, 0, false, false}, {14, R, 1, false, false}};
+        bass_figure(b, f, 8u), bass_voice(b, 160u, 300u, 250u, 400u);
+        return; /* (the bounce is the point: no dice) */
+    }
     case MELLO_STYLE_IDM: { /* off the grid: five to nine notes anywhere, leaps and glides */
-        static const uint8_t tones[6] = {R, R, F5, T3, S7, MELLO_SUB_TONE_OCTAVE};
+        static const uint8_t tones[6] = {R, R, F5, T3, S7, O8};
         uint8_t notes = (uint8_t)(5u + rng_bounded(&e->gen_rng, 5u));
         memset(b->steps, 0, sizeof b->steps);
         b->steps[0].on = true, b->steps[0].accent = true;
@@ -3798,12 +3833,12 @@ static void style_bass_line(MelloEngine *e, uint8_t st, MelloBassConfig *b, Mell
             x->glide = chance_permille(&e->gen_rng, 350u);
             x->accent = chance_permille(&e->gen_rng, 250u);
         }
-        b->env_decay_ms = 220u, b->env = 500u, b->res = 550u;
+        bass_voice(b, 220u, 500u, 550u, 500u);
         return;
     }
     default: return;
     }
-    /* the dice: a note moved by a step or another tone, now and then, the one left alone */
+    /* the dice: a note moved by a step, or a root made a fifth, now and then; the one left alone */
     for (i = 1u; i < 16u; ++i)
         if (b->steps[i].on && chance_permille(&e->gen_rng, 180u)) {
             uint8_t to = (uint8_t)(i + (chance_permille(&e->gen_rng, 500u) ? 1u : 15u)) % 16u;
@@ -3817,7 +3852,7 @@ void mello_engine_style_bass(MelloEngine *e, uint8_t style)
     MelloBassConfig b;
     MelloSubConfig sub;
     if (!e) return;
-    if (style <= MELLO_STYLE_ANY) {
+    if (style <= MELLO_STYLE_ANY || style >= MELLO_STYLE_COUNT) {
         mello_engine_bass_roll(e);
         return;
     }
@@ -3832,20 +3867,26 @@ void mello_engine_style_bass(MelloEngine *e, uint8_t style)
 static void style_drums(MelloEngine *e, uint8_t st)
 {
     /* KICK, SNARE, HAT, GLITCH: hits and accents */
-    static const uint16_t figs[8][8] = {
-        /* AMBIENT: no kick, a few ticks */ {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x1001u, 0x0000u, 0x0000u, 0x0000u},
+    static const uint16_t figs[STYLES][8] = {
+        /* AMBIENT */ {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x1001u, 0x0000u, 0x0000u, 0x0000u},
         /* DUB */ {0x1111u, 0x1111u, 0x1000u, 0x1000u, 0x4444u, 0x4444u, 0x0000u, 0x0000u},
         /* TRIPHOP */ {0x0501u, 0x0001u, 0x1010u, 0x1010u, 0x5555u, 0x1111u, 0x0000u, 0x0000u},
         /* TECHNO */ {0x1111u, 0x1111u, 0x1010u, 0x1010u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
         /* ACID */ {0x1111u, 0x1111u, 0x1010u, 0x0000u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
         /* ELECTRO */ {0x0481u, 0x0081u, 0x1010u, 0x1010u, 0xFFFFu, 0x4444u, 0x0000u, 0x0000u},
         /* BREAKS */ {0x0401u, 0x0401u, 0x1290u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u},
-        /* IDM: from dice below */ {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u}};
-    static const uint16_t swing[8] = {0u, 120u, 280u, 0u, 60u, 0u, 160u, 0u};
+        /* IDM: dice */ {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u},
+        /* HOUSE */ {0x1111u, 0x1111u, 0x1010u, 0x1010u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
+        /* DEEP */ {0x1111u, 0x1111u, 0x1010u, 0x0000u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
+        /* MINIMAL */ {0x1111u, 0x1111u, 0x0000u, 0x0000u, 0x4444u, 0x0000u, 0x0000u, 0x0000u},
+        /* JUNGLE */ {0x2401u, 0x0001u, 0x9290u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u},
+        /* DRONE: none */ {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u},
+        /* OUTRUN */ {0x0101u, 0x0101u, 0x1010u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u}};
+    static const uint16_t swing[STYLES] = {0u, 120u, 280u, 0u, 60u, 0u, 160u, 0u, 80u, 200u, 90u, 0u, 0u, 0u};
     const uint16_t *f = figs[st - MELLO_STYLE_AMBIENT];
     MelloDrumConfig d = e->drums;
     uint8_t v, k;
-    d.on = true, d.follow = false, d.length = 16u;
+    d.on = st != MELLO_STYLE_DRONE, d.follow = false, d.length = 16u;
     d.swing = swing[st - MELLO_STYLE_AMBIENT];
     memset(d.lock, 0, sizeof d.lock);
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
@@ -3860,9 +3901,22 @@ static void style_drums(MelloEngine *e, uint8_t st)
         if (chance_permille(&e->gen_rng, 600u)) d.hits[MELLO_DRUM_GLITCH] = (uint16_t)(1u << (2u + rng_bounded(&e->gen_rng, 14u)));
         break;
     case MELLO_STYLE_TECHNO:
-    case MELLO_STYLE_ACID: /* the snare a clap, sometimes a beat late; the glitch on a sixteenth */
+    case MELLO_STYLE_ACID:
+    case MELLO_STYLE_HOUSE: /* the snare a clap, sometimes a beat late; the glitch on a sixteenth */
         if (chance_permille(&e->gen_rng, 300u)) d.hits[MELLO_DRUM_SNARE] |= 0x4000u;
         if (chance_permille(&e->gen_rng, 500u)) d.hits[MELLO_DRUM_GLITCH] = (uint16_t)(1u << (rng_bounded(&e->gen_rng, 8u) * 2u + 1u));
+        break;
+    case MELLO_STYLE_MINIMAL: /* clicks: a glitch here and there, a rim now and then */
+        d.voice[MELLO_DRUM_GLITCH].chance = 700u;
+        for (k = 0u; k < 16u; ++k)
+            if (chance_permille(&e->gen_rng, 150u)) d.hits[MELLO_DRUM_GLITCH] |= (uint16_t)(1u << k);
+        if (chance_permille(&e->gen_rng, 500u)) d.hits[MELLO_DRUM_SNARE] = (uint16_t)(1u << (8u + 2u * rng_bounded(&e->gen_rng, 4u) + 1u));
+        break;
+    case MELLO_STYLE_JUNGLE: /* the break chopped: the snare's ghosts rolling */
+        for (k = 0u; k < 16u; ++k)
+            if ((d.hits[MELLO_DRUM_SNARE] >> k) & 1u && !((d.accents[MELLO_DRUM_SNARE] >> k) & 1u) && chance_permille(&e->gen_rng, 500u))
+                d.lock[MELLO_DRUM_SNARE][k].ratchet = 2u;
+        if (chance_permille(&e->gen_rng, 500u)) d.hits[MELLO_DRUM_KICK] ^= 0x2000u; /* the third kick, or not */
         break;
     case MELLO_STYLE_IDM: { /* a broken beat: kicks off the grid, a snare that moves, hats that roll */
         uint8_t kicks = (uint8_t)(3u + rng_bounded(&e->gen_rng, 3u));
@@ -3879,6 +3933,7 @@ static void style_drums(MelloEngine *e, uint8_t st)
         }
         break;
     }
+    case MELLO_STYLE_DRONE: break;
     default: /* a ghost note or two, a roll into the bar's end */
         for (k = 0u; k < 16u; ++k)
             if (!(d.hits[MELLO_DRUM_SNARE] & (1u << k)) && (k & 1u) && chance_permille(&e->gen_rng, 70u))
@@ -3890,56 +3945,81 @@ static void style_drums(MelloEngine *e, uint8_t st)
 }
 
 #if MELLO_FEATURE_CHORD_MACHINE
-/* The chords: their voice and how they are struck, and the chain from what the bass plays (FIT's reading) or, for
- * AMBIENT, a progression the drone follows. */
+/* The chords: their voice and how they are struck, and the chain from what the bass plays (FIT's reading) or, over
+ * a drone, a progression the drone follows. */
+static void chord_stabs(MelloChordConfig *c, uint16_t cells, uint16_t release, uint16_t cut, uint16_t space)
+{
+    c->mode = MELLO_CHORD_STAB, c->trigger = MELLO_CHORD_TRIGGER_GRID;
+    c->grid_mode = MELLO_DOT_HORIZONTAL, c->grid_length = 16u, c->grid_reset = true, c->grid_amount = 1000u;
+    c->grid_follow = false, c->grid_cells = cells;
+    c->attack_ms = 3u, c->release_ms = release, c->decay_ms = 180u, c->sustain = 200u;
+    c->cut = cut, c->fenv = 300u, c->chorus = 300u, c->space = space;
+}
+static void chord_pad(MelloChordConfig *c, uint16_t attack, uint16_t release, uint16_t cut, uint16_t space)
+{
+    c->mode = MELLO_CHORD_HOLD, c->attack_ms = attack, c->release_ms = release;
+    c->decay_ms = attack + 800u, c->sustain = 750u, c->cut = cut, c->fenv = 150u, c->chorus = 700u, c->space = space;
+}
 static void style_chords(MelloEngine *e, uint8_t st)
 {
     MelloChordConfig c = e->chord;
     const ScaleDef *sd = &SCALES[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR];
-    uint8_t deg[8], slots, k, hold = 8u;
+    uint8_t deg[8], slots, k, hold = 16u;
     MelloChordShape colour = MELLO_CHORD_SEVENTH;
+    bool half = chance_permille(&e->gen_rng, 500u);
     c.on = true, c.poly = true, c.trigger = MELLO_CHORD_TRIGGER_STEP, c.chain = MELLO_CHORD_CHAIN_STEPS;
     c.voices = 4u, c.strum_ms = 0u, c.voice_lead = true, c.sub_root = false, c.lead_follow = 0u;
     switch (st) {
-    case MELLO_STYLE_AMBIENT: /* a slow pad, a chord a bar or two, the drone under its root */
-        c.mode = MELLO_CHORD_HOLD, c.attack_ms = 900u, c.release_ms = 3000u, c.decay_ms = 2000u, c.sustain = 800u;
-        c.cut = 450u, c.fenv = 120u, c.chorus = 800u, c.space = 1000u, c.strum_ms = 30u, c.sub_root = true;
-        hold = chance_permille(&e->gen_rng, 500u) ? 16u : 32u;
-        colour = chance_permille(&e->gen_rng, 500u) ? MELLO_CHORD_SUS2 : MELLO_CHORD_SEVENTH;
+    case MELLO_STYLE_AMBIENT:
+        chord_pad(&c, 900u, 3000u, 450u, 1000u), c.strum_ms = 30u;
+        hold = half ? 16u : 32u, colour = chance_permille(&e->gen_rng, 500u) ? MELLO_CHORD_SUS2 : MELLO_CHORD_SEVENTH;
         break;
-    case MELLO_STYLE_DUB: /* minor sevenths stabbed off the beat, into the delay */
+    case MELLO_STYLE_DRONE:
+        chord_pad(&c, 1800u, 4000u, 380u, 1000u), c.strum_ms = 50u;
+        hold = 32u, colour = MELLO_CHORD_SUS2;
+        break;
+    case MELLO_STYLE_JUNGLE:
+        chord_pad(&c, 400u, 2500u, 480u, 900u);
+        hold = 32u, colour = half ? MELLO_CHORD_SUS2 : MELLO_CHORD_SEVENTH;
+        break;
+    case MELLO_STYLE_DUB: chord_stabs(&c, 0x4444u, 260u, 420u, 1000u); break;
     case MELLO_STYLE_TECHNO:
-        c.mode = MELLO_CHORD_STAB, c.trigger = MELLO_CHORD_TRIGGER_GRID;
-        c.grid_mode = MELLO_DOT_HORIZONTAL, c.grid_length = 16u, c.grid_reset = true, c.grid_amount = 1000u;
-        c.grid_follow = false;
-        c.grid_cells = st == MELLO_STYLE_DUB ? 0x4444u : (uint16_t)(0x4444u & (chance_permille(&e->gen_rng, 500u) ? 0x4444u : 0x0404u));
-        c.attack_ms = 3u, c.release_ms = st == MELLO_STYLE_DUB ? 260u : 120u, c.decay_ms = 180u, c.sustain = 200u;
-        c.cut = st == MELLO_STYLE_DUB ? 420u : 520u, c.fenv = 300u, c.chorus = 300u;
-        c.space = st == MELLO_STYLE_DUB ? 1000u : 500u;
-        hold = 16u;
-        colour = st == MELLO_STYLE_DUB ? MELLO_CHORD_SEVENTH : (chance_permille(&e->gen_rng, 500u) ? MELLO_CHORD_SUS4 : MELLO_CHORD_SEVENTH);
+        chord_stabs(&c, half ? 0x4444u : 0x0404u, 120u, 520u, 500u);
+        colour = chance_permille(&e->gen_rng, 500u) ? MELLO_CHORD_SUS4 : MELLO_CHORD_SEVENTH;
+        break;
+    case MELLO_STYLE_HOUSE: /* the house chord's push, never on the beat: 3 6 10 13, or 3 6 11 14 */
+        chord_stabs(&c, half ? 0x2448u : 0x4848u, 220u, 600u, 600u);
+        break;
+    case MELLO_STYLE_DEEP: /* long-released minor sevenths, twice a bar */
+        chord_stabs(&c, half ? 0x0808u : 0x0408u, 900u, 430u, 800u), c.chorus = 700u;
+        break;
+    case MELLO_STYLE_MINIMAL: /* one stab a bar, or nothing */
+        if (half) {
+            c.on = false;
+            mello_engine_chord_set_config(e, &c);
+            return;
+        }
+        chord_stabs(&c, (uint16_t)(1u << (1u + 2u * rng_bounded(&e->gen_rng, 8u))), 150u, 500u, 800u);
+        colour = MELLO_CHORD_SUS4;
         break;
     case MELLO_STYLE_TRIPHOP:
-    case MELLO_STYLE_BREAKS: /* held sevenths, a chord a bar */
-        c.mode = MELLO_CHORD_HOLD, c.attack_ms = 60u, c.release_ms = 1200u, c.decay_ms = 900u, c.sustain = 600u;
-        c.cut = 500u, c.fenv = 200u, c.chorus = 600u, c.space = 700u;
-        hold = 16u;
-        break;
+    case MELLO_STYLE_BREAKS: chord_pad(&c, 60u, 1200u, 500u, 700u); break;
+    case MELLO_STYLE_OUTRUN: chord_pad(&c, 30u, 900u, 600u, 700u), colour = MELLO_CHORD_TRIAD; break;
     case MELLO_STYLE_IDM: /* one voice running through the chord, coloured, a chord a half bar */
-        c.poly = false, c.mode = chance_permille(&e->gen_rng, 500u) ? MELLO_CHORD_ARP_UPDOWN : MELLO_CHORD_WALK;
+        c.poly = false, c.mode = half ? MELLO_CHORD_ARP_UPDOWN : MELLO_CHORD_WALK;
         c.attack_ms = 5u, c.release_ms = 400u, c.cut = 600u, c.fenv = 350u, c.space = 800u;
-        hold = 8u;
-        colour = chance_permille(&e->gen_rng, 500u) ? MELLO_CHORD_SUS2 : MELLO_CHORD_SEVENTH;
+        hold = 8u, colour = chance_permille(&e->gen_rng, 500u) ? MELLO_CHORD_SUS2 : MELLO_CHORD_SEVENTH;
         break;
     default: /* ACID, ELECTRO: no chords */
         c.on = false;
         mello_engine_chord_set_config(e, &c);
         return;
     }
-    if (st == MELLO_STYLE_AMBIENT) {
+    if (style_drones(st)) {
         e->chord = c;
         roll_progression(e, sd->n, 300u); /* the walk through the functions; the drone follows */
         c = e->chord;
+        c.sub_root = true;
         for (k = 0u; k < c.length; ++k) c.steps[k].hold = hold, c.steps[k].shape = colour, c.steps[k].spread = 2u;
     } else {
         slots = fit_read(e, hold, deg);
@@ -3954,26 +4034,31 @@ static void style_chords(MelloEngine *e, uint8_t st)
 }
 #endif
 
-/* A little of the sound: the lead's envelope (and ACID's filter), the delay and the reverb. */
+/* A little of the sound: the lead's envelope, the delay and the reverb. */
 static void style_sound(MelloEngine *e, uint8_t st)
 {
     static const struct {
         uint16_t attack, decay, release, rev_wet, rev_size, rev_ms, dly_wet, dly_fb;
         uint8_t div;
         bool ping;
-    } t[8] = {{120u, 900u, 1600u, 600u, 900u, 9000u, 300u, 550u, 7u, true},  /* AMBIENT: 4D */
-              {5u, 220u, 300u, 300u, 700u, 4000u, 450u, 650u, 6u, true},    /* DUB: 8D */
-              {10u, 400u, 600u, 350u, 700u, 3500u, 200u, 400u, 0u, false},  /* TRIPHOP: 8N */
-              {3u, 120u, 120u, 180u, 500u, 2000u, 150u, 300u, 10u, false},  /* TECHNO: 16D */
-              {3u, 160u, 100u, 120u, 400u, 1500u, 150u, 350u, 10u, false},  /* ACID: 16D */
-              {3u, 100u, 80u, 150u, 400u, 1500u, 180u, 250u, 1u, false},    /* ELECTRO: 16N */
-              {5u, 250u, 300u, 250u, 600u, 2500u, 200u, 350u, 0u, false},   /* BREAKS: 8N */
-              {3u, 180u, 250u, 300u, 650u, 3000u, 250u, 400u, 4u, true}};   /* IDM: 16T */
+    } t[STYLES] = {{120u, 900u, 1600u, 600u, 900u, 9000u, 300u, 550u, 7u, true},   /* AMBIENT: 4D */
+                   {5u, 220u, 300u, 300u, 700u, 4000u, 450u, 650u, 6u, true},      /* DUB: 8D */
+                   {10u, 400u, 600u, 350u, 700u, 3500u, 200u, 400u, 0u, false},    /* TRIPHOP: 8N */
+                   {3u, 120u, 120u, 180u, 500u, 2000u, 150u, 300u, 10u, false},    /* TECHNO: 16D */
+                   {3u, 140u, 100u, 150u, 450u, 1800u, 180u, 350u, 10u, true},     /* ACID: 16D */
+                   {3u, 100u, 80u, 150u, 400u, 1500u, 180u, 250u, 1u, false},      /* ELECTRO: 16N */
+                   {5u, 250u, 300u, 250u, 600u, 2500u, 200u, 350u, 0u, false},     /* BREAKS: 8N */
+                   {3u, 180u, 250u, 300u, 650u, 3000u, 250u, 400u, 4u, true},      /* IDM: 16T */
+                   {3u, 180u, 200u, 220u, 600u, 2500u, 150u, 300u, 6u, false},     /* HOUSE: 8D */
+                   {8u, 350u, 600u, 350u, 750u, 4000u, 250u, 450u, 6u, true},      /* DEEP: 8D */
+                   {3u, 90u, 80u, 200u, 500u, 2000u, 220u, 450u, 10u, true},       /* MINIMAL: 16D */
+                   {20u, 500u, 900u, 400u, 800u, 5000u, 250u, 450u, 0u, false},    /* JUNGLE: 8N */
+                   {300u, 1000u, 2000u, 750u, 1000u, 12000u, 350u, 600u, 13u, true}, /* DRONE: 1 BAR */
+                   {10u, 300u, 500u, 400u, 800u, 4000u, 250u, 350u, 0u, false}};   /* OUTRUN: 8N */
     uint8_t i = (uint8_t)(st - MELLO_STYLE_AMBIENT);
     MelloSoundConfig s = e->sound;
     MelloFxConfig f = e->fx;
     s.attack_ms = t[i].attack, s.decay_ms = t[i].decay, s.release_ms = t[i].release;
-    if (st == MELLO_STYLE_ACID) s.filter_cut = 280u, s.filter_res = 600u;
     f.reverb_wet = t[i].rev_wet, f.reverb_size = t[i].rev_size, f.reverb_decay_ms = t[i].rev_ms;
     f.delay_wet = t[i].dly_wet, f.delay_feedback = t[i].dly_fb, f.delay_sync = true, f.delay_div = t[i].div;
     f.delay_pingpong = t[i].ping;
@@ -3986,7 +4071,7 @@ uint8_t mello_engine_style_roll(MelloEngine *e, uint8_t style)
     uint8_t st = style;
     if (!e) return MELLO_STYLE_OFF;
     if (st == MELLO_STYLE_ANY) { /* a style, never the one before */
-        do st = (uint8_t)(MELLO_STYLE_AMBIENT + rng_bounded(&e->gen_rng, MELLO_STYLE_COUNT - MELLO_STYLE_AMBIENT));
+        do st = (uint8_t)(MELLO_STYLE_AMBIENT + rng_bounded(&e->gen_rng, STYLES));
         while (st == e->style_now);
     }
     if (st < MELLO_STYLE_AMBIENT || st >= MELLO_STYLE_COUNT) {
@@ -3995,8 +4080,8 @@ uint8_t mello_engine_style_roll(MelloEngine *e, uint8_t style)
     }
     mello_engine_undo_snapshot(e);
     { /* the style's tempo, somewhere in its range (the transport takes it from the project: the UI's roll) */
-        static const uint8_t lo[8] = {76u, 112u, 84u, 124u, 124u, 118u, 128u, 120u},
-                             span[8] = {16u, 10u, 12u, 8u, 10u, 10u, 12u, 40u};
+        static const uint8_t lo[STYLES] = {76u, 112u, 84u, 124u, 124u, 118u, 128u, 120u, 120u, 116u, 124u, 164u, 60u, 96u},
+                             span[STYLES] = {16u, 10u, 12u, 8u, 10u, 10u, 12u, 40u, 6u, 6u, 6u, 12u, 12u, 16u};
         uint8_t i = (uint8_t)(st - MELLO_STYLE_AMBIENT);
         e->project.bpm = (uint16_t)(lo[i] + rng_bounded(&e->gen_rng, span[i] + 1u));
     }

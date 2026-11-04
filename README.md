@@ -257,7 +257,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   each moves (AMOUNTS); the intensity on K1. MUSICAL rolls a phrase, not noise; GROOVE the same phrase with rolls, ties, ghost
   notes and the rests that answer them. STYLE on K2: with a style (ANY, a new project's, picks one each time and never the
   one before) a tap of RNDMZR rolls the whole band in it, the lead within the mask, the bass line, the beat, the
-  chords, the tempo and some of the sound: AMBIENT, DUB, TRIPHOP, TECHNO, ACID, ELECTRO, BREAKS, IDM, its name shown
+  chords, the tempo and some of the sound: AMBIENT, DUB, TRIPHOP, TECHNO, ACID, ELECTRO, BREAKS, IDM, HOUSE, DEEP,
+  MINIMAL, JUNGLE, DRONE, OUTRUN, its name shown
   as it lands. OFF rolls the lead alone, as INT says. UNDO takes a roll back whole.
 
 ## Every page's knobs and keys
