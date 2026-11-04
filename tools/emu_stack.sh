@@ -4,15 +4,16 @@
 # The stacks' high-water marks for a package, on fm1-emu (ROADMAP B4 / F21): 11 s of a player's session (PLAY, three
 # RNDMZR rolls, every page, SAVE, a held step), then the two stacks dumped. The emulator's RAM starts at zero, so the
 # lowest word that is not zero is as deep as the stack went (a frame that only ever held zeros would hide, so this
-# can read a little short). The guard bands under each stack must stay zero.
+# can read a little short). The guard bands under each stack must stay zero. fm1-emu's kN is the HAL's key id: 0-13
+# the panel buttons, 14 + n note key n (0 = F3 .. 26 = G5): RNDMZR (note 25) is k39, white key 1 k14.
 #   tools/emu_stack.sh build/skurkymello-0.5-f59.fwsc
 #   FM1_EMU   the fm1-emu directory, as tools/emu_cpu.sh
 set -e
 PKG="$1"
 [ -f "$PKG" ] || { echo "usage: tools/emu_stack.sh PACKAGE.fwsc"; exit 2; }
 EMU="${FM1_EMU:-$HOME/fm1-emu-0.3.0/fm1-emu-0.3.0-linux-x86_64}"
-KEYS='1600:PLAY,2500-2620:k25,3200-3320:k25,3800:ARP,4200:ARP,4600:ARP,5000:LFO,5400:LFO,5800:FX,6200:ENV,'
-KEYS="${KEYS}6600:SEQ,7000:GLO,7400:HOME,7800-7920:k25,8400:SAVE,8800:SAVE,9300-9420:k13,9600-9720:k0,10000:HOME"
+KEYS='1600:PLAY,2500-2620:k39,3200-3320:k39,3800:ARP,4200:ARP,4600:ARP,5000:LFO,5400:LFO,5800:FX,6200:ENV,'
+KEYS="${KEYS}6600:SEQ,7000:GLO,7400:HOME,7800-7920:k39,8400:SAVE,8800:SAVE,9300-9420:k18,9600-9720:k14,10000:HOME"
 WORK="$(mktemp -d "$HOME/.fm1-emu-stack.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 cp "$PKG" "$WORK/pkg.fwsc"
