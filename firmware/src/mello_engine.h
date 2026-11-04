@@ -417,7 +417,8 @@ typedef struct {
 #define MELLO_PERF_HISTORY 64u
 /* Where the other parts were at a pulse in the history, so REVERSE / REPEAT replay them too (ROADMAP E2 / F3). */
 typedef struct {
-    uint8_t drum, bass;                           /* the drums' and BASS SEQ's next step */
+    uint16_t drum;                               /* the drums' count (drum_pos) */
+    uint8_t bass;                                /* BASS SEQ's next step */
     uint8_t chord_pos, chord_arp, chord_pattern; /* the chain's chord, its arpeggio's and pattern's place */
 } MelloPerfParts;
 typedef struct {
@@ -558,6 +559,11 @@ typedef struct {
     bool feed;   /* RNDMZR rolls the drums too */
     bool feed_sound; /* FEED+: and a roll (ROLL, RNDMZR's) changes the voices' TUNE, DECAY and TONE as well */
     uint8_t length;  /* 1..16 */
+    /* Each voice's own LENGTH (2026-11-04, DECISIONS "A length per voice"): 0 the kit's LENGTH, else 1..16; KICK 16,
+     * SNARE 16, HAT 12, GLITCH 7 is a polyrhythm. With BAR they all start over at every bar's one; FREE, they run on
+     * until RESET, start or stop. */
+    uint8_t vlen[4];
+    bool bar_reset;
     uint16_t swing;  /* 0..1000: SWING, for everything: each odd sixteenth up to half a step late */
     uint16_t level;  /* 0..1000 */
     uint16_t space;  /* 0..1000: the send to the delay and reverb */
@@ -980,8 +986,11 @@ typedef struct {
     int8_t bass_step;   /* the one playing, -1 stopped (the SUB page) */
     bool bass_glide_in; /* the last step glides into this one */
     MelloPrng drum_rng; /* chance and rolls: the other streams stay as they were */
-    uint8_t drum_pos;   /* the drum step playing next */
-    int8_t drum_step;   /* the one playing, -1 stopped (the DRUMS page) */
+    uint16_t drum_pos;  /* the drums' steps counted since their start (each voice at drum_pos % its LENGTH), up to
+                         * drum_wrap: the lengths' least common multiple, where they all meet again */
+    uint16_t drum_wrap;
+    int8_t drum_step;   /* the one playing, -1 stopped (the DRUMS page): the kit's LENGTH's */
+    int8_t drum_vstep[4]; /* each voice's (MELLO_DRUM_VOICES) */
     uint32_t swing_off; /* SWING: ticks added to what this pulse queues (queue_push) */
     bool drone_open;
     uint8_t drone_note;
@@ -1028,6 +1037,7 @@ void mello_engine_bass_set_config(MelloEngine *engine, const MelloBassConfig *co
  * BASS SEQ on. Undo: the caller snapshots. */
 void mello_engine_bass_roll(MelloEngine *engine);
 void mello_engine_drums_set_config(MelloEngine *engine, const MelloDrumConfig *config);
+uint8_t mello_drum_voice_length(const MelloDrumConfig *drums, uint8_t voice); /* its own, or the kit's */
 /* A roll of the drums: hits, accents and per-step locks, as much as roll says, the kick kept on the one. */
 void mello_engine_drums_roll(MelloEngine *engine);
 #if MELLO_FEATURE_CHORD_MACHINE

@@ -28,7 +28,7 @@ enum {
                          SUB ROOT; 4: HARMONY (FOLLOW, DRIFT, DEPTH); 5: POLY */
     SECVER_GRIT = 4, /* 4: MIX's LEAD */
     SECVER_MOD = 3,
-    SECVER_DRUMS = 2, /* 2: DUCK */
+    SECVER_DRUMS = 3, /* 2: DUCK; 3: each voice's LENGTH, BAR */
     SECVER_BASS = 1,
     SECVER_MACROS = 1
 };
@@ -54,7 +54,8 @@ enum {
 #define MOD_ENTRY_SIZE_V2  44u
 #define MOD_ENTRY_SIZE     57u
 #define DRUMS_WIRE_SIZE_V1 (12u + MELLO_DRUM_VOICES * (12u + 4u + MELLO_DRUM_STEPS * 4u))
-#define DRUMS_WIRE_SIZE    (DRUMS_WIRE_SIZE_V1 + 2u) /* v2: DUCK */
+#define DRUMS_WIRE_SIZE_V2 (DRUMS_WIRE_SIZE_V1 + 2u) /* v2: DUCK */
+#define DRUMS_WIRE_SIZE    (DRUMS_WIRE_SIZE_V2 + MELLO_DRUM_VOICES) /* v3: each voice's LENGTH (BAR a flag) */
 #define BASS_WIRE_SIZE     (10u + MELLO_BASS_STEPS * 2u)
 #define SLOT_SEQ_WIRE_SIZE (2u + MELLO_MAX_SLOT_SEQ_STEPS * 3u)
 #define SLOT_WIRE_SIZE     (1u + (MELLO_SLOT_NAME_CHARS + 1u) + SNAPSHOT_WIRE_SIZE)
@@ -546,7 +547,7 @@ static void encode_drums(Writer *w, const MelloDrumConfig *d)
 {
     uint8_t v, k;
     wr_u8(w, (uint8_t)((d->on ? 1u : 0u) | (d->follow ? 2u : 0u) | (d->feed ? 4u : 0u) |
-                       (d->feed_sound ? 8u : 0u)));
+                       (d->feed_sound ? 8u : 0u) | (d->bar_reset ? 16u : 0u)));
     wr_u8(w, d->length);
     wr_u16(w, d->swing);
     wr_u16(w, d->level);
@@ -572,6 +573,7 @@ static void encode_drums(Writer *w, const MelloDrumConfig *d)
         }
     }
     wr_u16(w, d->duck); /* v2 */
+    for (v = 0u; v < MELLO_DRUM_VOICES; ++v) wr_u8(w, d->vlen[v]); /* v3 */
 }
 static bool decode_drums(Reader *r, MelloDrumConfig *d, uint16_t ver)
 {
@@ -587,6 +589,7 @@ static bool decode_drums(Reader *r, MelloDrumConfig *d, uint16_t ver)
     d->on = (flags & 1u) != 0u;
     d->follow = (flags & 2u) != 0u;
     d->feed = (flags & 4u) != 0u;
+    d->bar_reset = (flags & 16u) != 0u;
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
         MelloDrumVoice *dv = &d->voice[v];
         if (!rd_u16(r, &dv->tune) || !rd_u16(r, &dv->decay) || !rd_u16(r, &dv->tone) ||
@@ -598,7 +601,10 @@ static bool decode_drums(Reader *r, MelloDrumConfig *d, uint16_t ver)
                 !rd_u8(r, &d->lock[v][k].crush) || !rd_u8(r, &d->lock[v][k].ratchet))
                 return false;
     }
-    return ver < 2u || rd_u16(r, &d->duck);
+    if (ver >= 2u && !rd_u16(r, &d->duck)) return false;
+    for (v = 0u; ver >= 3u && v < MELLO_DRUM_VOICES; ++v)
+        if (!rd_u8(r, &d->vlen[v])) return false;
+    return true;
 }
 
 /* BASS SEQ (SEC_BASS, global as the drums): flags, length, the voice's four, and each step in two bytes: on, glide,
@@ -1146,7 +1152,8 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
         } else if (id == SEC_DRUMS && ver >= 1u && ver <= SECVER_DRUMS) {
             MelloDrumConfig drums;
             mello_drum_defaults(&drums);
-            if (len != (ver == 1u ? DRUMS_WIRE_SIZE_V1 : DRUMS_WIRE_SIZE) || !decode_drums(&r, &drums, ver))
+            if (len != (ver == 1u ? DRUMS_WIRE_SIZE_V1 : ver == 2u ? DRUMS_WIRE_SIZE_V2 : DRUMS_WIRE_SIZE) ||
+                !decode_drums(&r, &drums, ver))
                 return false;
             if (apply && e) mello_engine_drums_set_config(e, &drums);
         } else if (id == SEC_BASS && ver == SECVER_BASS) {

@@ -65,8 +65,8 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/drums-voice.png" width="96" alt="DRUMS VOICE"> | DRUMS | ARP | VOICE | `ON VOX ACC ROLL P M UNDO RNDMZR` | TONE 25% · TUNE 40% · DECAY 335MS · LEVEL 90% |
 | <img src="../screens/drums-step.png" width="96" alt="DRUMS STEP"> | DRUMS | ARP | STEP | `ON VOX ACC ROLL P M UNDO RNDMZR` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | <img src="../screens/drums-vary.png" width="96" alt="DRUMS VARY"> | DRUMS | ARP | VARY | `ON VOX ACC ROLL P M UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
-| <img src="../screens/drums-kit.png" width="96" alt="DRUMS KIT"> | DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · — · LEVEL 70% |
-| <img src="../screens/drums-dist.png" width="96" alt="DRUMS DIST"> | DRUMS | ARP | DIST | `ON VOX ACC ROLL P M UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · — |
+| <img src="../screens/drums-kit.png" width="96" alt="DRUMS KIT"> | DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · V.LEN KIT · LEVEL 70% |
+| <img src="../screens/drums-dist.png" width="96" alt="DRUMS DIST"> | DRUMS | ARP | DIST | `ON VOX ACC ROLL P M UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · RESTART FREE |
 | <img src="../screens/chord-play.png" width="96" alt="CHORD PLAY"> | CHORD | ARP | PLAY | `ON BASS POLY FIT P M UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
 | <img src="../screens/chord-chord.png" width="96" alt="CHORD CHORD"> | CHORD | ARP | CHORD | `ON BASS POLY FIT P M UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
 | <img src="../screens/chord-voicing.png" width="96" alt="CHORD VOICING"> | CHORD | ARP | VOICING | `ON BASS POLY FIT P M UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |

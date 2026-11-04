@@ -81,6 +81,7 @@ an octave lower), the screen chosen (E3's B and the readout at the bottom).
 | F25 | The delay's ping-pong: the echoes left and right in turn (one line, read at the time and twice it, the feedback from the second at its square). Done 2026-11-03 (0.5-f63): PING on B2 of the FX pages, saved (SEC_FX v5) | 2026-11-02, 11 |
 | F27 | STYLE: RNDMZR rolls the band in a style, eight of them and ANY (DECISIONS "STYLE"). Done 2026-11-04 (0.5-f68); fourteen, and ACID's 303 in the bass (0.5-f69); the kit's, the bass's and (held back) the lead's sound in a style, one part at a time on RNDMZR held (0.5-f70); GLITCH (0.5-f71) | 2026-11-04 |
 | F26 | Gain compensation where a drive is turned (asked 2026-11-03 with F20). Done 2026-11-03 (0.5-f62): the kit's DRIVE/FOLD and a sample's DIST; the kick's TONE and the bass's DRIVE measured and already level (DECISIONS "Distortion keeps its level") | 2026-11-03 |
+| F28 | A length per voice in the drums (KICK 16, SNARE 16, HAT 12, GLITCH 7), restarting at every bar (BAR) or running free until RESET, start or stop (DECISIONS "A length per voice"). Done 2026-11-04 (0.5-f72): V.LEN on KIT, RESTART on DIST, saved (SEC_DRUMS v3) | 2026-11-04 |
 
 ### The order (waves)
 

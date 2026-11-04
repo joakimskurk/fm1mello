@@ -244,7 +244,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   walks and octave jumps between, an octave down; UNDO takes it back.
 - **Drums** (ARP > DRUMS). Kick, snare, hat and a glitch voice (bleep, chirp, crackle, stutter) on a 16-step
   pattern with accents, per-step pitch, decay, crush and ratchet locks, rolls, chance, swing (GLOBAL > GROOVE, for
-  everything), a kit drive with fold, DUCK (the kick's sidechain: the lead, sub and chords dip at each kick and
+  everything), a length per voice (KIT's V.LEN: KICK 16, SNARE 16, HAT 12, GLITCH 7 is a polyrhythm; RESTART on DIST:
+  BAR starts them all over at every bar's one, FREE lets them run until RESET, start or stop), a kit drive with fold, DUCK (the kick's sidechain: the lead, sub and chords dip at each kick and
   come back over 160 ms), and their sends on MIX. RNDMZR rolls them too with FEED on. The kick is built
   for weight: a driven sine from 38 to 90 Hz whose pitch falls from 3.5x over 90 ms, decaying up to 1.5 s.
 - **MIX** (GLO > MIX). The levels of lead, bass, chords and drums as faders, each with a mute (LD, BS, CH, DR);
@@ -327,8 +328,8 @@ K1-K4 with their default values.
 | DRUMS | ARP | VOICE | `ON VOX ACC ROLL P M UNDO RNDMZR` | TONE 25% · TUNE 40% · DECAY 335MS · LEVEL 90% |
 | DRUMS | ARP | STEP | `ON VOX ACC ROLL P M UNDO RNDMZR` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | DRUMS | ARP | VARY | `ON VOX ACC ROLL P M UNDO RNDMZR` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
-| DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · — · LEVEL 70% |
-| DRUMS | ARP | DIST | `ON VOX ACC ROLL P M UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · — |
+| DRUMS | ARP | KIT | `ON VOX ACC ROLL P M UNDO RNDMZR` | LENGTH 16 · FOLLOW OFF · V.LEN KIT · LEVEL 70% |
+| DRUMS | ARP | DIST | `ON VOX ACC ROLL P M UNDO RNDMZR` | DRIVE 0% · FOLD 0% · DUCK 0% · RESTART FREE |
 | CHORD | ARP | PLAY | `ON BASS POLY FIT P M UNDO RNDMZR` | MODE PATTERN · TRIG GRID · CHORDS 4 · GATE 72% |
 | CHORD | ARP | CHORD | `ON BASS POLY FIT P M UNDO RNDMZR` | DEG 1 · SHAPE TRIAD · HOLD 8 · OCT -1 |
 | CHORD | ARP | VOICING | `ON BASS POLY FIT P M UNDO RNDMZR` | INV 0 · SPREAD 1 · VOICES 3 · VLEAD OFF |

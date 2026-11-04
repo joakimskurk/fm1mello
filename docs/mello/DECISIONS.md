@@ -1589,6 +1589,26 @@ for the sound, not the artist (as the others are), the most detailed of them: ev
 The lead's per-step wave and chance only within RANDOM's mask (WAVE, PROB), as everything of the lead. Test:
 style_roll (rolls, glitch hits, pitched locks, FOLD, the bass's loop).
 
+## A length per voice (2026-11-04)
+
+The product owner: "each line in the drum sequencer an independent length: kick 16, snare 16, hat 12, perc 7; a
+lovely polyrhythm, that can be reset at the next (global) one, or run free until the next reset, start or stop",
+inspired by skurkybeats (jhf.no).
+
+- **V.LEN** (DRUMS > KIT, K3, where SPACE was): the picked voice's own LENGTH, 1-16, or KIT (the kit's LENGTH, as
+  every voice of an old project). Each voice plays its own steps in its own length; the rows past it are dim, and
+  each row has its own playhead. REC writes a voice's hits within its own length, at its own place.
+- **RESTART** (DRUMS > DIST, K4): BAR, every voice starts over at every bar's one (sixteen sixteenths from the
+  start, whatever the kit's LENGTH or the sequence's); FREE (the default, as before) they run on and meet again
+  where their lengths do, the least common multiple (16 16 12 7: 336 steps, 21 bars), until the project's RESET,
+  start or stop, which start every part over as they always did.
+- The engine counts the drums' steps from their start (each voice at the count modulo its length) up to the least
+  common multiple, at most 16 15 13 11 = 34320, a uint16_t; REVERSE and REPEAT keep that count in their history.
+- Saved: SEC_DRUMS v3, each voice's length and BAR as a flag; a v1 or v2 section reads as KIT, FREE.
+- In the styles: GLITCH puts the hat on 10, 12, 14 or 15 and the glitch voice on 5, 7, 9, 11 or 13, BAR half the
+  time; IDM sometimes the hat on 12 (threes against the fours) and the glitch on 7, BAR; every other style KIT.
+  A drum ROLL rolls each voice over its own length. Test: drum_poly.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

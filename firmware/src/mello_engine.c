@@ -742,6 +742,8 @@ static MelloDrumConfig sanitize_drum_config(MelloDrumConfig c)
     uint8_t i, k;
     if (c.length < 1u) c.length = 1u;
     if (c.length > MELLO_DRUM_STEPS) c.length = MELLO_DRUM_STEPS;
+    for (i = 0u; i < MELLO_DRUM_VOICES; ++i)
+        if (c.vlen[i] > MELLO_DRUM_STEPS) c.vlen[i] = MELLO_DRUM_STEPS;
     if (c.swing > 1000u) c.swing = 1000u;
     if (c.level > 1000u) c.level = 1000u;
     if (c.space > 1000u) c.space = 1000u;
@@ -821,11 +823,31 @@ void mello_engine_bass_set_config(MelloEngine *e, const MelloBassConfig *config)
     if (e->bass_pos >= e->bass.length) e->bass_pos = 0u;
 }
 
+/* A voice's LENGTH (its own, or the kit's), and where the voices all meet again: the lengths' least common multiple
+ * (at most 16 * 15 * 13 * 11 = 34320, so it fits the count). */
+uint8_t mello_drum_voice_length(const MelloDrumConfig *d, uint8_t v)
+{
+    uint8_t n = v < MELLO_DRUM_VOICES && d->vlen[v] ? d->vlen[v] : d->length;
+    return n ? n : 1u;
+}
+static uint16_t drum_wrap(const MelloDrumConfig *d)
+{
+    uint32_t w = 1u;
+    uint8_t v;
+    for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
+        uint32_t a = w, b = mello_drum_voice_length(d, v), t;
+        while (b) t = a % b, a = b, b = t; /* gcd */
+        w = w / a * mello_drum_voice_length(d, v);
+    }
+    return (uint16_t)w;
+}
+
 void mello_engine_drums_set_config(MelloEngine *e, const MelloDrumConfig *config)
 {
     if (!e || !config) return;
     e->drums = sanitize_drum_config(*config);
-    if (e->drum_pos >= e->drums.length) e->drum_pos = 0u;
+    e->drum_wrap = drum_wrap(&e->drums);
+    e->drum_pos = (uint16_t)(e->drum_pos % e->drum_wrap);
 }
 
 void mello_engine_drums_roll(MelloEngine *e)
@@ -838,7 +860,7 @@ void mello_engine_drums_roll(MelloEngine *e)
     if (!e) return;
     d = &e->drums;
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v)
-        for (k = 0u; k < d->length; ++k) {
+        for (k = 0u; k < mello_drum_voice_length(d, v); ++k) { /* each voice over its own LENGTH */
             MelloDrumLock *l = &d->lock[v][k];
             uint16_t bit = (uint16_t)(1u << k), dens = density[v];
             if (!chance_permille(&e->drum_rng, d->roll)) continue;
@@ -1010,12 +1032,15 @@ static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
 {
     MelloDrumConfig *d = &e->drums;
     uint8_t st, v, r;
+    uint16_t at = e->drum_pos;
     if (!d->on) return;
-    st = (uint8_t)(e->drum_pos % d->length);
-    e->drum_step = (int8_t)st;
-    e->drum_pos = (uint8_t)((st + 1u) % d->length);
+    e->drum_step = (int8_t)(at % (d->length ? d->length : 1u));
+    e->drum_pos = (uint16_t)((at + 1u) % (e->drum_wrap ? e->drum_wrap : 1u));
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
-        const MelloDrumLock *l = &d->lock[v][st];
+        const MelloDrumLock *l;
+        st = (uint8_t)(at % mello_drum_voice_length(d, v)); /* each voice at its own place in its own LENGTH */
+        e->drum_vstep[v] = (int8_t)st;
+        l = &d->lock[v][st];
         uint8_t n = l->ratchet < 1u ? 1u : l->ratchet > 4u ? 4u : l->ratchet;
         bool roll = e->perf.fill && (v == MELLO_DRUM_SNARE || v == MELLO_DRUM_GLITCH); /* FILL: a roll on each step */
         if (!(d->hits[v] & (1u << st)) && !roll) continue;
@@ -1481,6 +1506,8 @@ void mello_engine_init(MelloEngine *e, const MelloProject *project, uint32_t see
     mello_drum_defaults(&e->drums);
     mello_prng_seed(&e->drum_rng, seed ^ 0x44524D53u);
     e->drum_step = -1;
+    memset(e->drum_vstep, -1, sizeof e->drum_vstep);
+    e->drum_wrap = drum_wrap(&e->drums);
     mello_bass_defaults(&e->bass);
     e->bass_step = -1;
 #if MELLO_FEATURE_CHORD_MACHINE
@@ -1760,6 +1787,7 @@ void mello_engine_reset_transport(MelloEngine *e)
     e->drone_open = false;
     e->drum_pos = 0u;
     e->drum_step = -1;
+    memset(e->drum_vstep, -1, sizeof e->drum_vstep);
     e->bass_pos = 0u;
     e->bass_step = -1;
     e->bass_glide_in = false;
@@ -3919,6 +3947,7 @@ static void style_drums(MelloEngine *e, uint8_t st)
     MelloDrumConfig d = e->drums;
     uint8_t v, k;
     d.on = st != MELLO_STYLE_DRONE, d.follow = false, d.length = 16u;
+    memset(d.vlen, 0, sizeof d.vlen), d.bar_reset = false; /* each voice the kit's 16, but GLITCH's and IDM's below */
     d.swing = swing[st - MELLO_STYLE_AMBIENT];
     memset(d.lock, 0, sizeof d.lock);
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
@@ -3963,6 +3992,9 @@ static void style_drums(MelloEngine *e, uint8_t st)
             if (chance_permille(&e->gen_rng, 200u)) d.lock[MELLO_DRUM_GLITCH][k].ratchet = 3u;
             d.lock[MELLO_DRUM_HAT][k].pitch = (int8_t)((int32_t)rng_bounded(&e->gen_rng, 9u) - 4);
         }
+        if (chance_permille(&e->gen_rng, 400u)) d.vlen[MELLO_DRUM_HAT] = 12u; /* threes against the fours */
+        if (chance_permille(&e->gen_rng, 400u)) d.vlen[MELLO_DRUM_GLITCH] = 7u;
+        d.bar_reset = true;
         break;
     }
     case MELLO_STYLE_GLITCH: { /* everything cut up: kicks off the grid that stutter, a snare that rolls into the
@@ -3988,6 +4020,12 @@ static void style_drums(MelloEngine *e, uint8_t st)
                 if (chance_permille(&e->gen_rng, 300u)) l->decay = (int8_t)((int32_t)rng_bounded(&e->gen_rng, 161u) - 100);
                 if (v && chance_permille(&e->gen_rng, 250u)) l->crush = (uint8_t)rng_bounded(&e->gen_rng, 101u);
             }
+        }
+        { /* a polyrhythm: the hat and the glitch on lengths of their own, half the time starting over each bar */
+            static const uint8_t hat[4] = {12u, 14u, 15u, 10u}, glitch[5] = {7u, 5u, 9u, 11u, 13u};
+            d.vlen[MELLO_DRUM_HAT] = hat[rng_bounded(&e->gen_rng, 4u)];
+            d.vlen[MELLO_DRUM_GLITCH] = glitch[rng_bounded(&e->gen_rng, 5u)];
+            d.bar_reset = chance_permille(&e->gen_rng, 500u);
         }
         if (chance_permille(&e->gen_rng, 600u)) /* the roll into the one, climbing */
             for (k = 13u; k < 16u; ++k) {
@@ -4360,6 +4398,8 @@ bool mello_engine_undo_swap(MelloEngine *e)
         MelloBassConfig b = e->bass;
         e->drums = e->undo_drums;
         e->undo_drums = d;
+        e->drum_wrap = drum_wrap(&e->drums);
+        e->drum_pos = (uint16_t)(e->drum_pos % e->drum_wrap);
         e->bass = e->undo_bass;
         e->undo_bass = b;
     }
@@ -5208,12 +5248,14 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     /* DRUMS: a step every pulse (its own clock: the sequence's skips, long steps and REVERSE / REPEAT do not stop
      * it), or with FOLLOW at each of the sequence's steps. */
     pulse_ticks = mello_pulse_ticks(&e->project);
+    if (e->drums.bar_reset && e->absolute_pulse % 16u == 0u) e->drum_pos = 0u; /* BAR: every bar's one */
     if (replay && e->drums.on && e->drums.length) { /* REVERSE / REPEAT: the drums' step of then */
-        uint8_t real = e->drum_pos;
+        uint16_t real = e->drum_pos;
         e->drum_pos = pp.drum;
         if (!e->drums.follow || pe.pulse_index == 0u) drums_tick(e, pulse_ticks);
-        e->drum_pos = (!e->drums.follow || real_pe.pulse_index == 0u) ? (uint8_t)((real + 1u) % e->drums.length)
-                                                                       : real; /* its own time underneath */
+        e->drum_pos = (!e->drums.follow || real_pe.pulse_index == 0u)
+                          ? (uint16_t)((real + 1u) % (e->drum_wrap ? e->drum_wrap : 1u))
+                          : real; /* its own time underneath */
     } else if (!e->drums.follow || pe.pulse_index == 0u)
         drums_tick(e, pulse_ticks);
     e->swing_off = 0u; /* the loop's and the slots' events stay on the grid */
