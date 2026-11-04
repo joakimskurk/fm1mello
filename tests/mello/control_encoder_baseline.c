@@ -140,8 +140,8 @@ static void verify_presets_global_slot_cursor(void)
     u.selected_slot = 0u;
     u.slot_bank = 0u;
     before = t.engine;
-    turn(&u, MELLO_UI_ENC_PRESETS, +17);
-    if (u.page != MELLO_UI_SOUND_RESERVED || u.selected_slot != 17u || u.slot_bank != 1u)
+    turn(&u, MELLO_UI_ENC_PRESETS, +17); /* (past the 16 slots: the last, one bank) */
+    if (u.page != MELLO_UI_SOUND_RESERVED || u.selected_slot != MELLO_MAX_SLOTS - 1u || u.slot_bank != 0u)
         fail("PRESETS", "global slot cursor baseline mismatch");
     if (memcmp(&before, &t.engine, sizeof before))
         fail("PRESETS", "global slot cursor unexpectedly changed engine state");

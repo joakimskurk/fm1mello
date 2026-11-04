@@ -2239,7 +2239,8 @@ static void adjust_slot_seq(MelloUi *ui, uint8_t knob, int16_t delta, uint32_t n
     st = &e->slot_seq.steps[ui->selected_slot_seq_step];
     if (knob == 0u) {
         int32_t v = (int32_t)st->slot + (delta > 0 ? 1 : -1);
-        mello_engine_slot_seq_set_step(e, ui->selected_slot_seq_step, (int8_t)clamp_i32(v, -1, 63), st->hold);
+        mello_engine_slot_seq_set_step(e, ui->selected_slot_seq_step, (int8_t)clamp_i32(v, -1, MELLO_MAX_SLOTS - 1),
+                                       st->hold);
     } else if (knob == 1u) {
         int32_t idx = option_index_u16(slot_holds, 7u, st->hold);
         idx = clamp_i32(idx + (delta > 0 ? 1 : -1), 0, 6);
@@ -2262,7 +2263,7 @@ static void adjust_slots(MelloUi *ui, uint8_t knob, int16_t delta, uint32_t now_
     if (!e || !delta) return;
     if (ui->slots_subpage == 0u) {
         if (knob == 1u) {
-            int32_t idx = option_index_u8(slot_counts, 6u, e->visible_slot_count);
+            int32_t idx = option_index_u8(slot_counts, 4u, e->visible_slot_count); /* (2 .. 16: the slots there are) */
             idx = clamp_i32(idx + (delta > 0 ? 1 : -1), 0, 5);
             mello_engine_set_visible_slot_count(e, slot_counts[idx]);
             persistent_dirty(ui, now_ms);
@@ -3091,7 +3092,7 @@ static void adjust_select(MelloUi *ui, int16_t delta)
 static void adjust_presets(MelloUi *ui, int16_t delta)
 {
     if (!delta) return;
-    ui->selected_slot = (uint8_t)clamp_i32((int32_t)ui->selected_slot + delta, 0, 63);
+    ui->selected_slot = (uint8_t)clamp_i32((int32_t)ui->selected_slot + delta, 0, MELLO_MAX_SLOTS - 1);
     ui->slot_bank = ui->selected_slot / 16u;
     if (ui->page == MELLO_UI_SLOTS) mark_edit(ui);
 }
@@ -3988,7 +3989,7 @@ static void handle_buttons(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32
         } else if (ui->page == MELLO_UI_SEQ_SLOTSEQ && ui->slot_seq_bank < 3u) {
             ++ui->slot_seq_bank;
             mark_edit(ui);
-        } else if (ui->page == MELLO_UI_SLOTS && ui->slot_bank < 3u) {
+        } else if (ui->page == MELLO_UI_SLOTS && ui->slot_bank + 1u < MELLO_MAX_SLOTS / 16u) {
             ++ui->slot_bank;
             mark_edit(ui);
         } else if (ui->page == MELLO_UI_TURING) {

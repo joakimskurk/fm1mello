@@ -55,7 +55,8 @@ static MelloStorage s;
 static MelloEngine e;
 static uint32_t now = 0u;
 
-/* Every pattern slot full and different (as storage_full_slots): the record a full project writes, ten sectors. */
+/* Every pattern slot full and different (as storage_full_slots): the record a full project writes, three sectors
+ * with the 16 slots (ten with the 64 before 2026-11-05). */
 static void fill_slots(void)
 {
     unsigned i, k;
@@ -105,7 +106,7 @@ int main(void)
     most = run(200u, &w);
     CHECK(w == MELLO_STORAGE_SAVE_WRITTEN, "the manual save was not written (%d)", (int)w);
     CHECK(most == 1u, "a poll erased %u sectors", most);
-    CHECK(erases >= 8u, "only %u sectors erased: a full project's record is bigger than that", erases);
+    CHECK(erases >= 3u, "only %u sectors erased: a full project's record is bigger than that", erases);
     printf("storage_save_steps: a save erases %u sectors, one a poll\n", erases);
 
     /* an edit, autosaved; PLAY half-way: nothing erased while it plays, the rest after, nothing twice */

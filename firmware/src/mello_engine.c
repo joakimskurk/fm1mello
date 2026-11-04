@@ -71,9 +71,9 @@ static uint8_t sanitize_visible_slot_count(uint8_t v)
     case 2u:
     case 4u:
     case 8u:
-    case 16u:
+    case 16u: return v;
     case 32u:
-    case 64u: return v;
+    case 64u: return 16u; /* (an older project's: there are 16 now) */
     default: return 8u;
     }
 }

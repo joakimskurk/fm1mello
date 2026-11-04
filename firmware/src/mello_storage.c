@@ -63,6 +63,7 @@ enum {
 #define BASS_WIRE_SIZE     (10u + MELLO_BASS_STEPS * 2u)
 #define SLOT_SEQ_WIRE_SIZE (2u + MELLO_MAX_SLOT_SEQ_STEPS * 3u)
 #define SLOT_WIRE_SIZE     (1u + (MELLO_SLOT_NAME_CHARS + 1u) + SNAPSHOT_WIRE_SIZE)
+#define WIRE_MAX_SLOTS     64u /* what a saved project may hold: there were 64 slots until 2026-11-05 */
 
 #define CRC_INIT 0xFFFFFFFFu
 #define CRC_XOR  0xFFFFFFFFu
@@ -1133,15 +1134,16 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
         } else if (id == SEC_SLOTS && ver == SECVER_SLOTS) {
             uint8_t count, i;
             if (len < 1u || !rd_u8(&r, &count) || len != 1u + (uint32_t)count * SLOT_WIRE_SIZE) return false;
-            if (count > MELLO_MAX_SLOTS) return false;
+            if (count > WIRE_MAX_SLOTS) return false;
             for (i = 0u; i < count; ++i) {
                 uint8_t idx;
                 MelloPatternSlot slot;
                 memset(&slot, 0, sizeof(slot));
-                if (!rd_u8(&r, &idx) || idx >= MELLO_MAX_SLOTS ||
+                if (!rd_u8(&r, &idx) || idx >= WIRE_MAX_SLOTS ||
                     !rd_bytes(&r, slot.name, MELLO_SLOT_NAME_CHARS + 1u) || !decode_snapshot(&r, &slot))
                     return false;
                 slot.name[MELLO_SLOT_NAME_CHARS] = '\0';
+                if (idx >= MELLO_MAX_SLOTS) continue; /* an older project's slot past the 16: read, left */
                 if (apply && e && !mello_engine_import_slot(e, idx, &slot)) return false;
             }
         } else if (id == SEC_SLOT_SEQ && ver == SECVER_SLOT_SEQ) {
@@ -1167,9 +1169,12 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
             for (i = 0u; i < count; ++i) {
                 uint8_t idx;
                 MelloSoundConfig c;
-                if (!rd_u8(&r, &idx) || (idx != GRIT_WORKING && idx >= MELLO_MAX_SLOTS)) return false;
-                c = !e ? (MelloSoundConfig){0} : (idx == GRIT_WORKING ? e->sound : e->slots[idx].sound);
+                if (!rd_u8(&r, &idx) || (idx != GRIT_WORKING && idx >= WIRE_MAX_SLOTS)) return false;
+                c = !e || (idx != GRIT_WORKING && idx >= MELLO_MAX_SLOTS)
+                        ? (MelloSoundConfig){0}
+                        : (idx == GRIT_WORKING ? e->sound : e->slots[idx].sound);
                 if (!decode_grit(&r, ver, &c)) return false;
+                if (idx != GRIT_WORKING && idx >= MELLO_MAX_SLOTS) continue; /* (past the 16: read, left) */
                 if (apply && e) {
                     if (idx == GRIT_WORKING)
                         mello_engine_sound_set_config(e, &c); /* sanitizes */
@@ -1201,10 +1206,11 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
                 uint8_t idx;
                 MelloModRouting m;
                 MelloDotMatrixConfig dot[MELLO_DOT_MATRIX_COUNT];
-                if (!rd_u8(&r, &idx) || (idx != GRIT_WORKING && idx >= MELLO_MAX_SLOTS)) return false;
+                if (!rd_u8(&r, &idx) || (idx != GRIT_WORKING && idx >= WIRE_MAX_SLOTS)) return false;
                 memset(&m, 0, sizeof m);
                 memset(dot, 0, sizeof dot);
                 if (!decode_mod(&r, ver, &m, dot)) return false;
+                if (idx != GRIT_WORKING && idx >= MELLO_MAX_SLOTS) continue; /* (past the 16: read, left) */
                 if (apply && e) {
                     if (idx == GRIT_WORKING) { /* the setters sanitize */
                         MelloDotMatrixConfig d1 = e->dot[MELLO_DOT_MOD1];

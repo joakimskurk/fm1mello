@@ -20,7 +20,7 @@ Anyway, enjoy.
 A generative step sequencer and synth as a firmware for the M-VAVE FM-1: a 16-step sequence with segments, a lead
 voice with filter, grit and a second oscillator, a bass with its own sequencer, a chord layer, a four-voice drum kit,
 a sample layer, delay, reverb, distortion, a dot-matrix and an evolving-register modulator, a randomizer with undo,
-performance keys, 64 pattern slots and a loop cycle, all on the FM-1's keys, knobs and 240 x 240 screen. It is a
+performance keys, 16 pattern slots (one a white key) and a loop cycle, all on the FM-1's keys, knobs and 240 x 240 screen. It is a
 port of [SkurkyMello](reference/skurkymello.html), the browser instrument, which stays the reference for sound and
 feel, and it is built on [Dinghy](https://github.com/zvenson/dinghy) 0.3 by zvenson (with 0.4's MIDI IN on the TRS
 jack) and, under that, the Felucca / SLOOP platform.
@@ -369,10 +369,11 @@ K1-K4 with their default values.
 
 ## Saving, slots and MIDI
 
-The project (the sequence, every part, 64 slots and the slot sequence) lives in flash and is saved by SAVE, and on
+The project (the sequence, every part, 16 slots and the slot sequence) lives in flash and is saved by SAVE, and on
 its own after an edit once the sequencer stops; two banks with checksums, so a cut power never loses more than the
 last edit. SAVE held opens the slots: LOAD a slot onto the sequence, RENAME it with the keys; PRESETS on HOME queues
-a slot for the next bar. 64 slots, all full, fit the bank.
+a slot for the next bar. The 16 slots, all full, fit the bank three times over. A project saved with more (there were 64
+until 0.5-f86) is read with its first 16.
 
 MIDI in comes over USB and over the FM-1's TRS jack (Dinghy 0.4's parser: channel messages, clock and transport;
 SysEx only over USB); MIDI out goes over USB. With SYNC set to SLAVE (GLOBAL > CLOCK) the sequencer follows clock,

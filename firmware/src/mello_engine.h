@@ -23,7 +23,7 @@ extern "C" {
 #define MELLO_MAX_RUNTIME_PULSES   (MELLO_MAX_BASE_PULSES * 2u)
 #define MELLO_EVENT_QUEUE_CAP      64u
 #define MELLO_MAX_LOOP_CYCLE_STEPS 8u
-#define MELLO_MAX_SLOTS            64u
+#define MELLO_MAX_SLOTS            16u /* one a white key (64 until 2026-11-05: 47 KB of RAM; DECISIONS "RAM") */
 #define MELLO_SLOT_NAME_CHARS      18u
 #define MELLO_MAX_SLOT_SEQ_STEPS   64u
 #define MELLO_DOT_MATRIX_COUNT     5u

@@ -1736,6 +1736,11 @@ the reverb, the samples, the screen) is separate and as full (1.3 KB free).
 - 3264 B: 91104 B used, 7.2 KB free (0.5-f82). The styles' fingerprint (840 rolls) is unchanged.
 - The large one left: the pattern slots (47 KB) could live in flash, read when one is played and written with the
   project; it changes how a slot is saved, so it waits for the product owner's word and, best, an FM-1.
+- **16 slots** (2026-11-05, 0.5-f86). The product owner: "we cut to 16 slots, then it adds up with the white keys".
+  35 KB freed (the slots were 47 KB). VISIBLE goes 2-16, the SLOTS page has one bank, the slot sequence refers to
+  1-16, PRESETS stops at 16. A project saved with up to 64 is still read: a slot (and its grit and MOD entries) past
+  the 16 is read and left, not refused (the wire's limit stays 64); 32 or 64 visible read as 16. A full project is
+  now ~12 KB, three sectors (storage_full_slots, storage_save_steps follow).
 
 ## Record it yourself, easily (2026-11-04)
 

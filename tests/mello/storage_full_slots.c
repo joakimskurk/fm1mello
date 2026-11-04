@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (C) 2026 joakimskurk */
-/* ROADMAP A1: 64 full slots, their grit and MOD entries with them, must fit a bank and come back after a power
+/* ROADMAP A1: every slot full (16 since 2026-11-05; 64 before), their grit and MOD entries with them, must fit a bank and come back after a power
  * cycle; a record in the 40 KiB layout's second bank (0.5-f21 and before) is read at boot and the first save after
  * it goes under it in bank 0, leaving it whole; a project that does not fit says so (SAVE_TOO_LARGE: the status
  * line's FULL). Flash is a RAM model up to the sample staging area, which the banks must not reach. */
@@ -94,18 +94,18 @@ int main(void)
     CHECK(MELLO_STORAGE_BANK0_ADDR + 2u * MELLO_STORAGE_BANK_SIZE <= MELLO_SAMPLE_FLASH_STAGING_ADDR,
           "the banks reach into the sample staging area");
 
-    /* 1. 64 full slots fit, and come back */
+    /* 1. the 16 full slots fit, and come back */
     memset(flash, 0xFF, sizeof flash);
     fresh(&e);
     fill_slots(&e);
     CHECK(mello_storage_measure_payload(&e, &size, &crc), "measure");
-    printf("64 full slots, grit and MOD in each: %u B of a %u B bank\n", (unsigned)size,
+    printf("%u full slots, grit and MOD in each: %u B of a %u B bank\n", (unsigned)MELLO_MAX_SLOTS, (unsigned)size,
            (unsigned)MELLO_STORAGE_BANK_SIZE);
     CHECK(size + MELLO_STORAGE_HEADER_SIZE + MELLO_STORAGE_FOOTER_SIZE <= MELLO_STORAGE_BANK_SIZE,
-          "64 full slots do not fit the bank");
+          "the full slots do not fit the bank");
     mello_storage_init(&s, &io, NULL);
     CHECK(mello_storage_save_now(&s, &e, 1000u) == MELLO_STORAGE_SAVE_WRITTEN,
-          "save of 64 full slots refused");
+          "save of the full slots refused");
     fresh(&e2);
     mello_storage_init(&s, &io, NULL);
     CHECK(mello_storage_load(&s, &e2) == MELLO_STORAGE_LOAD_OK, "load after the power cycle");
@@ -149,8 +149,8 @@ int main(void)
     {
         MelloStorageConfig small;
         mello_storage_config_defaults(&small);
-        small.bank_size = 0x4000u;
-        small.bank_addr[1] = MELLO_STORAGE_BANK0_ADDR + 0x4000u;
+        small.bank_size = 0x2000u; /* (two sectors: the 16 full slots need three) */
+        small.bank_addr[1] = MELLO_STORAGE_BANK0_ADDR + 0x2000u;
         memset(flash, 0xFF, sizeof flash);
         fresh(&e);
         fill_slots(&e);
@@ -158,6 +158,6 @@ int main(void)
         CHECK(mello_storage_save_now(&s, &e, 1000u) == MELLO_STORAGE_SAVE_TOO_LARGE,
               "a project past the bank was not refused as too large");
     }
-    puts("PASS: 64 full slots fit and return; the old layout's record is read and kept; too large says so");
+    puts("PASS: the full slots fit and return; the old layout's record is read and kept; too large says so");
     return 0;
 }
