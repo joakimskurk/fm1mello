@@ -674,7 +674,7 @@ void mello_sub_defaults(MelloSubConfig *c)
     c->euclid_rotate = 0u;
     c->octave = -1;
     c->gate_amount = 900u;
-    c->level = 420u;
+    c->level = 750u; /* 2026-11-04: was 420, 7.5 dB under the lead alone; now ~2.5 dB under (DECISIONS "The mix") */
     c->wave = MELLO_WAVE_SINE;
     c->decay_ms = 160u;
     c->release_ms = 120u;
@@ -720,7 +720,7 @@ void mello_drum_defaults(MelloDrumConfig *c)
     memset(c, 0, sizeof(*c));
     c->length = 16u;
     c->swing = 0u;
-    c->level = 800u; /* 70% to 80% (2026-11-01): the kit sits with the lead, not behind it */
+    c->level = 950u; /* 70% to 80% (2026-11-01), to 95% (2026-11-04): a little over the lead (DECISIONS "The mix") */
     c->space = 250u;
     c->roll = 500u;
     for (i = 0u; i < MELLO_DRUM_VOICES; ++i) {
@@ -1053,7 +1053,7 @@ void mello_chord_defaults(MelloChordConfig *c)
     c->poly = false;
     c->length = 4u;
     c->voices = 3u;
-    c->level = 180u; /* E4: was 320; the chords sit 2 dB under the default lead (RMS), 5.7 dB under before */
+    c->level = 130u; /* E4: was 320, then 180 (2026-11-04: 130, ~6 dB under the lead; DECISIONS "The mix") */
     c->wave = MELLO_WAVE_SAW;
     c->gate_amount = 720u;
     c->attack_ms = 40u;

@@ -2011,7 +2011,7 @@ void mello_audio_reverb_stereo_probe(MelloAudio *a, int32_t send, int32_t *left,
 }
 #endif
 
-/* Tone.Limiter(-1): a compressor at -1 dBFS (29204), ratio 20, attack 3 ms, release 10 ms, on the stereo peak. Above
+/* Tone.Limiter(-1): a compressor at -1 dBFS (29204), ratio 20, attack 1 ms (the HTML 3), release 10 ms, on the peak. Above
  * the threshold the gain is threshold / envelope (ratio 20 is within 0.3 dB of that at 6 dB over). Unity below it,
  * so it only acts when the returns pile up; it replaces a hard clip at -1 dBFS. */
 /* The output's own gain (ROADMAP F20, DECISIONS "The output level"): +11 dB, ahead of the limiter, so a pattern with
@@ -2024,8 +2024,20 @@ void mello_audio_reverb_stereo_probe(MelloAudio *a, int32_t send, int32_t *left,
  * the gain must not turn into a tail that never ends: then nothing would ever be silent, and nothing saved) */
 #define TAIL_LSB ((8 * MELLO_OUTPUT_GAIN_Q12) >> 12)
 #define LIMITER_THRESHOLD   29204
-#define LIMITER_ATTACK_Q15  247 /* 1 - exp(-1 / (0.003 * 44100)) */
+#define LIMITER_ATTACK_Q15  735 /* 1 - exp(-1 / (0.001 * 44100)): 1 ms (was 3 ms, the HTML's; the mix got louder) */
 #define LIMITER_RELEASE_Q15 74  /* 1 - exp(-1 / (0.010 * 44100)) */
+/* What the limiter's attack lets past -1 dBFS bends towards full scale and never reaches it: x over the threshold by
+ * e comes out at T + e * H / (e + H) (H the headroom to full scale), not clipped hard. A divide only then. */
+static int32_t soft_top(int32_t x)
+{
+    int32_t ax = x < 0 ? -x : x, e, y;
+    const int32_t h = 32767 - LIMITER_THRESHOLD;
+    if (ax <= LIMITER_THRESHOLD) return x;
+    e = ax - LIMITER_THRESHOLD;
+    if (e > 1 << 20) e = 1 << 20;
+    y = LIMITER_THRESHOLD + (int32_t)((uint32_t)e * (uint32_t)h / (uint32_t)(e + h)); /* < 2^32 */
+    return x < 0 ? -y : y;
+}
 static void limiter_step(MelloAudio *a, int32_t *l, int32_t *r)
 {
     int32_t al = *l < 0 ? -*l : *l, ar = *r < 0 ? -*r : *r, pk = (al > ar ? al : ar), d, g;
@@ -3020,8 +3032,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             mix_l = mul_q12(mul_q12(mix_l, master), MELLO_OUTPUT_GAIN_Q12);
             mix_r = mul_q12(mul_q12(mix_r, master), MELLO_OUTPUT_GAIN_Q12);
             limiter_step(a, &mix_l, &mix_r);
-            mix_l = clamp32(mix_l, -32767, 32767);
-            mix_r = clamp32(mix_r, -32767, 32767);
+            mix_l = soft_top(mix_l);
+            mix_r = soft_top(mix_r);
         }
         if ((mix_l > TAIL_LSB || mix_l < -TAIL_LSB || mix_r > TAIL_LSB || mix_r < -TAIL_LSB) &&
             (a->fx.delay_wet || a->fx.reverb_wet || a->perf_tail)) {

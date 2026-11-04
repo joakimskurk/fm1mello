@@ -209,7 +209,7 @@ int main(void)
            fx.delay_level == 750u);
     assert(fx.reverb_wet == 240u && fx.reverb_decay_ms == 6000u && fx.reverb_tone == 620u &&
            fx.reverb_level == 1150u);
-    assert(sub.cut == 450u && sub.level == 420u && sub.decay_ms == 160u);
+    assert(sub.cut == 450u && sub.level == 750u && sub.decay_ms == 160u); /* LEVEL: the HTML 420 (DECISIONS "The mix") */
     /* Tone.Distortion at AMT 0 is the HTML's gain staging: y = x/3, flat to the clip at +-1. */
     assert(a.main_dist_curve[256] >= 10920 && a.main_dist_curve[256] <= 10924);
     assert(a.main_dist_curve[128] >= 5460 && a.main_dist_curve[128] <= 5462);

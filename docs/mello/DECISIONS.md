@@ -1464,6 +1464,24 @@ when the voice itself sat an octave higher; the default line is at 0. Since "The
 (2026-11-02) a rolled line sat a whole octave under the default, around C1 (33 Hz) at OCT -1. A roll now writes
 the default line's octave, 0, and its jumps at +1. Test: bass_roll.
 
+## The mix (2026-11-04)
+
+The product owner: the mixer's levels should be better balanced, the chords down, the bass quite a lot up, the
+drums a little up. Measured in the default project with every part on (BASS SEQ, the kit, the chords), each part
+alone, 8 s, RMS:
+
+| part | before | now | its default LEVEL |
+|---|---|---|---|
+| LEAD | -21.8 dBFS | -21.8 | 1000, as it was |
+| BASS | -29.3 (7.5 dB under the lead) | -24.2 | 420 -> 750 |
+| DRUMS | -21.1 | -19.6 | 800 -> 950 |
+| CHORD | -25.4 | -28.3 | 180 -> 130 |
+
+A new project gets these; a saved one keeps its own. All together the mix is 1 dB louder (RMS -16.2), and the
+limiter's 3 ms attack (the HTML's) let 142 samples in 7.5 s through to full scale, hard clipped (1 before). The
+attack is 1 ms now, and what still gets past -1 dBFS bends towards full scale (T + e H / (e + H)) instead of being
+clipped: none reaches it, the peak is -0.2 dBFS. The divide runs only on those samples.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.
