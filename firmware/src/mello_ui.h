@@ -201,6 +201,7 @@ typedef struct {
     uint32_t rndmzr_down_ms;
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
     uint8_t random_style; /* MelloStyle: RNDMZR rolls the band in it (ANY: a style each time; OFF: the lead, by INT) */
+    bool roll_playing;    /* RANDOM's ROLLS: PLAYING, a roll of the band leaves the parts that are off off */
     bool random_links;                        /* RANDOM's LINKS layer (SELECT): keys set + / - per target */
     bool random_edit;                         /* RANDOM's EDIT: a key picks a target, K1 its amount */
     uint8_t random_sel;                       /* the target EDIT sets (index into the RANDOM page's pills) */

@@ -2669,7 +2669,18 @@ static void ui_roll(MelloUi *ui, MelloEngine *e, uint32_t now_ms)
 {
     /* playing, on the next bar's one (RNDMZR lit until then; UNDO takes it back) */
     if (ui->random_style != MELLO_STYLE_OFF) {
-        (void)mello_engine_style_roll_at_bar(e, ui->random_style, MELLO_PART_ALL);
+        uint8_t parts = MELLO_PART_ALL;
+        if (ui->roll_playing) { /* ROLLS PLAYING (DECISIONS "Melody first"): what is off stays off */
+            if (!e->drums.on) parts &= (uint8_t)~(MELLO_PART_DRUMS | MELLO_PART_KIT);
+#if MELLO_FEATURE_CHORD_MACHINE
+            if (!e->chord.on) parts &= (uint8_t)~MELLO_PART_CHORDS;
+#else
+            parts &= (uint8_t)~MELLO_PART_CHORDS;
+#endif
+            if (!e->sub.on) parts &= (uint8_t)~MELLO_PART_BASS;
+            parts |= MELLO_PART_BAND;
+        }
+        (void)mello_engine_style_roll_at_bar(e, ui->random_style, parts);
         show_readout(ui, MELLO_UI_READOUT_STYLE, now_ms);
         ui->dirty |= MELLO_UI_DIRTY_ALL;
     } else
@@ -2699,7 +2710,13 @@ static const char *random_intensity_name(MelloRandomizeIntensity intensity)
 
 static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
 {
-    if (!ui || knob > 1u || !delta) return;
+    if (!ui || knob > 2u || !delta) return;
+    if (knob == 2u) { /* K3: ROLLS, ALL (the band, every part) or PLAYING (only the parts that are on) */
+        if (ui->random_edit) return;
+        ui->roll_playing = delta > 0;
+        mark_edit(ui);
+        return;
+    }
     if (knob == 1u) { /* K2: STYLE, OFF .. ANY .. the styles */
         if (ui->random_edit) return;
         ui->random_style = (uint8_t)clamp_i32((int32_t)ui->random_style + (delta > 0 ? 1 : -1), MELLO_STYLE_OFF,
@@ -6070,7 +6087,8 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
         copy_s(v[0], random_intensity_name(ui->random_intensity));
         l[1] = "STYLE";
         copy_s(v[1], mello_style_name(ui->random_style));
-        copy_s(v[2], "-");
+        l[2] = "ROLLS";
+        copy_s(v[2], ui->roll_playing ? "PLAYING" : "ALL");
         copy_s(v[3], "-");
         break;
     case MELLO_UI_SLOTS:

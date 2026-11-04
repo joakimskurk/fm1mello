@@ -1675,6 +1675,13 @@ the tempo from 128 to 96. The product owner: "the tempo shall never be rolled".
 - Saved: SEC_DRUMS v5 (hits and accents in 32 bits, 32 locks per voice); v1-v4 read as 16 steps. Test: drum_poly
   (a 32 against a 16, step 30 saved, the UI's banks and the copy).
 
+## Melody first (2026-11-04, the workshop's wave 5)
+
+The product owner (and Ida, at the workshop) play it without the drums and the chords. RANDOM's K3, ROLLS: ALL (as
+before, a roll of the band sets every part, and turns on what the style plays) or PLAYING: a roll of the band rolls
+only the parts that are on, so drums, chords or a bass that are off stay off; the lead, its sound and the effects
+always roll. Still a roll of the band (a new style each time, its TRIM). Not saved (as STYLE). Test: roll_locks.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

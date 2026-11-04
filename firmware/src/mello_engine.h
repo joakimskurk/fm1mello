@@ -1213,6 +1213,7 @@ bool mello_engine_roll_back(MelloEngine *engine, uint8_t n);
 #define MELLO_PART_CHORDS 16u
 #define MELLO_PART_SOUND  32u /* the lead's envelope, the delay, the reverb */
 #define MELLO_PART_ALL    63u /* (the tempo is never rolled: DECISIONS "The tempo is the player's") */
+#define MELLO_PART_BAND   64u /* with some parts: still a roll of the band (a new style, its TRIM), as ROLLS PLAYING */
 uint8_t mello_engine_style_roll_parts(MelloEngine *engine, uint8_t style, uint8_t parts);
 /* ROLL on BASS in a style: the bass line alone, as the style's roll writes it (OFF / ANY: the walking line) */
 void mello_engine_style_bass(MelloEngine *engine, uint8_t style);

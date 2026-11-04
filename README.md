@@ -264,7 +264,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   one before) a tap of RNDMZR rolls the whole band in it, the lead within the mask, the bass line, the beat, the
   chords and some of the sound (never the tempo: that is the player's, and UNDO leaves it too): AMBIENT, DUB, TRIPHOP, TECHNO, ACID, ELECTRO, BREAKS, IDM, HOUSE, DEEP,
   MINIMAL, JUNGLE, DRONE, OUTRUN, GLITCH, its name shown
-  as it lands. OFF rolls the lead alone, as INT says. Playing, every roll of RNDMZR waits for the next bar's one;
+  as it lands. ROLLS on K3: ALL, or PLAYING, which leaves the parts that are off off (the drums, the chords,
+  the bass), for playing it as a melody instrument. OFF rolls the lead alone, as INT says. Playing, every roll of RNDMZR waits for the next bar's one;
   UNDO before then takes it back. UNDO takes a roll back whole.
 
 ## Every page's knobs and keys
@@ -286,8 +287,8 @@ K1-K4 with their default values.
 | LOOP CYCLE | SEQ | HARM | `ON RST PERF MUT UNDO RNDMZR` | KEY FOLLOW · SCALE FOLLOW · SUB 0 · BASS TR +0 |
 | LOOP CYCLE | SEQ | LOOP | `ON RST PERF MUT UNDO RNDMZR` | LENGTH 4 · SYNC SYNC · ON OFF · — |
 | SLOT SEQ | SEQ | — | `ON PERF MUT UNDO RNDMZR` | SLOT OFF · HOLD 16 · ON OFF · LENGTH 16 |
-| RANDOM | hold RNDMZR | MASK | `NONE ALL CLR PERF MUT UNDO RNDMZR` | INTENS MED · STYLE ANY · — · — |
-| RANDOM | hold RNDMZR | LINKS | `NONE ALL CLR PERF MUT UNDO RNDMZR` | INTENS MED · STYLE ANY · — · — |
+| RANDOM | hold RNDMZR | MASK | `NONE ALL CLR PERF MUT UNDO RNDMZR` | INTENS MED · STYLE ANY · ROLLS ALL · — |
+| RANDOM | hold RNDMZR | LINKS | `NONE ALL CLR PERF MUT UNDO RNDMZR` | INTENS MED · STYLE ANY · ROLLS ALL · — |
 | RANDOM | hold RNDMZR | AMOUNTS | `NONE ALL CLR PERF MUT UNDO RNDMZR` | AMOUNT PIT 10~ · — · — · — |
 | KEY / SCALE | SEL | — | `PERF MUT UNDO RNDMZR` | ROOT C4 · SCALE minor · OCT +0 · SPAN 2 |
 | SLOTS | hold SAVE | LOAD | `PERF MUT UNDO RNDMZR` | — · VISIBLE 8 · — · — |

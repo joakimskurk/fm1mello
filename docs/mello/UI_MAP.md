@@ -20,8 +20,8 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/loop-harm.png" width="96" alt="LOOP CYCLE HARM"> | LOOP CYCLE | SEQ | HARM | `ON RST PERF MUT UNDO RNDMZR` | KEY FOLLOW · SCALE FOLLOW · SUB 0 · BASS TR +0 |
 | <img src="../screens/loop-loop.png" width="96" alt="LOOP CYCLE LOOP"> | LOOP CYCLE | SEQ | LOOP | `ON RST PERF MUT UNDO RNDMZR` | LENGTH 4 · SYNC SYNC · ON OFF · — |
 | <img src="../screens/slotseq.png" width="96" alt="SLOT SEQ —"> | SLOT SEQ | SEQ | — | `ON PERF MUT UNDO RNDMZR` | SLOT OFF · HOLD 16 · ON OFF · LENGTH 16 |
-| <img src="../screens/random-mask.png" width="96" alt="RANDOM MASK"> | RANDOM | hold RNDMZR | MASK | `NONE ALL CLR PERF MUT UNDO RNDMZR` | INTENS MED · STYLE ANY · — · — |
-| <img src="../screens/random-links.png" width="96" alt="RANDOM LINKS"> | RANDOM | hold RNDMZR | LINKS | `NONE ALL CLR PERF MUT UNDO RNDMZR` | INTENS MED · STYLE ANY · — · — |
+| <img src="../screens/random-mask.png" width="96" alt="RANDOM MASK"> | RANDOM | hold RNDMZR | MASK | `NONE ALL CLR PERF MUT UNDO RNDMZR` | INTENS MED · STYLE ANY · ROLLS ALL · — |
+| <img src="../screens/random-links.png" width="96" alt="RANDOM LINKS"> | RANDOM | hold RNDMZR | LINKS | `NONE ALL CLR PERF MUT UNDO RNDMZR` | INTENS MED · STYLE ANY · ROLLS ALL · — |
 | <img src="../screens/random-amounts.png" width="96" alt="RANDOM AMOUNTS"> | RANDOM | hold RNDMZR | AMOUNTS | `NONE ALL CLR PERF MUT UNDO RNDMZR` | AMOUNT PIT 10~ · — · — · — |
 | <img src="../screens/key-scale.png" width="96" alt="KEY / SCALE —"> | KEY / SCALE | SEL | — | `PERF MUT UNDO RNDMZR` | ROOT C4 · SCALE minor · OCT +0 · SPAN 2 |
 | <img src="../screens/slots-load.png" width="96" alt="SLOTS LOAD"> | SLOTS | hold SAVE | LOAD | `PERF MUT UNDO RNDMZR` | — · VISIBLE 8 · — · — |

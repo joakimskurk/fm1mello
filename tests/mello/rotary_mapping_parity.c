@@ -150,7 +150,7 @@ static const Case cases[] = {
     C("LOOP HARM", MELLO_UI_SEQ_LOOP, 1, 15, 0, "KEY", "SCALE", "SUB", "BASS TR"),
     C("LOOP LOOP", MELLO_UI_SEQ_LOOP, 2, 7, 0, "LENGTH", "SYNC", "ON", ""),
     C("SLOTSEQ", MELLO_UI_SEQ_SLOTSEQ, 0, 15, 0, "SLOT", "HOLD", "ON", "LENGTH"),
-    C("RANDOM", MELLO_UI_RANDOM, 0, 3, 0, "INTENS", "STYLE", "", ""),
+    C("RANDOM", MELLO_UI_RANDOM, 0, 7, 0, "INTENS", "STYLE", "ROLLS", ""),
     C("SLOTS LOAD", MELLO_UI_SLOTS, 0, 2, 0, "", "VISIBLE", "", ""),
     C("SLOTS NAME", MELLO_UI_SLOTS, 1, 3, 0, "CURSOR", "CHAR", "", ""),
     C("DOT", MELLO_UI_DOT, 0, 15, 0, "MODE", "LENGTH", "CHANCE", "EVOLVE"),

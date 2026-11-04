@@ -4307,10 +4307,14 @@ static void style_sound(MelloEngine *e, uint8_t st)
 }
 
 /* ANY made a style: for a part alone the style that plays, for the band a style never the one before */
+static bool roll_is_band(uint8_t parts)
+{
+    return (parts & MELLO_PART_BAND) || (parts & MELLO_PART_ALL) == MELLO_PART_ALL;
+}
 static uint8_t style_resolve(MelloEngine *e, uint8_t style, uint8_t parts)
 {
     uint8_t st = style;
-    if (st == MELLO_STYLE_ANY && parts != MELLO_PART_ALL && e->style_now >= MELLO_STYLE_AMBIENT &&
+    if (st == MELLO_STYLE_ANY && !roll_is_band(parts) && e->style_now >= MELLO_STYLE_AMBIENT &&
         e->style_now < MELLO_STYLE_COUNT)
         st = e->style_now;
     if (st == MELLO_STYLE_ANY) {
@@ -4389,7 +4393,7 @@ uint8_t mello_engine_style_roll_parts(MelloEngine *e, uint8_t style, uint8_t par
         style_chords_follow_bass(e, st);
 #endif
     if (parts & MELLO_PART_SOUND) style_sound(e, st);
-    if (band == MELLO_PART_ALL) { /* the band's level: the styles measured at 120 BPM, set within 1 dB of -13 dBFS */
+    if (roll_is_band(band)) { /* the band's level: the styles measured at 120 BPM, set within 1 dB of -13 dBFS */
         static const int8_t trim[STYLES] = {-2, 0, -1, 0, 1, -1, 1, -2, 1, -1, 2, 1, 2, 0, 0};
         MelloFxConfig f = e->fx;
         f.trim_db = trim[st - MELLO_STYLE_AMBIENT];

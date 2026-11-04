@@ -150,6 +150,39 @@ static void ui_part(void)
     mello_ui_input(&u, 4500000u, 4500u, 0u, 0u, 0u, 0u, enc);
     CHECK(!memcmp(lead, t.engine.project.steps, sizeof lead), "UNDO + 2 is not the band before the second last roll");
     CHECK(!u.undo_menu, "the rolls back still shown after letting go");
+
+    /* ROLLS PLAYING: the drums and the chords off stay off; ALL turns them on again */
+    {
+        MelloDrumConfig d = t.engine.drums;
+        d.on = false;
+        mello_engine_drums_set_config(&t.engine, &d);
+#if MELLO_FEATURE_CHORD_MACHINE
+        {
+            MelloChordConfig c = t.engine.chord;
+            c.on = false;
+            mello_engine_chord_set_config(&t.engine, &c);
+        }
+#endif
+        u.roll_playing = true;
+        u.random_style = MELLO_STYLE_TECHNO;
+        memcpy(lead, t.engine.project.steps, sizeof lead);
+        mello_ui_set_held_notes(&u, rnd);
+        mello_ui_input(&u, 5000000u, 5000u, 0u, 0u, 0u, rnd, enc);
+        mello_ui_set_held_notes(&u, 0u);
+        mello_ui_input(&u, 5100000u, 5100u, 0u, 0u, 0u, 0u, enc);
+        CHECK(!t.engine.drums.on && memcmp(lead, t.engine.project.steps, sizeof lead) &&
+                  t.engine.style_now == MELLO_STYLE_TECHNO,
+              "ROLLS PLAYING: the drums turned on, or the lead not rolled");
+#if MELLO_FEATURE_CHORD_MACHINE
+        CHECK(!t.engine.chord.on, "ROLLS PLAYING: the chords turned on");
+#endif
+        u.roll_playing = false;
+        mello_ui_set_held_notes(&u, rnd);
+        mello_ui_input(&u, 6000000u, 6000u, 0u, 0u, 0u, rnd, enc);
+        mello_ui_set_held_notes(&u, 0u);
+        mello_ui_input(&u, 6100000u, 6100u, 0u, 0u, 0u, 0u, enc);
+        CHECK(t.engine.drums.on, "ROLLS ALL: TECHNO's drums not on");
+    }
 }
 
 int main(void)
