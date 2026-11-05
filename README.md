@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f73.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f92.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -128,10 +128,11 @@ with its feedback up, WASH into the reverb, and their tails ring on when let go.
 gliding down. The MUTEs latch (MIX's): stopped,
 at once; playing, on the next beat (framed bright until then; a second tap takes it back). Never saved or undone.
 
-PERFORM's black keys B0-B7 (along the top of the page) are eight more effects, held, together as you like: STUT
-(the last bit of sound again and again), TAPE (a tape stop; let go, it is back at once), PLCK (everything plucked
-short), CRSH (bits and rate down), CHOP (the mix cut on and off in time), OCT- and OCT+ (the notes an octave down or
-up), WARP (the pitch wavering, a worn tape). While one is held, K1 turns its amount (STUT's 1/32 .. 1/4, TAPE's
+PERFORM's black keys B0-B7 (along the top of the page) are eight more effects, held, together as you like (three letters on
+the strip, the whole name while held): STU, STUTTER (the last bit of sound again and again), TPE, TAPE STOP (let go,
+it is back at once), PLK, PLUCK (everything plucked short), CRS, CRUSH (bits and rate down), CHP, CHOP (the mix cut
+on and off in time), OC- and OC+, OCT DOWN and UP (the notes an octave down or up), WRP, WARP (the pitch wavering, a
+worn tape). While one is held, K1 turns its amount (STUT's 1/32 .. 1/4, TAPE's
 150-1050 ms, PLUCK's length, CRUSH's depth, CHOP's 1/8 .. 1/32, one or two octaves, WARP's depth), the strip saying
 it; the amount is kept for the next time. UNDO, RNDMZR and PERF stay where they are.
 

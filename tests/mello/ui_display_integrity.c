@@ -209,6 +209,68 @@ static void run_fixture(Audit *audit, MelloUiPage page, int sub, int direction, 
     mello_ui_render(&ui, &draw);
 }
 
+/* The overlays the page loop does not reach: PERFORM (and each black key held, its name and amount on the strip),
+ * KEYS, MACROS, RNDMZR held, REC and UNDO held, a section's overview, REC on a page, MIX's layers. */
+static const uint8_t BLACK_NOTES[8] = {1u, 3u, 5u, 8u, 10u, 13u, 15u, 17u};
+static void run_overlay(Audit *audit, const char *what, int arg)
+{
+    static char name[64];
+    MelloProject p;
+    MelloTransport tr;
+    MelloStorage st;
+    MelloUi ui;
+    MelloUiDrawOps draw = {audit_fill, audit_text, 0, 0, audit, 0, 0};
+    int k;
+
+    mello_project_defaults(&p);
+    mello_transport_init(&tr, &p, 123u, 0, 0);
+    mello_storage_init(&st, 0, 0);
+    mello_ui_init(&ui, &tr, &st);
+    mello_ui_set_page(&ui, MELLO_UI_HOME);
+    if (!strcmp(what, "PERFORM")) {
+        ui.perform = 1u;
+        if (arg >= 0) {
+            ui.held_notes = 1u << BLACK_NOTES[arg];
+            ui.held_black = (uint16_t)(1u << arg);
+            ui.perf_black_last = (uint8_t)arg;
+            for (k = 0; k < 8; ++k) ui.perf_amt[k] = (uint16_t)(arg & 1 ? 1000 : 0);
+        }
+    } else if (!strcmp(what, "KEYS")) {
+        ui.keys_mode = true;
+        ui.keys_rec = arg > 0;
+        ui.keys_rec_target = (uint8_t)(arg > 0 ? arg : 1);
+    } else if (!strcmp(what, "MACROS")) {
+        ui.macro_mode = true;
+    } else if (!strcmp(what, "RNDMZR")) {
+        ui.rndmzr_down = true;
+        ui.rndmzr_menu = arg & 1;
+        ui.rndmzr_ready = arg & 2;
+    } else if (!strcmp(what, "REC")) {
+        ui.rec_down = true;
+        ui.rec_menu = true;
+    } else if (!strcmp(what, "UNDO")) {
+        ui.undo_down = true;
+        ui.undo_menu = true;
+    } else if (!strcmp(what, "SECTION")) {
+        ui.sect_btn = (uint8_t)arg;
+        ui.sect_menu = true;
+    } else if (!strcmp(what, "PAGE-REC")) {
+        static const MelloUiPage pages[4] = {MELLO_UI_SEQ_STEP, MELLO_UI_SUB, MELLO_UI_DRUMS, MELLO_UI_HOME};
+        mello_ui_set_page(&ui, pages[arg & 3]);
+        ui.page_rec = (uint8_t)(arg + 1);
+        ui.keys_rec = true;
+    } else if (!strcmp(what, "MIX")) {
+        mello_ui_set_page(&ui, MELLO_UI_MIX);
+        ui.mix_subpage = (uint8_t)arg;
+    }
+    snprintf(name, sizeof(name), "%s/%d", what, arg);
+    audit->fixture = name;
+    audit->text_count = 0u;
+    ++audit->fixtures;
+    ui.dirty |= MELLO_UI_DIRTY_ALL;
+    mello_ui_render(&ui, &draw);
+}
+
 typedef struct {
     uint16_t px[SCREEN_H][SCREEN_W];
 } Framebuffer;
@@ -307,6 +369,17 @@ int main(void)
                 for (dir = -1; dir <= 1; ++dir) run_fixture(&audit, (MelloUiPage)page, sub, dir, variant);
         }
     }
+
+    run_overlay(&audit, "PERFORM", -1);
+    for (variant = 0; variant < 8; ++variant) run_overlay(&audit, "PERFORM", variant);
+    for (variant = 0; variant < 5; ++variant) run_overlay(&audit, "KEYS", variant);
+    run_overlay(&audit, "MACROS", 0);
+    for (variant = 0; variant < 4; ++variant) run_overlay(&audit, "RNDMZR", variant);
+    run_overlay(&audit, "REC", 0);
+    run_overlay(&audit, "UNDO", 0);
+    for (variant = 0; variant < 14; ++variant) run_overlay(&audit, "SECTION", variant);
+    for (variant = 0; variant < 4; ++variant) run_overlay(&audit, "PAGE-REC", variant);
+    for (variant = 0; variant < 3; ++variant) run_overlay(&audit, "MIX", variant);
 
     if (!audit.saw_home_single) {
         audit.fixture = "HOME/default";

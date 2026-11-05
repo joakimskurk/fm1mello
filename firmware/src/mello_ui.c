@@ -423,7 +423,7 @@ typedef struct {
     const char *name[4];
 } UiSection;
 static const UiSection SECTIONS[] = {
-    {MELLO_UI_BTN_SEQ, 4u, {"STEP", "SEGMENT", "LOOP", "SLOT SEQ"}},
+    {MELLO_UI_BTN_SEQ, 4u, {"STEP", "SEGMENT", "LOOP", "SLOTSEQ"}},
     {MELLO_UI_BTN_ENV, 2u, {"SOUND", "SAMPLE", "", ""}},
     {MELLO_UI_BTN_LFO, 3u, {"LFO", "DOT", "EVOLVE", ""}},
     {MELLO_UI_BTN_FX, 3u, {"DIST", "DELAY", "REVERB", ""}},
@@ -4069,8 +4069,8 @@ static const char *const PERFORM_NAMES[16] = {
     "FILL",   "ARP",   "REVERSE", "ACCENT", "REP 8",  "REP 4",  "REP 2", "REP 1", "LP SWP",
     "HP SWP", "THROW", "WASH",    "LD OFF", "BS OFF", "CH OFF", "DR OFF"}; /* (6 letters: a cell) */
 static const uint8_t PERFORM_REPEAT[4] = {8u, 4u, 2u, 1u};
-static const char *const PERFORM_BLACK_NAMES[8] = {"STUT", "TAPE", "PLCK", "CRSH",
-                                                   "CHOP", "OCT-", "OCT+", "WARP"};
+/* three letters: a cell is 27 pixels, four letters 32 (the strip says the whole name while one is held) */
+static const char *const PERFORM_BLACK_NAMES[8] = {"STU", "TPE", "PLK", "CRS", "CHP", "OC-", "OC+", "WRP"};
 /* a black key's effect and its amount, as the strip says it while held ("STUT 1/16") */
 static void perform_black_text(const MelloUi *ui, uint8_t b, char *out)
 {
@@ -5061,7 +5061,7 @@ static void draw_undo_menu(MelloUi *ui, const MelloUiDrawOps *o)
         ui_round_frame(o, x, 50, 74, 28, there ? UI_GOLD : UI_DIM);
         o->text(o->ctx, x, 56, 74, 0, names[w], there ? UI_BRIGHT : UI_DIM, 1);
     }
-    o->text(o->ctx, 6, 112, 228, 0, "LET GO, UNDO AGAIN: BACK HERE", UI_DIM, 0);
+    o->text(o->ctx, 4, 112, 232, 0, "LET GO, UNDO AGAIN: BACK HERE", UI_DIM, 0);
 }
 
 static void draw_home(MelloUi *ui, const MelloUiDrawOps *o)
@@ -5182,7 +5182,7 @@ static void draw_header(MelloUi *ui, const MelloUiDrawOps *o)
     }
     if (ui->page == MELLO_UI_HOME && !ui->perform) {
         if (ui->keys_mode || ui->macro_mode) /* a mode: one line in the page's colour; recording, red */
-            o->text(o->ctx, 4, 7, 188, 0, b, ui->keys_rec ? UI_RED : accent, 0);
+            o->text(o->ctx, 4, 7, 136, 0, b, ui->keys_rec ? UI_RED : accent, 0);
         else { /* HOME > A: the page in white, the segment in its colour, then the chord sounding in the chords' */
             o->text(o->ctx, 4, 7, 32, 0, "HOME", UI_WHITE, 0);
             o->text(o->ctx, 36, 7, 24, 0, " > ", UI_DIM, 0);
