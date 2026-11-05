@@ -1914,6 +1914,30 @@ own rise within a step on top), an octave at most from the 13th; soft to loud ov
 accents still 127). Let go and pressed again, it starts from the bottom (perf_parts). The snare and the glitch alike;
 the bass line and the chords as before.
 
+## The band's balance (2026-11-05)
+
+Left open by "The level, all of it" and asked for after the performance demo, where BS OFF and CH OFF could hardly be
+heard. Measured each part alone over the 15 styles x 6 rolls, the output stage out, as RMS and as "active" RMS (the
+50 ms windows within 20 dB of the part's loudest: the part while it plays, so a sparse dub bass is not held against
+its rests). Against the lead, active:
+
+| | before | the aim | now |
+|---|---|---|---|
+| the bass | -7 .. -14 dB (AMBIENT, JUNGLE, DRONE: -3 .. +7) | -3 ("The mix": 2.4 under in the default project) | -3.0 .. -3.8; DEEP -5.3 |
+| the chords | -14 .. -23 dB | -7 ("The mix": 6.5 under) | -6.7 .. -7.2 |
+| the drums | -6 .. +4 dB | (left) | as before |
+
+- Each style sets the bass's and the chords' LEVEL as it rolls (StyleDef's bass_level, chord_level), from the
+  measurement: the chords 290 .. 830 (they were all 130), the bass 1230 .. 2000 (750). The basses that carry the
+  piece (AMBIENT, JUNGLE, DRONE) keep 750; the styles with no chords keep 130. A part rolled alone takes its style's
+  level with it. They are LEVELs like any other: on MIX and BASS, turned, saved, undone.
+- The bass's LEVEL goes to 200% (MELLO_SUB_LEVEL_MAX; samples went to 150% already): a sine or dark bass at 75% sat
+  far under the rest, and 100% was 2.5 dB more. DEEP wanted 260%; at 200% it is 2.3 dB short of the aim. MIX's bass
+  fader and the knob rings are scaled to 200%. A saved project keeps its levels; a new project is as it was (750,
+  130).
+- Through the output stage the styles come out 0.5 dB louder (-10.1 LUFS on average; K-weighting counts the bass
+  little), the limiter -0.30 dB time-averaged (-0.23 before), the peak still -0.9 dBFS.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

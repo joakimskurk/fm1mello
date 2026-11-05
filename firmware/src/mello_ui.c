@@ -1919,7 +1919,7 @@ static void adjust_macro(MelloUi *ui, uint8_t id, int16_t delta)
         mello_engine_fx_set_config(e, &f);
     } else if (id == MELLO_MACRO_BASS) {
         MelloSubConfig c = e->sub;
-        c.level = macro_step(c.level, delta, 0, 1000);
+        c.level = macro_step(c.level, delta, 0, MELLO_SUB_LEVEL_MAX);
         mello_engine_sub_set_config(e, &c);
 #if MELLO_FEATURE_CHORD_MACHINE
     } else if (id == MELLO_MACRO_CHORD) {
@@ -2484,7 +2484,7 @@ static void adjust_sub(MelloUi *ui, uint8_t knob, int16_t delta)
             c.octave = (int8_t)clamp_i32((int32_t)c.octave + delta, -2, 1);
     } else if (ui->sub_subpage == 3u) {
         if (knob == 0u)
-            c.level = (uint16_t)clamp_i32((int32_t)c.level + delta * 10, 0, 1000);
+            c.level = (uint16_t)clamp_i32((int32_t)c.level + delta * 10, 0, MELLO_SUB_LEVEL_MAX);
         else if (knob == 1u)
             c.wave = step_sub_waveform(c.wave, delta);
         else if (knob == 2u)
@@ -2722,13 +2722,18 @@ static void mix_levels(const MelloUi *ui, const MelloEngine *e, uint16_t lv[4])
 #endif
     lv[3] = e->drums.level;
 }
+/* a MIX value's top: the bass's LEVEL goes to 200%, every other to 100% */
+static uint16_t mix_max(const MelloUi *ui, uint8_t k)
+{
+    return !(ui->mix_subpage % 3u) && k == 1u ? (uint16_t)MELLO_SUB_LEVEL_MAX : 1000u;
+}
 static void adjust_mix(MelloUi *ui, uint8_t knob, int16_t delta)
 {
     MelloEngine *e = eng(ui);
     uint16_t lv[4];
     if (!e || !delta || knob > 3u) return;
     mix_levels(ui, e, lv);
-    lv[knob] = (uint16_t)clamp_i32((int32_t)lv[knob] + delta * 10, 0, 1000);
+    lv[knob] = (uint16_t)clamp_i32((int32_t)lv[knob] + delta * 10, 0, mix_max(ui, knob));
     if (ui->mix_subpage % 3u) { /* DELAY, REVERB: the part's send */
         MelloFxConfig f = e->fx;
         if (ui->mix_subpage % 3u == 1u)
@@ -5837,7 +5842,7 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             if ((e->perf.mix_mute >> i) & 1u) on[i] = false;
         ui_round_fill(o, 6, 40, 228, 124, UI_PANEL);
         for (i = 0u; i < 4u; ++i) {
-            int16_t x = (int16_t)(12 + i * 56), h = (int16_t)(lv[i] * 76u / 1000u);
+            int16_t x = (int16_t)(12 + i * 56), h = (int16_t)(lv[i] * 76u / mix_max(ui, i));
             uint16_t c = on[i] ? col[i] : UI_DIM;
             char b[8];
             o->text(o->ctx, x, 46, 48, 0, name[i], c, 1);
@@ -6418,7 +6423,7 @@ static bool knob_norm_raw(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 21: v = b->env; break;
         case 22: v = b->env_decay_ms, m = 2000u; break;
         case 23: v = b->accent; break;
-        case 12: v = c->level; break;
+        case 12: v = c->level, m = MELLO_SUB_LEVEL_MAX; break;
         case 14: v = c->decay_ms, m = 700u; break;
         case 15: v = c->release_ms, m = 1200u; break;
         case 16: v = c->glide_ms, m = 200u; break;
@@ -6508,7 +6513,7 @@ static bool knob_norm_raw(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
     } else if (ui->page == MELLO_UI_MIX) {
         uint16_t lv[4];
         mix_levels(ui, e, lv);
-        v = lv[k & 3u];
+        v = lv[k & 3u], m = mix_max(ui, (uint8_t)(k & 3u));
 #if !MELLO_FEATURE_CHORD_MACHINE
         if (k == 2u) return false;
 #endif

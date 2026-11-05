@@ -59,6 +59,18 @@ static int clashes(void)
 
 int main(void)
 {
+    { /* the bass's LEVEL goes to 200% and no further; DEEP's bass is there */
+        MelloSubConfig c;
+        fresh(1u);
+        c = e.sub, c.level = 2600u;
+        mello_engine_sub_set_config(&e, &c);
+        CHECK(e.sub.level == MELLO_SUB_LEVEL_MAX, "the bass's level %u, not held at 200%%", e.sub.level);
+        (void)mello_engine_style_roll(&e, MELLO_STYLE_DEEP);
+        CHECK(e.sub.level == 2000u, "DEEP: the bass's level %u", e.sub.level);
+#if MELLO_FEATURE_CHORD_MACHINE
+        CHECK(e.chord.level == 830u, "DEEP: the chords' level %u", e.chord.level);
+#endif
+    }
     uint8_t st, i, seen[MELLO_STYLE_COUNT];
     uint32_t seed;
     for (seed = 1u; seed <= 6u; ++seed)
@@ -69,6 +81,13 @@ int main(void)
             CHECK(nm && nm[0] && strcmp(nm, "OFF") && strcmp(nm, "ANY"), "style %u has no entry of its own",
                   st);
             CHECK(mello_engine_style_roll(&e, st) == st && e.style_now == st, "%s: not rolled", nm);
+            /* the band's balance (DECISIONS "The band's balance"): the bass at 750 .. 200%, the chords over 130 where
+             * the style has them */
+            CHECK(e.sub.level >= 750u && e.sub.level <= MELLO_SUB_LEVEL_MAX, "%s: the bass's level %u", nm,
+                  e.sub.level);
+#if MELLO_FEATURE_CHORD_MACHINE
+            CHECK(!e.chord.on || e.chord.level > 130u, "%s: the chords' level %u", nm, e.chord.level);
+#endif
             CHECK(e.fx.trim_db >= -2 && e.fx.trim_db <= 2 &&
                       (st != MELLO_STYLE_AMBIENT || e.fx.trim_db == -2) &&
                       (st != MELLO_STYLE_MINIMAL || e.fx.trim_db == 2),

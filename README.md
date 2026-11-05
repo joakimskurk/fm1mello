@@ -276,7 +276,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   run until RESET, start or stop), swing per part (GLOBAL > GROOVE: LEAD, BASS, DRUMS their own, or GLOBAL), a kit drive with fold, DUCK (the kick's sidechain: the lead, sub and chords dip at each kick and
   come back over 160 ms), and their sends on MIX. RNDMZR rolls them too with FEED on. The kick is built
   for weight: a driven sine from 38 to 90 Hz whose pitch falls from 3.5x over 90 ms, decaying up to 1.5 s.
-- **MIX** (GLO > MIX). The levels of lead, bass, chords and drums as faders, each with a mute (LD, BS, CH, DR);
+- **MIX** (GLO > MIX). The levels of lead, bass, chords and drums as faders, each with a mute (LD, BS, CH, DR; the
+  bass goes to 200%, and each style sets the bass's and the chords' level as it rolls, so the band sits together);
   SELECT turns to each part's send to the delay (DELAY) and to the reverb (REVERB), the effects' WET on the FX
   pages scaling them all. The lead and its samples go through the lead's filter and distortion; the bass, the
   chords and the drums do not.

@@ -528,7 +528,7 @@ typedef struct {
     uint8_t euclid_rotate; /* 0..64 */
     int8_t octave;         /* source -2..+1 */
     uint16_t gate_amount;  /* source subGate 0.15..1.20 => 150..1200 permille */
-    uint16_t level;        /* source subLevel 0..1 => 0..1000 */
+    uint16_t level; /* source subLevel 0..1 => 0..1000; up to MELLO_SUB_LEVEL_MAX (the styles' dark basses) */
     MelloWaveform wave;
     uint16_t decay_ms;   /* 30..700 */
     uint16_t release_ms; /* 30..1200 */
@@ -540,6 +540,9 @@ typedef struct {
     uint8_t x_length; /* source UI: 2, 3, or 5 */
     MelloSubXStep x_steps[MELLO_SUB_X_MAX_STEPS];
 } MelloSubConfig;
+/* The bass's LEVEL goes to 200% (2026-11-05, DECISIONS "The band's balance"): a sine or dark bass sits 7-14 dB
+ * under the lead at 75%, and 100% was only 2.5 dB more */
+#define MELLO_SUB_LEVEL_MAX 2000u
 
 /* DRUMS (2026-10-30): four synthesized voices on a 16-step pattern with its own clock. The voices are plain; what
  * makes them move is per-step: each hit's PITCH, DECAY, CRUSH and RATCH, and the rolls (ROLL, and RNDMZR with FEED). */
