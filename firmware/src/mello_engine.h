@@ -1159,6 +1159,10 @@ void mello_engine_tm_set_config(MelloEngine *engine, const MelloTmConfig *config
 void mello_engine_mod_routing_set(MelloEngine *engine, const MelloModRouting *config);
 /* The performance keys as held now; call it whenever they change (and harmlessly when they do not). */
 void mello_engine_set_perf(MelloEngine *engine, const MelloPerf *perf);
+/* PERFORM's black keys' times by their amount (0..1000), as the sound plays them and the strip says them: TAPE's stop
+ * 150 .. 1050 ms (600 half-way), PLUCK's notes dying in 400 .. 30 ms (110 half-way) */
+uint16_t mello_perf_tape_ms(uint16_t amt);
+uint16_t mello_perf_pluck_ms(uint16_t amt);
 /* RESTART: the sequence from its first step at the next pulse (16th), the loop's one with it. */
 void mello_engine_perf_restart(MelloEngine *engine);
 void mello_engine_tm_set_length(MelloEngine *engine, uint8_t length);

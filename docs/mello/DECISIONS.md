@@ -1824,7 +1824,7 @@ must be back fast when let go, instantly".
   the next time, not saved); the strip says it ("TAPE STOP 300MS  K1"); a row along the top lights the held.
 - **STUT** loops what comes in the division after the press (1/32, 1/16, 1/8, 1/4 at the tempo; heard as it is the
   first time round, then round and round with a 64-sample fade at the seam). **TAPE** reads the mix slowing to a stop
-  over 100-500 ms (silent as it stops); let go, it is gone in 3 ms. **WARP** reads the mix 15 ms back with the delay
+  over 150-1050 ms (silent as it stops; 100-500 until 2026-11-05, below); let go, it is gone in 3 ms. **WARP** reads the mix 15 ms back with the delay
   swinging (1.3 Hz and 6.5 Hz) up to 13.6 ms. The three read a record of the mix: stereo at half the rate, 6144
   frames (~0.28 s, 24 KB of the RAM the 16 slots freed); one at a time (TAPE, then STUT, then WARP), faded in over
   10 ms and out in 3. **CRSH**: the rate held 1-16 samples and up to 10 bits gone. **CHOP**: on for the first 60%
@@ -1885,6 +1885,24 @@ limiter is in every build. fm1-emu, 0.5-f88: the default pattern 39.5% (37.9% be
 Measured alone, the chords sit 18 .. 25 dB under the lead in the styles (6.5 under in the default project, as "The
 mix" set) and the bass 11 .. 17 dB under (2.4 in the default project): the styles' sounds (a sine or dark bass,
 sparse chords) take them that far down.
+
+## PERFORM: CRUSH and WARP come in, TAPE takes its time (2026-11-05)
+
+The product owner, after the performance demo (RNDMZR pressed inside PERFORM, a black key held into the one): "CRUSH
+and the one that bends the pitch should come in gradually, not straight to 100%, a little fade in. TAPE still takes
+too long when it starts again. Its default slow-down can be slower too, so it takes a little longer."
+
+- **CRUSH** comes in over 200 ms: its amount rises from none (the take as it is) to K1's, the rate held longer and
+  the bits taken away step by step. **WARP**'s depth rises from none over 300 ms (the mix 15 ms late at once, the
+  wavering growing). Both start again from none at the next press; letting go is as before.
+- **TAPE** came back 3 ms after letting go already (measured in the demo: the take again within 50 ms of the
+  release). What was heard was the wait: the default stop was over after ~350 ms and the rest of a one-second hold was
+  silence. The stop is 150 .. 1050 ms now, 600 ms half-way (was 100 .. 500, 300), so a held beat or two is the tape
+  slowing down, not silence. The reader falls behind the record by half the stop; the record holds ~0.28 s, so
+  once the reader is a buffer behind, the record stops and the reader runs on into what it holds (a stop of up to
+  ~1.2 s fits, no jump: perform_black).
+- TAPE's and PLUCK's times are one function each in the engine (mello_perf_tape_ms, mello_perf_pluck_ms), read by
+  the sound and the strip alike: the strip still said PLUCK's old 400 .. 30 ms line after f88's curve.
 
 ## Engineering process decisions
 

@@ -36,6 +36,8 @@ static void sink(void *c, const MelloEvent *ev, uint32_t due)
     (void)mello_audio_push_engine_event((MelloAudio *)c, ev, due);
 }
 static const uint16_t AMT[8] = {400u, 500u, 500u, 600u, 500u, 0u, 0u, 500u};
+static const uint16_t *amt_now = AMT;
+static uint32_t fade_at[2]; /* WARP's fade in, 100 and 400 ms after the press */
 
 /* 3 s at 120 BPM, the lead alone (or the band), fx2 held from 1 s to 2 s; the left channel kept */
 static void render(uint8_t fx2, bool lead_only, int32_t *keep)
@@ -60,8 +62,10 @@ static void render(uint8_t fx2, bool lead_only, int32_t *keep)
     mello_transport_start(&t, 0u);
     for (ms = 0u; ms < 3000u; ++ms) {
         uint32_t fr = 44u + (ms % 10u == 0u ? 1u : 0u);
-        if (ms == 1000u) mello_audio_set_perf_fx2(&a, fx2, AMT);
-        if (ms == 2000u) mello_audio_set_perf_fx2(&a, 0u, AMT);
+        if (ms == 1000u) mello_audio_set_perf_fx2(&a, fx2, amt_now);
+        if (ms == 2000u) mello_audio_set_perf_fx2(&a, 0u, amt_now);
+        if (ms == 1100u) fade_at[0] = a.warp_in;
+        if (ms == 1400u) fade_at[1] = a.warp_in;
         mello_transport_poll_ahead(&t, ms * 1000u, MELLO_TRANSPORT_LOOKAHEAD_US);
         memset(out, 0, sizeof out);
         mello_audio_render(&a, out, fr, ms * 1000u, 120u);
@@ -117,6 +121,24 @@ static void audio_part(void)
           base);
     CHECK(diff(wet, dry, S(2005), S(2200)) < base / 1000.0,
           "TAPE: 5 ms after letting go it is not the take again");
+    { /* TAPE at its longest (1050 ms): the record stops a buffer behind the reader, which runs on into it,
+       * still sounding late in the hold and with no jump bigger than the take's own */
+        static const uint16_t LONG[8] = {400u, 1000u, 500u, 600u, 500u, 0u, 0u, 500u};
+        int32_t jd = 0, jw = 0;
+        uint32_t i;
+        amt_now = LONG;
+        render(MELLO_PERF_FX2_TAPE, false, wet);
+        amt_now = AMT;
+        for (i = S(1000) + 1u; i < S(2000); ++i) {
+            int32_t d = dry[i] - dry[i - 1u], w = wet[i] - wet[i - 1u];
+            if (d < 0) d = -d;
+            if (w < 0) w = -w;
+            if (d > jd) jd = d;
+            if (w > jw) jw = w;
+        }
+        CHECK(energy(wet, S(1600), S(1700)) > base / 100.0, "TAPE long: silent 600 ms into a 1050 ms stop");
+        CHECK(jw <= jd, "TAPE long: a jump of %d (the take's biggest %d)", (int)jw, (int)jd);
+    }
 
     render(MELLO_PERF_FX2_STUT, false, wet);
     { /* 1/16 at 120 BPM: 125 ms, 5512 frames at half the rate, 11025 samples a loop */
@@ -130,6 +152,8 @@ static void audio_part(void)
         uint32_t i, runs = 0u;
         for (i = S(1100); i < S(1900); ++i) runs += wet[i] == wet[i - 1u];
         CHECK(runs > (S(1900) - S(1100)) / 2u, "CRUSH: the samples are not held (%u repeats)", runs);
+        CHECK(diff(wet, dry, S(1000), S(1020)) * 10.0 < diff(wet, dry, S(1300), S(1400)),
+              "CRUSH: not faded in (the first 20 ms as crushed as later)");
     }
 
     render(MELLO_PERF_FX2_CHOP, false, wet);
@@ -163,6 +187,9 @@ static void audio_part(void)
     render(0u, false, dry);
     render(MELLO_PERF_FX2_WARP, false, wet);
     CHECK(diff(wet, dry, S(1200), S(1900)) > base / 20.0, "WARP: no different from the take");
+    /* faded in: its depth a third of the way 100 ms after the press, all of it by 300 ms (and CRUSH's by 200) */
+    CHECK(fade_at[0] > 13230u / 4u && fade_at[0] < 13230u / 2u && fade_at[1] == 13230u,
+          "WARP: not faded in over 300 ms (%u, %u of 13230)", fade_at[0], fade_at[1]);
     CHECK(diff(wet, dry, S(2050), S(2300)) < base / 1000.0, "WARP: not the take again after letting go");
 }
 

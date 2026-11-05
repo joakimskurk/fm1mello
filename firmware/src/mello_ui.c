@@ -4077,9 +4077,9 @@ static void perform_black_text(const MelloUi *ui, uint8_t b, char *out)
     if (b == 0u)
         q = copy_s(q, stut[v * 3u / 1000u]);
     else if (b == 1u)
-        q = copy_s(put_u32(q, 100u + v * 400u / 1000u), "MS");
+        q = copy_s(put_u32(q, mello_perf_tape_ms(v)), "MS");
     else if (b == 2u)
-        q = copy_s(put_u32(q, 400u - v * 370u / 1000u), "MS");
+        q = copy_s(put_u32(q, mello_perf_pluck_ms(v)), "MS");
     else if (b == 4u)
         q = copy_s(q, chop[v * 2u / 1000u]);
     else if (b == 5u || b == 6u)

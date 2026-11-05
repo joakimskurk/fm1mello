@@ -352,6 +352,8 @@ typedef struct {
     int32_t chop_g;
     uint8_t crush_n;
     int32_t crush_h[2], pluck_q24, pluck_k;
+    uint32_t tape_frames, crush_in,
+        warp_in; /* TAPE's stop (frames at half the rate); CRUSH's, WARP's fades in */
     int32_t pluck_mk, pluck_mk_now, chop_mk, stut_q12; /* their levels made up (Q12 over 1; STUT's a gain) */
     bool pluck_up;
     int16_t *reverb_buffer;

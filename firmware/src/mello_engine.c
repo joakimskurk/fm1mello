@@ -2833,6 +2833,16 @@ static bool perf_amt_same(const MelloPerf *a, const MelloPerf *b)
         if (a->fx2_amt[i] != b->fx2_amt[i]) return false;
     return true;
 }
+uint16_t mello_perf_tape_ms(uint16_t amt)
+{
+    return (uint16_t)(150u + (uint32_t)(amt > 1000u ? 1000u : amt) * 900u / 1000u);
+}
+uint16_t mello_perf_pluck_ms(uint16_t amt) /* evenly to the ear: a ratio a step */
+{
+    static const uint16_t MS[11] = {400u, 309u, 239u, 185u, 143u, 110u, 85u, 66u, 51u, 39u, 30u};
+    uint32_t i = amt / 100u, f = amt % 100u;
+    return i >= 10u ? 30u : (uint16_t)(MS[i] - (MS[i] - MS[i + 1u]) * f / 100u);
+}
 void mello_engine_set_perf(MelloEngine *e, const MelloPerf *p)
 {
     uint8_t mode, len;

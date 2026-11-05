@@ -131,7 +131,7 @@ PERFORM's black keys B0-B7 (along the top of the page) are eight more effects, h
 (the last bit of sound again and again), TAPE (a tape stop; let go, it is back at once), PLCK (everything plucked
 short), CRSH (bits and rate down), CHOP (the mix cut on and off in time), OCT- and OCT+ (the notes an octave down or
 up), WARP (the pitch wavering, a worn tape). While one is held, K1 turns its amount (STUT's 1/32 .. 1/4, TAPE's
-100-500 ms, PLUCK's length, CRUSH's depth, CHOP's 1/8 .. 1/32, one or two octaves, WARP's depth), the strip saying
+150-1050 ms, PLUCK's length, CRUSH's depth, CHOP's 1/8 .. 1/32, one or two octaves, WARP's depth), the strip saying
 it; the amount is kept for the next time. UNDO, RNDMZR and PERF stay where they are.
 
 ### The white keys, page by page

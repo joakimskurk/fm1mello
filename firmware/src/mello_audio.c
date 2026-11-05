@@ -2388,17 +2388,17 @@ void mello_audio_set_perf_fx2(MelloAudio *a, uint8_t fx2, const uint16_t amt[8])
     if (fx2 & MELLO_PERF_FX2_OCTDN) semis = (int8_t)(semis - (a->pfx_amt[5] >= 500u ? 24 : 12));
     if (fx2 & MELLO_PERF_FX2_OCTUP) semis = (int8_t)(semis + (a->pfx_amt[6] >= 500u ? 24 : 12));
     a->pfx_semis = semis;
-    { /* PLUCK: each note dies in 400 .. 30 ms, evenly to the ear (a ratio a step), 110 ms half-way */
-        static const uint16_t PLUCK_MS[11] = {400u, 309u, 239u, 185u, 143u, 110u, 85u, 66u, 51u, 39u, 30u};
-        uint32_t i = a->pfx_amt[2] / 100u, f = a->pfx_amt[2] % 100u;
-        /* and its level made up: the dying notes cost 1 .. 6.4 dB (measured over eight styles), 80% of it given
-         * back, so it stays near the level it took away (DECISIONS "The level, all of it") */
+    { /* PLUCK: each note dies in 400 .. 30 ms (mello_perf_pluck_ms), and its level made up: the dying notes cost
+       * 1 .. 6.4 dB (measured over eight styles), 80% of it given back, so it stays near the level it took away
+       * (DECISIONS "The level, all of it") */
         static const uint16_t PLUCK_MK[11] = {4491u, 4720u, 4961u, 5214u, 5480u, 5759u,
                                               6053u, 6362u, 6686u, 7027u, 7385u};
-        ms = i >= 10u ? 30u : PLUCK_MS[i] - (PLUCK_MS[i] - PLUCK_MS[i + 1u]) * f / 100u;
+        uint32_t i = a->pfx_amt[2] / 100u, f = a->pfx_amt[2] % 100u;
+        ms = mello_perf_pluck_ms(a->pfx_amt[2]);
         a->pluck_mk = i >= 10u ? 7385 - 4096
                                : (int32_t)(PLUCK_MK[i] + (PLUCK_MK[i + 1u] - PLUCK_MK[i]) * f / 100u) - 4096;
     }
+    a->tape_frames = mello_perf_tape_ms(a->pfx_amt[1]) * 22u; /* (frames at half the rate) */
     a->pluck_k = (int32_t)(167772160u / (ms * 441u)); /* (the step towards silence a sample, of 2^24) */
     a->pfx = fx2;
 }
@@ -2427,6 +2427,8 @@ static void perf2_step(MelloAudio *a, int32_t *l, int32_t *r)
     int32_t dl = *l, dr = *r;
     uint32_t bpm = a->render_bpm ? a->render_bpm : 120u;
     a->pfx_was = fx;
+    if (!(fx & MELLO_PERF_FX2_CRUSH)) a->crush_in = 0u; /* (their fades in start again at the next press) */
+    if (!(fx & MELLO_PERF_FX2_WARP)) a->warp_in = 0u;
     if (mode && (mode != a->pb_mode || (rise & (MELLO_PERF_FX2_STUT | MELLO_PERF_FX2_TAPE)))) {
         a->pb_mode = mode, a->pb_t = 0u, a->pb_k = 0u;
         if (mode == 1u) { /* STUT: a division's length from now, at half the rate */
@@ -2439,7 +2441,7 @@ static void perf2_step(MelloAudio *a, int32_t *l, int32_t *r)
             a->pb_len = len < 64u ? 64u : len > MELLO_PERF_BUF - 64u ? MELLO_PERF_BUF - 64u : len;
             a->pb_pos_q16 = (uint32_t)a->pb_w << 16;
         } else if (mode == 2u) { /* TAPE: from now, a stop in 100 .. 500 ms */
-            uint32_t frames = (100u + (uint32_t)a->pfx_amt[1] * 400u / 1000u) * 22u;
+            uint32_t frames = a->tape_frames ? a->tape_frames : 600u * 22u;
             a->pb_pos_q16 = pb_wrap(((uint32_t)a->pb_w << 16) + PB_Q - (2u << 16));
             a->pb_speed_q16 = 65536u, a->pb_dec_q16 = 65536u / frames;
         }
@@ -2448,7 +2450,12 @@ static void perf2_step(MelloAudio *a, int32_t *l, int32_t *r)
     if (a->pb_mode) {
         int32_t wl = dl, wr = dr, g = 4096;
         bool record = a->pb_mode != 1u || a->pb_t < a->pb_len * 2u; /* STUT records its first time round */
-        if (record) {                                               /* the record, two samples a frame */
+        /* TAPE: the reader falls behind half the stop's length; a buffer behind (~0.28 s), the record stops and the
+         * reader runs on into what it holds, so a stop of up to ~1.2 s fits */
+        if (a->pb_mode == 2u &&
+            ((a->pb_w + MELLO_PERF_BUF - (a->pb_pos_q16 >> 16)) % MELLO_PERF_BUF) >= MELLO_PERF_BUF - 64u)
+            record = false;
+        if (record) { /* the record, two samples a frame */
             a->pb_acc[0] += dl, a->pb_acc[1] += dr;
             if (a->pb_half) {
                 a->pbuf[0][a->pb_w] = (int16_t)clamp32(a->pb_acc[0] / 2, -32767, 32767);
@@ -2480,7 +2487,9 @@ static void perf2_step(MelloAudio *a, int32_t *l, int32_t *r)
             int32_t sw;
             a->warp_ph[0] += 126600u, a->warp_ph[1] += 633000u;
             sw = (SINE_Q15[a->warp_ph[0] >> 24] * 7 + SINE_Q15[a->warp_ph[1] >> 24] * 3) / 10;
-            d = (uint32_t)(330 * 65536 + (int32_t)a->pfx_amt[7] * 300 / 1000 * sw * 2);
+            if (a->warp_in < 13230u) a->warp_in++; /* its depth in over 300 ms, from none */
+            d = (uint32_t)(330 * 65536 +
+                           (int32_t)((uint32_t)a->pfx_amt[7] * a->warp_in / 13230u) * 300 / 1000 * sw * 2);
             wl = pb_read(a, 0u, pb_wrap(((uint32_t)a->pb_w << 16) + PB_Q - d));
             wr = pb_read(a, 1u, pb_wrap(((uint32_t)a->pb_w << 16) + PB_Q - d));
         }
@@ -2491,9 +2500,11 @@ static void perf2_step(MelloAudio *a, int32_t *l, int32_t *r)
         *l = dl + (((wl - dl) * a->pb_mix_q12) >> 12);
         *r = dr + (((wr - dr) * a->pb_mix_q12) >> 12);
     }
-    if (fx & MELLO_PERF_FX2_CRUSH) { /* rate held 1 .. 16 samples, 0 .. 10 bits gone */
-        uint8_t hold = (uint8_t)(1u + a->pfx_amt[3] * 15u / 1000u);
-        int32_t mask = ~((1 << (a->pfx_amt[3] * 10u / 1000u)) - 1);
+    if (fx &
+        MELLO_PERF_FX2_CRUSH) { /* rate held 1 .. 16 samples, 0 .. 10 bits gone; in over 200 ms, from none */
+        uint32_t amt = a->pfx_amt[3] * (a->crush_in < 8820u ? ++a->crush_in : 8820u) / 8820u;
+        uint8_t hold = (uint8_t)(1u + amt * 15u / 1000u);
+        int32_t mask = ~((1 << (amt * 10u / 1000u)) - 1);
         if (++a->crush_n >= hold) a->crush_n = 0u, a->crush_h[0] = *l & mask, a->crush_h[1] = *r & mask;
         *l = a->crush_h[0], *r = a->crush_h[1];
     }
