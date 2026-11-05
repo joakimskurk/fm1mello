@@ -1813,6 +1813,29 @@ RNDMZR - - P".
   now, B6 MUTATE where it was. fm1-emu's key ids: UNDO k34, RNDMZR k36, PERF k39 (tools/emu_smoke.sh and
   emu_stack.sh, Dinghy-side tools, follow). Tests: clean_slate; the contracts' tables moved.
 
+## PERFORM's black keys (2026-11-05)
+
+The product owner: "for PERFORM, use the black keys too: stutter, tape stop, everything plucky; steal even more from
+the OP-1's effects; maybe hold an effect and turn a K knob to work it; only imagination stops us", and of TAPE: "it
+must be back fast when let go, instantly".
+
+- In PERFORM, B0-B7 are eight effects while held (perf_poll; the page's own B0-B7 actions are off there), combined
+  as held; B8 UNDO, B9 RNDMZR, B10 PERF stay. K1 while one is held turns the last held's amount (0..1000, kept for
+  the next time, not saved); the strip says it ("TAPE STOP 300MS  K1"); a row along the top lights the held.
+- **STUT** loops what comes in the division after the press (1/32, 1/16, 1/8, 1/4 at the tempo; heard as it is the
+  first time round, then round and round with a 64-sample fade at the seam). **TAPE** reads the mix slowing to a stop
+  over 100-500 ms (silent as it stops); let go, it is gone in 3 ms. **WARP** reads the mix 15 ms back with the delay
+  swinging (1.3 Hz and 6.5 Hz) up to 13.6 ms. The three read a record of the mix: stereo at half the rate, 6144
+  frames (~0.28 s, 24 KB of the RAM the 16 slots freed); one at a time (TAPE, then STUT, then WARP), faded in over
+  10 ms and out in 3. **CRSH**: the rate held 1-16 samples and up to 10 bits gone. **CHOP**: on for the first 60%
+  of each 1/8, 1/16 or 1/32 from the press, 1 ms edges. **PLCK**: every note and hit dies in 400-30 ms (an
+  envelope on the mix retriggered by each note), 1.5 ms up. **OCT- / OCT+**: the notes one or two octaves down or up
+  at their note-on (the pitch alone: the tag and the chord voice's note stay as played, so a NOTE_OFF finds its note
+  whatever is held by then); the drums stay.
+- Nothing held: the take is the same to the sample (perform_black; the HTML parity tests unchanged). fm1-emu,
+  0.5-f87: the default pattern 37.9%, with the eight held 38.2% (that all eight were on in the emulator is not
+  confirmed: the estimate is 1-2% at most). RAM 81888 B. dinghy.c (Dinghy's) passes the black keys to the audio.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

@@ -249,6 +249,11 @@ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage
     ui->kept_slot = -1;
     ui->sect_btn = 0xFFu;
     ui->se_pulses = ui->se_ratchet = 1u, ui->se_gate = MELLO_GATE_SINGLE, ui->se_hold = 8u; /* step entry's start */
+    { /* PERFORM's black keys, as they start: STUT 1/16, TAPE ~300 ms, PLUCK medium, CRUSH much, CHOP 1/16, OCT one,
+       * WARP medium */
+        static const uint16_t amt[8] = {400u, 500u, 500u, 600u, 500u, 0u, 0u, 500u};
+        memcpy(ui->perf_amt, amt, sizeof amt);
+    }
     ui->selected_slot = 0u;
     ui->selected_tm_bit = 0u;
     ui->seen_step = 0xFFu;
@@ -1584,6 +1589,11 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
     }
     {
         int8_t b = black_key_position(note_index);
+        if (b >= 0 && b < 8 && ui->perform) { /* PERFORM: B0-B7 are effects while held (perf_poll), K1 the last's */
+            ui->perf_black_last = (uint8_t)b;
+            ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_FOOTER;
+            return;
+        }
         if (b >= 0) {
             const MelloContextAction *ca = context_action(ui->page, (uint8_t)b);
             if (ca && ca->verb == MELLO_CTX_RNDMZR) ui->rndmzr_key = note_index; /* to see it let go */
@@ -3327,6 +3337,12 @@ static void adjust_knobs(MelloUi *ui, const int16_t enc_in[MELLO_UI_ENCODER_COUN
                      ? accelerate(ui, k, enc_in[k], now_ms)
                      : enc_in[k];
     uint16_t before = ui->dirty;
+    if (ui->perform && (ui->held_black & 0xFFu) && enc[MELLO_UI_ENC_KNOB1]) { /* PERFORM: K1 turns the held effect */
+        uint8_t b = ui->perf_black_last < 8u ? ui->perf_black_last : 0u;
+        ui->perf_amt[b] = (uint16_t)clamp_i32((int32_t)ui->perf_amt[b] + enc[MELLO_UI_ENC_KNOB1] * 20, 0, 1000);
+        ui->dirty |= MELLO_UI_DIRTY_FOOTER | MELLO_UI_DIRTY_BODY;
+        return;
+    }
     if (ui->page == MELLO_UI_HOME) {
         /* HOME's three encoders are fixed globals: TEMPO, RANDOM intensity, PATTERN (to the next saved slot,
          * switched on the next bar while playing). */
@@ -4017,6 +4033,28 @@ static const char *const PERFORM_NAMES[16] = {"FILL",    "ARP",     "REVERSE", "
                                               "REP 2",   "REP 1",   "LP SWP",  "HP SWP",  "THROW",   "WASH",
                                               "LD OFF",  "BS OFF",  "CH OFF",  "DR OFF"}; /* (6 letters: a cell) */
 static const uint8_t PERFORM_REPEAT[4] = {8u, 4u, 2u, 1u};
+static const char *const PERFORM_BLACK_NAMES[8] = {"STUT", "TAPE", "PLCK", "CRSH", "CHOP", "OCT-", "OCT+", "WARP"};
+/* a black key's effect and its amount, as the strip says it while held ("STUT 1/16") */
+static void perform_black_text(const MelloUi *ui, uint8_t b, char *out)
+{
+    static const char *full[8] = {"STUTTER", "TAPE STOP", "PLUCK", "CRUSH", "CHOP", "OCT DOWN", "OCT UP", "WARP"};
+    static const char *stut[4] = {"1/32", "1/16", "1/8", "1/4"}, *chop[3] = {"1/8", "1/16", "1/32"};
+    uint16_t v = ui->perf_amt[b & 7u];
+    char *q = copy_s(copy_s(out, full[b & 7u]), " ");
+    if (b == 0u)
+        q = copy_s(q, stut[v * 3u / 1000u]);
+    else if (b == 1u)
+        q = copy_s(put_u32(q, 100u + v * 400u / 1000u), "MS");
+    else if (b == 2u)
+        q = copy_s(put_u32(q, 400u - v * 370u / 1000u), "MS");
+    else if (b == 4u)
+        q = copy_s(q, chop[v * 2u / 1000u]);
+    else if (b == 5u || b == 6u)
+        q = copy_s(q, v >= 500u ? "2 OCT" : "1 OCT");
+    else
+        q = copy_s(put_u32(q, v / 10u), "%");
+    (void)copy_s(q, "  K1");
+}
 #define PERFORM_MUTE0 12u /* the first mute's key */
 static uint16_t perform_held(const MelloUi *ui)
 {
@@ -4064,6 +4102,9 @@ static void perf_poll(MelloUi *ui, uint32_t now_ms)
     p.accent = (wh & 8u) != 0u;
     p.repeat = (wh & 0xF0u) != 0u;
     p.fx = (uint8_t)((wh >> 8) & 0xFu); /* LP SWP, HP SWP, THROW, WASH */
+    p.fx2 = ui->perform ? (uint8_t)(held & 0xFFu) : 0u; /* the black keys B0-B7: STUT .. WARP */
+    memcpy(p.fx2_amt, ui->perf_amt, sizeof p.fx2_amt);
+    if (p.fx2 != e->perf.fx2) ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_FOOTER;
     p.sub_mute = false;
     for (b = 0u; b < 4u; ++b)
         if (wh & (1u << (4u + b))) {
@@ -4878,7 +4919,13 @@ static void draw_perform(MelloUi *ui, const MelloUiDrawOps *o)
     uint16_t held = perform_held(ui);
     uint8_t w;
     o->fill(o->ctx, 0, 30, 240, 141, UI_BLACK);
-    ui_spaced(o, 6, 33, 228, "ON EVERY PART", UI_DIM, 0);
+    for (w = 0u; w < 8u; ++w) { /* the black keys B0-B7, along the top: lit while held */
+        int16_t x = (int16_t)(4 + w * 29);
+        bool on = e && (e->perf.fx2 >> w) & 1u;
+        ui_round_fill(o, x, 32, 27, 15, on ? ui_mix(UI_PURPLE, UI_BLACK, 90) : UI_PANEL);
+        ui_round_frame(o, x, 32, 27, 15, on ? UI_PURPLE : UI_LINE);
+        o->text(o->ctx, x, 33, 27, 0, PERFORM_BLACK_NAMES[w], on ? UI_BRIGHT : UI_PURPLE, 1);
+    }
     for (w = 0u; w < 16u; ++w) {
         /* a row each, in its colour: the sequence, its repeats, the sound, the parts */
         static const uint16_t row_colour[4] = {UI_CORAL, UI_GOLD, UI_CYAN, UI_RED};
@@ -5991,6 +6038,13 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
             px = (int16_t)(px + w + 2);
         }
         ui_spaced(o, (int16_t)(px + 6), 172, (int16_t)(236 - px - 6), "STEP", UI_DIM, 2);
+        return;
+    }
+    if (ui->perform && (ui->held_black & 0xFFu)) { /* PERFORM: a black key's effect held, its amount, K1 */
+        char b[40];
+        perform_black_text(ui, ui->perf_black_last, b);
+        ui_round_fill(o, 2, 172, 236, 16, ui_mix(UI_PURPLE, UI_BLACK, 170));
+        o->text(o->ctx, 4, 172, 232, 0, b, UI_BRIGHT, 1);
         return;
     }
     if (ui->held_black) { /* performance keys held (any page; HOME's others too): their full names, lit */

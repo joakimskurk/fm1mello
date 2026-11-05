@@ -151,6 +151,14 @@ static inline int32_t ramp_q8(MelloRamp *r)
     }
     return r->cur;
 }
+static uint32_t note_inc(uint8_t note);
+/* PERFORM's OCT- / OCT+: a note's pitch moved (its tag and its voice's note stay as played, so the NOTE_OFF that
+ * belongs to it still finds it whatever is held by then) */
+static uint8_t perf_note(const MelloAudio *a, uint8_t note)
+{
+    int32_t n = (int32_t)note + a->pfx_semis;
+    return (uint8_t)(n < 12 ? 12 : n > 120 ? 120 : n);
+}
 static uint32_t note_inc(uint8_t note)
 {
     return MIDI_INC[note & 127u];
@@ -1065,8 +1073,8 @@ static void chord_note_on(MelloAudio *a, uint8_t note)
             if (v->age - v->vage[i] >= oldest) oldest = v->age - v->vage[i], pick = i;
         if (pick == 0xFFu) pick = 0u;
     }
-    v->note[pick] = note;
-    v->inc[pick] = note_inc(note);
+    v->note[pick] = note;                  /* (the note as played: its NOTE_OFF finds the voice by it) */
+    v->inc[pick] = note_inc(perf_note(a, note)); /* OCT- / OCT+ */
     if (!v->active[pick]) {
         v->active[pick] = 1u;
         v->active_count++;
@@ -1299,25 +1307,31 @@ static void apply_event(MelloAudio *a, const MelloEvent *e)
         a->tm_filter_mod_q15 = e->tm_filter_mod_q15;
         a->tm_decay_mod_q15 = e->tm_decay_mod_q15;
         a->lead.on_tag = event_tag(e);
-        lead_attack(a, e->note, e->velocity, e->slide);
+        lead_attack(a, perf_note(a, e->note), e->velocity, e->slide); /* (OCT- / OCT+: the pitch, not the tag) */
+        if (a->pfx & MELLO_PERF_FX2_PLUCK) a->pluck_up = true;
         a->lead.wave = e->wave;
     } else if (e->type == MELLO_EVENT_NOTE_OFF) {
         if (event_tag(e) == a->lead.on_tag) lead_release(a);
     } else if (e->type == MELLO_EVENT_SUB_NOTE_ON) {
         a->sub.on_tag = event_tag(e);
-        sub_attack(a, e->note, e->velocity, e->ratchet_index != 0u,
+        sub_attack(a, perf_note(a, e->note), e->velocity, e->ratchet_index != 0u,
                    e->slide); /* ratchet_index: BASS SEQ's step */
+        if (a->pfx & MELLO_PERF_FX2_PLUCK) a->pluck_up = true;
     } else if (e->type == MELLO_EVENT_SUB_NOTE_OFF) {
         if (event_tag(e) == a->sub.on_tag) sub_release(a);
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    else if (e->type == MELLO_EVENT_CHORD_NOTE_ON)
+    else if (e->type == MELLO_EVENT_CHORD_NOTE_ON) {
         chord_note_on(a, e->note);
+        if (a->pfx & MELLO_PERF_FX2_PLUCK) a->pluck_up = true;
+    }
     else if (e->type == MELLO_EVENT_CHORD_NOTE_OFF)
         chord_note_off(a, e->note);
 #endif
-    else if (e->type == MELLO_EVENT_DRUM_HIT)
+    else if (e->type == MELLO_EVENT_DRUM_HIT) {
         drum_hit(a, e);
+        if (a->pfx & MELLO_PERF_FX2_PLUCK) a->pluck_up = true;
+    }
     else if (e->type == MELLO_EVENT_SAMPLE_NOTE_ON)
         sample_attack_voice(a, e);
     else if (e->type == MELLO_EVENT_SAMPLE_NOTE_OFF)
@@ -2284,6 +2298,130 @@ void mello_audio_set_perf_fx(MelloAudio *a, uint8_t fx)
 {
     if (a) a->perf_fx = fx;
 }
+void mello_audio_set_perf_fx2(MelloAudio *a, uint8_t fx2, const uint16_t amt[8])
+{
+    uint8_t i;
+    int8_t semis = 0;
+    uint32_t ms;
+    if (!a) return;
+    for (i = 0u; i < 8u; ++i) a->pfx_amt[i] = amt ? (amt[i] > 1000u ? 1000u : amt[i]) : 0u;
+    if (fx2 & MELLO_PERF_FX2_OCTDN) semis = (int8_t)(semis - (a->pfx_amt[5] >= 500u ? 24 : 12));
+    if (fx2 & MELLO_PERF_FX2_OCTUP) semis = (int8_t)(semis + (a->pfx_amt[6] >= 500u ? 24 : 12));
+    a->pfx_semis = semis;
+    ms = 400u - (uint32_t)a->pfx_amt[2] * 370u / 1000u; /* PLUCK: each note dies in 400 .. 30 ms */
+    a->pluck_k = (int32_t)(655360u / (ms * 441u));      /* (the step towards silence a sample, of 65536) */
+    a->pfx = fx2;
+}
+
+/* PERFORM's black keys on the mix (DECISIONS "PERFORM's black keys"), after the sweeps. STUT loops what came in the
+ * held division after the press (heard as it is the first time round); TAPE reads the record slowing to a stop and is
+ * gone the moment it is let go (a 3 ms fade); WARP reads it 15 ms back, the delay swinging. Then CRUSH, CHOP, PLUCK. */
+#define PB_Q (MELLO_PERF_BUF << 16)
+static int32_t pb_read(const MelloAudio *a, uint8_t c, uint32_t pos_q16)
+{
+    uint32_t i = pos_q16 >> 16, j = i + 1u >= MELLO_PERF_BUF ? 0u : i + 1u, f = (pos_q16 >> 8) & 0xFFu;
+    int32_t x0 = a->pbuf[c][i], x1 = a->pbuf[c][j];
+    return x0 + (((x1 - x0) * (int32_t)f) >> 8);
+}
+static uint32_t pb_wrap(uint32_t q)
+{
+    return q >= PB_Q ? q - PB_Q : q;
+}
+static void perf2_step(MelloAudio *a, int32_t *l, int32_t *r)
+{
+    uint8_t fx = a->pfx, rise = (uint8_t)(fx & ~a->pfx_was);
+    uint8_t mode = (fx & MELLO_PERF_FX2_TAPE)   ? 2u
+                   : (fx & MELLO_PERF_FX2_STUT) ? 1u
+                   : (fx & MELLO_PERF_FX2_WARP) ? 3u
+                                                : 0u;
+    int32_t dl = *l, dr = *r;
+    uint32_t bpm = a->render_bpm ? a->render_bpm : 120u;
+    a->pfx_was = fx;
+    if (mode && (mode != a->pb_mode || (rise & (MELLO_PERF_FX2_STUT | MELLO_PERF_FX2_TAPE)))) {
+        a->pb_mode = mode, a->pb_t = 0u, a->pb_k = 0u;
+        if (mode == 1u) { /* STUT: a division's length from now, at half the rate */
+            static const uint8_t den[4] = {32u, 16u, 8u, 4u};
+            uint32_t len = 5292000u / (bpm * den[a->pfx_amt[0] * 3u / 1000u]);
+            a->pb_len = len < 64u ? 64u : len > MELLO_PERF_BUF - 64u ? MELLO_PERF_BUF - 64u : len;
+            a->pb_pos_q16 = (uint32_t)a->pb_w << 16;
+        } else if (mode == 2u) { /* TAPE: from now, a stop in 100 .. 500 ms */
+            uint32_t frames = (100u + (uint32_t)a->pfx_amt[1] * 400u / 1000u) * 22u;
+            a->pb_pos_q16 = pb_wrap(((uint32_t)a->pb_w << 16) + PB_Q - (2u << 16));
+            a->pb_speed_q16 = 65536u, a->pb_dec_q16 = 65536u / frames;
+        }
+    } else if (!mode && !a->pb_mix_q12)
+        a->pb_mode = 0u;
+    if (a->pb_mode) {
+        int32_t wl = dl, wr = dr, g = 4096;
+        bool record = a->pb_mode != 1u || a->pb_t < a->pb_len * 2u; /* STUT records its first time round */
+        if (record) { /* the record, two samples a frame */
+            a->pb_acc[0] += dl, a->pb_acc[1] += dr;
+            if (a->pb_half) {
+                a->pbuf[0][a->pb_w] = (int16_t)clamp32(a->pb_acc[0] / 2, -32767, 32767);
+                a->pbuf[1][a->pb_w] = (int16_t)clamp32(a->pb_acc[1] / 2, -32767, 32767);
+                a->pb_acc[0] = a->pb_acc[1] = 0;
+                if (++a->pb_w >= MELLO_PERF_BUF) a->pb_w = 0u;
+            }
+            a->pb_half ^= 1u;
+        }
+        if (a->pb_mode == 1u) {
+            uint32_t n = a->pb_len * 2u, k = a->pb_k;
+            if (a->pb_t >= n) { /* round and round, a 64-sample fade either side of the seam */
+                wl = pb_read(a, 0u, pb_wrap(a->pb_pos_q16 + (k << 15)));
+                wr = pb_read(a, 1u, pb_wrap(a->pb_pos_q16 + (k << 15)));
+                if (k < 64u) g = (int32_t)k * 64;
+                if (n - k < 64u) g = (int32_t)(n - k) * 64;
+                if (++a->pb_k >= n) a->pb_k = 0u;
+            } else
+                a->pb_t++;
+        } else if (a->pb_mode == 2u) {
+            wl = pb_read(a, 0u, a->pb_pos_q16), wr = pb_read(a, 1u, a->pb_pos_q16);
+            a->pb_pos_q16 = pb_wrap(a->pb_pos_q16 + (a->pb_speed_q16 >> 1));
+            a->pb_speed_q16 = a->pb_speed_q16 > (a->pb_dec_q16 >> 1) ? a->pb_speed_q16 - (a->pb_dec_q16 >> 1) : 0u;
+            g = a->pb_speed_q16 >= 16384u ? 4096 : (int32_t)(a->pb_speed_q16 >> 2); /* (silent as it stops) */
+        } else { /* WARP: 15 ms back, swinging up to 13.6 ms either way, slow and fast */
+            uint32_t d;
+            int32_t sw;
+            a->warp_ph[0] += 126600u, a->warp_ph[1] += 633000u;
+            sw = (SINE_Q15[a->warp_ph[0] >> 24] * 7 + SINE_Q15[a->warp_ph[1] >> 24] * 3) / 10;
+            d = (uint32_t)(330 * 65536 + (int32_t)a->pfx_amt[7] * 300 / 1000 * sw * 2);
+            wl = pb_read(a, 0u, pb_wrap(((uint32_t)a->pb_w << 16) + PB_Q - d));
+            wr = pb_read(a, 1u, pb_wrap(((uint32_t)a->pb_w << 16) + PB_Q - d));
+        }
+        wl = (wl * g) >> 12, wr = (wr * g) >> 12;
+        /* in over 10 ms; out in 3 ms, at once as near as clicks allow */
+        a->pb_mix_q12 = mode ? (a->pb_mix_q12 + 9 > 4096 ? 4096 : a->pb_mix_q12 + 9)
+                             : (a->pb_mix_q12 > 31 ? a->pb_mix_q12 - 31 : 0);
+        *l = dl + (((wl - dl) * a->pb_mix_q12) >> 12);
+        *r = dr + (((wr - dr) * a->pb_mix_q12) >> 12);
+    }
+    if (fx & MELLO_PERF_FX2_CRUSH) { /* rate held 1 .. 16 samples, 0 .. 10 bits gone */
+        uint8_t hold = (uint8_t)(1u + a->pfx_amt[3] * 15u / 1000u);
+        int32_t mask = ~((1 << (a->pfx_amt[3] * 10u / 1000u)) - 1);
+        if (++a->crush_n >= hold) a->crush_n = 0u, a->crush_h[0] = *l & mask, a->crush_h[1] = *r & mask;
+        *l = a->crush_h[0], *r = a->crush_h[1];
+    }
+    if (fx & MELLO_PERF_FX2_CHOP) { /* on for the first 60% of each 1/8, 1/16, 1/32 from the press */
+        static const uint8_t den[3] = {8u, 16u, 32u};
+        if (rise & MELLO_PERF_FX2_CHOP)
+            a->chop_n = 0u, a->chop_len = 10584000u / (bpm * den[a->pfx_amt[4] * 2u / 1000u]);
+        if (a->chop_len < 2u) a->chop_len = 2u;
+        if (++a->chop_n >= a->chop_len) a->chop_n = 0u;
+        a->chop_g = a->chop_n * 5u < a->chop_len * 3u ? (a->chop_g > 93 ? a->chop_g - 93 : 0)
+                                                      : (a->chop_g + 93 > 4096 ? 4096 : a->chop_g + 93);
+    } else
+        a->chop_g = a->chop_g > 93 ? a->chop_g - 93 : 0; /* (chop_g: how far cut, 0 open) */
+    if (a->chop_g) *l = (*l * (4096 - a->chop_g)) >> 12, *r = (*r * (4096 - a->chop_g)) >> 12;
+    if ((fx & MELLO_PERF_FX2_PLUCK) && !a->pluck_up) /* (pluck_q12: how far down, 0 open) */
+        a->pluck_q12 += ((4096 - a->pluck_q12) * a->pluck_k) >> 16 ? ((4096 - a->pluck_q12) * a->pluck_k) >> 16 : 1;
+    else if (a->pluck_q12) {
+        a->pluck_q12 = a->pluck_q12 > 62 ? a->pluck_q12 - 62 : 0; /* a note: up in 1.5 ms */
+        if (!a->pluck_q12) a->pluck_up = false;
+    } else
+        a->pluck_up = false;
+    if (a->pluck_q12 > 4096) a->pluck_q12 = 4096;
+    if (a->pluck_q12) *l = (*l * (4096 - a->pluck_q12)) >> 12, *r = (*r * (4096 - a->pluck_q12)) >> 12;
+}
 void mello_audio_set_mix_mute(MelloAudio *a, uint8_t mute_bits)
 {
     if (a && a->mix_mute != mute_bits) a->mix_mute = mute_bits, a->gains_moving = true;
@@ -2492,6 +2630,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
 {
     uint32_t i, t = start_us, terr = 0u;
     if (!a || !out) return;
+    a->render_bpm = bpm;
     apply_pending(a);
     /* Bound the IMA decode work per call whatever the sample settings (P1-4). Normal playback needs about
      * one block per voice per 256 frames; four voices at +24 semitones need 16. */
@@ -3057,6 +3196,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 }
             }
             if (a->perf_fx & 3u || a->sweep_pos[0] | a->sweep_pos[1]) sweep_step(a, &mix_l, &mix_r); /* the sweeps */
+            if (a->pfx | a->pfx_was || a->pb_mode || a->chop_g || a->pluck_q12)
+                perf2_step(a, &mix_l, &mix_r); /* PERFORM's black keys */
             /* MASTER and the output's gain, then the limiter: nothing leaves above -1 dBFS but a 3 ms attack's edge */
             mix_l = mul_q12(mul_q12(mix_l, master), MELLO_OUTPUT_GAIN_Q12);
             mix_r = mul_q12(mul_q12(mix_r, master), MELLO_OUTPUT_GAIN_Q12);

@@ -20,6 +20,7 @@ extern "C" {
 #define MELLO_AUDIO_DELAY_SAMPLES  65536u
 #define MELLO_AUDIO_REVERB_SAMPLES 24576u
 
+#define MELLO_PERF_BUF 6144u /* PERFORM's record of the mix: frames at half the rate, ~0.28 s (24 KB) */
 typedef struct {
     uint32_t due_us;
     MelloEvent event;
@@ -326,6 +327,23 @@ typedef struct {
     int32_t sweep_s[2][2][2];
     int32_t throw_q12, wash_q12;
     uint32_t perf_tail;
+    /* PERFORM's black keys (mello_audio_set_perf_fx2, DECISIONS "PERFORM's black keys"): what is held, the amounts,
+     * the notes' transposition; STUT, TAPE and WARP read a record of the mix (stereo, at half the rate, a ring of
+     * MELLO_PERF_BUF frames, ~0.28 s), faded in and out; CRUSH's hold, CHOP's gate, PLUCK's envelope */
+    uint8_t pfx, pfx_was, pb_mode;
+    uint16_t pfx_amt[8];
+    int8_t pfx_semis;
+    uint16_t render_bpm;
+    int16_t pbuf[2][MELLO_PERF_BUF];
+    uint16_t pb_w;
+    uint8_t pb_half;
+    int32_t pb_acc[2], pb_mix_q12;
+    uint32_t pb_pos_q16, pb_len, pb_t, pb_k, pb_speed_q16, pb_dec_q16, warp_ph[2];
+    uint32_t chop_n, chop_len;
+    int32_t chop_g;
+    uint8_t crush_n;
+    int32_t crush_h[2], pluck_q12, pluck_k;
+    bool pluck_up;
     int16_t *reverb_buffer;
     uint32_t reverb_capacity;
     uint32_t reverb_pos;
@@ -411,6 +429,8 @@ void mello_audio_set_chord_config(MelloAudio *a, const MelloChordConfig *chord);
 void mello_audio_set_drum_config(MelloAudio *a, const MelloDrumConfig *drums);
 /* PERFORM's held sound effects (MELLO_PERF_FX_* bits); called as often as the mutes are */
 void mello_audio_set_perf_fx(MelloAudio *a, uint8_t fx);
+/* PERFORM's black keys (MELLO_PERF_FX2_*) and their amounts (0..1000) */
+void mello_audio_set_perf_fx2(MelloAudio *a, uint8_t fx2, const uint16_t amt[8]);
 void mello_audio_set_bass_config(MelloAudio *a, const MelloBassConfig *bass);
 /* What of a config the audio takes (dinghy.c compares these to know when to send them). */
 void mello_audio_drum_kit(const MelloDrumConfig *drums, MelloAudioDrumKit *out);

@@ -2810,6 +2810,13 @@ static void perf_fill_buffer(MelloEngine *e, uint8_t mode, uint8_t n)
     }
 }
 
+static bool perf_amt_same(const MelloPerf *a, const MelloPerf *b)
+{
+    uint8_t i;
+    for (i = 0u; i < 8u; ++i)
+        if (a->fx2_amt[i] != b->fx2_amt[i]) return false;
+    return true;
+}
 void mello_engine_set_perf(MelloEngine *e, const MelloPerf *p)
 {
     uint8_t mode, len;
@@ -2817,7 +2824,7 @@ void mello_engine_set_perf(MelloEngine *e, const MelloPerf *p)
     len = p->repeat_len < 1u ? 1u : (p->repeat_len > 16u ? 16u : p->repeat_len);
     if (p->fill == e->perf.fill && p->sub_mute == e->perf.sub_mute && p->reverse == e->perf.reverse &&
         p->repeat == e->perf.repeat && len == e->perf.repeat_len && p->arp == e->perf.arp &&
-        p->accent == e->perf.accent && p->fx == e->perf.fx)
+        p->accent == e->perf.accent && p->fx == e->perf.fx && p->fx2 == e->perf.fx2 && perf_amt_same(p, &e->perf))
         return; /* nothing changed (it is called on every input) */
     e->perf = *p;
     e->perf.repeat_len = len;

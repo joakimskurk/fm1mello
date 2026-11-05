@@ -436,11 +436,22 @@ typedef struct {
     bool accent;       /* every lead note and drum hit accented */
     uint8_t mute_req;  /* mutes asked for while playing: toggled into mix_mute at the next beat */
     uint8_t fx;        /* MELLO_PERF_FX_*: the sound's held effects, for mello_audio */
+    uint8_t fx2;       /* MELLO_PERF_FX2_*: the black keys' held effects */
+    uint16_t fx2_amt[8]; /* each one's amount, 0..1000 (K1 while it is held) */
 } MelloPerf;
 #define MELLO_PERF_FX_LP    1u /* LP SWEEP: the whole mix's low-pass closing while held */
 #define MELLO_PERF_FX_HP    2u /* HP SWEEP: its high-pass opening */
 #define MELLO_PERF_FX_THROW 4u /* THROW: everything into the delay, its feedback up; the tail rings on */
 #define MELLO_PERF_FX_WASH  8u /* WASH: everything into the reverb */
+/* PERFORM's black keys B0-B7 (DECISIONS "PERFORM's black keys"), held: MelloPerf.fx2, each with its K1 amount */
+#define MELLO_PERF_FX2_STUT  1u   /* the last bit of sound again and again (K1: 1/32, 1/16, 1/8, 1/4) */
+#define MELLO_PERF_FX2_TAPE  2u   /* a tape stop: the mix slows to a stop; let go, back at once (K1: how fast) */
+#define MELLO_PERF_FX2_PLUCK 4u   /* everything short: each note and hit dies away (K1: how short) */
+#define MELLO_PERF_FX2_CRUSH 8u   /* bits and rate down on the mix (K1: how much) */
+#define MELLO_PERF_FX2_CHOP  16u  /* the mix cut on and off in time (K1: 1/8, 1/16, 1/32) */
+#define MELLO_PERF_FX2_OCTDN 32u  /* the notes an octave down (K1: one or two) */
+#define MELLO_PERF_FX2_OCTUP 64u  /* an octave up */
+#define MELLO_PERF_FX2_WARP  128u /* the mix's pitch wavering, a worn tape (K1: how deep) */
 
 /* DOT's MOD lanes, DOT's evolve and EVOLVE's sound routes and timing. Saved in SEC_MOD (not in the snapshot's own
  * wire format), with DOT's fifth matrix. */

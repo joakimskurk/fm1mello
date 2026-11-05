@@ -210,6 +210,10 @@ typedef struct {
     /* Step entry (REC stopped on HOME, DECISIONS "Step entry"): what the next step gets, kept from step to step:
      * SEQ's PULSE, RATCH, GATE, ACC (bit 0) and SLD (bit 1); BASS's GLIDE and ACCENT; CHORD's HOLD and SHAPE */
     uint8_t se_pulses, se_ratchet, se_gate, se_flags, se_bass, se_hold, se_shape;
+    /* PERFORM's black keys (DECISIONS "PERFORM's black keys"): each effect's amount (K1 while it is held), and the
+     * one held last, which K1 turns */
+    uint16_t perf_amt[8];
+    uint8_t perf_black_last;
     uint32_t rec_down_ms, rec_now_ms;
     bool undo_menu;     /* held a moment: those shown */
     uint32_t undo_down_ms;
