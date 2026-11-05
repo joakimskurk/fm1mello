@@ -21,6 +21,7 @@ extern "C" {
 #define MELLO_AUDIO_REVERB_SAMPLES 24576u
 
 #define MELLO_PERF_BUF 6144u /* PERFORM's record of the mix: frames at half the rate, ~0.28 s (24 KB) */
+#define MELLO_LA_N     64u   /* the output limiter's look-ahead: 1.45 ms */
 typedef struct {
     uint32_t due_us;
     MelloEvent event;
@@ -313,7 +314,13 @@ typedef struct {
     int32_t delay_hr_acc;
     uint32_t delay_samples;
     /* Knob changes ramp as the HTML's rampTo calls do (lines 989-1077); the delay time too (read between samples). */
-    int32_t limiter_env_q4; /* limiter_step's peak follower */
+    /* The output stage (DECISIONS "The level, all of it"): the bus compressor's high-pass and follower (Q4) and its
+     * gain (Q15, ramped over a block), then the look-ahead limiter's line, its gains' window and their sum */
+    int32_t comp_hp_q4, comp_env_q4, comp_g, comp_step;
+    uint8_t comp_n, la_pos, la_hold;
+    int32_t la_line[2][MELLO_LA_N];
+    int16_t la_g[MELLO_LA_N];
+    int32_t la_sum, la_min;
     MelloRamp rp_cut, rp_res, rp_master, rp_rev_send, rp_rev_level, rp_dly_send, rp_dly_level, rp_dly_fb,
         rp_dist_level, rp_sub_level, rp_fsub_level, rp_delay, rp_lead_level;
     int32_t delay_tone_s[2][4];                  /* dlyTone */
@@ -344,7 +351,8 @@ typedef struct {
     uint32_t chop_n, chop_len;
     int32_t chop_g;
     uint8_t crush_n;
-    int32_t crush_h[2], pluck_q12, pluck_k;
+    int32_t crush_h[2], pluck_q24, pluck_k;
+    int32_t pluck_mk, pluck_mk_now, chop_mk, stut_q12; /* their levels made up (Q12 over 1; STUT's a gain) */
     bool pluck_up;
     int16_t *reverb_buffer;
     uint32_t reverb_capacity;

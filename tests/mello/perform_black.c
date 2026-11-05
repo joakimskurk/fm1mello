@@ -90,6 +90,18 @@ static unsigned crossings(const int32_t *x, uint32_t from, uint32_t to)
     return c;
 }
 #define S(ms) ((uint32_t)(ms) * 441u / 10u)
+/* the loudest 20 ms window over the quietest, in dB */
+static double swing(const int32_t *x, uint32_t from, uint32_t to)
+{
+    double lo = 1e300, hi = 0;
+    uint32_t i;
+    for (i = from; i + S(20) <= to; i += S(20)) {
+        double e = energy(x, i, i + S(20));
+        if (e < lo) lo = e;
+        if (e > hi) hi = e;
+    }
+    return 10.0 * log10(hi / lo);
+}
 
 static void audio_part(void)
 {
@@ -134,7 +146,12 @@ static void audio_part(void)
     }
 
     render(MELLO_PERF_FX2_PLUCK, false, wet);
-    CHECK(energy(wet, S(1100), S(1900)) < energy(dry, S(1100), S(1900)) / 2.0, "PLUCK: hardly shorter");
+    { /* the notes die (the 20 ms windows far apart, the quiet ones quieter), its level made up (within 3 dB) */
+        double dr = swing(dry, S(1100), S(1900)), wr = swing(wet, S(1100), S(1900)),
+               lv = 10.0 * log10(energy(wet, S(1100), S(1900)) / energy(dry, S(1100), S(1900)));
+        CHECK(wr > dr + 6.0, "PLUCK: hardly shorter (swing %.1f dB, dry %.1f)", wr, dr);
+        CHECK(lv > -3.0 && lv < 3.0, "PLUCK: its level %.1f dB from the dry", lv);
+    }
 
     render(0u, true, dry);
     render(MELLO_PERF_FX2_OCTDN, true, wet);

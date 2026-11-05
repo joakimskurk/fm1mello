@@ -1836,6 +1836,56 @@ must be back fast when let go, instantly".
   0.5-f87: the default pattern 37.9%, with the eight held 38.2% (that all eight were on in the emulator is not
   confirmed: the estimate is 1-2% at most). RAM 81888 B. dinghy.c (Dinghy's) passes the black keys to the audio.
 
+## The level, all of it (2026-11-05)
+
+The product owner, after the PERFORM demo: "we must measure the effects and watch the level. That some levels can get
+so high means to me that the rest is not loud enough either. A deep round on just this." Measured offline (the
+engine as the FM-1 runs it, rendered on the host): K-weighted loudness (BS.1770, LUFS, gated), the peak before and
+after the limiter, and what the limiter and the compressor take. 15 styles x 8 rolls (10 s each), RNDMZR's five
+amounts x 6, and every PERFORM effect held 4 s against the same roll without it (6-8 styles x 2 rolls).
+
+What it found, before:
+
+- The mix was held back by its peaks, not its body: the styles sat at -12.1 LUFS on average (-14.8 .. -9.0) with
+  peaks at -0.1 dBFS, 4.5 dB over the ceiling before the limiter. The peaks are the lead's attack on the beat on
+  top of the kick (the lead alone: 11 dB from its loudness to its peak). The old limiter (1 ms attack, no look-ahead)
+  let their edges through to the soft top.
+- The effects jumped: STUT +4.1 dB on average at 1/32 (+8.2 at worst: a kick looped), +3.1 at 1/16; PLUCK -4 ..
+  -6.4; CHOP -1.1 .. -1.5. And PLUCK's K1 did nothing below ~80%: its step towards silence was rounded in Q12, so
+  every amount died alike in 93 ms (now Q24).
+- One RNDMZR HIGH roll of the lead alone came out 7 dB over the others (a dense, held line).
+
+Now:
+
+- **The output stage**: MASTER, then +15 dB (was +11), then a bus compressor, then a look-ahead limiter at -1 dBFS,
+  then the soft top as before for anything left. The compressor (glue, as OP-1's master): its ear is the mix's
+  middle high-passed at ~100 Hz (so the bass and kick do not pump it), 10 ms up, 150 ms down, 2.5:1 above ~-10
+  dBFS with a 6 dB knee, its gain worked out every 16 samples (a log2 and a 2^-x by 17-point tables) and ramped.
+  The limiter looks 64 samples (1.45 ms) ahead: a sample's gain is held for that long and averaged over it, so it
+  is down by the time the sample goes out, then lets go over ~60 ms. 1.45 ms more latency; 672 B of RAM.
+- **The effects level-matched** (80% of what each took or added, measured, given back): STUT's loop -3.3 / -2.5 /
+  -0.8 / -0.7 dB by division; PLUCK made up +0.8 .. +5.1 dB by its amount, and its amount now even to the ear
+  (400 ms .. 30 ms by a ratio a step, 110 ms half-way, where 93 ms was); CHOP's open part +1.2 dB while held. The
+  makeups slide in and out over ~6 ms. TAPE, LP, HP and OCT are left: going quiet, thin or dark is what they are.
+
+| | before | now |
+|---|---|---|
+| styles, average (LUFS) | -12.1 | -10.6 |
+| styles, quietest .. loudest | -14.8 .. -9.0 | -13.0 .. -8.7 |
+| styles, spread (sd) | 1.2 dB | 0.9 dB |
+| highest peak out | -0.1 dBFS | -0.9 dBFS |
+| limiter, time-averaged | | -0.23 dB (worst roll -0.69) |
+| compressor, average | | -1.3 dB (deepest -2.9) |
+| STUT 1/32, 1/16 (dLUFS, the stage out) | +4.1, +3.1 | +0.8, +0.7 |
+| PLUCK 0 .. 100% | -4.0 .. -6.4 (any amount alike) | -0.2 .. -1.3 |
+| CHOP | -1.1 .. -1.5 | -0.3 .. +0.1 |
+
+`make parity` and the tests that measure a part alone (-DMELLO_OUTPUT_GAIN_Q12=4096) have no compressor; the
+limiter is in every build. fm1-emu, 0.5-f88: the default pattern 39.5% (37.9% before); RAM 82560 B. Not done, for the product owner to choose: the parts' balance within a style roll.
+Measured alone, the chords sit 18 .. 25 dB under the lead in the styles (6.5 under in the default project, as "The
+mix" set) and the bass 11 .. 17 dB under (2.4 in the default project): the styles' sounds (a sine or dark bass,
+sparse chords) take them that far down.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

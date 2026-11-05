@@ -2049,24 +2049,22 @@ void mello_audio_reverb_stereo_probe(MelloAudio *a, int32_t send, int32_t *left,
 }
 #endif
 
-/* Tone.Limiter(-1): a compressor at -1 dBFS (29204), ratio 20, attack 1 ms (the HTML 3), release 10 ms, on the peak. Above
- * the threshold the gain is threshold / envelope (ratio 20 is within 0.3 dB of that at 6 dB over). Unity below it,
- * so it only acts when the returns pile up; it replaces a hard clip at -1 dBFS. */
-/* The output's own gain (ROADMAP F20, DECISIONS "The output level"): +11 dB, ahead of the limiter, so a pattern with
- * every part on peaks at -1 .. -3 dBFS at the default MASTER (it was -12 .. -16, as quiet as the HTML) and only
- * what is turned up past that meets the limiter. */
-#ifndef MELLO_OUTPUT_GAIN_Q12       /* make parity renders at 4096 (0 dB): the engine against the HTML */
-#define MELLO_OUTPUT_GAIN_Q12 14533 /* 10^(11/20) */
+/* The output stage (DECISIONS "The output level", "The level, all of it"): MASTER, a fixed gain, a bus compressor,
+ * a look-ahead limiter at -1 dBFS, and a soft top for what is left. `make parity` and the tests that measure a part
+ * alone render with the gain at 0 dB (-DMELLO_OUTPUT_GAIN_Q12=4096): then the stage is out, the engine as the HTML. */
+#ifndef MELLO_OUTPUT_GAIN_TUNE
+#define MELLO_OUTPUT_GAIN_TUNE 22958 /* 10^(15/20): +15 dB (+11 before the look-ahead limiter) */
 #endif
+#ifndef MELLO_OUTPUT_GAIN_Q12
+#define MELLO_OUTPUT_GAIN_Q12 MELLO_OUTPUT_GAIN_TUNE
+#endif
+#define MELLO_OUTPUT_STAGE (MELLO_OUTPUT_GAIN_Q12 != 4096)
 /* A tail still sounding: over 8 LSB before the output's gain (the reverb's last bits stay a few LSB for ever, which
  * the gain must not turn into a tail that never ends: then nothing would ever be silent, and nothing saved) */
 #define TAIL_LSB          ((8 * MELLO_OUTPUT_GAIN_Q12) >> 12)
-#define LIMITER_THRESHOLD 29204
-#define LIMITER_ATTACK_Q15                                                                                   \
-    735 /* 1 - exp(-1 / (0.001 * 44100)): 1 ms (was 3 ms, the HTML's; the mix got louder) */
-#define LIMITER_RELEASE_Q15 74 /* 1 - exp(-1 / (0.010 * 44100)) */
-/* What the limiter's attack lets past -1 dBFS bends towards full scale and never reaches it: x over the threshold by
- * e comes out at T + e * H / (e + H) (H the headroom to full scale), not clipped hard. A divide only then. */
+#define LIMITER_THRESHOLD 29204 /* -1 dBFS */
+/* What still gets past -1 dBFS bends towards full scale and never reaches it: x over the threshold by e comes out at
+ * T + e * H / (e + H) (H the headroom to full scale), not clipped hard. A divide only then. */
 static int32_t soft_top(int32_t x)
 {
     int32_t ax = x < 0 ? -x : x, e, y;
@@ -2077,16 +2075,85 @@ static int32_t soft_top(int32_t x)
     y = LIMITER_THRESHOLD + (int32_t)((uint32_t)e * (uint32_t)h / (uint32_t)(e + h)); /* < 2^32 */
     return x < 0 ? -y : y;
 }
+/* log2 in Q8 (x > 0) and 2^(-y/256) in Q15 (y >= 0), each by a 17-point table, within 0.1 dB */
+static const uint8_t LOG2_FRAC[17] = {0,   22,  44,  63,  82,  100, 118, 134, 150,
+                                      165, 179, 193, 207, 220, 232, 244, 255};
+static const uint16_t EXP2N_Q15[17] = {32768, 31379, 30048, 28774, 27554, 26386, 25268, 24196, 23170,
+                                       22188, 21247, 20347, 19484, 18658, 17867, 17109, 16384};
+static int32_t log2_q8(uint32_t x)
+{
+    int32_t n = 31 - __builtin_clz(x);
+    uint32_t f = n >= 8 ? (x >> (n - 8)) & 255u : (x << (8 - n)) & 255u, i = f >> 4, r = f & 15u;
+    return n * 256 + LOG2_FRAC[i] + (int32_t)(((LOG2_FRAC[i + 1] - LOG2_FRAC[i]) * r) >> 4);
+}
+static int32_t exp2n_q15(int32_t y)
+{
+    uint32_t f = (uint32_t)y & 255u, i = f >> 4, r = f & 15u;
+    int32_t g = EXP2N_Q15[i] - (int32_t)(((EXP2N_Q15[i] - EXP2N_Q15[i + 1]) * r) >> 4);
+    return y >= 15 * 256 ? 0 : g >> (y >> 8);
+}
+/* The bus compressor: glue, as OP-1's master has. Its ear is the mix's middle, high-passed at ~100 Hz (the bass and
+ * kick alone do not pump it), followed at 10 ms up and 150 ms down. Above COMP_T it turns down at COMP_R:1, a knee an
+ * octave (6 dB) wide; the gain is worked out every 16 samples and ramped. Loud rolls, a stutter or a dense lead come
+ * down; what sits under it is left as it is. */
+#ifndef COMP_T
+#define COMP_T                                                                                               \
+    10100 /* the follower's |x| (mean, not RMS), after the output's gain: ~-10 dBFS, the loud ones only */
+#endif
+#ifndef COMP_SLOPE_Q8
+#define COMP_SLOPE_Q8 154 /* 1 - 1/R: 2.5:1 */
+#endif
+#define COMP_KNEE    256  /* Q8 octaves */
+#define COMP_HP_Q15  467  /* 2 pi 100 / 44100 */
+#define COMP_ATT_Q20 2375 /* 1 - exp(-1 / (0.010 * 44100)) */
+#define COMP_REL_Q20 158  /* 1 - exp(-1 / (0.150 * 44100)) */
+#define LA_REL_Q15   12   /* the limiter's release, ~60 ms */
+static void comp_step(MelloAudio *a, int32_t *l, int32_t *r)
+{
+    int32_t m = (*l + *r) / 2, d;
+    m = clamp32(m, -131071, 131071); /* (4x full scale is plenty for its ear; and x16 stays clear of the ROM's
+                                      * addresses, which tools/build.py's checker rejects as constants) */
+    a->comp_hp_q4 += (int32_t)(((int64_t)(m * 16 - a->comp_hp_q4) * COMP_HP_Q15) >> 15);
+    m = m * 16 - a->comp_hp_q4; /* Q4, high-passed */
+    if (m < 0) m = -m;
+    d = m - a->comp_env_q4;
+    a->comp_env_q4 += (int32_t)(((int64_t)d * (d > 0 ? COMP_ATT_Q20 : COMP_REL_Q20)) >> 20);
+    if (!a->comp_n) { /* the block's gain */
+        int32_t x = (a->comp_env_q4 > 16 ? log2_q8((uint32_t)a->comp_env_q4) : 0) - log2_q8(COMP_T << 4) +
+                    COMP_KNEE / 2,
+                red = x <= 0          ? 0
+                      : x < COMP_KNEE ? COMP_SLOPE_Q8 * x / 2 * x / COMP_KNEE >> 8
+                                      : COMP_SLOPE_Q8 * (x - COMP_KNEE / 2) >> 8;
+        a->comp_step = (exp2n_q15(red) - a->comp_g) / 16; /* there by the block's end */
+    }
+    a->comp_n = (uint8_t)((a->comp_n + 1u) & 15u);
+    a->comp_g += a->comp_step;
+    *l = (int32_t)(((int64_t)*l * a->comp_g) >> 15);
+    *r = (int32_t)(((int64_t)*r * a->comp_g) >> 15);
+}
+/* The look-ahead limiter: a sample's gain to stay under -1 dBFS is held for the look-ahead and averaged over it, so
+ * the gain is down by the time the sample (delayed as long) goes out: no attack's edge, no clip. Then it lets go
+ * at ~60 ms. */
 static void limiter_step(MelloAudio *a, int32_t *l, int32_t *r)
 {
-    int32_t al = *l < 0 ? -*l : *l, ar = *r < 0 ? -*r : *r, pk = (al > ar ? al : ar), d, g;
-    if (pk > 262143) pk = 262143;
-    d = (pk << 4) - a->limiter_env_q4; /* Q4: a 1/16 LSB floor, and (d * coeff) fits 32 bits */
-    a->limiter_env_q4 += (d * (d > 0 ? LIMITER_ATTACK_Q15 : LIMITER_RELEASE_Q15)) >> 15;
-    if (a->limiter_env_q4 <= (LIMITER_THRESHOLD << 4)) return;
-    g = (int32_t)(((uint32_t)LIMITER_THRESHOLD << 15) / (uint32_t)(a->limiter_env_q4 >> 4));
-    *l = (int32_t)(((int64_t)*l * g) >> 15);
-    *r = (int32_t)(((int64_t)*r * g) >> 15);
+    int32_t al = *l < 0 ? -*l : *l, ar = *r < 0 ? -*r : *r, pk = (al > ar ? al : ar), g = 32767, ol, or_;
+    uint8_t p = a->la_pos;
+    if (pk > LIMITER_THRESHOLD)
+        g = (int32_t)(((uint32_t)LIMITER_THRESHOLD << 15) / (uint32_t)(pk > 262143 ? 262143 : pk));
+    if (g <= a->la_min)
+        a->la_min = g, a->la_hold = MELLO_LA_N + 1u;
+    else if (a->la_hold)
+        a->la_hold--;
+    else
+        a->la_min += ((32767 - a->la_min) * LA_REL_Q15 >> 15) + 1, a->la_min = a->la_min > g ? g : a->la_min;
+    a->la_sum += a->la_min - a->la_g[p];
+    a->la_g[p] = (int16_t)a->la_min;
+    ol = a->la_line[0][p], or_ = a->la_line[1][p];
+    a->la_line[0][p] = *l, a->la_line[1][p] = *r;
+    a->la_pos = (uint8_t)((p + 1u) & (MELLO_LA_N - 1u));
+    g = a->la_sum / (int32_t)MELLO_LA_N;
+    *l = (int32_t)(((int64_t)ol * g) >> 15);
+    *r = (int32_t)(((int64_t)or_ * g) >> 15);
 }
 static uint32_t config_update_begin(MelloAudio *a)
 {
@@ -2240,6 +2307,9 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
     if (!a) return;
     memset(a, 0, sizeof(*a));
     a->noise_seed = 0x2545F491u;
+    a->comp_g = 32768;
+    for (uint8_t k = 0u; k < MELLO_LA_N; ++k) a->la_g[k] = 32767; /* the limiter's window open */
+    a->la_min = 32767, a->la_sum = 32767 * (int32_t)MELLO_LA_N;
     a->sub_gain = 32767;
     a->mix_gain[0] = a->mix_gain[1] = a->mix_gain[2] = a->mix_gain[3] = 32767;
     /* Unison oscillators start spread over the cycle, so that they never begin in phase (a flanged attack). */
@@ -2318,8 +2388,18 @@ void mello_audio_set_perf_fx2(MelloAudio *a, uint8_t fx2, const uint16_t amt[8])
     if (fx2 & MELLO_PERF_FX2_OCTDN) semis = (int8_t)(semis - (a->pfx_amt[5] >= 500u ? 24 : 12));
     if (fx2 & MELLO_PERF_FX2_OCTUP) semis = (int8_t)(semis + (a->pfx_amt[6] >= 500u ? 24 : 12));
     a->pfx_semis = semis;
-    ms = 400u - (uint32_t)a->pfx_amt[2] * 370u / 1000u; /* PLUCK: each note dies in 400 .. 30 ms */
-    a->pluck_k = (int32_t)(655360u / (ms * 441u));      /* (the step towards silence a sample, of 65536) */
+    { /* PLUCK: each note dies in 400 .. 30 ms, evenly to the ear (a ratio a step), 110 ms half-way */
+        static const uint16_t PLUCK_MS[11] = {400u, 309u, 239u, 185u, 143u, 110u, 85u, 66u, 51u, 39u, 30u};
+        uint32_t i = a->pfx_amt[2] / 100u, f = a->pfx_amt[2] % 100u;
+        /* and its level made up: the dying notes cost 1 .. 6.4 dB (measured over eight styles), 80% of it given
+         * back, so it stays near the level it took away (DECISIONS "The level, all of it") */
+        static const uint16_t PLUCK_MK[11] = {4491u, 4720u, 4961u, 5214u, 5480u, 5759u,
+                                              6053u, 6362u, 6686u, 7027u, 7385u};
+        ms = i >= 10u ? 30u : PLUCK_MS[i] - (PLUCK_MS[i] - PLUCK_MS[i + 1u]) * f / 100u;
+        a->pluck_mk = i >= 10u ? 7385 - 4096
+                               : (int32_t)(PLUCK_MK[i] + (PLUCK_MK[i + 1u] - PLUCK_MK[i]) * f / 100u) - 4096;
+    }
+    a->pluck_k = (int32_t)(167772160u / (ms * 441u)); /* (the step towards silence a sample, of 2^24) */
     a->pfx = fx2;
 }
 
@@ -2351,7 +2431,11 @@ static void perf2_step(MelloAudio *a, int32_t *l, int32_t *r)
         a->pb_mode = mode, a->pb_t = 0u, a->pb_k = 0u;
         if (mode == 1u) { /* STUT: a division's length from now, at half the rate */
             static const uint8_t den[4] = {32u, 16u, 8u, 4u};
+            /* a loop of a short division is a hit over and over: louder than the music by 4 dB at 1/32, 3 at 1/16,
+             * 1 at 1/8 and 1/4 (measured); 80% of that taken back */
+            static const uint16_t gain[4] = {2801u, 3072u, 3736u, 3779u};
             uint32_t len = 5292000u / (bpm * den[a->pfx_amt[0] * 3u / 1000u]);
+            a->stut_q12 = gain[a->pfx_amt[0] * 3u / 1000u];
             a->pb_len = len < 64u ? 64u : len > MELLO_PERF_BUF - 64u ? MELLO_PERF_BUF - 64u : len;
             a->pb_pos_q16 = (uint32_t)a->pb_w << 16;
         } else if (mode == 2u) { /* TAPE: from now, a stop in 100 .. 500 ms */
@@ -2381,6 +2465,7 @@ static void perf2_step(MelloAudio *a, int32_t *l, int32_t *r)
                 wr = pb_read(a, 1u, pb_wrap(a->pb_pos_q16 + (k << 15)));
                 if (k < 64u) g = (int32_t)k * 64;
                 if (n - k < 64u) g = (int32_t)(n - k) * 64;
+                g = (g * a->stut_q12) >> 12;
                 if (++a->pb_k >= n) a->pb_k = 0u;
             } else
                 a->pb_t++;
@@ -2422,17 +2507,34 @@ static void perf2_step(MelloAudio *a, int32_t *l, int32_t *r)
                                                       : (a->chop_g + 93 > 4096 ? 4096 : a->chop_g + 93);
     } else
         a->chop_g = a->chop_g > 93 ? a->chop_g - 93 : 0; /* (chop_g: how far cut, 0 open) */
-    if (a->chop_g) *l = (*l * (4096 - a->chop_g)) >> 12, *r = (*r * (4096 - a->chop_g)) >> 12;
-    if ((fx & MELLO_PERF_FX2_PLUCK) && !a->pluck_up) /* (pluck_q12: how far down, 0 open) */
-        a->pluck_q12 +=
-            ((4096 - a->pluck_q12) * a->pluck_k) >> 16 ? ((4096 - a->pluck_q12) * a->pluck_k) >> 16 : 1;
-    else if (a->pluck_q12) {
-        a->pluck_q12 = a->pluck_q12 > 62 ? a->pluck_q12 - 62 : 0; /* a note: up in 1.5 ms */
-        if (!a->pluck_q12) a->pluck_up = false;
+    /* CHOP's open part 1.2 dB up while held (it cuts 40% of the time: 1.1 .. 1.5 dB less, measured), and PLUCK's
+     * makeup: each slides there and back over ~6 ms */
+    {
+        int32_t to = (fx & MELLO_PERF_FX2_CHOP) ? 607 : 0;
+        a->chop_mk += a->chop_mk < to ? 2 : a->chop_mk > to ? -2 : 0;
+        to = (fx & MELLO_PERF_FX2_PLUCK) ? a->pluck_mk : 0;
+        a->pluck_mk_now += a->pluck_mk_now < to - 11   ? 12
+                           : a->pluck_mk_now > to + 11 ? -12
+                                                       : to - a->pluck_mk_now;
+    }
+    if (a->chop_g | a->chop_mk) {
+        int32_t g = ((4096 - a->chop_g) * (4096 + a->chop_mk)) >> 12;
+        *l = (*l * g) >> 12, *r = (*r * g) >> 12;
+    }
+    /* (pluck_q24: how far down, 0 open; Q24, so 400 ms is a step of 951 and not lost to rounding as it was in Q12,
+     * where every amount under ~80% died alike in 93 ms) */
+    if ((fx & MELLO_PERF_FX2_PLUCK) && !a->pluck_up)
+        a->pluck_q24 += (int32_t)(((int64_t)((1 << 24) - a->pluck_q24) * a->pluck_k) >> 24) + 1;
+    else if (a->pluck_q24) {
+        a->pluck_q24 = a->pluck_q24 > (62 << 12) ? a->pluck_q24 - (62 << 12) : 0; /* a note: up in 1.5 ms */
+        if (!a->pluck_q24) a->pluck_up = false;
     } else
         a->pluck_up = false;
-    if (a->pluck_q12 > 4096) a->pluck_q12 = 4096;
-    if (a->pluck_q12) *l = (*l * (4096 - a->pluck_q12)) >> 12, *r = (*r * (4096 - a->pluck_q12)) >> 12;
+    if (a->pluck_q24 > (1 << 24)) a->pluck_q24 = 1 << 24;
+    if (a->pluck_q24 | a->pluck_mk_now) {
+        int32_t g = ((4096 - (a->pluck_q24 >> 12)) * (4096 + a->pluck_mk_now)) >> 12;
+        *l = (*l * g) >> 12, *r = (*r * g) >> 12;
+    }
 }
 void mello_audio_set_mix_mute(MelloAudio *a, uint8_t mute_bits)
 {
@@ -3219,11 +3321,13 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             }
             if (a->perf_fx & 3u || a->sweep_pos[0] | a->sweep_pos[1])
                 sweep_step(a, &mix_l, &mix_r); /* the sweeps */
-            if (a->pfx | a->pfx_was || a->pb_mode || a->chop_g || a->pluck_q12)
+            if (a->pfx | a->pfx_was || a->pb_mode || a->chop_g || a->pluck_q24 ||
+                a->chop_mk | a->pluck_mk_now)
                 perf2_step(a, &mix_l, &mix_r); /* PERFORM's black keys */
             /* MASTER and the output's gain, then the limiter: nothing leaves above -1 dBFS but a 3 ms attack's edge */
             mix_l = mul_q12(mul_q12(mix_l, master), MELLO_OUTPUT_GAIN_Q12);
             mix_r = mul_q12(mul_q12(mix_r, master), MELLO_OUTPUT_GAIN_Q12);
+            if (MELLO_OUTPUT_STAGE) comp_step(a, &mix_l, &mix_r);
             limiter_step(a, &mix_l, &mix_r);
             mix_l = soft_top(mix_l);
             mix_r = soft_top(mix_r);
