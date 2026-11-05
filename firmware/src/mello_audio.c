@@ -771,7 +771,8 @@ static void drum_render(MelloAudio *a, int32_t music, int32_t *out_l, int32_t *o
             int32_t f = d->f + (int32_t)(((int64_t)d->f * 3 * d->cenv) >> 24),
                     fmax = (65536 - d->damp) * 3 / 4;
             int32_t zap = drum_svf(d, drum_noise(a), f < fmax ? f : fmax, 0);
-            y = q15mul(clamp32(zap, -65535, 65535), d->damp + 9000);
+            /* the 1/Q + 9000 passes 32767 below TONE ~50%: with the noise at 65535, past a q15mul's range */
+            y = (int32_t)(((int64_t)clamp32(zap, -65535, 65535) * (d->damp + 9000)) >> 15);
             if (d->pk) { /* the body, until it is down 60 dB; twice the weight it had */
                 d->ph[0] += drum_bend(d->inc[0], d->cenv >> 1);
                 y += q15mul(osc_sample(MELLO_WAVE_SINE, d->ph[0], 0u, 0u), d->penv >> 9);
@@ -788,7 +789,8 @@ static void drum_render(MelloAudio *a, int32_t music, int32_t *out_l, int32_t *o
                 d->ph[0] += d->inc[0];
                 tick = q15mul(osc_sample(MELLO_WAVE_SINE, d->ph[0], 0u, 0u), d->cenv >> 9);
             }
-            y = y + q15mul(tick * 2 - y, (int32_t)c->tone * 32); /* TONE: noise .. tick */
+            /* TONE: noise .. tick; tick * 2 - y reaches 98301, past a q15mul's range: widened, floored as one */
+            y = y + (int32_t)(((int64_t)(tick * 2 - y) * ((int32_t)c->tone * 32)) >> 15);
             y = q15mul(clamp32(y, -32767, 32767), g);
             break;
         }

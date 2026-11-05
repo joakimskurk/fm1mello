@@ -204,10 +204,13 @@ int main(void)
         CHECK(peak > clean / 8 && peak <= 32767, "DRIVE and FOLD: peak %d, clean %d", (int)peak, (int)clean);
     }
 
-    for (v = 0u; v < 7u; ++v) { /* each voice and GLITCH kind, plain and crushed, at its extremes */
-        static const char *names[7] = {"KICK", "SNARE", "HAT", "BLEEP", "CHIRP", "CRACKLE", "STUTTER"};
-        static const uint16_t tone[7] = {1000u, 1000u, 500u, 0u, 400u, 600u, 999u};
-        uint8_t voice = v < 3u ? (uint8_t)v : MELLO_DRUM_GLITCH;
+    for (v = 0u; v < 10u; ++v) { /* each voice and GLITCH kind, plain and crushed, at its extremes */
+        /* TONE the other way for the three voices too. Two overflowed a q15mul (found by fuzzing the UI): the HAT's
+         * tick and noise at TONE 1000, the SNARE's noise by its 1/Q below TONE ~50% at TUNE 1000 */
+        static const char *names[10] = {"KICK",    "SNARE",   "HAT",   "BLEEP",   "CHIRP",
+                                        "CRACKLE", "STUTTER", "KICK0", "SNARE48", "HAT0"};
+        static const uint16_t tone[10] = {1000u, 1000u, 1000u, 0u, 400u, 600u, 999u, 0u, 480u, 0u};
+        uint8_t voice = v < 3u ? (uint8_t)v : v >= 7u ? (uint8_t)(v - 7u) : MELLO_DRUM_GLITCH;
         int32_t peak[2] = {0, 0};
         uint64_t diff = 0u;
         int32_t keep[2][4410];
@@ -231,6 +234,7 @@ int main(void)
             d.level = 1000u;
             d.voice[voice].level = 1000u;
             d.voice[voice].tone = tone[v];
+            if (v == 8u) d.voice[voice].tune = 1000u;
             d.voice[voice].crush = c ? 1000u : 0u;
             mello_audio_init(&a, db, 4096u, rb, 24576u);
             mello_audio_set_config(&a, &s, &fx, &sub, &sm);
