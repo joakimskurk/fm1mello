@@ -59,7 +59,8 @@ int main(void)
 
     mello_project_defaults(&p); /* C minor */
     mello_engine_init(&e, &p, 9u);
-    CHECK(e.chord.length == 1u && e.chord.steps[0].degree == 0u, "a new project's chords are not one tonic chord");
+    CHECK(e.chord.length == 1u && e.chord.steps[0].degree == 0u,
+          "a new project's chords are not one tonic chord");
 
     s = e.sub;
     s.on = true;
@@ -86,7 +87,8 @@ int main(void)
     for (v = 0u; v < 4u; ++v) {
         int bad = clashes();
         CHECK(bad == 0, "variant %u: the bass outside the chord in %d half bars", v, bad);
-        if (v == 1u) CHECK(e.chord.steps[0].shape == MELLO_CHORD_SEVENTH, "the second press is not the sevenths");
+        if (v == 1u)
+            CHECK(e.chord.steps[0].shape == MELLO_CHORD_SEVENTH, "the second press is not the sevenths");
         if (v == 3u)
             CHECK(e.chord.steps[1].degree == (uint8_t)(first_degree - 2u) && e.chord.steps[1].inversion == 1u,
                   "the fourth press is not the chord whose third the note is");
@@ -104,7 +106,8 @@ int main(void)
     CHECK(e.chord.steps[1].degree == 5u && e.chord.steps[1].shape == MELLO_CHORD_TRIAD,
           "another bass did not start at the triads (degree %u)", e.chord.steps[1].degree);
     CHECK(clashes() == 0, "the new bass is outside its chords");
-    CHECK(mello_engine_undo_swap(&e) && e.chord.steps[1].degree == 4u && e.chord.steps[1].shape == MELLO_CHORD_SEVENTH,
+    CHECK(mello_engine_undo_swap(&e) && e.chord.steps[1].degree == 4u &&
+              e.chord.steps[1].shape == MELLO_CHORD_SEVENTH,
           "UNDO did not go back to the chords before the last FIT");
     (void)mello_engine_undo_swap(&e); /* (and forward again) */
 
@@ -116,7 +119,8 @@ int main(void)
         uint8_t i;
         for (i = 0u; i < 16u; ++i) e.project.steps[i].gate = MELLO_GATE_REST;
         e.project.steps[0].gate = MELLO_GATE_SINGLE, e.project.steps[0].pitch = 2;
-        e.project.steps[8].gate = MELLO_GATE_SINGLE, e.project.steps[8].pitch = 10; /* degree 3, an octave up */
+        e.project.steps[8].gate = MELLO_GATE_SINGLE,
+        e.project.steps[8].pitch = 10; /* degree 3, an octave up */
         e.project.seq_len = 16u;
     }
     mello_engine_chord_fit(&e);

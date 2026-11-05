@@ -101,8 +101,8 @@ int main(void)
             for (k = 0; k < 4; ++k) {
                 double r = rms_db(part, amounts[k], fold) - base;
                 printf(" %u%%: %+.1f", amounts[k] / 10u, r);
-                CHECK(r < 2.0 && r > -2.0, "%s%s at %u%%: %+.1f dB against 0", names[part], f ? " with FOLD" : "",
-                      amounts[k] / 10u, r);
+                CHECK(r < 2.0 && r > -2.0, "%s%s at %u%%: %+.1f dB against 0", names[part],
+                      f ? " with FOLD" : "", amounts[k] / 10u, r);
             }
             printf("\n");
         }

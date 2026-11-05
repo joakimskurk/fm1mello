@@ -59,7 +59,7 @@ static void start(MelloChordMode mode)
 
 int main(void)
 {
-    static const MelloChordMode modes[] = {MELLO_CHORD_STAB,     MELLO_CHORD_HOLD,   MELLO_CHORD_ARP_UP,
+    static const MelloChordMode modes[] = {MELLO_CHORD_STAB,     MELLO_CHORD_HOLD,       MELLO_CHORD_ARP_UP,
                                            MELLO_CHORD_ARP_DOWN, MELLO_CHORD_ARP_UPDOWN, MELLO_CHORD_PATTERN,
                                            MELLO_CHORD_BROKEN,   MELLO_CHORD_WALK};
     MelloChordConfig d;
@@ -108,8 +108,8 @@ int main(void)
             }
             mid = (uint8_t)(chord[0] + chord[1] + chord[2] - lo - hi);
             CHECK(got[0] == chord[0] && got[1] == chord[2] && got[2] == chord[1] && got[3] == chord[2],
-                  "BROKEN: %u %u %u %u, not the voiced chord's 1st, 3rd, 2nd, 3rd (%u %u %u; %u..%u..%u)", got[0],
-                  got[1], got[2], got[3], chord[0], chord[1], chord[2], lo, mid, hi);
+                  "BROKEN: %u %u %u %u, not the voiced chord's 1st, 3rd, 2nd, 3rd (%u %u %u; %u..%u..%u)",
+                  got[0], got[1], got[2], got[3], chord[0], chord[1], chord[2], lo, mid, hi);
         }
     }
 

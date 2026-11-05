@@ -321,18 +321,21 @@ int main(void)
             last_ack_ok() == 0,
         "QUERY 0 should say empty");
     /* CLEAR only straight after a QUERY of the same slot (F22): a stray CC 113 clears nothing */
-    CHECK(mello_sample_transfer_midi_in(&x, MELLO_SAMPLE_MIDI_CTRL_STATUS, MELLO_SAMPLE_CTRL_CLEAR, 3u, true) &&
-              last_ack_ok() == 0 && bank.meta[3].loaded,
-          "a CLEAR without a QUERY before it cleared the slot");
+    CHECK(
+        mello_sample_transfer_midi_in(&x, MELLO_SAMPLE_MIDI_CTRL_STATUS, MELLO_SAMPLE_CTRL_CLEAR, 3u, true) &&
+            last_ack_ok() == 0 && bank.meta[3].loaded,
+        "a CLEAR without a QUERY before it cleared the slot");
     (void)mello_sample_transfer_midi_in(&x, MELLO_SAMPLE_MIDI_CTRL_STATUS, MELLO_SAMPLE_CTRL_QUERY, 3u, true);
     (void)mello_sample_transfer_midi_in(&x, 0x90u, 60u, 100u, true); /* a note between */
-    CHECK(mello_sample_transfer_midi_in(&x, MELLO_SAMPLE_MIDI_CTRL_STATUS, MELLO_SAMPLE_CTRL_CLEAR, 3u, true) &&
-              last_ack_ok() == 0 && bank.meta[3].loaded,
-          "a CLEAR after a note (the QUERY not the last message) cleared the slot");
+    CHECK(
+        mello_sample_transfer_midi_in(&x, MELLO_SAMPLE_MIDI_CTRL_STATUS, MELLO_SAMPLE_CTRL_CLEAR, 3u, true) &&
+            last_ack_ok() == 0 && bank.meta[3].loaded,
+        "a CLEAR after a note (the QUERY not the last message) cleared the slot");
     (void)mello_sample_transfer_midi_in(&x, MELLO_SAMPLE_MIDI_CTRL_STATUS, MELLO_SAMPLE_CTRL_QUERY, 2u, true);
-    CHECK(mello_sample_transfer_midi_in(&x, MELLO_SAMPLE_MIDI_CTRL_STATUS, MELLO_SAMPLE_CTRL_CLEAR, 3u, true) &&
-              last_ack_ok() == 0 && bank.meta[3].loaded,
-          "a CLEAR of slot 3 after a QUERY of slot 2 cleared it");
+    CHECK(
+        mello_sample_transfer_midi_in(&x, MELLO_SAMPLE_MIDI_CTRL_STATUS, MELLO_SAMPLE_CTRL_CLEAR, 3u, true) &&
+            last_ack_ok() == 0 && bank.meta[3].loaded,
+        "a CLEAR of slot 3 after a QUERY of slot 2 cleared it");
     (void)mello_sample_transfer_midi_in(&x, MELLO_SAMPLE_MIDI_CTRL_STATUS, MELLO_SAMPLE_CTRL_QUERY, 3u, true);
     CHECK(mello_sample_transfer_midi_in(&x, MELLO_SAMPLE_MIDI_CTRL_STATUS, MELLO_SAMPLE_CTRL_CLEAR, 3u,
                                         false) &&

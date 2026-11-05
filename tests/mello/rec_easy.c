@@ -86,16 +86,19 @@ static void ui_part(void)
 
     /* a tap: KEYS recording the sequence, no EDIT first */
     rec_tap();
-    CHECK(u.keys_mode && u.keys_rec && u.keys_rec_target == MELLO_UI_REC_SEQ, "a tap of REC on HOME did not record");
+    CHECK(u.keys_mode && u.keys_rec && u.keys_rec_target == MELLO_UI_REC_SEQ,
+          "a tap of REC on HOME did not record");
     key(7u); /* C4 to step 1 */
-    CHECK(e->project.steps[0].gate != MELLO_GATE_REST && u.keys_rec_pos == 1u, "the key did not write step 1");
+    CHECK(e->project.steps[0].gate != MELLO_GATE_REST && u.keys_rec_pos == 1u,
+          "the key did not write step 1");
 
     /* held and let go: from empty; a key writes step 1, the rest stay rests */
     rec_hold(700u, 0u);
     CHECK(u.keys_rec && u.keys_rec_target == MELLO_UI_REC_SEQ, "a hold ended the take");
     key(10u);
     for (i = 0u; i < 16u; ++i) plays += e->project.steps[i].gate != MELLO_GATE_REST;
-    CHECK(plays == 1u && e->project.steps[0].gate != MELLO_GATE_REST, "from empty: %u steps play, not 1", plays);
+    CHECK(plays == 1u && e->project.steps[0].gate != MELLO_GATE_REST, "from empty: %u steps play, not 1",
+          plays);
 
     /* held, white key 2: BASS, the same take; a bass line of root and fifth, then REC round to off */
     rec_hold(300u, white(1u));
@@ -115,7 +118,8 @@ static void ui_part(void)
     CHECK(!u.keys_rec && (e->roll_lock & MELLO_PART_BASS), "the take ended without locking the bass (%u)",
           e->roll_lock);
 #if MELLO_FEATURE_CHORD_MACHINE
-    CHECK(u.take_fit && e->chord.length == 2u, "the chords were not fitted to the bass (length %u)", e->chord.length);
+    CHECK(u.take_fit && e->chord.length == 2u, "the chords were not fitted to the bass (length %u)",
+          e->chord.length);
 #endif
     CHECK(u.readout == MELLO_UI_READOUT_TAKE, "no TAKE readout");
     CHECK(mello_engine_undo_swap(e) && e->project.steps[0].gate != MELLO_GATE_REST && !e->bass.steps[1].on,
@@ -155,7 +159,8 @@ static void engine_part(void)
         }
     }
     CHECK(clicks == 4u, "the count-in clicked %u times, not 4", clicks);
-    CHECK(notes && first_note == 16u, "the sequence started at pulse %u, not after the bar's count-in", first_note);
+    CHECK(notes && first_note == 16u, "the sequence started at pulse %u, not after the bar's count-in",
+          first_note);
     e.click = true, clicks = 0u;
     for (k = 0u; k < 16u; ++k) {
         MelloEvent ev;

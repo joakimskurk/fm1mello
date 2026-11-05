@@ -28,7 +28,8 @@ enum {
                          SUB ROOT; 4: HARMONY (FOLLOW, DRIFT, DEPTH); 5: POLY */
     SECVER_GRIT = 4, /* 4: MIX's LEAD */
     SECVER_MOD = 3,
-    SECVER_DRUMS = 5, /* 2: DUCK; 3: each voice's LENGTH, BAR; 4: each voice's DIR, SWING per part; 5: 32 steps */
+    SECVER_DRUMS =
+        5, /* 2: DUCK; 3: each voice's LENGTH, BAR; 4: each voice's DIR, SWING per part; 5: 32 steps */
     SECVER_BASS = 1,
     SECVER_MACROS = 1
 };
@@ -55,9 +56,10 @@ enum {
 #define MOD_ENTRY_SIZE_V2  44u
 #define MOD_ENTRY_SIZE     57u
 #define DRUMS_WIRE_SIZE_V1 (12u + MELLO_DRUM_VOICES * (12u + 4u + 16u * 4u)) /* 16 steps until v5 */
-#define DRUMS_WIRE_SIZE_V2 (DRUMS_WIRE_SIZE_V1 + 2u) /* v2: DUCK */
+#define DRUMS_WIRE_SIZE_V2 (DRUMS_WIRE_SIZE_V1 + 2u)                         /* v2: DUCK */
 #define DRUMS_WIRE_SIZE_V3 (DRUMS_WIRE_SIZE_V2 + MELLO_DRUM_VOICES) /* v3: each voice's LENGTH (BAR a flag) */
-#define DRUMS_WIRE_SIZE_V4 (DRUMS_WIRE_SIZE_V3 + MELLO_DRUM_VOICES + 6u) /* v4: each voice's DIR, SWING per part */
+#define DRUMS_WIRE_SIZE_V4                                                                                   \
+    (DRUMS_WIRE_SIZE_V3 + MELLO_DRUM_VOICES + 6u) /* v4: each voice's DIR, SWING per part */
 /* v5: 32 steps: each voice's hits and accents in 32 bits, its locks for 32 steps */
 #define DRUMS_WIRE_SIZE    (DRUMS_WIRE_SIZE_V4 + MELLO_DRUM_VOICES * (4u + 16u * 4u))
 #define BASS_WIRE_SIZE     (10u + MELLO_BASS_STEPS * 2u)
@@ -579,7 +581,7 @@ static void encode_drums(Writer *w, const MelloDrumConfig *d)
             wr_u8(w, d->lock[v][k].ratchet);
         }
     }
-    wr_u16(w, d->duck); /* v2 */
+    wr_u16(w, d->duck);                                            /* v2 */
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) wr_u8(w, d->vlen[v]); /* v3 */
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) wr_u8(w, d->vdir[v]); /* v4 */
     for (v = 0u; v < 3u; ++v) wr_u16(w, (uint16_t)d->swing_part[v]);
@@ -797,7 +799,8 @@ static void encode_snapshot(Writer *w, const MelloPatternSlot *s)
     }
     encode_tm(w, &s->tm);
     wr_u8(w, s->tm_bool_len);
-    for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i) wr_u8(w, (uint8_t)((s->tm_bool_bits >> i) & 1u)); /* a byte each, as before */
+    for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i)
+        wr_u8(w, (uint8_t)((s->tm_bool_bits >> i) & 1u)); /* a byte each, as before */
     encode_sub(w, &s->sub);
     wr_u16(w, s->randomize.mask);
     encode_sound(w, &s->sound);
@@ -816,8 +819,7 @@ static bool decode_snapshot(Reader *r, MelloPatternSlot *s)
     mello_mod_routing_defaults(&s->modr);
     if (!decode_tm(r, &s->tm) || !rd_u8(r, &s->tm_bool_len)) return false;
     s->tm_bool_bits = 0u;
-    for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i)
-    {
+    for (i = 0u; i < MELLO_TM_MAX_STEPS; ++i) {
         uint8_t b;
         if (!rd_u8(r, &b)) return false;
         if (b) s->tm_bool_bits |= 1ul << i;
@@ -1685,8 +1687,7 @@ MelloStorageSaveResult mello_storage_poll(MelloStorage *s, const MelloEngine *e,
                 s->pre_erased = 0u;
             }
             if (s->pre_erased < MELLO_STORAGE_HEADER_SIZE + size + MELLO_STORAGE_FOOTER_SIZE) {
-                if (!s->io.erase4k(s->io.ctx,
-                                   s->config.bank_addr[(uint8_t)s->pre_bank] + s->pre_erased)) {
+                if (!s->io.erase4k(s->io.ctx, s->config.bank_addr[(uint8_t)s->pre_bank] + s->pre_erased)) {
                     s->pre_bank = -1;
                     s->last_save_result = MELLO_STORAGE_SAVE_IO_ERROR;
                     return s->last_save_result;

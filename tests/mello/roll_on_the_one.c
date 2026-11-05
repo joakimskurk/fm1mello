@@ -45,7 +45,8 @@ int main(void)
 
     /* stopped: at once */
     st = mello_engine_style_roll_at_bar(&e, MELLO_STYLE_ANY, MELLO_PART_ALL);
-    CHECK(st >= MELLO_STYLE_AMBIENT && e.style_now == st && !e.roll_wait, "stopped, the roll did not land at once");
+    CHECK(st >= MELLO_STYLE_AMBIENT && e.style_now == st && !e.roll_wait,
+          "stopped, the roll did not land at once");
     CHECK(e.project.bpm == 117u, "a roll changed the tempo to %u", e.project.bpm);
 
     /* playing: on the next bar's one */

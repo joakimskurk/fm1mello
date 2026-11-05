@@ -96,19 +96,23 @@ int main(void)
     for (i = 0u; i < 12u; ++i) ra[i] = pulse(&a), (void)pulse(&b);
     for (i = 0u; i < 12u; ++i) {
         int want = (int)(16u + i % 4u) % 16;
-        CHECK(ra[i].kick_step == want, "REPEAT 4, pulse %u: the drums' step %d, not %d", i, ra[i].kick_step, want);
+        CHECK(ra[i].kick_step == want, "REPEAT 4, pulse %u: the drums' step %d, not %d", i, ra[i].kick_step,
+              want);
         if (ra[i].bass_step >= 0)
-            CHECK(ra[i].bass_step == want, "REPEAT 4, pulse %u: the bass's step %d, not %d", i, ra[i].bass_step,
-                  want);
+            CHECK(ra[i].bass_step == want, "REPEAT 4, pulse %u: the bass's step %d, not %d", i,
+                  ra[i].bass_step, want);
         if (i >= 4u)
-            CHECK(ra[i].chord_note == ra[i - 4u].chord_note, "REPEAT 4, pulse %u: the chords' note %d, not %d", i,
-                  ra[i].chord_note, ra[i - 4u].chord_note);
+            CHECK(ra[i].chord_note == ra[i - 4u].chord_note,
+                  "REPEAT 4, pulse %u: the chords' note %d, not %d", i, ra[i].chord_note,
+                  ra[i - 4u].chord_note);
     }
     /* let go: every part where it would have been */
     set_perf(&a, false, false, false, 4u);
     ra[0] = pulse(&a), rb = pulse(&b);
-    CHECK(ra[0].kick_step == rb.kick_step, "after REPEAT: the drums at %d, not %d", ra[0].kick_step, rb.kick_step);
-    CHECK(ra[0].bass_step == rb.bass_step, "after REPEAT: the bass at %d, not %d", ra[0].bass_step, rb.bass_step);
+    CHECK(ra[0].kick_step == rb.kick_step, "after REPEAT: the drums at %d, not %d", ra[0].kick_step,
+          rb.kick_step);
+    CHECK(ra[0].bass_step == rb.bass_step, "after REPEAT: the bass at %d, not %d", ra[0].bass_step,
+          rb.bass_step);
 
     /* REVERSE: the drums backwards from the pulse before */
     start(&a);
@@ -117,7 +121,8 @@ int main(void)
     for (i = 0u; i < 8u; ++i) ra[i] = pulse(&a);
     for (i = 0u; i < 8u; ++i) {
         int want = (int)((32u + 18u - i) % 16u);
-        CHECK(ra[i].kick_step == want, "REVERSE, pulse %u: the drums' step %d, not %d", i, ra[i].kick_step, want);
+        CHECK(ra[i].kick_step == want, "REVERSE, pulse %u: the drums' step %d, not %d", i, ra[i].kick_step,
+              want);
     }
 
     /* FILL: a snare roll on every step, every step of the bass line */

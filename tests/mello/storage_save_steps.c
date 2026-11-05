@@ -144,7 +144,8 @@ int main(void)
         h[4] = (uint8_t)(MELLO_STORAGE_FORMAT_VERSION + 1u);
         h[5] = 0u;
         crc = mello_storage_crc32(h, 20u);
-        h[20] = (uint8_t)crc, h[21] = (uint8_t)(crc >> 8), h[22] = (uint8_t)(crc >> 16), h[23] = (uint8_t)(crc >> 24);
+        h[20] = (uint8_t)crc, h[21] = (uint8_t)(crc >> 8), h[22] = (uint8_t)(crc >> 16),
+        h[23] = (uint8_t)(crc >> 24);
         e.project.bpm = 99u;
         erases = 0u;
         run(4000u, &w);

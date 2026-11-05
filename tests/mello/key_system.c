@@ -172,15 +172,15 @@ int main(void)
         MelloScale ks;
         start(MELLO_SCALE_MINOR, 60u, 0, &l, false, false);
         mello_engine_key_now(&e, &kr, &ks);
-        CHECK(kr == 62u && ks == MELLO_SCALE_MINOR, "ROOT+ 2 over C minor: the key now is D minor (%u, %d)", kr,
-              (int)ks);
+        CHECK(kr == 62u && ks == MELLO_SCALE_MINOR, "ROOT+ 2 over C minor: the key now is D minor (%u, %d)",
+              kr, (int)ks);
         l.root_offset = 0;
         l.root_note = 9;
         l.scale_set = MELLO_SCALE_DORIAN;
         start(MELLO_SCALE_MINOR, 60u, 0, &l, false, false);
         mello_engine_key_now(&e, &kr, &ks);
-        CHECK(kr == 69u && ks == MELLO_SCALE_DORIAN, "KEY A, SCALE DORIAN: the key now is A dorian (%u, %d)", kr,
-              (int)ks);
+        CHECK(kr == 69u && ks == MELLO_SCALE_DORIAN, "KEY A, SCALE DORIAN: the key now is A dorian (%u, %d)",
+              kr, (int)ks);
     }
 
     /* the bass an octave down: OCT -1 (the default), the root tone at octave 0 is two octaves under C4 */
@@ -199,9 +199,12 @@ int main(void)
             for (a = 0u; a < sizeof offsets; ++a)
                 for (b = 0u; b < sizeof trans; ++b)
                     for (c = 0u; c < sizeof sub_trs; ++c) {
-                        Loop l = {offsets[a], (int8_t)((r + b) % 3u == 0u ? -1 : (int8_t)((r * 5u) % 12u)),
-                                  (int8_t)(c % 2u ? -1 : (int8_t)((sc + c) % MELLO_SCALE_COUNT)), trans[b],
-                                  sub_trs[c], (uint8_t)((a + b + c) % 8u)};
+                        Loop l = {offsets[a],
+                                  (int8_t)((r + b) % 3u == 0u ? -1 : (int8_t)((r * 5u) % 12u)),
+                                  (int8_t)(c % 2u ? -1 : (int8_t)((sc + c) % MELLO_SCALE_COUNT)),
+                                  trans[b],
+                                  sub_trs[c],
+                                  (uint8_t)((a + b + c) % 8u)};
                         unsigned n, off;
                         if (l.scale_set == MELLO_SCALE_CHROMATIC) l.scale_set = -1;
                         start((MelloScale)sc, (uint8_t)(48u + r), -1, &l, true, true);
@@ -209,7 +212,9 @@ int main(void)
                         total += n;
                         off_total += off;
                         if (off)
-                            CHECK(0, "scale %u root %u ROOT+ %d TRANS %d BASS TR %d SUB %u: %u of %u notes off the key",
+                            CHECK(0,
+                                  "scale %u root %u ROOT+ %d TRANS %d BASS TR %d SUB %u: %u of %u notes off "
+                                  "the key",
                                   sc, 48u + r, l.root_offset, l.pitch, l.sub_tr, l.sub_tone, off, n);
                     }
     CHECK(total > 100000u, "the sweep played only %u notes", total);

@@ -52,8 +52,8 @@ int main(void)
         for (k = 0u; k < 16u; ++k) {
             const MelloBassStep *b = &e.bass.steps[k];
             CHECK(b->octave == 0 || (b->octave == 1 && b->tone == MELLO_SUB_TONE_ROOT),
-                  "roll %u step %u: octave %d tone %u (the default line's, or a root jumped up)", (unsigned)s, k,
-                  b->octave, b->tone);
+                  "roll %u step %u: octave %d tone %u (the default line's, or a root jumped up)", (unsigned)s,
+                  k, b->octave, b->tone);
             CHECK(b->tone <= MELLO_SUB_TONE_OCTAVE, "roll %u step %u: tone %u", (unsigned)s, k, b->tone);
             if (b->on && b->glide)
                 CHECK(e.bass.steps[(k + 1u) % 16u].on, "roll %u step %u: a glide into a rest", (unsigned)s,

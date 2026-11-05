@@ -86,7 +86,8 @@ int main(void)
     mello_engine_drums_set_config(&e, &d);
     play(40u, at);
     for (k = 0u; k < 40u; ++k)
-        for (v = 0u; v < 4u; ++v) CHECK(at[k][v] == (int16_t)(k % 16u), "the kit's LENGTH: voice %u at %u", v, k);
+        for (v = 0u; v < 4u; ++v)
+            CHECK(at[k][v] == (int16_t)(k % 16u), "the kit's LENGTH: voice %u at %u", v, k);
 
     /* FREE: each its own (the project's RESET off too: a RESET starts every part over) */
     e.project.master_len = 0u;
@@ -96,7 +97,8 @@ int main(void)
     play(340u, at);
     for (k = 0u; k < 340u; ++k)
         for (v = 0u; v < 4u; ++v)
-            CHECK(at[k][v] == (int16_t)(k % lens[v]), "FREE: voice %u at pulse %u played step %d", v, k, at[k][v]);
+            CHECK(at[k][v] == (int16_t)(k % lens[v]), "FREE: voice %u at pulse %u played step %d", v, k,
+                  at[k][v]);
 
     /* BAR: all of them at 0 on every bar's one */
     d.bar_reset = true;
@@ -104,8 +106,8 @@ int main(void)
     play(64u, at);
     for (k = 0u; k < 64u; ++k)
         for (v = 0u; v < 4u; ++v)
-            CHECK(at[k][v] == (int16_t)((k % 16u) % lens[v]), "BAR: voice %u at pulse %u played step %d", v, k,
-                  at[k][v]);
+            CHECK(at[k][v] == (int16_t)((k % 16u) % lens[v]), "BAR: voice %u at pulse %u played step %d", v,
+                  k, at[k][v]);
 
     /* DIR: the hat backwards over its 12, the glitch there and back over its 7 (a cycle of 12) */
     d.bar_reset = false;
@@ -115,7 +117,8 @@ int main(void)
     for (k = 0u; k < 48u; ++k) {
         uint32_t c = k % 12u;
         CHECK(at[k][2] == (int16_t)(11u - k % 12u), "REV: the hat at pulse %u played step %d", k, at[k][2]);
-        CHECK(at[k][3] == (int16_t)(c < 7u ? c : 12u - c), "PING: the glitch at pulse %u played step %d", k, at[k][3]);
+        CHECK(at[k][3] == (int16_t)(c < 7u ? c : 12u - c), "PING: the glitch at pulse %u played step %d", k,
+              at[k][3]);
     }
     CHECK(e.drum_wrap == 48u, "16 16 12-REV 7-PING meet after %u, not 48", e.drum_wrap);
     d.vdir[2] = d.vdir[3] = MELLO_DRUM_DIR_FWD;
@@ -130,7 +133,8 @@ int main(void)
         mello_engine_drums_set_config(&e, &k32);
         play(70u, at32);
         for (k = 0u; k < 70u; ++k) {
-            CHECK((at32[k][0] >= 0) == (k % 32u == 24u), "32 steps: the kick at pulse %u (%d)", k, at32[k][0]);
+            CHECK((at32[k][0] >= 0) == (k % 32u == 24u), "32 steps: the kick at pulse %u (%d)", k,
+                  at32[k][0]);
             CHECK((at32[k][1] >= 0) == (k % 16u == 0u), "16 under 32: the snare at pulse %u", k);
         }
     }
@@ -153,7 +157,8 @@ int main(void)
         memcpy(d.vlen, lens, sizeof d.vlen);
         d.bar_reset = true;
         d.vdir[3] = MELLO_DRUM_DIR_PING, d.swing_part[MELLO_SWING_DRUMS] = 450;
-        d.hits[0] |= 1ul << 29, d.lock[0][29].ratchet = 3u, d.lock[0][29].pitch = -7; /* (step 30, saved in v5) */
+        d.hits[0] |= 1ul << 29, d.lock[0][29].ratchet = 3u,
+                                d.lock[0][29].pitch = -7; /* (step 30, saved in v5) */
         mello_engine_drums_set_config(&e, &d);
         {
             MelloFxConfig f = e.fx; /* (and FX's TRIM, SEC_FX v6, with them) */
@@ -162,7 +167,8 @@ int main(void)
         }
         mello_storage_init(&s, &io, NULL);
         mello_storage_request_save(&s, t);
-        for (; t <= 30000u && w != MELLO_STORAGE_SAVE_WRITTEN; t += 100u) w = mello_storage_poll(&s, &e, t, true);
+        for (; t <= 30000u && w != MELLO_STORAGE_SAVE_WRITTEN; t += 100u)
+            w = mello_storage_poll(&s, &e, t, true);
         CHECK(w == MELLO_STORAGE_SAVE_WRITTEN, "not saved");
         mello_engine_init(&e, &p, 4u);
         CHECK(e.drums.vlen[2] == 0u && !e.drums.bar_reset, "a new engine is not the kit's LENGTH, FREE");
@@ -170,14 +176,15 @@ int main(void)
         r = mello_storage_load(&s, &e);
         (void)r;
         CHECK(e.fx.trim_db == -3, "TRIM read back as %d", e.fx.trim_db);
-        CHECK((e.drums.hits[0] >> 29) & 1u && e.drums.lock[0][29].ratchet == 3u && e.drums.lock[0][29].pitch == -7,
+        CHECK((e.drums.hits[0] >> 29) & 1u && e.drums.lock[0][29].ratchet == 3u &&
+                  e.drums.lock[0][29].pitch == -7,
               "step 30 not read back");
         CHECK(e.drums.vdir[3] == MELLO_DRUM_DIR_PING && e.drums.swing_part[MELLO_SWING_DRUMS] == 450 &&
                   e.drums.swing_part[MELLO_SWING_LEAD] == -1,
               "DIR and SWING per part not read back");
         CHECK(!memcmp(e.drums.vlen, lens, sizeof lens) && e.drums.bar_reset && e.drum_wrap == 48u,
-              "read back: %u %u %u %u, BAR %d", e.drums.vlen[0], e.drums.vlen[1], e.drums.vlen[2], e.drums.vlen[3],
-              (int)e.drums.bar_reset);
+              "read back: %u %u %u %u, BAR %d", e.drums.vlen[0], e.drums.vlen[1], e.drums.vlen[2],
+              e.drums.vlen[3], (int)e.drums.bar_reset);
     }
 
     /* the UI: OCT+ shows steps 17-32; a white key there writes step 17 + its place; LENGTH past 16 copies the bar */
@@ -206,7 +213,8 @@ int main(void)
             CHECK(t.engine.drums.length == 32u && t.engine.drums.hits[MELLO_DRUM_HAT] == (h16 | (h16 << 16)),
                   "LENGTH 32 did not copy the bar (length %u)", t.engine.drums.length);
         }
-        mello_ui_input(&u, 2000000u, 2000u, 1u << MELLO_UI_BTN_OCT_UP, 0u, 1u << MELLO_UI_BTN_OCT_UP, 0u, enc);
+        mello_ui_input(&u, 2000000u, 2000u, 1u << MELLO_UI_BTN_OCT_UP, 0u, 1u << MELLO_UI_BTN_OCT_UP, 0u,
+                       enc);
         mello_ui_input(&u, 2100000u, 2100u, 0u, 1u << MELLO_UI_BTN_OCT_UP, 0u, 0u, enc);
         CHECK(u.drum_bank == 1u, "OCT+ did not show steps 17-32");
         {

@@ -81,7 +81,8 @@ int main(void)
         run(500u, 0, -1, lp, dp, &wp, &obp);
         for (i = 0u; i < 32u; ++i) {
             if (lp[i] >= 0) CHECK(lp[i] == 0, "LEAD 0%% under SWING 50%%, pulse %u: lead at %d", i, lp[i]);
-            CHECK(dp[i] == ((i & 1u) ? (int32_t)(pt / 4u) : 0), "DRUMS GLOBAL, pulse %u: hat at %d", i, dp[i]);
+            CHECK(dp[i] == ((i & 1u) ? (int32_t)(pt / 4u) : 0), "DRUMS GLOBAL, pulse %u: hat at %d", i,
+                  dp[i]);
         }
         run(0u, -1, 1000, lp, dp, &wp, &obp);
         for (i = 0u; i < 32u; ++i) {

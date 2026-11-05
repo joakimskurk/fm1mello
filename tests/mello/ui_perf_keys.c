@@ -89,8 +89,8 @@ static int ui_part(void)
     before = t.engine.project.steps[3];
     mello_ui_set_held_notes(&u, rep4);
     mello_ui_input(&u, 400000u, 400u, 0u, 0u, 0u, rep4, enc);
-    CHECK(t.engine.perf.repeat && t.engine.perf.repeat_len == 4u, "PERFORM's REP 4 is not a 4-pulse repeat (%u)",
-          t.engine.perf.repeat_len);
+    CHECK(t.engine.perf.repeat && t.engine.perf.repeat_len == 4u,
+          "PERFORM's REP 4 is not a 4-pulse repeat (%u)", t.engine.perf.repeat_len);
     CHECK(u.held_step == MELLO_UI_NO_STEP && !memcmp(&before, &t.engine.project.steps[3], sizeof before),
           "a PERFORM key edited a step");
     mello_ui_set_held_notes(&u, 0u);
@@ -109,8 +109,8 @@ static int ui_part(void)
 
     /* a page button closes PERFORM and goes to its page */
     mello_ui_input(&u, 1000000u, 1000u, 1u << MELLO_UI_BTN_ENV, 0u, 0u, 0u, enc);
-    CHECK(!u.perform && u.page == MELLO_UI_SOUND_RESERVED, "ENV did not close PERFORM (%u, page %d)", u.perform,
-          (int)u.page);
+    CHECK(!u.perform && u.page == MELLO_UI_SOUND_RESERVED, "ENV did not close PERFORM (%u, page %d)",
+          u.perform, (int)u.page);
 
     /* PERF held long: PERFORM while held, closed when let go */
     mello_ui_set_held_notes(&u, perf);

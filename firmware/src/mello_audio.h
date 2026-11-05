@@ -271,7 +271,7 @@ typedef struct {
     bool mf_coeff_valid;
     int32_t dist_tone_s[2][4]; /* distTone: lowpass -24 = two biquads */
     MelloDotLane dot_lane[MELLO_DOT_MOD_LANES];
-    int16_t tm_value;        /* EVOLVE's register value at the last pulse, centred */
+    int16_t tm_value; /* EVOLVE's register value at the last pulse, centred */
     /* What modulation does to each MelloModDest now, permille of its range (CUTOFF and RES with the LFO, the MOD
      * envelope and EVOLVE's filter in), as of the block's last sample: the screen's second thumbs (ROADMAP F14) */
     int16_t mod_view[MELLO_DEST_COUNT];
@@ -290,7 +290,8 @@ typedef struct {
      * instruction. Gains in Q12 (4096 = 1), modulation depths in Q15. */
     int32_t lfo_depth_q15, lfo_filter_span_q15, lfo_pitch_cents, lfo_pwm_swing, key_track_q15, osc2_q8_base,
         osc2_mix_q15, delay_lc_k, drum_level_q12, drum_fold_q12;
-    int32_t send_dly_q12[MELLO_SEND_PARTS], send_rev_q12[MELLO_SEND_PARTS]; /* MIX's sends (the chords' x 0.8) */
+    int32_t send_dly_q12[MELLO_SEND_PARTS],
+        send_rev_q12[MELLO_SEND_PARTS]; /* MIX's sends (the chords' x 0.8) */
 #if MELLO_FEATURE_CHORD_MACHINE
     int32_t chord_level_q12;
 #endif
@@ -315,15 +316,16 @@ typedef struct {
     int32_t limiter_env_q4; /* limiter_step's peak follower */
     MelloRamp rp_cut, rp_res, rp_master, rp_rev_send, rp_rev_level, rp_dly_send, rp_dly_level, rp_dly_fb,
         rp_dist_level, rp_sub_level, rp_fsub_level, rp_delay, rp_lead_level;
-    int32_t delay_tone_s[2][4]; /* dlyTone */
-    int32_t delay_lc[2];        /* LO CUT: two one-pole low-passes, taken away */
+    int32_t delay_tone_s[2][4];                  /* dlyTone */
+    int32_t delay_lc[2];                         /* LO CUT: two one-pole low-passes, taken away */
     int32_t delay_lc_r[2], delay_tone_r_s[2][4]; /* PING's second tap: its own LO CUT and HI CUT */
     /* PERFORM's sound (mello_audio_set_perf_fx, MELLO_PERF_FX_*): the sweeps' places (Q20, 0 open) and their state
      * variable filters (per channel: low, band), THROW's and WASH's sends (Q12, sliding), and a tail kept running */
     uint8_t perf_fx;
     uint32_t sweep_pos[2];
     int32_t sweep_f[2], sweep_mix[2]; /* their coefficients, worked out every 16 samples */
-    int32_t sweep_band; /* 0..4096: LP SWP's output from low-pass to band-pass, while HP SWP is held with it */
+    int32_t
+        sweep_band; /* 0..4096: LP SWP's output from low-pass to band-pass, while HP SWP is held with it */
     int32_t sweep_s[2][2][2];
     int32_t throw_q12, wash_q12;
     uint32_t perf_tail;

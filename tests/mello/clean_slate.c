@@ -89,13 +89,15 @@ int main(void)
     bpm = e->project.bpm;
     hold(clr, 1200u);
     CHECK(!e->drums.on && !e->drums.hits[0] && !e->bass.on && !e->sub.on && plays() == 0u && !e->roll_lock,
-          "INIT left something (drums %d, bass %d, sub %d, %u steps, locks %u)", (int)e->drums.on, (int)e->bass.on,
-          (int)e->sub.on, plays(), e->roll_lock);
+          "INIT left something (drums %d, bass %d, sub %d, %u steps, locks %u)", (int)e->drums.on,
+          (int)e->bass.on, (int)e->sub.on, plays(), e->roll_lock);
 #if MELLO_FEATURE_CHORD_MACHINE
     CHECK(!e->chord.on, "INIT left the chords on");
 #endif
-    CHECK(e->project.bpm == bpm && u.readout == MELLO_UI_READOUT_INIT, "INIT moved the tempo, or said nothing");
-    CHECK(mello_engine_undo_swap(e) && e->drums.on && e->drums.hits[0] == 0x1111u, "UNDO did not take INIT back");
+    CHECK(e->project.bpm == bpm && u.readout == MELLO_UI_READOUT_INIT,
+          "INIT moved the tempo, or said nothing");
+    CHECK(mello_engine_undo_swap(e) && e->drums.on && e->drums.hits[0] == 0x1111u,
+          "UNDO did not take INIT back");
 
     if (fails) return 1;
     puts("PASS: clean_slate");

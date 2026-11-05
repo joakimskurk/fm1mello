@@ -80,7 +80,8 @@ static void engine_part(void)
               "a part rolled with ANY left the style that plays");
         { /* (TECHNO's bass has few dice: a roll may give the same line; a few more) */
             uint8_t k;
-            for (k = 0u; k < 4u && SAME(bass); ++k) (void)mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_BASS);
+            for (k = 0u; k < 4u && SAME(bass); ++k)
+                (void)mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_BASS);
         }
         CHECK(!SAME(bass) && SAME(project.steps) && SAME(drums) && SAME(fx) && SAME(sound) &&
                   e.project.bpm == was.project.bpm,
@@ -92,7 +93,8 @@ static void engine_part(void)
         (void)mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_DRUMS);
         {
             uint8_t v, kit_same = 1u;
-            for (v = 0u; v < MELLO_DRUM_VOICES; ++v) kit_same &= !memcmp(&e.drums.voice[v], &was.drums.voice[v], sizeof e.drums.voice[v]);
+            for (v = 0u; v < MELLO_DRUM_VOICES; ++v)
+                kit_same &= !memcmp(&e.drums.voice[v], &was.drums.voice[v], sizeof e.drums.voice[v]);
             CHECK(kit_same && e.drums.drive == was.drums.drive && SAME(bass) && SAME(project.steps),
                   "DRUMS changed the kit's sound or another part");
         }
@@ -106,11 +108,12 @@ static void engine_part(void)
         CHECK(SAME(bass) && SAME(drums) && SAME(fx), "LEAD changed another part");
         was = e;
         (void)mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_SOUND);
-        CHECK(SAME(project.steps) && SAME(bass) && SAME(drums) && !(SAME(sound) && SAME(fx)), "SOUND not the sound alone");
+        CHECK(SAME(project.steps) && SAME(bass) && SAME(drums) && !(SAME(sound) && SAME(fx)),
+              "SOUND not the sound alone");
         was = e;
         (void)mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_ALL);
-        CHECK(e.project.bpm == was.project.bpm, "a roll of everything changed the tempo (%u, was %u)", e.project.bpm,
-              was.project.bpm);
+        CHECK(e.project.bpm == was.project.bpm, "a roll of everything changed the tempo (%u, was %u)",
+              e.project.bpm, was.project.bpm);
 #if MELLO_FEATURE_CHORD_MACHINE
         was = e;
         (void)mello_engine_style_roll_parts(&e, MELLO_STYLE_ANY, MELLO_PART_CHORDS);
@@ -133,7 +136,8 @@ static void ui_part(void)
     mello_transport_init(&t, &p, 5u, 0, 0);
     mello_storage_init(&st, 0, 0);
     mello_ui_init(&u, &t, &st);
-    u.random_intensity = MELLO_RANDOMIZE_MUSICAL; /* (STYLE rolls with MUSICAL or GROOVE: DECISIONS "Happy accidents") */
+    u.random_intensity =
+        MELLO_RANDOMIZE_MUSICAL; /* (STYLE rolls with MUSICAL or GROOVE: DECISIONS "Happy accidents") */
     mello_ui_set_page(&u, MELLO_UI_HOME);
 
     /* a tap: the whole band */
@@ -156,7 +160,8 @@ static void ui_part(void)
     mello_ui_input(&u, 2900000u, 2900u, 0u, 0u, 0u, 0u, enc);
     CHECK(memcmp(&b, &t.engine.bass, sizeof b) && !memcmp(lead, t.engine.project.steps, sizeof lead),
           "RNDMZR + BASS did not roll the bass alone");
-    CHECK(u.page == MELLO_UI_HOME && !u.rndmzr_menu, "letting go after a part opened a page or kept the menu");
+    CHECK(u.page == MELLO_UI_HOME && !u.rndmzr_menu,
+          "letting go after a part opened a page or kept the menu");
 
     /* held half a second, no key: the RANDOM page */
     memcpy(lead, t.engine.project.steps, sizeof lead);
@@ -173,7 +178,8 @@ static void ui_part(void)
         uint32_t undo = 1u << black_note(8u), us;
         mello_ui_set_page(&u, MELLO_UI_HOME);
         mello_transport_start(&t, 4000000u);
-        mello_transport_poll_ahead(&t, 4200000u, MELLO_TRANSPORT_LOOKAHEAD_US); /* a few pulses into the bar */
+        mello_transport_poll_ahead(&t, 4200000u,
+                                   MELLO_TRANSPORT_LOOKAHEAD_US); /* a few pulses into the bar */
         memcpy(lead, t.engine.project.steps, sizeof lead);
         mello_ui_set_held_notes(&u, rnd);
         mello_ui_input(&u, 4210000u, 4210u, 0u, 0u, 0u, rnd, enc);

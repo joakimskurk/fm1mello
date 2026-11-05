@@ -39,7 +39,8 @@ int main(void)
     uint32_t e_n = 0u;
     mello_sound_defaults(&s);
     memset(&f, 0, sizeof f);
-    f.reverb_wet = 800, f.reverb_size = 700, f.reverb_decay_ms = 6000, f.reverb_level = 1000, f.reverb_tone = 620;
+    f.reverb_wet = 800, f.reverb_size = 700, f.reverb_decay_ms = 6000, f.reverb_level = 1000,
+    f.reverb_tone = 620;
     f.dist_level = 1000, f.send_rev[0] = 1000;
     mello_sub_defaults(&sub);
     sub.on = false;
@@ -82,9 +83,11 @@ int main(void)
     }
     CHECK(worst <= 2u, "a reverb line's read jumped %u samples at %u ms", worst, worst_ms);
     CHECK(!far, "%u reads past the swing of where SIZE puts the lines", far);
-    CHECK(e_n && e_max < 8.0 * sqrt(e_sum / e_n), "a click in the tail after SIZE changed: %.0f against %.0f rms", e_max,
+    CHECK(e_n && e_max < 8.0 * sqrt(e_sum / e_n),
+          "a click in the tail after SIZE changed: %.0f against %.0f rms", e_max,
           sqrt(e_sum / (e_n ? e_n : 1u)));
-    printf("reverb_glide: the reads move at most %u samples a millisecond; the tail's peak residual %.1fx its rms\n",
+    printf("reverb_glide: the reads move at most %u samples a millisecond; the tail's peak residual %.1fx "
+           "its rms\n",
            worst, e_max / sqrt(e_sum / (e_n ? e_n : 1u)));
     if (fails) return 1;
     puts("PASS: reverb_glide");

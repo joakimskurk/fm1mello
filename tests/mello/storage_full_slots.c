@@ -99,8 +99,8 @@ int main(void)
     fresh(&e);
     fill_slots(&e);
     CHECK(mello_storage_measure_payload(&e, &size, &crc), "measure");
-    printf("%u full slots, grit and MOD in each: %u B of a %u B bank\n", (unsigned)MELLO_MAX_SLOTS, (unsigned)size,
-           (unsigned)MELLO_STORAGE_BANK_SIZE);
+    printf("%u full slots, grit and MOD in each: %u B of a %u B bank\n", (unsigned)MELLO_MAX_SLOTS,
+           (unsigned)size, (unsigned)MELLO_STORAGE_BANK_SIZE);
     CHECK(size + MELLO_STORAGE_HEADER_SIZE + MELLO_STORAGE_FOOTER_SIZE <= MELLO_STORAGE_BANK_SIZE,
           "the full slots do not fit the bank");
     mello_storage_init(&s, &io, NULL);

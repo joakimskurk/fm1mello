@@ -136,7 +136,8 @@ int main(void)
     t.running = true;
     t.display_step = 4u;
     leds = glows = 0u;
-    u.last_key_led_mask = u.last_key_glow_mask = 0u; /* sync reports changes only: from all-off, all reported */
+    u.last_key_led_mask = u.last_key_glow_mask =
+        0u; /* sync reports changes only: from all-off, all reported */
     u.dirty |= MELLO_UI_DIRTY_LEDS;
     mello_ui_sync_leds(&u, &o);
     if (!(glows & (1u << white(0u))) || ((glows | leds) & (1u << k3)) || !(leds & (1u << white(4u))) ||
@@ -151,8 +152,8 @@ int main(void)
         for (i = 0u; i < 27u; ++i)
             if (mello_ui_white_key_position(i) < 0) {
                 if (n == 9u) b0 = i; /* RNDMZR, B9 (2026-11-04) */
-                if (n == 8u) b1 = i;  /* UNDO, B8 beside it */
-                if (n == 2u) b2 = i;  /* MUT */
+                if (n == 8u) b1 = i; /* UNDO, B8 beside it */
+                if (n == 2u) b2 = i; /* MUT */
                 ++n;
             }
         before = t.engine.project;

@@ -102,7 +102,8 @@ static void verify_rec_reserved(void)
             if (u.page != page || u.page_rec != (uint8_t)page ||
                 memcmp(&before.project, &t.engine.project, sizeof before.project) || u.tap_count)
                 fail(pages[i].name, "REC did not start recording the page's part (or wrote)");
-        } else if (page == MELLO_UI_HOME) { /* REC on HOME: straight into KEYS recording the sequence, nothing written
+        } else if (page ==
+                   MELLO_UI_HOME) { /* REC on HOME: straight into KEYS recording the sequence, nothing written
                                             * (DECISIONS "Record it yourself, easily") */
             if (u.page != page || !u.keys_mode || !u.keys_rec || u.keys_rec_target != MELLO_UI_REC_SEQ ||
                 memcmp(&before.project, &t.engine.project, sizeof before.project) || u.tap_count)
@@ -269,7 +270,8 @@ static void verify_selected_position_actions(void)
     if (t.engine.project.steps[3].skip != b) fail("STEP B1", "selected-step SKIP toggle missing");
 
     setup(&p, &t, &st, &u, MELLO_UI_SUB);
-    b = t.engine.bass.steps[2].on; /* SUB: a white key toggles its BASS SEQ step and picks it; B1 (G2) is SEQ */
+    b = t.engine.bass.steps[2]
+            .on; /* SUB: a white key toggles its BASS SEQ step and picks it; B1 (G2) is SEQ */
     white_with_held(&u, 100u, 2u, 0u);
     if (u.selected_sub_x_step != 2u || t.engine.bass.steps[2].on == b)
         fail("SUB", "a white key did not toggle its step");

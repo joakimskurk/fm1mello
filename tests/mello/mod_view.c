@@ -25,7 +25,8 @@ static void fill(void *c, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c
 {
     (void)c, (void)y;
     (void)col;
-    if (w == 2 && (h == 6 || h == 7) && x >= 78 && x < 170) white_thumbs++; /* (6 rows in the body, stretched) */
+    if (w == 2 && (h == 6 || h == 7) && x >= 78 && x < 170)
+        white_thumbs++; /* (6 rows in the body, stretched) */
 }
 static void text(void *c, int16_t x, int16_t y, int16_t w, uint8_t l, const char *s, uint16_t col, uint8_t a)
 {
@@ -57,13 +58,14 @@ int main(void)
         mello_audio_init(&au, db, 65536, rb, 24576);
         mello_audio_set_config(&au, &e.sound, &e.fx, &e.sub, &e.sample);
         mello_audio_set_mod_routing(&au, &m);
-        au.tm_value = 20000; /* EVOLVE's register, high */
+        au.tm_value = 20000;            /* EVOLVE's register, high */
         au.tail_guard_frames = 100000u; /* nothing sounds: keep the render from its silent early return */
         au.silent = false;
         memset(out, 0, sizeof out);
         mello_audio_render(&au, out, 44u, 0u, 120u);
         mello_audio_render(&au, out, 44u, 1000u, 120u);
-        CHECK(au.mod_view[MELLO_DEST_NOISE] > 100, "EVOLVE on NOISE: mod_view %d", au.mod_view[MELLO_DEST_NOISE]);
+        CHECK(au.mod_view[MELLO_DEST_NOISE] > 100, "EVOLVE on NOISE: mod_view %d",
+              au.mod_view[MELLO_DEST_NOISE]);
         CHECK(au.mod_view[MELLO_DEST_FM] == 0, "FM moved without a route (%d)", au.mod_view[MELLO_DEST_FM]);
     }
 

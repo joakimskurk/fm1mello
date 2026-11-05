@@ -77,10 +77,10 @@ typedef enum {
 #define MELLO_UI_READOUT_TEMPO     6u /* HOME's SELECT, ALGORITHM, PRESETS */
 #define MELLO_UI_READOUT_INTENSITY 7u
 #define MELLO_UI_READOUT_PATTERN   8u
-#define MELLO_UI_READOUT_STYLE     9u /* the style RNDMZR just rolled */
-#define MELLO_UI_READOUT_KEPT      10u /* RNDMZR + SAVE: kept in a slot */
-#define MELLO_UI_READOUT_TAKE      11u /* a take ended: locked (and the chords fitted) */
-#define MELLO_UI_READOUT_INIT      12u /* CLR held: a clean slate */
+#define MELLO_UI_READOUT_STYLE     9u    /* the style RNDMZR just rolled */
+#define MELLO_UI_READOUT_KEPT      10u   /* RNDMZR + SAVE: kept in a slot */
+#define MELLO_UI_READOUT_TAKE      11u   /* a take ended: locked (and the chords fitted) */
+#define MELLO_UI_READOUT_INIT      12u   /* CLR held: a clean slate */
 #define MELLO_UI_READOUT_MS        1200u /* how long the readout stays after the last detent */
 
 enum {
@@ -139,9 +139,9 @@ typedef struct {
     uint8_t readout; /* 0 = none, 1..4 = K1..K4, MELLO_UI_READOUT_LAYER = SELECT changed the layer */
     uint32_t readout_until_ms;
     /* HOME: a white key held down holds its step (K1-K4 edit it); released without a turn, it toggles the step. */
-    uint32_t held_notes;     /* mello_ui_set_held_notes: the note keys held now */
-    uint16_t audio_load;     /* mello_ui_set_audio_load: the chip's audio load, permille (GLOBAL shows it) */
-    uint16_t held_black;     /* HOME: the black keys held now (bit = B0..B10), for the strip's names */
+    uint32_t held_notes; /* mello_ui_set_held_notes: the note keys held now */
+    uint16_t audio_load; /* mello_ui_set_audio_load: the chip's audio load, permille (GLOBAL shows it) */
+    uint16_t held_black; /* HOME: the black keys held now (bit = B0..B10), for the strip's names */
     /* PERFORM (G4, ROADMAP F4): B5 PERF tapped opens it until PERF or a page button (1), held while held (2); the
      * white keys are then 16 performance actions on every part */
     /* F14: the audio's modulation now, and what of it the value rows last drew */
@@ -151,7 +151,8 @@ typedef struct {
     uint8_t perform;
     uint32_t perform_down_ms;
     uint16_t perform_was; /* its white keys held at the last input, to redraw them when that changes */
-    uint8_t perform_mutes; /* the mutes and the mutes asked for, as drawn: the engine turns them on the beat */
+    uint8_t
+        perform_mutes; /* the mutes and the mutes asked for, as drawn: the engine turns them on the beat */
     uint8_t perf_repeat_len; /* REPEAT's length in pulses (a white key while REPEAT is held); 0 = 4 */
     uint8_t held_step;       /* MELLO_UI_NO_STEP when none */
     uint8_t held_key;        /* its note key */
@@ -175,7 +176,7 @@ typedef struct {
      * keys_rec and keys_rec_target then say what, as HOME's KEYS > REC does */
     uint8_t page_rec;
     uint8_t drum_rec_voice, drum_rec_step; /* REC on DRUMS: the last hit, for the lock keys */
-    uint8_t audition_part;                 /* what a key sounds while recording: 0 the lead, 1 the bass, 2 chords */
+    uint8_t audition_part; /* what a key sounds while recording: 0 the lead, 1 the bass, 2 chords */
     uint8_t
         keys_rec_target; /* REC in KEYS cycles what the keys write: 1 SEQ, 2 BASS, 3 CHORD (MelloUiRecTarget) */
     uint8_t keys_rec_pos; /* the next step (or chord slot) written, stopped; playing, the keys write where the
@@ -196,14 +197,16 @@ typedef struct {
     bool rndmzr_part;   /* a white key rolled one part while it was held: nothing more on letting go */
     bool rndmzr_menu;   /* held a moment: the parts the white keys roll are shown */
     bool rndmzr_ready;  /* held half a second, no key: letting go opens RANDOM (the line says so, lit) */
-    uint8_t sect_btn;   /* a section button held (0xFF none): a moment, and its pages shown on the white keys */
+    uint8_t sect_btn; /* a section button held (0xFF none): a moment, and its pages shown on the white keys */
     bool sect_menu;
     uint32_t sect_down_ms;
-    bool undo_down;     /* UNDO held: white keys 1-3 go back to before the last three rolls */
-    bool clr_down;      /* CLR held: a second, INIT (a clean slate); let go sooner, CLR as before (twice to clear) */
+    bool undo_down; /* UNDO held: white keys 1-3 go back to before the last three rolls */
+    bool
+        clr_down; /* CLR held: a second, INIT (a clean slate); let go sooner, CLR as before (twice to clear) */
     bool clr_done;
     uint32_t clr_down_ms;
-    bool rec_down;      /* REC pressed: a tap starts or stops a take (or goes on to the next target), a hold of half a
+    bool
+        rec_down; /* REC pressed: a tap starts or stops a take (or goes on to the next target), a hold of half a
                          * second let go starts it from empty, white keys 1-4 meanwhile pick SEQ, BASS, CHORD, DRUMS */
     bool rec_menu, rec_used, rec_click_off, take_fit, rec_ready;
     uint8_t rec_wrote; /* the take's targets that were written, bit = MELLO_UI_REC_* */
@@ -215,17 +218,18 @@ typedef struct {
     uint16_t perf_amt[8];
     uint8_t perf_black_last;
     uint32_t rec_down_ms, rec_now_ms;
-    bool undo_menu;     /* held a moment: those shown */
+    bool undo_menu; /* held a moment: those shown */
     uint32_t undo_down_ms;
-    int8_t kept_slot;   /* RNDMZR + SAVE: the slot the band was kept in (-1: none free) */
+    int8_t kept_slot; /* RNDMZR + SAVE: the slot the band was kept in (-1: none free) */
     uint8_t rndmzr_key;
     uint32_t rndmzr_down_ms;
     MelloRandomizeIntensity random_intensity; /* runtime creative depth; default MED */
-    uint8_t random_style; /* MelloStyle: RNDMZR rolls the band in it (ANY: a style each time; OFF: the lead, by INT) */
-    bool roll_playing;    /* RANDOM's ROLLS: PLAYING, a roll of the band leaves the parts that are off off */
-    bool random_links;                        /* RANDOM's LINKS layer (SELECT): keys set + / - per target */
-    bool random_edit;                         /* RANDOM's EDIT: a key picks a target, K1 its amount */
-    uint8_t random_sel;                       /* the target EDIT sets (index into the RANDOM page's pills) */
+    uint8_t
+        random_style; /* MelloStyle: RNDMZR rolls the band in it (ANY: a style each time; OFF: the lead, by INT) */
+    bool roll_playing;  /* RANDOM's ROLLS: PLAYING, a roll of the band leaves the parts that are off off */
+    bool random_links;  /* RANDOM's LINKS layer (SELECT): keys set + / - per target */
+    bool random_edit;   /* RANDOM's EDIT: a key picks a target, K1 its amount */
+    uint8_t random_sel; /* the target EDIT sets (index into the RANDOM page's pills) */
 
     uint8_t selected_step;
     uint8_t step_bank;

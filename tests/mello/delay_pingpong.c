@@ -95,7 +95,8 @@ static void echoes(bool ping, double l[4], double r[4])
         for (n = 1; n <= 4; ++n)
             if (ms + 10u >= (uint32_t)n * 300u && ms < (uint32_t)n * 300u + 50u)
                 for (i = 0; i < fr; ++i)
-                    el[n - 1] += (double)out[2 * i] * out[2 * i], er[n - 1] += (double)out[2 * i + 1] * out[2 * i + 1];
+                    el[n - 1] += (double)out[2 * i] * out[2 * i],
+                        er[n - 1] += (double)out[2 * i + 1] * out[2 * i + 1];
     }
     for (i = 0; i < 4u; ++i) l[i] = 10 * log10(el[i] + 1), r[i] = 10 * log10(er[i] + 1);
 }
@@ -107,14 +108,15 @@ int main(void)
     echoes(true, l, r);
     echoes(false, ml, mr);
     for (n = 0; n < 4; ++n)
-        printf("echo %d: PING left %5.1f right %5.1f dB; without left %5.1f right %5.1f\n", n + 1, l[n], r[n], ml[n],
-               mr[n]);
+        printf("echo %d: PING left %5.1f right %5.1f dB; without left %5.1f right %5.1f\n", n + 1, l[n], r[n],
+               ml[n], mr[n]);
     CHECK(l[0] > r[0] + 12.0, "PING: the first echo is not on the left (%.1f / %.1f)", l[0], r[0]);
     CHECK(r[1] > l[1] + 12.0, "PING: the second echo is not on the right (%.1f / %.1f)", l[1], r[1]);
     CHECK(l[2] > r[2] + 12.0, "PING: the third echo is not on the left (%.1f / %.1f)", l[2], r[2]);
     CHECK(fabs((r[1] - l[0]) - (mr[1] - ml[0])) < 1.5 && fabs((l[2] - r[1]) - (ml[2] - mr[1])) < 1.5,
           "PING's echoes do not fall as without it");
-    for (n = 0; n < 4; ++n) CHECK(fabs(ml[n] - mr[n]) < 0.1, "without PING, echo %d differs left and right", n + 1);
+    for (n = 0; n < 4; ++n)
+        CHECK(fabs(ml[n] - mr[n]) < 0.1, "without PING, echo %d differs left and right", n + 1);
 
     /* saved and read back */
     {

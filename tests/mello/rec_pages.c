@@ -82,7 +82,8 @@ int main(void)
     key(9u);  /* D4 (62): the second degree */
     key(12u); /* F4 (65): the fourth */
     CHECK(e->project.steps[2].pitch == 1 && e->project.steps[3].pitch == 3,
-          "STEP REC wrote %d, %d at steps 3-4, not 1, 3", e->project.steps[2].pitch, e->project.steps[3].pitch);
+          "STEP REC wrote %d, %d at steps 3-4, not 1, 3", e->project.steps[2].pitch,
+          e->project.steps[3].pitch);
     CHECK(heard_n >= 2u && heard[0] == MELLO_EVENT_NOTE_ON, "a key on STEP was not heard as the lead");
     CHECK(mello_engine_undo_swap(e) && !memcmp(&e->project.steps[2], &before, sizeof before),
           "UNDO did not take the take back");
@@ -111,7 +112,8 @@ int main(void)
     heard_n = 0u;
     key(12u); /* F: the fourth degree */
     CHECK(e->chord.steps[0].degree == 3u, "CHORD REC wrote degree %u", e->chord.steps[0].degree);
-    CHECK(heard_n >= 1u && heard[0] == MELLO_EVENT_CHORD_NOTE_ON, "a key on CHORD was not heard as the chords");
+    CHECK(heard_n >= 1u && heard[0] == MELLO_EVENT_CHORD_NOTE_ON,
+          "a key on CHORD was not heard as the chords");
     mello_ui_set_page(&ui, MELLO_UI_HOME);
 #endif
 
@@ -123,8 +125,8 @@ int main(void)
         tap(MELLO_UI_BTN_REC);
         CHECK(ui.keys_rec_target == MELLO_UI_REC_DRUMS, "REC on DRUMS did not record the drums");
         heard_n = 0u;
-        key(2u); /* white 2: SNARE at step 1 */
-        key(0u); /* white 1: KICK at step 2 */
+        key(2u);                                /* white 2: SNARE at step 1 */
+        key(0u);                                /* white 1: KICK at step 2 */
         mello_ui_set_held_notes(&ui, 1u << 0u); /* KICK held (no new hit: held, not pressed), HAT pressed */
         mello_ui_set_held_notes(&ui, (1u << 0u) | (1u << 4u));
         in(0u, 1u << 4u);
@@ -133,7 +135,8 @@ int main(void)
         key(7u); /* white 5: ACCENT on the last hit (the hat) */
         key(9u); /* white 6: RATCH 2 */
         CHECK((e->drums.hits[MELLO_DRUM_SNARE] & 1u) && (e->drums.hits[MELLO_DRUM_KICK] & 2u),
-              "DRUMS REC: SNARE %04x, KICK %04x", e->drums.hits[MELLO_DRUM_SNARE], e->drums.hits[MELLO_DRUM_KICK]);
+              "DRUMS REC: SNARE %04x, KICK %04x", e->drums.hits[MELLO_DRUM_SNARE],
+              e->drums.hits[MELLO_DRUM_KICK]);
         CHECK((e->drums.hits[MELLO_DRUM_HAT] & 2u) && !(e->drums.hits[MELLO_DRUM_HAT] & 4u),
               "DRUMS REC: the hat with the kick held is not at the kick's step (%04x)",
               e->drums.hits[MELLO_DRUM_HAT]);

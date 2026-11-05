@@ -173,7 +173,8 @@ static const Case cases[] = {
     C("CHORD PATTERN", MELLO_UI_CHORD, 4, 3, 0, "MASK", "LENGTH", "", ""),
     /* a new project's chords are SUB MELLO: one voice, no chorus and nothing to strum (POLY gives them back) */
     C("CHORD FILTER", MELLO_UI_CHORD, 5, 15, 0, "CUT", "RES", "ENV", "LEVEL"),
-    C("CHORD TONE", MELLO_UI_CHORD, 6, 7, 0, "WAVE", "", "LINK", ""), /* SUB MELLO: no CHORUS; SPACE: MIX's sends */
+    C("CHORD TONE", MELLO_UI_CHORD, 6, 7, 0, "WAVE", "", "LINK",
+      ""), /* SUB MELLO: no CHORUS; SPACE: MIX's sends */
     C("CHORD MOTION", MELLO_UI_CHORD, 7, 15, 0, "F.ATK", "F.DEC", "", "NEXT"),
     C("CHORD AMP", MELLO_UI_CHORD, 8, 15, 0, "ATTACK", "DECAY", "SUSTAIN", "RELEASE"),
     C("CHORD HARMONY", MELLO_UI_CHORD, 9, 7, 0, "FOLLOW", "DRIFT", "DEPTH", ""),

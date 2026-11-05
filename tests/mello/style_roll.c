@@ -66,10 +66,12 @@ int main(void)
             const char *nm = mello_style_name(st);
             unsigned plays = 0u, rolls = 0u;
             fresh(seed);
-            CHECK(nm && nm[0] && strcmp(nm, "OFF") && strcmp(nm, "ANY"), "style %u has no entry of its own", st);
+            CHECK(nm && nm[0] && strcmp(nm, "OFF") && strcmp(nm, "ANY"), "style %u has no entry of its own",
+                  st);
             CHECK(mello_engine_style_roll(&e, st) == st && e.style_now == st, "%s: not rolled", nm);
             CHECK(e.fx.trim_db >= -2 && e.fx.trim_db <= 2 &&
-                      (st != MELLO_STYLE_AMBIENT || e.fx.trim_db == -2) && (st != MELLO_STYLE_MINIMAL || e.fx.trim_db == 2),
+                      (st != MELLO_STYLE_AMBIENT || e.fx.trim_db == -2) &&
+                      (st != MELLO_STYLE_MINIMAL || e.fx.trim_db == 2),
                   "%s: TRIM %d", nm, e.fx.trim_db);
             for (i = 0u; i < 16u; ++i) {
                 const MelloStep *x = &e.project.steps[i];
@@ -96,17 +98,19 @@ int main(void)
             case MELLO_STYLE_DEEP:
                 CHECK(e.drums.hits[MELLO_DRUM_KICK] == 0x1111u, "%s: not four on the floor", nm);
 #if MELLO_FEATURE_CHORD_MACHINE
-                CHECK(e.chord.on && e.chord.trigger == MELLO_CHORD_TRIGGER_GRID && e.chord.mode == MELLO_CHORD_STAB &&
-                          e.chord.grid_cells && (e.chord.grid_cells & 0x1111u) == 0u && e.chord.grid_amount == 1000u,
+                CHECK(e.chord.on && e.chord.trigger == MELLO_CHORD_TRIGGER_GRID &&
+                          e.chord.mode == MELLO_CHORD_STAB && e.chord.grid_cells &&
+                          (e.chord.grid_cells & 0x1111u) == 0u && e.chord.grid_amount == 1000u,
                       "%s: the chords not stabbed off the beat", nm);
 #endif
                 break;
             case MELLO_STYLE_ACID: { /* the 303 is the bass: nearly every sixteenth, glides, the filter's squelch */
                 unsigned notes = 0u, glides = 0u;
-                for (i = 0u; i < 16u; ++i) notes += e.bass.steps[i].on, glides += e.bass.steps[i].on && e.bass.steps[i].glide;
+                for (i = 0u; i < 16u; ++i)
+                    notes += e.bass.steps[i].on, glides += e.bass.steps[i].on && e.bass.steps[i].glide;
                 CHECK(e.bass.on && notes >= 9u && glides >= 1u && e.bass.res >= 600u && e.bass.env >= 600u,
-                      "ACID: the bass is not a 303 (%u notes, %u glides, RES %u, ENV %u)", notes, glides, e.bass.res,
-                      e.bass.env);
+                      "ACID: the bass is not a 303 (%u notes, %u glides, RES %u, ENV %u)", notes, glides,
+                      e.bass.res, e.bass.env);
 #if MELLO_FEATURE_CHORD_MACHINE
                 CHECK(!e.chord.on, "ACID: chords on");
 #endif
@@ -131,8 +135,8 @@ int main(void)
                 }
                 CHECK(rolls >= 8u && glitch >= 2u && pitched >= 8u && e.drums.fold > 0u && e.bass.on &&
                           e.bass.length >= 11u && e.bass.length < 16u,
-                      "GLITCH (seed %u): %u rolls, %u glitches, %u pitched, FOLD %u, bass loop %u", seed, rolls, glitch,
-                      pitched, e.drums.fold, e.bass.length);
+                      "GLITCH (seed %u): %u rolls, %u glitches, %u pitched, FOLD %u, bass loop %u", seed,
+                      rolls, glitch, pitched, e.drums.fold, e.bass.length);
 #if MELLO_FEATURE_CHORD_MACHINE
                 CHECK(!e.chord.on, "GLITCH: chords on");
 #endif
@@ -141,7 +145,8 @@ int main(void)
             default: /* TRIPHOP, BREAKS, OUTRUN */
 #if MELLO_FEATURE_CHORD_MACHINE
                 CHECK(e.chord.on && e.chord.mode == MELLO_CHORD_HOLD, "%s: no held chords", nm);
-                if (st == MELLO_STYLE_OUTRUN) CHECK(e.chord.steps[0].shape == MELLO_CHORD_TRIAD, "OUTRUN: not triads");
+                if (st == MELLO_STYLE_OUTRUN)
+                    CHECK(e.chord.steps[0].shape == MELLO_CHORD_TRIAD, "OUTRUN: not triads");
 #endif
                 break;
             }
@@ -176,7 +181,8 @@ int main(void)
         CHECK(mello_engine_undo_swap(&e), "no UNDO after a STYLE roll");
         CHECK(!memcmp(&e.project.steps, &before.project.steps, sizeof e.project.steps) &&
                   !memcmp(&e.fx, &before.fx, sizeof e.fx) && !memcmp(&e.sub, &before.sub, sizeof e.sub) &&
-                  !memcmp(&e.drums, &before.drums, sizeof e.drums) && !memcmp(&e.bass, &before.bass, sizeof e.bass) &&
+                  !memcmp(&e.drums, &before.drums, sizeof e.drums) &&
+                  !memcmp(&e.bass, &before.bass, sizeof e.bass) &&
                   !memcmp(&e.sound, &before.sound, sizeof e.sound),
               "UNDO did not take the whole roll back");
     }
@@ -188,7 +194,8 @@ int main(void)
         mello_engine_set_randomize_mask(&e, 0u);
         memcpy(steps, e.project.steps, sizeof steps);
         (void)mello_engine_style_roll(&e, MELLO_STYLE_TRIPHOP);
-        CHECK(!memcmp(steps, e.project.steps, sizeof steps), "a STYLE roll changed the lead with the mask empty");
+        CHECK(!memcmp(steps, e.project.steps, sizeof steps),
+              "a STYLE roll changed the lead with the mask empty");
     }
 
     if (fails) return 1;

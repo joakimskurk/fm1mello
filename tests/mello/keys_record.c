@@ -14,7 +14,7 @@
 #include <string.h>
 
 static char header[64];
-static uint32_t key_leds = 0x07FFFFFFu; /* the UI assumes every LED lit at init and only sends changes */
+static uint32_t key_leds = 0x07FFFFFFu;  /* the UI assumes every LED lit at init and only sends changes */
 static uint32_t key_glows = 0x07FFFFFFu; /* (and every glow) */
 static void fill(void *c, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t col)
 {
@@ -176,7 +176,8 @@ int main(void)
     /* REC > SEQ, stopped: the keys write step 1, 2, 3 ..., a key off the scale rounded */
     tap_button(MELLO_UI_BTN_REC);
     render();
-    CHECK(strstr(header, "STEP SEQ 1/16"), "REC once: SEQ (stopped: step entry), the header reads \"%s\"", header);
+    CHECK(strstr(header, "STEP SEQ 1/16"), "REC once: SEQ (stopped: step entry), the header reads \"%s\"",
+          header);
     CHECK(ui.keys_rec && ui.keys_rec_target == MELLO_UI_REC_SEQ, "the target is SEQ");
     for (i = 0u; i < 16u; ++i) e->project.steps[i].pitch = 0, e->project.steps[i].octave = 0;
     key(7u);  /* C4 */
@@ -335,8 +336,8 @@ int main(void)
         for (i = 0u; i < 8u; ++i) in(0u, 0u, 0u, 0u); /* 400 ms */
         CHECK(e->project.steps[2].gate == MELLO_GATE_SINGLE, "a long key made a held note by itself (%d)",
               e->project.steps[2].gate);
-        knob(0u, 1);  /* K1: PULSE 2 */
-        knob(2u, 2);  /* K3: GATE SINGLE, MULTI, HOLD */
+        knob(0u, 1); /* K1: PULSE 2 */
+        knob(2u, 2); /* K3: GATE SINGLE, MULTI, HOLD */
         mello_ui_set_held_notes(&ui, 0u);
         in(0u, 0u, 0u, 0u);
         CHECK(e->project.steps[2].pulses == 2u && e->project.steps[2].gate == MELLO_GATE_HOLD,

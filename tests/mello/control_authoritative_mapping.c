@@ -103,7 +103,7 @@ static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, cons
     (void)large;
     (void)c;
     (void)align;
-    if (y == 223 && s && *s && /* the strip: at the bottom since G7 */
+    if (y == 223 && s && *s &&                                   /* the strip: at the bottom since G7 */
         strlen(cap->hint) + strlen(s) + 2u < sizeof cap->hint) { /* the strip's labels */
         if (cap->hint[0]) strcat(cap->hint, " ");
         strcat(cap->hint, s);
@@ -188,7 +188,8 @@ static void verify_every_page_and_inactive_slot(void)
             char shrt[96];
             labels_of(cases[i].hint, want);
             short_of(want, shrt);
-            if (strcmp(cap.hint, want) && strcmp(cap.hint, shrt)) die(cases[i].name, "rendered descriptor hint drift");
+            if (strcmp(cap.hint, want) && strcmp(cap.hint, shrt))
+                die(cases[i].name, "rendered descriptor hint drift");
         }
         for (slot = 0u; slot < 11u; ++slot) {
             if (has_slot(cases[i].hint, slot)) {

@@ -23,13 +23,13 @@ extern "C" {
 #define MELLO_MAX_RUNTIME_PULSES   (MELLO_MAX_BASE_PULSES * 2u)
 #define MELLO_EVENT_QUEUE_CAP      64u
 #define MELLO_MAX_LOOP_CYCLE_STEPS 8u
-#define MELLO_MAX_SLOTS            16u /* one a white key (64 until 2026-11-05: 47 KB of RAM; DECISIONS "RAM") */
-#define MELLO_SLOT_NAME_CHARS      18u
-#define MELLO_MAX_SLOT_SEQ_STEPS   64u
-#define MELLO_DOT_MATRIX_COUNT     5u
-#define MELLO_DOT_WIRE_COUNT       4u /* SEC_WORKING / SEC_SLOTS hold the first four; MOD 2 is in SEC_MOD */
-#define MELLO_DOT_MOD_LANES        2u
-#define MELLO_DOT_CELL_COUNT       16u
+#define MELLO_MAX_SLOTS       16u /* one a white key (64 until 2026-11-05: 47 KB of RAM; DECISIONS "RAM") */
+#define MELLO_SLOT_NAME_CHARS 18u
+#define MELLO_MAX_SLOT_SEQ_STEPS 64u
+#define MELLO_DOT_MATRIX_COUNT   5u
+#define MELLO_DOT_WIRE_COUNT     4u /* SEC_WORKING / SEC_SLOTS hold the first four; MOD 2 is in SEC_MOD */
+#define MELLO_DOT_MOD_LANES      2u
+#define MELLO_DOT_CELL_COUNT     16u
 #ifndef MELLO_FEATURE_CHORD_MACHINE
 #define MELLO_FEATURE_CHORD_MACHINE 1
 #endif
@@ -301,8 +301,9 @@ typedef struct {
     uint16_t delay_tone;     /* 0..1000: HI CUT on the return */
     uint16_t delay_lowcut;   /* 0..1000: LO CUT on the return and in the feedback, 20 Hz .. 2 kHz; 0 off */
     bool
-        delay_pre_dist;   /* the delay before the distortion: its filtered echoes are driven too (HTML: after) */
-    bool delay_pingpong; /* PING: the echoes left and right in turn (ROADMAP F25); with PRE DIST, in the middle */
+        delay_pre_dist; /* the delay before the distortion: its filtered echoes are driven too (HTML: after) */
+    bool
+        delay_pingpong; /* PING: the echoes left and right in turn (ROADMAP F25); with PRE DIST, in the middle */
     uint16_t delay_level;     /* 0..1500 */
     uint16_t reverb_wet;      /* 0..1000 */
     uint16_t reverb_size;     /* 0..1000 */
@@ -432,11 +433,11 @@ typedef struct {
     uint8_t repeat_len; /* 1..16 pulses */
     uint8_t mix_mute;   /* MIX's B0-B3: bit 0 LEAD, 1 SUB, 2 CHORD, 3 PERC muted (not saved) */
     /* PERFORM (DECISIONS "PERFORM: performance only"): */
-    bool arp;          /* the lead an arpeggio on its step's note: root, third, fifth, octave, a pulse each */
-    bool accent;       /* every lead note and drum hit accented */
-    uint8_t mute_req;  /* mutes asked for while playing: toggled into mix_mute at the next beat */
-    uint8_t fx;        /* MELLO_PERF_FX_*: the sound's held effects, for mello_audio */
-    uint8_t fx2;       /* MELLO_PERF_FX2_*: the black keys' held effects */
+    bool arp;         /* the lead an arpeggio on its step's note: root, third, fifth, octave, a pulse each */
+    bool accent;      /* every lead note and drum hit accented */
+    uint8_t mute_req; /* mutes asked for while playing: toggled into mix_mute at the next beat */
+    uint8_t fx;       /* MELLO_PERF_FX_*: the sound's held effects, for mello_audio */
+    uint8_t fx2;      /* MELLO_PERF_FX2_*: the black keys' held effects */
     uint16_t fx2_amt[8]; /* each one's amount, 0..1000 (K1 while it is held) */
 } MelloPerf;
 #define MELLO_PERF_FX_LP    1u /* LP SWEEP: the whole mix's low-pass closing while held */
@@ -444,8 +445,8 @@ typedef struct {
 #define MELLO_PERF_FX_THROW 4u /* THROW: everything into the delay, its feedback up; the tail rings on */
 #define MELLO_PERF_FX_WASH  8u /* WASH: everything into the reverb */
 /* PERFORM's black keys B0-B7 (DECISIONS "PERFORM's black keys"), held: MelloPerf.fx2, each with its K1 amount */
-#define MELLO_PERF_FX2_STUT  1u   /* the last bit of sound again and again (K1: 1/32, 1/16, 1/8, 1/4) */
-#define MELLO_PERF_FX2_TAPE  2u   /* a tape stop: the mix slows to a stop; let go, back at once (K1: how fast) */
+#define MELLO_PERF_FX2_STUT 1u /* the last bit of sound again and again (K1: 1/32, 1/16, 1/8, 1/4) */
+#define MELLO_PERF_FX2_TAPE 2u /* a tape stop: the mix slows to a stop; let go, back at once (K1: how fast) */
 #define MELLO_PERF_FX2_PLUCK 4u   /* everything short: each note and hit dies away (K1: how short) */
 #define MELLO_PERF_FX2_CRUSH 8u   /* bits and rate down on the mix (K1: how much) */
 #define MELLO_PERF_FX2_CHOP  16u  /* the mix cut on and off in time (K1: 1/8, 1/16, 1/32) */
@@ -581,15 +582,15 @@ typedef struct {
     uint8_t vlen[4];
     uint8_t vdir[4]; /* each voice's DIR (MELLO_DRUM_DIR_*) */
     bool bar_reset;
-    uint16_t swing;  /* 0..1000: SWING, for everything: each odd sixteenth up to half a step late */
+    uint16_t swing; /* 0..1000: SWING, for everything: each odd sixteenth up to half a step late */
     /* SWING per part (GLOBAL > GROOVE): the lead (and the chords, the samples), the bass, the drums; -1 GLOBAL (as
      * SWING), else 0..1000 (DECISIONS "Swing per part") */
     int16_t swing_part[3];
-    uint16_t level;  /* 0..1000 */
-    uint16_t space;  /* 0..1000: the send to the delay and reverb */
-    uint16_t roll;   /* 0..1000: how much a roll changes */
-    uint16_t drive;  /* 0..1000: the kit's own distortion, after the glue (0: none) */
-    uint16_t fold;   /* 0..1000: past full scale the drive folds back instead of clipping */
+    uint16_t level; /* 0..1000 */
+    uint16_t space; /* 0..1000: the send to the delay and reverb */
+    uint16_t roll;  /* 0..1000: how much a roll changes */
+    uint16_t drive; /* 0..1000: the kit's own distortion, after the glue (0: none) */
+    uint16_t fold;  /* 0..1000: past full scale the drive folds back instead of clipping */
     uint16_t
         duck; /* 0..1000: DUCK, the kick's sidechain: the lead, sub and chords dip by this at each kick and
                         come back over ~160 ms (DECISIONS.md "A kick with weight") */
@@ -688,7 +689,8 @@ typedef enum {
     MELLO_RANDOMIZE_MED = 1,
     MELLO_RANDOMIZE_HIGH = 2,
     MELLO_RANDOMIZE_MUSICAL = 3, /* a phrase, not a roll: DECISIONS.md "RANDOM: MUSICAL" */
-    MELLO_RANDOMIZE_GROOVE = 4   /* MUSICAL's phrase with rolls, ties, ghost notes and rests: DECISIONS.md "GROOVE" */
+    MELLO_RANDOMIZE_GROOVE =
+        4 /* MUSICAL's phrase with rolls, ties, ghost notes and rests: DECISIONS.md "GROOVE" */
 } MelloRandomizeIntensity;
 
 typedef struct {
@@ -771,7 +773,8 @@ typedef struct {
     MelloTmConfig tm;
     MelloModRouting modr;
     uint8_t tm_bool_len;
-    uint32_t tm_bool_bits; /* the register's bits, step i at bit i (32 bytes before: DECISIONS "RAM"); the snapshot
+    uint32_t
+        tm_bool_bits; /* the register's bits, step i at bit i (32 bytes before: DECISIONS "RAM"); the snapshot
                             * saves the bool-array length, load expands to 32 */
     MelloSubConfig sub;
     MelloRandomizeConfig randomize;
@@ -817,8 +820,8 @@ typedef struct { /* (the enums held in a byte each: 60 B -> 44, ROADMAP F21) */
     int8_t slot_index;
     uint8_t loop_cycle_index;
     uint8_t slot_seq_index;
-    uint8_t voice; /* MelloVoice */
-    uint8_t sample_slot; /* 0..3 for SAMPLE events */
+    uint8_t voice;          /* MelloVoice */
+    uint8_t sample_slot;    /* 0..3 for SAMPLE events */
     uint8_t effective_gate; /* MelloGateMode */
     uint8_t effective_ratchet;
     bool effective_accent;
@@ -873,7 +876,8 @@ typedef struct {
     int8_t tm_octave_mod;
     int16_t tm_filter_mod_q15;
     int16_t tm_decay_mod_q15;
-    uint16_t tm_length; /* EVOLVE LENGTH: the notes' length in 1/1024 (1024 = as the step says, 256 = a quarter) */
+    uint16_t
+        tm_length; /* EVOLVE LENGTH: the notes' length in 1/1024 (1024 = as the step says, 256 = a quarter) */
     int8_t dot_cell[MELLO_DOT_MATRIX_COUNT];
 } MelloPulseModState;
 
@@ -1006,7 +1010,8 @@ typedef struct {
      * its own place all along; REVERSE and REPEAT play from perf_buf instead, so letting go lands in time. */
     MelloPerf perf;
     MelloPulseEntry perf_hist[MELLO_PERF_HISTORY]; /* the last pulses of the sequence, oldest overwritten */
-    MelloPerfParts perf_parts_hist[MELLO_PERF_HISTORY], perf_parts_buf[MELLO_PERF_HISTORY]; /* the other parts' */
+    MelloPerfParts perf_parts_hist[MELLO_PERF_HISTORY],
+        perf_parts_buf[MELLO_PERF_HISTORY]; /* the other parts' */
     uint8_t perf_hist_w;
     uint8_t perf_hist_n;
     MelloPulseEntry perf_buf[MELLO_PERF_HISTORY]; /* what REVERSE / REPEAT play, in order, round and round */
@@ -1028,13 +1033,15 @@ typedef struct {
     int8_t bass_step;   /* the one playing, -1 stopped (the SUB page) */
     bool bass_glide_in; /* the last step glides into this one */
     MelloPrng drum_rng; /* chance and rolls: the other streams stay as they were */
-    uint32_t drum_pos;  /* the drums' steps counted since their start (each voice at its place in its cycle: its
+    uint32_t
+        drum_pos; /* the drums' steps counted since their start (each voice at its place in its cycle: its
                          * LENGTH, or twice less two with PING), up to drum_wrap: the cycles' least common multiple,
                          * where they all meet again */
     uint32_t drum_wrap;
-    int8_t drum_step;   /* the one playing, -1 stopped (the DRUMS page): the kit's LENGTH's */
+    int8_t drum_step;     /* the one playing, -1 stopped (the DRUMS page): the kit's LENGTH's */
     int8_t drum_vstep[4]; /* each voice's (MELLO_DRUM_VOICES) */
-    uint32_t swing_off; /* SWING: an odd pulse's ticks (0 on an even one); queue_push adds each part's share */
+    uint32_t
+        swing_off; /* SWING: an odd pulse's ticks (0 on an even one); queue_push adds each part's share */
     bool drone_open;
     uint8_t drone_note;
     uint8_t drone_step;
@@ -1167,7 +1174,8 @@ void mello_engine_chord_set_config(MelloEngine *engine, const MelloChordConfig *
  * lead's, the bass off), so the bass is always in the chord; again, over the same bass, the next of four variants.
  * Turns the chords on and SUB ROOT off; undoable. */
 void mello_engine_chord_fit(MelloEngine *engine);
-void mello_engine_chord_fit_quiet(MelloEngine *engine); /* the same, inside the UNDO already taken (a take's) */
+void mello_engine_chord_fit_quiet(
+    MelloEngine *engine); /* the same, inside the UNDO already taken (a take's) */
 void mello_engine_chord_reset(MelloEngine *engine);
 uint8_t mello_engine_resolve_chord_notes(const MelloEngine *engine, uint8_t chord_step,
                                          uint8_t out_notes[MELLO_CHORD_MAX_VOICES]);
@@ -1227,13 +1235,14 @@ bool mello_engine_roll_back(MelloEngine *engine, uint8_t n);
 /* One part of the band rolled again in a style (hold RNDMZR and a white key): with ANY the style that plays now. The
  * bass takes the chords' degrees with it, so the harmony still fits. Undoable. Returns the style used. */
 #define MELLO_PART_LEAD   1u
-#define MELLO_PART_BASS   2u  /* the line and the bass's sound */
-#define MELLO_PART_DRUMS  4u  /* the beat */
-#define MELLO_PART_KIT    8u  /* the drums' sound */
+#define MELLO_PART_BASS   2u /* the line and the bass's sound */
+#define MELLO_PART_DRUMS  4u /* the beat */
+#define MELLO_PART_KIT    8u /* the drums' sound */
 #define MELLO_PART_CHORDS 16u
 #define MELLO_PART_SOUND  32u /* the lead's envelope, the delay, the reverb */
 #define MELLO_PART_ALL    63u /* (the tempo is never rolled: DECISIONS "The tempo is the player's") */
-#define MELLO_PART_BAND   64u /* with some parts: still a roll of the band (a new style, its TRIM), as ROLLS PLAYING */
+#define MELLO_PART_BAND                                                                                      \
+    64u /* with some parts: still a roll of the band (a new style, its TRIM), as ROLLS PLAYING */
 uint8_t mello_engine_style_roll_parts(MelloEngine *engine, uint8_t style, uint8_t parts);
 /* ROLL on BASS in a style: the bass line alone, as the style's roll writes it (OFF / ANY: the walking line) */
 void mello_engine_style_bass(MelloEngine *engine, uint8_t style);

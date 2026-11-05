@@ -37,8 +37,7 @@ static void smoke_text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large
                     (long)n * glyph_w, w, (unsigned)large);
             text_clip_error = 1;
         }
-        if (strcmp(text_value, "CMIN") == 0)
-            saw_brand = 1; /* the key, short, on the header's right (G7) */
+        if (strcmp(text_value, "CMIN") == 0) saw_brand = 1; /* the key, short, on the header's right (G7) */
         if (strstr(text_value, "BASS SEQ") || strstr(text_value, "BASS OFF") || strstr(text_value, "BASS  "))
             saw_sub_5seq = 1; /* BASS SEQ, as it is called since 2026-10-31: the SUB page's title says so */
         if (strstr(text_value, "X-SUB") || strcmp(text_value, "X OFF") == 0 ||

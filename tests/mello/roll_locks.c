@@ -81,16 +81,18 @@ static void engine_part(void)
 
     /* three rolls back */
     e.roll_lock = 0u;
-    memcpy(lead1, e.project.steps, sizeof lead1);            /* before roll A */
-    (void)mello_engine_style_roll(&e, MELLO_STYLE_ACID);      /* A */
-    memcpy(lead, e.project.steps, sizeof lead);              /* before roll B */
-    (void)mello_engine_style_roll(&e, MELLO_STYLE_HOUSE);     /* B */
-    (void)mello_engine_style_roll(&e, MELLO_STYLE_DRONE);     /* C */
+    memcpy(lead1, e.project.steps, sizeof lead1);         /* before roll A */
+    (void)mello_engine_style_roll(&e, MELLO_STYLE_ACID);  /* A */
+    memcpy(lead, e.project.steps, sizeof lead);           /* before roll B */
+    (void)mello_engine_style_roll(&e, MELLO_STYLE_HOUSE); /* B */
+    (void)mello_engine_style_roll(&e, MELLO_STYLE_DRONE); /* C */
     CHECK(e.roll_back_n == MELLO_ROLL_BACK, "%u rolls back, not 3", e.roll_back_n);
     e.project.bpm = 131u;
-    CHECK(mello_engine_roll_back(&e, 1u) && !memcmp(lead, e.project.steps, sizeof lead), "back 2 is not before B");
+    CHECK(mello_engine_roll_back(&e, 1u) && !memcmp(lead, e.project.steps, sizeof lead),
+          "back 2 is not before B");
     CHECK(e.project.bpm == 131u, "going back changed the tempo to %u", e.project.bpm);
-    CHECK(mello_engine_roll_back(&e, 2u) && !memcmp(lead1, e.project.steps, sizeof lead1), "back 3 is not before A");
+    CHECK(mello_engine_roll_back(&e, 2u) && !memcmp(lead1, e.project.steps, sizeof lead1),
+          "back 3 is not before A");
     CHECK(!mello_engine_roll_back(&e, 3u), "a fourth roll back");
 
     /* the compact copies give back the very project (DECISIONS "RAM"): every step's every field varied */
@@ -99,8 +101,10 @@ static void engine_part(void)
         uint8_t i;
         for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
             MelloStep *x = &e.project.steps[i];
-            x->pitch = (int8_t)(i % 14u), x->pulses = (uint8_t)(1u + i % 8u), x->ratchet = (uint8_t)(1u + (i * 3u) % 8u);
-            x->wave = (uint8_t)(i % 6u), x->gate = (MelloGateMode)(i % 4u), x->octave = (int8_t)((int)(i % 5u) - 2);
+            x->pitch = (int8_t)(i % 14u), x->pulses = (uint8_t)(1u + i % 8u),
+            x->ratchet = (uint8_t)(1u + (i * 3u) % 8u);
+            x->wave = (uint8_t)(i % 6u), x->gate = (MelloGateMode)(i % 4u),
+            x->octave = (int8_t)((int)(i % 5u) - 2);
             x->slide = i & 1u, x->skip = (i % 7u) == 3u, x->accent = (i % 3u) == 0u, x->sub = (i % 5u) == 1u;
             x->sample_slot = (uint8_t)(i % 5u), x->probability = (uint16_t)(i * 2053u);
         }
@@ -130,7 +134,8 @@ static void ui_part(void)
     mello_transport_init(&t, &p, 5u, 0, 0);
     mello_storage_init(&st, 0, 0);
     mello_ui_init(&u, &t, &st);
-    u.random_intensity = MELLO_RANDOMIZE_MUSICAL; /* (STYLE rolls with MUSICAL or GROOVE: DECISIONS "Happy accidents") */
+    u.random_intensity =
+        MELLO_RANDOMIZE_MUSICAL; /* (STYLE rolls with MUSICAL or GROOVE: DECISIONS "Happy accidents") */
     mello_ui_set_page(&u, MELLO_UI_HOME);
 
     /* RNDMZR held, B1: BASS locked; letting go rolls nothing */
@@ -151,8 +156,8 @@ static void ui_part(void)
     mello_ui_set_held_notes(&u, 0u);
     mello_ui_input(&u, 2100000u, 2100u, 0u, 0u, 0u, 0u, enc);
     CHECK(t.engine.slots[0].valid && u.kept_slot == 0 && !memcmp(t.engine.slots[0].name, "KEPT 01", 7u),
-          "RNDMZR + SAVE kept nothing in slot 1 (%d, valid %d, \"%s\")", u.kept_slot, (int)t.engine.slots[0].valid,
-          t.engine.slots[0].name);
+          "RNDMZR + SAVE kept nothing in slot 1 (%d, valid %d, \"%s\")", u.kept_slot,
+          (int)t.engine.slots[0].valid, t.engine.slots[0].name);
 
     /* three taps of RNDMZR; UNDO held, white key 2: back before the second last */
     for (k = 0u; k < 3u; ++k) {
@@ -170,7 +175,8 @@ static void ui_part(void)
     mello_ui_input(&u, 4400000u, 4400u, 0u, 0u, 0u, w2, enc);
     mello_ui_set_held_notes(&u, 0u);
     mello_ui_input(&u, 4500000u, 4500u, 0u, 0u, 0u, 0u, enc);
-    CHECK(!memcmp(lead, t.engine.project.steps, sizeof lead), "UNDO + 2 is not the band before the second last roll");
+    CHECK(!memcmp(lead, t.engine.project.steps, sizeof lead),
+          "UNDO + 2 is not the band before the second last roll");
     CHECK(!u.undo_menu, "the rolls back still shown after letting go");
 
     /* ROLLS PLAYING: the drums and the chords off stay off; ALL turns them on again */

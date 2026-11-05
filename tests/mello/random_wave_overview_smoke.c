@@ -47,7 +47,8 @@ static void fill_cb(void *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint1
     }
     if (near(sy, 163) && sh <= 2 && h == 1) ratchet_marks++;
     if ((near(sy, 165) || near(sy, 168)) && h == 1) event_marks++;
-    if (near(sy, 46) && near(sh, 108) && x >= 8 && x < 232) { /* a HOME step's column (draw_home_step clears it) */
+    if (near(sy, 46) && near(sh, 108) && x >= 8 &&
+        x < 232) { /* a HOME step's column (draw_home_step clears it) */
         home_columns++;
         if (w > 7) bounds = 1;
     }

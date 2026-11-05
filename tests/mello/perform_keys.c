@@ -69,7 +69,8 @@ static void engine_part(void)
     for (i = 0; i < 8; ++i) n[i] = pulse(&v, &dv);
     for (i = 0; i < 8; ++i) CHECK(n[i] >= 0, "ARP: pulse %d did not play (a rest under it too)", i);
     {
-        int r = n[0], ok = 1; /* the pulses' places in the beat: 0, +3, +7, +12 semitones (C minor from the root) */
+        int r = n[0],
+            ok = 1; /* the pulses' places in the beat: 0, +3, +7, +12 semitones (C minor from the root) */
         static const int want[4] = {0, 3, 7, 12};
         for (i = 0; i < 8; ++i) ok &= n[i] - r == want[i % 4] - want[0];
         CHECK(ok, "ARP did not play root, third, fifth, octave (%d %d %d %d)", n[0], n[1], n[2], n[3]);
@@ -115,7 +116,8 @@ static void render(uint8_t fx, bool wet_off, double *hi_held, double *all_after,
     for (ms = 0; ms < 3600u; ++ms) {
         uint32_t fr = 44u + (ms % 10u == 0u ? 1u : 0u);
         if (ms == 1000u) mello_audio_set_perf_fx(&a, fx);
-        if (ms == 2600u) mello_audio_set_perf_fx(&a, 0u), mello_transport_stop(&t), mello_audio_all_notes_off(&a);
+        if (ms == 2600u)
+            mello_audio_set_perf_fx(&a, 0u), mello_transport_stop(&t), mello_audio_all_notes_off(&a);
         mello_transport_poll_ahead(&t, ms * 1000u, MELLO_TRANSPORT_LOOKAHEAD_US);
         memset(out, 0, sizeof out);
         mello_audio_render(&a, out, fr, ms * 1000u, t.engine.project.bpm);
@@ -124,8 +126,9 @@ static void render(uint8_t fx, bool wet_off, double *hi_held, double *all_after,
             prev = x;
             lp += ((double)x - lp) / 64.0; /* below ~110 Hz */
             if (ms >= 2300u && ms < 2600u) ll += lp * lp;
-            if (ms >= 2300u && ms < 2600u) hh += (double)d * d, ha += (double)x * x; /* the sweep at its end */
-            if (ms >= 2900u) aa += (double)x * x;               /* after the music stopped */
+            if (ms >= 2300u && ms < 2600u)
+                hh += (double)d * d, ha += (double)x * x; /* the sweep at its end */
+            if (ms >= 2900u) aa += (double)x * x;         /* after the music stopped */
         }
     }
     held_all = 10 * log10(ha + 1);
@@ -139,22 +142,24 @@ static void audio_part(void)
     all0 = held_all;
     render(MELLO_PERF_FX_LP | MELLO_PERF_FX_HP, true, &x, &x, &x);
     all_band = held_all;
-    CHECK(all_band > all0 - 14.0, "LP and HP SWP held together all but silent (%.1f dB against %.1f)", all_band, all0);
+    CHECK(all_band > all0 - 14.0, "LP and HP SWP held together all but silent (%.1f dB against %.1f)",
+          all_band, all0);
     printf("perform_keys: the mix %.1f dB, with LP and HP SWP held together (a band) %.1f\n", all0, all_band);
     render(MELLO_PERF_FX_LP, true, &hi_lp, &x, &x);
     render(MELLO_PERF_FX_HP, true, &hi_hp, &x, &lo_hp);
     render(MELLO_PERF_FX_THROW, true, &x, &after_throw, &x);
     render(MELLO_PERF_FX_WASH, true, &x, &after_wash, &x);
-    printf("perform_keys: highs %.1f dB, with LP SWP %.1f; lows %.1f, with HP SWP %.1f; after the stop %.1f, THROW %.1f, "
+    printf("perform_keys: highs %.1f dB, with LP SWP %.1f; lows %.1f, with HP SWP %.1f; after the stop %.1f, "
+           "THROW %.1f, "
            "WASH %.1f\n",
            hi0, hi_lp, lo0, lo_hp, after0, after_throw, after_wash);
     CHECK(lo_hp < lo0 - 10.0, "HP SWP did not take the lows away (%.1f against %.1f)", lo_hp, lo0);
     (void)hi_hp;
     CHECK(hi_lp < hi0 - 10.0, "LP SWP did not take the highs away (%.1f against %.1f)", hi_lp, hi0);
-    CHECK(after_throw > after0 + 20.0, "THROW: no echo after the music stopped (%.1f against %.1f)", after_throw,
-          after0);
-    CHECK(after_wash > after0 + 20.0, "WASH: no reverb after the music stopped (%.1f against %.1f)", after_wash,
-          after0);
+    CHECK(after_throw > after0 + 20.0, "THROW: no echo after the music stopped (%.1f against %.1f)",
+          after_throw, after0);
+    CHECK(after_wash > after0 + 20.0, "WASH: no reverb after the music stopped (%.1f against %.1f)",
+          after_wash, after0);
 }
 
 int main(void)

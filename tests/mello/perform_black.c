@@ -100,9 +100,11 @@ static void audio_part(void)
     CHECK(!memcmp(dry, wet, sizeof dry), "nothing held: the take is not the same");
 
     render(MELLO_PERF_FX2_TAPE, false, wet);
-    CHECK(energy(wet, S(1900), S(2000)) < base / 300.0, "TAPE: the end of the hold is not stopped (%.0f against %.0f)",
-          energy(wet, S(1900), S(2000)), base);
-    CHECK(diff(wet, dry, S(2005), S(2200)) < base / 1000.0, "TAPE: 5 ms after letting go it is not the take again");
+    CHECK(energy(wet, S(1900), S(2000)) < base / 300.0,
+          "TAPE: the end of the hold is not stopped (%.0f against %.0f)", energy(wet, S(1900), S(2000)),
+          base);
+    CHECK(diff(wet, dry, S(2005), S(2200)) < base / 1000.0,
+          "TAPE: 5 ms after letting go it is not the take again");
 
     render(MELLO_PERF_FX2_STUT, false, wet);
     { /* 1/16 at 120 BPM: 125 ms, 5512 frames at half the rate, 11025 samples a loop */
@@ -127,8 +129,8 @@ static void audio_part(void)
             eo += energy(wet, s0 + len * 7u / 10u, s0 + len * 95u / 100u), off++;
             en += energy(dry, s0 + len * 7u / 10u, s0 + len * 95u / 100u), on++;
         }
-        CHECK(eo / off < en / on / 100.0, "CHOP: the gate's off part is not silent (%.0f against %.0f)", eo / off,
-              en / on);
+        CHECK(eo / off < en / on / 100.0, "CHOP: the gate's off part is not silent (%.0f against %.0f)",
+              eo / off, en / on);
     }
 
     render(MELLO_PERF_FX2_PLUCK, false, wet);
@@ -138,7 +140,8 @@ static void audio_part(void)
     render(MELLO_PERF_FX2_OCTDN, true, wet);
     {
         unsigned cd = crossings(dry, S(1300), S(1900)), cw = crossings(wet, S(1300), S(1900));
-        CHECK(cw * 10u < cd * 7u && cw * 10u > cd * 3u, "OCT-: %u zero crossings against %u, not about half", cw, cd);
+        CHECK(cw * 10u < cd * 7u && cw * 10u > cd * 3u, "OCT-: %u zero crossings against %u, not about half",
+              cw, cd);
     }
     render(0u, false, dry);
     render(MELLO_PERF_FX2_WARP, false, wet);
@@ -179,7 +182,8 @@ static void ui_part(void)
     mello_ui_input(&u, 1150000u, 1150u, 0u, 0u, 0u, 0u, enc);
     enc[MELLO_UI_ENC_KNOB1] = 0;
     mello_ui_input(&u, 1160000u, 1160u, 0u, 0u, 0u, 0u, enc); /* (the engine has it at the next input) */
-    CHECK((tt.engine.perf.fx2 & MELLO_PERF_FX2_TAPE) && u.perf_amt[1] != 500u && tt.engine.perf.fx2_amt[1] == u.perf_amt[1],
+    CHECK((tt.engine.perf.fx2 & MELLO_PERF_FX2_TAPE) && u.perf_amt[1] != 500u &&
+              tt.engine.perf.fx2_amt[1] == u.perf_amt[1],
           "PERFORM: K1 with TAPE held did not turn TAPE (%u)", u.perf_amt[1]);
     mello_ui_set_held_notes(&u, 0u);
     mello_ui_input(&u, 1200000u, 1200u, 0u, 0u, 0u, 0u, enc);

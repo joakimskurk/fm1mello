@@ -19,7 +19,8 @@ static void text(void *ctx, int16_t x, int16_t y, int16_t w, uint8_t large, cons
                  uint8_t a)
 {
     (void)ctx, (void)x, (void)w, (void)large, (void)c, (void)a;
-    if ((y >= 189 || y == 7) && seen_n < 32u) { /* the readout, at the bottom since G7, and the header's path */
+    if ((y >= 189 || y == 7) &&
+        seen_n < 32u) { /* the readout, at the bottom since G7, and the header's path */
         strncpy(seen[seen_n], s, 47);
         seen[seen_n++][47] = 0;
     }
@@ -68,7 +69,8 @@ int main(void)
     turn(&u, 1000u, MELLO_UI_ENC_KNOB1, 1); /* SOUND / FILTER: K1 = cutoff (G6) */
     if (u.readout != 1u) return fail("K1 on SOUND gave no readout");
     render(&u);
-    if (!body_has("SOUND") || !body_has("FILTER")) return fail("the screen does not say where"); /* the header */
+    if (!body_has("SOUND") || !body_has("FILTER"))
+        return fail("the screen does not say where"); /* the header */
     {
         unsigned i, big = 0u;
         for (i = 0u; i < seen_n; ++i)

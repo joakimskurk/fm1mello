@@ -66,7 +66,8 @@ static void count(Count *c)
     }
     CHECK(pulses == 16u, "the bar is %u pulses, not 16", pulses);
     CHECK(s[0].gate != MELLO_GATE_REST && !s[0].skip, "the first step does not play");
-    CHECK(last >= 0 && s[last].pitch % 7 == 0, "the phrase ends on degree %d, not the root", s[last].pitch % 7);
+    CHECK(last >= 0 && s[last].pitch % 7 == 0, "the phrase ends on degree %d, not the root",
+          s[last].pitch % 7);
     c->rolls_in += rolls, c->ties += ties, c->ghosts += ghosts;
     c->with_roll += rolls > 0u, c->with_tie += ties > 0u, c->with_ghost += ghosts > 0u;
 }
@@ -85,10 +86,11 @@ int main(void)
         count(&m);
     }
     share = g.ratchets * 100u / g.notes;
-    printf("random_groove: GROOVE %u notes, ratchets %u%%, rolls in %u/300, ties %u/300, ghosts %u/300, offbeat "
-           "answered %u/%u; MUSICAL ratchets %u%%, ties %u\n",
-           g.notes, share, g.with_roll, g.with_tie, g.with_ghost, g.answered, g.offbeat,
-           m.ratchets * 100u / m.notes, m.ties);
+    printf(
+        "random_groove: GROOVE %u notes, ratchets %u%%, rolls in %u/300, ties %u/300, ghosts %u/300, offbeat "
+        "answered %u/%u; MUSICAL ratchets %u%%, ties %u\n",
+        g.notes, share, g.with_roll, g.with_tie, g.with_ghost, g.answered, g.offbeat,
+        m.ratchets * 100u / m.notes, m.ties);
     CHECK(share >= 15u && share <= 25u, "GROOVE ratchets %u%% of its notes, not 15-25", share);
     CHECK(g.with_roll >= 180u, "a roll into a cell's end in %u rolls of 300", g.with_roll);
     CHECK(g.with_tie >= 180u, "a tie in %u rolls of 300", g.with_tie);
@@ -97,7 +99,8 @@ int main(void)
     CHECK(g.answered * 2u > g.offbeat, "%u of %u offbeat ratchets answered by a rest", g.answered, g.offbeat);
     CHECK(m.ties == 0u && m.with_ghost == 0u, "MUSICAL changed: %u ties, %u rolls with chance notes", m.ties,
           m.with_ghost);
-    CHECK(g.ratchets * 100u / g.notes > m.ratchets * 100u / m.notes + 5u, "GROOVE is not busier than MUSICAL");
+    CHECK(g.ratchets * 100u / g.notes > m.ratchets * 100u / m.notes + 5u,
+          "GROOVE is not busier than MUSICAL");
     if (fails) return 1;
     puts("PASS: random_groove");
     return 0;
