@@ -1077,6 +1077,10 @@ static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
     uint8_t st, v, r;
     uint32_t at = e->drum_pos;
     if (!d->on) return;
+    if (!e->perf.fill)
+        e->fill_steps = 0u;
+    else if (e->fill_steps < 255u)
+        e->fill_steps++;
     e->drum_step = (int8_t)(at % (d->length ? d->length : 1u));
     e->drum_pos = (at + 1u) % (e->drum_wrap ? e->drum_wrap : 1u);
     for (v = 0u; v < MELLO_DRUM_VOICES; ++v) {
@@ -1085,12 +1089,14 @@ static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
         e->drum_vstep[v] = (int8_t)st;
         l = &d->lock[v][st];
         uint8_t n = l->ratchet < 1u ? 1u : l->ratchet > 4u ? 4u : l->ratchet;
-        bool roll =
-            e->perf.fill && (v == MELLO_DRUM_SNARE || v == MELLO_DRUM_GLITCH); /* FILL: a roll on each step */
+        /* FILL: a roll that builds while held (DECISIONS "FILL builds"): a hit a step the first bar, two from the
+         * second; a semitone up a step to an octave; soft to loud over the bar */
+        bool roll = e->perf.fill && (v == MELLO_DRUM_SNARE || v == MELLO_DRUM_GLITCH);
+        uint8_t up = roll ? (uint8_t)(e->fill_steps > 13u ? 12u : e->fill_steps - 1u) : 0u;
         if (!(d->hits[v] & (1ul << st)) && !roll) continue;
         if (!roll && d->voice[v].chance < 1000u && !chance_permille(&e->drum_rng, d->voice[v].chance))
             continue;
-        if (roll && n < 2u) n = 2u;
+        if (roll && e->fill_steps > 16u && n < 2u) n = 2u;
         for (r = 0u; r < n; ++r) {
             MelloEvent ev;
             memset(&ev, 0, sizeof(ev));
@@ -1099,11 +1105,12 @@ static void drums_tick(MelloEngine *e, uint32_t pulse_ticks)
             ev.step_index = st;
             ev.sample_slot = v;
             /* A roll rises (2 semitones a hit, the kick's excepted) and tightens, as drill'n'bass rolls do */
-            ev.note = (uint8_t)(64 + l->pitch + (v != MELLO_DRUM_KICK ? 2 * (int32_t)r : 0));
-            ev.velocity = ((d->accents[v] & (1ul << st)) || (e->perf.accent && !r))
-                              ? 127u /* ACCENT: every hit */
-                          : r ? 72u
-                              : 96u; /* a roll's later hits softer */
+            ev.note = (uint8_t)(64 + l->pitch + up + (v != MELLO_DRUM_KICK ? 2 * (int32_t)r : 0));
+            ev.velocity =
+                ((d->accents[v] & (1ul << st)) || (e->perf.accent && !r)) ? 127u /* ACCENT: every hit */
+                : roll ? (uint8_t)(64u + 3u * (e->fill_steps > 16u ? 16u : e->fill_steps) - (r ? 8u : 0u))
+                : r    ? 72u
+                       : 96u; /* a roll's later hits softer */
             ev.drum_decay = (int8_t)(l->decay - 15 * (int32_t)r < -100 ? -100 : l->decay - 15 * (int32_t)r);
             ev.drum_crush = l->crush;
             (void)queue_push(e, &ev);

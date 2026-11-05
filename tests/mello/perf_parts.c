@@ -2,8 +2,8 @@
 /* Copyright (C) 2026 joakimskurk */
 /* The performance keys act on every part (ROADMAP E2 / F3, DECISIONS "Performance on every part"). Held REPEAT
  * loops the drums', BASS SEQ's and the chords' last pulses with the lead's; REVERSE plays the drums backwards; let
- * go, every part is where it would have been. FILL: a snare roll on every step, every step of the bass line, the
- * chords struck on every step. */
+ * go, every part is where it would have been. FILL: a snare roll on every step that builds while held, every step
+ * of the bass line, the chords struck on every step. */
 #include <stdio.h>
 #include <string.h>
 
@@ -41,6 +41,9 @@ static void start(MelloEngine *e)
     d.hits[MELLO_DRUM_SNARE] = 0u;
     d.hits[MELLO_DRUM_HAT] = d.hits[MELLO_DRUM_GLITCH] = 0u;
     for (i = 0u; i < MELLO_DRUM_VOICES; ++i) d.voice[i].chance = 1000u;
+    memset(d.accents, 0,
+           sizeof d.accents); /* (no accents, no locks: FILL's roll alone says the level and pitch) */
+    memset(d.lock, 0, sizeof d.lock);
     mello_engine_drums_set_config(e, &d);
     s = e->sub;
     s.on = true;
@@ -59,17 +62,18 @@ static void start(MelloEngine *e)
 }
 
 typedef struct {
-    int kick_step, bass_step, chord_note, snares, bass_notes;
+    int kick_step, bass_step, chord_note, snares, bass_notes, snare_note, snare_vel;
 } Pulse;
 
 static Pulse pulse(MelloEngine *e)
 {
-    Pulse r = {-1, -1, -1, 0, 0};
+    Pulse r = {-1, -1, -1, 0, 0, -1, -1};
     MelloEvent ev;
     (void)mello_engine_advance_pulse(e);
     while (mello_event_pop(e, &ev)) {
         if (ev.type == MELLO_EVENT_DRUM_HIT && ev.sample_slot == MELLO_DRUM_KICK) r.kick_step = ev.step_index;
-        if (ev.type == MELLO_EVENT_DRUM_HIT && ev.sample_slot == MELLO_DRUM_SNARE) r.snares++;
+        if (ev.type == MELLO_EVENT_DRUM_HIT && ev.sample_slot == MELLO_DRUM_SNARE && !r.snares++)
+            r.snare_note = ev.note, r.snare_vel = ev.velocity; /* (the step's first) */
         if (ev.type == MELLO_EVENT_SUB_NOTE_ON) r.bass_step = ev.ratchet_index - 1, r.bass_notes++;
         if (ev.type == MELLO_EVENT_CHORD_NOTE_ON) r.chord_note = ev.note;
     }
@@ -125,14 +129,29 @@ int main(void)
               want);
     }
 
-    /* FILL: a snare roll on every step, every step of the bass line */
-    start(&a);
-    for (i = 0u; i < 4u; ++i) (void)pulse(&a);
-    set_perf(&a, true, false, false, 4u);
-    for (i = 0u; i < 8u; ++i) ra[i] = pulse(&a);
-    for (i = 0u; i < 8u; ++i) {
-        CHECK(ra[i].snares >= 2, "FILL, pulse %u: %d snare hits, not a roll", i, ra[i].snares);
-        CHECK(ra[i].bass_notes == 1, "FILL, pulse %u: %d bass notes", i, ra[i].bass_notes);
+    /* FILL: a snare roll on every step that builds (DECISIONS "FILL builds"): a hit a step the first bar, a
+     * semitone up and louder each step to an octave, two hits a step from the second bar; every step of the bass */
+    {
+        static Pulse rf[24];
+        start(&a);
+        for (i = 0u; i < 4u; ++i) (void)pulse(&a);
+        set_perf(&a, true, false, false, 4u);
+        for (i = 0u; i < 24u; ++i) rf[i] = pulse(&a);
+        for (i = 0u; i < 24u; ++i) {
+            int want_n = i < 16u ? 1 : 2, want_up = i < 12u ? (int)i : 12;
+            CHECK(rf[i].snares == want_n, "FILL, pulse %u: %d snare hits, not %d", i, rf[i].snares, want_n);
+            CHECK(rf[i].snare_note - rf[0].snare_note == want_up, "FILL, pulse %u: %d semitones up, not %d",
+                  i, rf[i].snare_note - rf[0].snare_note, want_up);
+            CHECK(i == 0u || i >= 16u || rf[i].snare_vel > rf[i - 1u].snare_vel, "FILL, pulse %u: not louder",
+                  i);
+            CHECK(rf[i].bass_notes == 1, "FILL, pulse %u: %d bass notes", i, rf[i].bass_notes);
+        }
+        set_perf(&a, false, false, false, 4u); /* let go and again: it starts from the bottom */
+        (void)pulse(&a);
+        set_perf(&a, true, false, false, 4u);
+        rb = pulse(&a);
+        CHECK(rb.snares == 1 && rb.snare_note == rf[0].snare_note, "FILL again: not from the start (%d, %d)",
+              rb.snares, rb.snare_note);
     }
 
     if (fails) return 1;

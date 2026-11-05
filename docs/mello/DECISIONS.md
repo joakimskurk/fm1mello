@@ -1175,7 +1175,7 @@ on HOME alone.
 - **Every part**: the history keeps, with each of the sequence's pulses, the drums' and BASS SEQ's step and the chord
   chain's chord, arpeggio and pattern places; REVERSE and REPEAT replay them all, each part's own place moving on
   underneath, so letting go lands every part in time. FILL: a snare and glitch roll on every drum step (two hits at
-  least, chance aside), every step of the bass line, the chords struck on every step (HOLD's again). A CHAIN TRIG
+  least, chance aside; since 2026-11-05 it builds, "FILL builds" below), every step of the bass line, the chords struck on every step (HOLD's again). A CHAIN TRIG
   chain moves by the triggers REVERSE / REPEAT replay.
 - Holding an action no longer clears MIX's mutes (perf_poll built the state from nothing and set it whole).
 
@@ -1903,6 +1903,16 @@ too long when it starts again. Its default slow-down can be slower too, so it ta
   ~1.2 s fits, no jump: perform_black).
 - TAPE's and PLUCK's times are one function each in the engine (mello_perf_tape_ms, mello_perf_pluck_ms), read by
   the sound and the strip alike: the strip still said PLUCK's old 400 .. 30 ms line after f88's curve.
+
+## FILL builds (2026-11-05)
+
+The product owner, of the performance demo: the snare "hits incredibly fast; by default it can go a notch slower, and
+during such effects things must change a little on the way, the snare higher and higher in pitch or so". FILL's
+roll was two hits a step (1/32 at the tempo) from the first step, each step starting at the same pitch. Now it
+builds while held: a hit a step (1/16) the first bar, two from the 17th step on; a semitone up a step (the roll's
+own rise within a step on top), an octave at most from the 13th; soft to loud over the bar (velocity 67 .. 112,
+accents still 127). Let go and pressed again, it starts from the bottom (perf_parts). The snare and the glitch alike;
+the bass line and the chords as before.
 
 ## Engineering process decisions
 

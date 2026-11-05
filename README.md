@@ -119,7 +119,8 @@ PERFORM's white keys are performance only, in a 4 x 4 on the screen, a row each 
 sequence (FILL, ARP, REVERSE, ACCENT), its repeats (REP 8, REP 4, REP 2, REP 1), the sound (LP SWP, HP SWP, THROW,
 WASH) and the parts' mutes (LD OFF, BS OFF, CH OFF, DR OFF). All act while held but the mutes, and keep time: every
 part's place (the sequence, the drums, the bass line, the chord chain) moves on underneath, so letting go lands
-where it would have been. FILL rolls the snare, plays every step of the bass line and strikes the chords on every
+where it would have been. FILL rolls the snare (a roll that builds: rising a semitone a step and louder, twice as
+fast from the second bar held), plays every step of the bass line and strikes the chords on every
 step; ARP plays the lead's note as an arpeggio, root, third, fifth, octave; REVERSE and REPEAT replay the drums, the
 bass line and the chords' figures with the lead; ACCENT accents every note and hit. LP SWP and HP SWP sweep a filter
 over the whole mix (closed in 1.5 s, open again a quarter of a second after); THROW sends everything into the delay

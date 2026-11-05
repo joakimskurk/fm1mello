@@ -1009,6 +1009,7 @@ typedef struct {
     /* HOME's performance keys (mello_engine_set_perf): runtime only, never saved or undone. The sequence keeps
      * its own place all along; REVERSE and REPEAT play from perf_buf instead, so letting go lands in time. */
     MelloPerf perf;
+    uint8_t fill_steps; /* drum steps FILL has been held for (its roll builds: mello_engine.c drums_tick) */
     MelloPulseEntry perf_hist[MELLO_PERF_HISTORY]; /* the last pulses of the sequence, oldest overwritten */
     MelloPerfParts perf_parts_hist[MELLO_PERF_HISTORY],
         perf_parts_buf[MELLO_PERF_HISTORY]; /* the other parts' */
