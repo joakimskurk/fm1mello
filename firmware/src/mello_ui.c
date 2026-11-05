@@ -4103,7 +4103,8 @@ static void perf_poll(MelloUi *ui, uint32_t now_ms)
     p.repeat = (wh & 0xF0u) != 0u;
     p.fx = (uint8_t)((wh >> 8) & 0xFu); /* LP SWP, HP SWP, THROW, WASH */
     p.fx2 = ui->perform ? (uint8_t)(held & 0xFFu) : 0u; /* the black keys B0-B7: STUT .. WARP */
-    memcpy(p.fx2_amt, ui->perf_amt, sizeof p.fx2_amt);
+    if (p.fx2) memcpy(p.fx2_amt, ui->perf_amt, sizeof p.fx2_amt); /* (only while one is held: the engine as it was
+                                                                    * otherwise, nothing changing on its own) */
     if (p.fx2 != e->perf.fx2) ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_FOOTER;
     p.sub_mute = false;
     for (b = 0u; b < 4u; ++b)
