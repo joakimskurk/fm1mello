@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f92.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f94.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -54,7 +54,7 @@ Ten screens, drawn by the firmware itself (`make screens`): what you see, and wh
 
 | | |
 |---|---|
-| <img src="docs/screens/splash.png" width="240" alt="The splash"> | **Switch on.** The splash shows the version while the project loads from flash. Then HOME. |
+| <img src="docs/screens/splash.png" width="240" alt="The splash"> | **Switch on.** The splash shows the version while the project loads from flash, its sixteen steps playing once over. Then HOME. |
 | <img src="docs/screens/home.png" width="240" alt="HOME"> | **HOME.** Sixteen steps as bars: the height is the pitch, the note is written on the bar, the segments A-D sit over them in their colours. Under them the four macros on K1-K4, and at the bottom, over the keys, what the black keys do here. The header reads the key sounding and the length. |
 | <img src="docs/screens/home-playing.png" width="240" alt="HOME, playing"> | **PLAY.** The playing step is bright, the LED blinks on the beat and the header counts the beats to the RESET (`21/32`: the 21st sixteenth of the two bars; with RESET on FREE, the step of the sequence). SELECT is the tempo (shown as you turn it), PRESETS the pattern slot. |
 | <img src="docs/screens/home-rolled.png" width="240" alt="HOME after a roll"> | **RNDMZR**, the black key before PERF. A tap rolls the lead by the randomizer's intensity (ALGORITHM: LOW, MED and HIGH raw, for happy accidents); with MUSICAL or GROOVE it rolls the whole band in a style (STYLE on the RANDOM page; ANY, a new one each time). Playing, the roll lands on the next bar's one (RNDMZR lit until then); UNDO, the key before it, takes the roll back (and again puts it forward). **Hold CLR** a second for INIT, a clean slate: the sequence empty, the bass, chords and drums off, the sound and the effects as new (the tempo, the key and the slots kept; UNDO takes it back). |

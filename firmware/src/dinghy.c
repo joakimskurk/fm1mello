@@ -256,8 +256,18 @@ static void app_main(void)
     audio_ready = true;
     last_running = mt.running;
 
-    while ((uint32_t)(fm1_micros() - splash_us) < 1500000u)
-        platform_poll(); /* the splash for 1.5 s at least (on the host too: tools/screens.py pictures it) */
+    { /* the splash for 1.5 s at least (on the host too: tools/screens.py pictures it), its skyline playing: a frame
+       * every 30 ms, the bars that moved */
+        uint32_t play_us = fm1_micros(), shown_ms = 0u, now_ms;
+        while ((uint32_t)(fm1_micros() - splash_us) < 1500000u) {
+            platform_poll();
+            now_ms = (uint32_t)(fm1_micros() - play_us) / 1000u;
+            if (now_ms - shown_ms >= 30u) {
+                mello_ui_splash_frame(&draw, shown_ms, now_ms);
+                shown_ms = now_ms;
+            }
+        }
+    }
     mello_ui_render(&ui, &draw);
     mello_ui_sync_leds(&ui, &draw);
 

@@ -310,6 +310,8 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
 void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops);
 /* The splash, while the FM-1 starts (storage, samples): the wordmark over a sixteen-step motif, the version under it. */
 void mello_ui_draw_splash(const MelloUiDrawOps *ops, const char *version);
+/* Its skyline playing, from_ms to to_ms after the still splash: the bars that moved between the two are redrawn. */
+void mello_ui_splash_frame(const MelloUiDrawOps *ops, uint32_t from_ms, uint32_t to_ms);
 void mello_ui_sync_leds(MelloUi *ui, const MelloUiDrawOps *ops);
 uint16_t mello_ui_dirty(const MelloUi *ui);
 const char *mello_ui_page_name(MelloUiPage page);

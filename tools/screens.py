@@ -101,7 +101,7 @@ def slugify(s):
 
 def the_tour():
     t = Tour()
-    t.shot_at(900, "splash", None, None, "The splash: the version, while the project loads")
+    t.shot_at(900, "splash", None, None, "The splash: the version, its steps playing, while the project loads")
     t.shot("home", "HOME", "—", "HOME, stopped: the sequence, the macros, the keys' strip")
     t.hold(EDIT, 700)  # EDIT held: MACROS, the knobs pick what they turn
     t.shot("home-macros", "HOME", "MACROS", "EDIT held on HOME: MACROS, each knob picks its parameter")

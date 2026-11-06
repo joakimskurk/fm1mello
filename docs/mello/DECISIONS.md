@@ -352,6 +352,16 @@ draws them, a phrase rising and falling in the four segments' colours, a line, S
 and "FM-1" with the version under it. dinghy.c draws it first, before storage and the samples load, and keeps it up
 for 1.5 s at least (not in host mode). tests/mello/ui_splash.c checks that it fits.
 
+Its skyline plays (2026-11-06, asked for: "litt bevegelse i splash, kanskje i skyline"). While dinghy.c waits out
+the 1.5 s, a playhead walks the sixteen steps, one every 90 ms (once over in 1.44 s). The step it hits jumps 12 px
+with HOME's bright top line and a brighter body, and falls back over 320 ms (level^2: fast, then soft). A bar's look
+is a function of the time alone. mello_ui_splash_frame redraws only the bars whose look changed since the last frame,
+each column from the sky's top down, so nothing flickers and nothing is kept between frames. A frame goes out every
+30 ms, three or four bars of 9 x 80 px, well under the panel's 12 MHz. On the device the storage and the samples load
+first, behind the still splash, and the playing starts after them: a long load cuts the pass short, it does not
+lengthen the boot. ui_splash.c checks that the frames draw inside the sky, that a hit jumps, and that frames 33 ms
+apart end where one frame straight there does.
+
 ## The chord chain (2026-10-31)
 
 ROADMAP: "HOLD in steps rather than triggers; chords that follow the segments; the sub on the chord's root".

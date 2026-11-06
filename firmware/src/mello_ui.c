@@ -8037,35 +8037,78 @@ void mello_ui_render(MelloUi *ui, const MelloUiDrawOps *ops)
 
 /* The splash (ROADMAP: "a splash screen with the SKURKYMELLO wordmark; it left the header"): sixteen steps as HOME
  * draws them, a phrase rising and falling in the four segments' colours, the wordmark in the HTML's green under it,
- * and the version. */
+ * and the version. Its skyline plays (2026-11-06, asked for: "litt bevegelse i splash, kanskje i skyline"): a step
+ * every SPLASH_STEP_MS from the first frame on, the step hit jumping SPLASH_JUMP px with HOME's bright top line and
+ * falling back over SPLASH_LEVELS * SPLASH_LEVEL_MS. A bar's look is a function of the time alone, so a frame
+ * redraws only the bars that moved since the last one, each from the sky's top down (no flicker, nothing kept). */
+#define SPLASH_STEP_MS  90u
+#define SPLASH_LEVELS   8u /* 8 = just hit, 0 = at rest */
+#define SPLASH_LEVEL_MS 40u
+#define SPLASH_JUMP     12  /* px at level 8; level^2 * 12 / 64, so it falls fast and lands soft */
+#define SPLASH_BASE     116 /* the bars' foot; the line under them is at 120 */
+#define SPLASH_SKY      (SPLASH_BASE - 66 - SPLASH_JUMP) /* the tallest bar's top, jumping */
+static const uint8_t SPLASH_H[16] = {18, 26, 34, 26, 42, 34, 50, 58, 46, 38, 54, 66, 50, 34, 26, 18};
+
+static void splash_ops(MelloUiFitCtx *fit_ctx, MelloUiDrawOps *o, const MelloUiDrawOps *ops)
+{
+    fit_ctx->raw = ops;
+    fit_ctx->fn = 0u;
+    fit_ctx->fhead = 0u;
+    fit_ctx->zones = 0u; /* the splash: the screen's own rows */
+    memset(o, 0, sizeof *o);
+    o->fill = fit_fill;
+    o->text = fit_text;
+    o->ctx = fit_ctx;
+}
+
+/* Step i's level t ms into the playing: the playhead enters it at (i + 1) steps (t = 0 is the still splash) and
+ * comes round again every sixteen. */
+static uint8_t splash_level(uint8_t i, uint32_t t_ms)
+{
+    uint32_t hit = ((uint32_t)i + 1u) * SPLASH_STEP_MS, age;
+    if (t_ms < hit) return 0u;
+    age = ((t_ms - hit) % (16u * SPLASH_STEP_MS)) / SPLASH_LEVEL_MS;
+    return age >= SPLASH_LEVELS ? 0u : (uint8_t)(SPLASH_LEVELS - age);
+}
+
+/* One bar at a level, from the sky's top to its foot: black over it, the cap, the body. */
+static void splash_bar(const MelloUiDrawOps *o, uint8_t i, uint8_t level)
+{
+    uint16_t c = ui_segment_colour((uint8_t)(i / 4u));
+    int16_t x = (int16_t)(25 + i * 12), h = (int16_t)(SPLASH_H[i] + (level * level * SPLASH_JUMP) / 64),
+            y = (int16_t)(SPLASH_BASE - h);
+    if (y > SPLASH_SKY) o->fill(o->ctx, x, SPLASH_SKY, 9, (int16_t)(y - SPLASH_SKY), UI_BLACK);
+    o->fill(o->ctx, x, y, 9, 2,
+            level ? ui_mix(c, UI_BRIGHT, (uint16_t)(level * 32u - 16u)) : c); /* HOME's cap */
+    ui_vgrad(o, x, (int16_t)(y + 2), 9, (int16_t)(h - 2), ui_mix(c, UI_BLACK, (uint16_t)(90u - level * 11u)),
+             ui_mix(c, UI_BLACK, (uint16_t)(200u - level * 10u)));
+}
+
 void mello_ui_draw_splash(const MelloUiDrawOps *ops, const char *version)
 {
-    static const uint8_t h[16] = {18, 26, 34, 26, 42, 34, 50, 58, 46, 38, 54, 66, 50, 34, 26, 18};
     MelloUiFitCtx fit_ctx;
     MelloUiDrawOps o;
     char b[32];
     uint8_t i;
     if (!ops || !ops->fill || !ops->text) return;
-    fit_ctx.raw = ops;
-    fit_ctx.fn = 0u;
-    fit_ctx.fhead = 0u;
-    fit_ctx.zones = 0u; /* the splash: the screen's own rows */
-    memset(&o, 0, sizeof o);
-    o.fill = fit_fill;
-    o.text = fit_text;
-    o.ctx = &fit_ctx;
+    splash_ops(&fit_ctx, &o, ops);
     o.fill(o.ctx, 0, 0, 240, 240, UI_BLACK);
-    for (i = 0u; i < 16u; ++i) {
-        int16_t x = (int16_t)(25 + i * 12), y = (int16_t)(116 - h[i]);
-        uint16_t c = ui_segment_colour((uint8_t)(i / 4u));
-        o.fill(o.ctx, x, y, 9, 2, c); /* the cap, as HOME's */
-        ui_vgrad(&o, x, (int16_t)(y + 2), 9, (int16_t)(h[i] - 2), ui_mix(c, UI_BLACK, 90),
-                 ui_mix(c, UI_BLACK, 200));
-    }
+    for (i = 0u; i < 16u; ++i) splash_bar(&o, i, 0u);
     o.fill(o.ctx, 24, 120, 192, 1, UI_LINE);
     o.text(o.ctx, 0, 132, 240, 1, "SKURKYMELLO", UI_ACC, 1);
     (void)copy_s(copy_s(b, "FM-1  "), version ? version : "");
     o.text(o.ctx, 0, 176, 240, 0, b, UI_DIM, 1);
+}
+
+void mello_ui_splash_frame(const MelloUiDrawOps *ops, uint32_t from_ms, uint32_t to_ms)
+{
+    MelloUiFitCtx fit_ctx;
+    MelloUiDrawOps o;
+    uint8_t i, level;
+    if (!ops || !ops->fill || !ops->text) return;
+    splash_ops(&fit_ctx, &o, ops);
+    for (i = 0u; i < 16u; ++i)
+        if ((level = splash_level(i, to_ms)) != splash_level(i, from_ms)) splash_bar(&o, i, level);
 }
 
 /* G5 (CONTROL_GRAMMAR, ROADMAP E8 / F13): one rule for the keys' lights on every page: lit = now, active or held (the
