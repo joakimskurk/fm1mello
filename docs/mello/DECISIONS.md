@@ -1938,6 +1938,34 @@ its rests). Against the lead, active:
 - Through the output stage the styles come out 0.5 dB louder (-10.1 LUFS on average; K-weighting counts the bass
   little), the limiter -0.30 dB time-averaged (-0.23 before), the peak still -0.9 dBFS.
 
+## Punch and air (2026-11-06)
+
+The product owner: SkurkyMello sounds "less punchy and crisp than other firmwares ... a little tame, and thin at the
+top and the bottom". Measured the 15 styles x 2 rolls through the output stage, against a typical spectral balance of
+mastered electronic music (a rough curve: each band's share of the whole, in dB):
+
+| | 20-60 Hz | 60-250 Hz | 250 Hz-1 kHz | 1-4 kHz | 4-20 kHz |
+|---|---|---|---|---|---|
+| the reference | -6.9 | -2.7 | -7.6 | -11.6 | -17.9 |
+| before | -7.8 | -4.5 | -6.3 | -14.4 | -23.0 |
+| now | -7.3 | -4.5 | -7.6 | -11.5 | -18.7 |
+
+- The cause was the lead, the loudest part: the styles filtered it at CUT 350-560 (24 dB/oct at 0.55-1.5 kHz; the
+  default is 700, 3.3 kHz), its resonance sitting on the fundamental, everything over 2 kHz 50-70 dB down: a sine
+  in the mids, and it never moved. Each style's lead CUT is 150 higher (100 for AMBIENT and DRONE), and a style sets
+  the MOD envelope on the cutoff, the note's snap (StyleDef's menv, menv_ms: 250-500 over 150-400 ms; none on
+  AMBIENT and DRONE, which are pads). It is MOD ENV as on the page: turned, saved, undone.
+- Opened, the lead lost the resonance's lift on its fundamental: 1-4 dB quieter by style (LUFS). The bass's and the
+  chords' style LEVELs came down as much, so "The band's balance" holds to 0.1 dB (DEEP 1630 / 670 now). The drums
+  were left: 1-4 dB more against the lead than before, which is the punch asked for.
+- The HAT at 60% (it was 38%): the default kit, and a style's roll sets it (a project saved at 38% gets it there).
+- Measured and left: the kick (its tune, a longer or deeper pitch fall, its level) only moved energy across 60 Hz;
+  the band 60-250 Hz stays 1.8 dB under the curve, inside what the curve can say. The output stage: a gentler
+  compressor (30 ms attack, a higher threshold, 2:1) came out louder but with less crest and less punch (the
+  limiter worked harder); its 10 ms attack lets the hits through and takes the body down. As it was.
+- Through the stage: punch (a hit's 5 ms peak over the 100 ms after it) 9.2 -> 10.1 dB, crest 10.7 -> 11.2 dB,
+  -10.2 -> -10.5 LUFS. CPU as before: the default project has no MOD ENV, the stress case had it already.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

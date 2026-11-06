@@ -708,7 +708,7 @@ void mello_drum_defaults(MelloDrumConfig *c)
     static const MelloDrumVoice v[MELLO_DRUM_VOICES] = {
         {400u, 180u, 250u, 900u, 1000u, 0u}, /* KICK ~59 Hz, 340 ms, driven: weight (2026-11-01) */
         {500u, 250u, 350u, 750u, 1000u, 0u}, /* SNARE ~2 kHz, between crack and zap */
-        {500u, 60u, 200u, 380u, 1000u, 0u},  /* HAT ~7 kHz, closed, a little tick */
+        {500u, 60u, 200u, 600u, 1000u, 0u},  /* HAT ~7 kHz, closed, a little tick; 60% (was 38) */
         {500u, 300u, 875u, 600u, 1000u, 0u}  /* GLITCH: STUTTER, ~26 ms loops */
     };
     /* Bit k is step k + 1:  KICK x..x...x..x..x..  SNARE ....x....x..x...  HAT x.xxx.x.x.xxx.xx  GLITCH .....x.....x..x. */
@@ -3820,7 +3820,7 @@ static void randomize_musical(MelloEngine *e, bool groove)
  * how many of the lead's notes it keeps (permille); the beat (KICK, SNARE, HAT, GLITCH: hits and accents) and its
  * swing; the kit (kick, snare, hat: tune, decay, tone; the glitch's kind; DRIVE; CRUSH); the bass's wave, CUT, DRIVE,
  * GLIDE; the lead's envelope, the reverb and the delay (wet, size, decay; wet, feedback, division, PING); the lead's
- * colour (two waves, CUT, RES, DETUNE); TRIM; the bass's and the chords' LEVEL. From AMBIENT, in MelloStyle's order. */
+ * colour (two waves, CUT, RES, DETUNE, the MOD envelope's snap); TRIM; the bass's and the chords' LEVEL. From AMBIENT, in MelloStyle's order. */
 typedef struct {
     const char *name;
     uint16_t keep;
@@ -3838,6 +3838,8 @@ typedef struct {
     struct {
         MelloWaveform a, b;
         uint16_t cut, res, detune;
+        int16_t menv;     /* the MOD envelope on the cutoff: the note's snap (none on the drones) */
+        uint16_t menv_ms; /* its decay */
     } lead;
     int8_t trim;
     uint16_t bass_level,
@@ -3852,10 +3854,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {400u, 400u, 200u, 500u, 300u, 300u, 800u, 150u, 300u, 300u, 0u, 0u},
      {MELLO_WAVE_SINE, 500u, 0u, 0u},
      {120u, 900u, 1600u, 600u, 900u, 9000u, 300u, 550u, 7u, true},
-     {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SINE, 450u, 150u, 200u},
+     {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SINE, 550u, 150u, 200u, 0, 300u},
      -2,
-     750u,
-     600u},
+     560u,
+     440u},
     {"DUB",
      400u,
      {0x1111u, 0x1111u, 0x1000u, 0x1000u, 0x4444u, 0x4444u, 0x0000u, 0x0000u},
@@ -3863,10 +3865,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {300u, 500u, 200u, 600u, 150u, 600u, 600u, 200u, 400u, 100u, 100u, 0u},
      {MELLO_WAVE_SINE, 400u, 100u, 0u},
      {5u, 220u, 300u, 300u, 700u, 4000u, 450u, 650u, 6u, true},
-     {MELLO_WAVE_SQUARE, MELLO_WAVE_SAW, 400u, 250u, 100u},
+     {MELLO_WAVE_SQUARE, MELLO_WAVE_SAW, 550u, 250u, 100u, 300, 400u},
      0,
-     1880u,
-     570u},
+     1390u,
+     420u},
     {"TRIPHOP",
      1000u,
      {0x0501u, 0x0001u, 0x1010u, 0x1010u, 0x5555u, 0x1111u, 0x0000u, 0x0000u},
@@ -3874,10 +3876,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {350u, 450u, 400u, 350u, 450u, 300u, 500u, 250u, 400u, 600u, 200u, 300u},
      {MELLO_WAVE_TRIANGLE, 400u, 150u, 30u},
      {10u, 400u, 600u, 350u, 700u, 3500u, 200u, 400u, 0u, false},
-     {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SQUARE, 420u, 200u, 150u},
+     {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SQUARE, 570u, 200u, 150u, 250, 350u},
      -1,
-     2000u,
-     570u},
+     1430u,
+     410u},
     {"TECHNO",
      1000u,
      {0x1111u, 0x1111u, 0x1010u, 0x1010u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
@@ -3885,10 +3887,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {350u, 600u, 600u, 500u, 300u, 700u, 650u, 120u, 700u, 800u, 350u, 0u},
      {MELLO_WAVE_SAW, 300u, 300u, 0u},
      {3u, 120u, 120u, 180u, 500u, 2000u, 150u, 300u, 10u, false},
-     {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 500u, 350u, 100u},
+     {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 650u, 350u, 100u, 400, 250u},
      0,
-     1230u,
-     300u},
+     1120u,
+     270u},
     {"ACID",
      350u,
      {0x1111u, 0x1111u, 0x1010u, 0x0000u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
@@ -3896,10 +3898,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {400u, 450u, 500u, 550u, 250u, 600u, 700u, 100u, 800u, 300u, 250u, 0u},
      {MELLO_WAVE_SAW, 220u, 250u, 60u},
      {3u, 140u, 100u, 150u, 450u, 1800u, 180u, 350u, 10u, true},
-     {MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, 550u, 250u, 50u},
+     {MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, 700u, 250u, 50u, 500, 200u},
      1,
-     2000u,
-     130u},
+     1400u,
+     90u},
     {"ELECTRO",
      1000u,
      {0x0481u, 0x0081u, 0x1010u, 0x1010u, 0xFFFFu, 0x4444u, 0x0000u, 0x0000u},
@@ -3907,10 +3909,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {250u, 800u, 300u, 700u, 200u, 500u, 900u, 60u, 900u, 100u, 150u, 0u},
      {MELLO_WAVE_SQUARE, 350u, 200u, 20u},
      {3u, 100u, 80u, 150u, 400u, 1500u, 180u, 250u, 1u, false},
-     {MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, 520u, 300u, 0u},
+     {MELLO_WAVE_SQUARE, MELLO_WAVE_PULSE, 670u, 300u, 0u, 450, 200u},
      -1,
-     1720u,
-     130u},
+     1530u,
+     120u},
     {"BREAKS",
      1000u,
      {0x0401u, 0x0401u, 0x1290u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u},
@@ -3918,10 +3920,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {450u, 350u, 400u, 600u, 400u, 400u, 600u, 180u, 500u, 600u, 300u, 100u},
      {MELLO_WAVE_TRIANGLE, 380u, 200u, 0u},
      {5u, 250u, 300u, 250u, 600u, 2500u, 200u, 350u, 0u, false},
-     {MELLO_WAVE_SAW, MELLO_WAVE_TRIANGLE, 480u, 250u, 150u},
+     {MELLO_WAVE_SAW, MELLO_WAVE_TRIANGLE, 630u, 250u, 150u, 350, 250u},
      1,
-     1700u,
-     520u},
+     1020u,
+     310u},
     {"IDM",
      1000u,
      {0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u, 0x0000u},
@@ -3929,10 +3931,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 500u, 300u, 300u},
      {MELLO_WAVE_SAW, 450u, 200u, 40u},
      {3u, 180u, 250u, 300u, 650u, 3000u, 250u, 400u, 4u, true},
-     {MELLO_WAVE_SINE, MELLO_WAVE_PULSE, 500u, 300u, 200u},
+     {MELLO_WAVE_SINE, MELLO_WAVE_PULSE, 650u, 300u, 200u, 400, 200u},
      -2,
-     2000u,
-     370u},
+     1420u,
+     260u},
     {"HOUSE",
      1000u,
      {0x1111u, 0x1111u, 0x1010u, 0x1010u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
@@ -3940,10 +3942,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {400u, 450u, 400u, 500u, 280u, 650u, 650u, 200u, 600u, 300u, 150u, 0u},
      {MELLO_WAVE_TRIANGLE, 380u, 150u, 0u},
      {3u, 180u, 200u, 220u, 600u, 2500u, 150u, 300u, 6u, false},
-     {MELLO_WAVE_SQUARE, MELLO_WAVE_SAW, 520u, 200u, 150u},
+     {MELLO_WAVE_SQUARE, MELLO_WAVE_SAW, 670u, 200u, 150u, 350, 300u},
      1,
-     1250u,
-     310u},
+     1170u,
+     290u},
     {"DEEP",
      700u,
      {0x1111u, 0x1111u, 0x1010u, 0x0000u, 0xEEEEu, 0x4444u, 0x0000u, 0x0000u},
@@ -3951,10 +3953,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {380u, 500u, 250u, 650u, 120u, 500u, 550u, 220u, 400u, 100u, 50u, 150u},
      {MELLO_WAVE_SINE, 420u, 50u, 40u},
      {8u, 350u, 600u, 350u, 750u, 4000u, 250u, 450u, 6u, true},
-     {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SINE, 420u, 200u, 200u},
+     {MELLO_WAVE_TRIANGLE, MELLO_WAVE_SINE, 570u, 200u, 200u, 250, 400u},
      -1,
-     2000u,
-     830u},
+     1630u,
+     670u},
     {"MINIMAL",
      300u,
      {0x1111u, 0x1111u, 0x0000u, 0x0000u, 0x4444u, 0x0000u, 0x0000u, 0x0000u},
@@ -3962,10 +3964,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {420u, 300u, 350u, 700u, 100u, 700u, 850u, 60u, 900u, 600u, 100u, 0u},
      {MELLO_WAVE_SINE, 350u, 200u, 0u},
      {3u, 90u, 80u, 200u, 500u, 2000u, 220u, 450u, 10u, true},
-     {MELLO_WAVE_SINE, MELLO_WAVE_PULSE, 480u, 250u, 0u},
+     {MELLO_WAVE_SINE, MELLO_WAVE_PULSE, 630u, 250u, 0u, 400, 180u},
      2,
-     1720u,
-     480u},
+     1400u,
+     390u},
     {"JUNGLE",
      500u,
      {0x2401u, 0x0001u, 0x9290u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u},
@@ -3973,7 +3975,7 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {450u, 300u, 400u, 750u, 350u, 550u, 650u, 120u, 600u, 900u, 300u, 200u},
      {MELLO_WAVE_SAW, 280u, 300u, 0u},
      {20u, 500u, 900u, 400u, 800u, 5000u, 250u, 450u, 0u, false},
-     {MELLO_WAVE_SAW, MELLO_WAVE_TRIANGLE, 430u, 200u, 250u},
+     {MELLO_WAVE_SAW, MELLO_WAVE_TRIANGLE, 580u, 200u, 250u, 350, 250u},
      1,
      750u,
      390u},
@@ -3984,10 +3986,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {400u, 400u, 200u, 500u, 300u, 300u, 800u, 150u, 300u, 300u, 0u, 0u},
      {MELLO_WAVE_TRIANGLE, 450u, 0u, 0u},
      {300u, 1000u, 2000u, 750u, 1000u, 12000u, 350u, 600u, 13u, true},
-     {MELLO_WAVE_SINE, MELLO_WAVE_TRIANGLE, 380u, 150u, 250u},
+     {MELLO_WAVE_SINE, MELLO_WAVE_TRIANGLE, 480u, 150u, 250u, 0, 300u},
      2,
-     750u,
-     290u},
+     620u,
+     240u},
     {"OUTRUN",
      1000u,
      {0x0101u, 0x0101u, 0x1010u, 0x1010u, 0x5555u, 0x0000u, 0x0000u, 0x0000u},
@@ -3995,7 +3997,7 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {380u, 500u, 450u, 450u, 700u, 300u, 550u, 200u, 500u, 100u, 100u, 0u},
      {MELLO_WAVE_SAW, 320u, 150u, 0u},
      {10u, 300u, 500u, 400u, 800u, 4000u, 250u, 350u, 0u, false},
-     {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 520u, 200u, 300u},
+     {MELLO_WAVE_SAW, MELLO_WAVE_SQUARE, 670u, 200u, 300u, 300, 350u},
      0,
      1860u,
      480u},
@@ -4006,10 +4008,10 @@ static const StyleDef STYLE_DEFS[STYLES] = {
      {480u, 280u, 700u, 600u, 200u, 700u, 800u, 60u, 900u, 900u, 400u, 450u},
      {MELLO_WAVE_PULSE, 350u, 350u, 30u},
      {2u, 70u, 60u, 200u, 400u, 1500u, 300u, 600u, 4u, true},
-     {MELLO_WAVE_PULSE, MELLO_WAVE_SQUARE, 560u, 350u, 100u},
+     {MELLO_WAVE_PULSE, MELLO_WAVE_SQUARE, 710u, 350u, 100u, 450, 150u},
      0,
-     2000u,
-     130u},
+     1450u,
+     90u},
 };
 const char *mello_style_name(uint8_t style)
 {
@@ -4451,6 +4453,7 @@ static void style_kit(MelloEngine *e, uint8_t st)
         d.voice[v].decay = dice(e, t[v * 3u + 1u], by);
         d.voice[v].tone = dice(e, t[v * 3u + 2u], by);
     }
+    d.voice[MELLO_DRUM_HAT].level = 600u; /* the air (DECISIONS "Punch and air") */
     d.voice[MELLO_DRUM_GLITCH].tone = wide ? (uint16_t)rng_bounded(&e->gen_rng, 1001u) : t[9];
     d.voice[MELLO_DRUM_GLITCH].tune = dice(e, 500u, 300u);
     d.voice[MELLO_DRUM_SNARE].crush = dice(e, t[11], by / 2u);
@@ -4589,7 +4592,8 @@ static void style_chords_follow_bass(MelloEngine *e, uint8_t st)
 
 /* A little of the sound: the lead's envelope, the delay and the reverb; and, held back (the product owner: "a
  * little, nothing crazy"), the lead's colour: one of two waves that suit the style, CUT and RES a little either side
- * of the style's, DETUNE a little (only where there is unison to spread). */
+ * of the style's, DETUNE a little (only where there is unison to spread), and the MOD envelope's snap on the cutoff
+ * (2026-11-06, DECISIONS "Punch and air": the leads were filtered at 0.6-1.5 kHz and stood still, "tame"). */
 static void style_sound(MelloEngine *e, uint8_t st)
 {
     /* GLITCH: 16T */
@@ -4602,6 +4606,8 @@ static void style_sound(MelloEngine *e, uint8_t st)
     s.osc_wave = chance_permille(&e->gen_rng, 500u) ? STYLE_DEFS[i].lead.a : STYLE_DEFS[i].lead.b;
     s.filter_cut = dice(e, STYLE_DEFS[i].lead.cut, 50u), s.filter_res = dice(e, STYLE_DEFS[i].lead.res, 40u);
     if (s.unison > 1u) s.detune = dice(e, STYLE_DEFS[i].lead.detune, 50u);
+    s.menv_amount = STYLE_DEFS[i].lead.menv, s.menv_attack_ms = 0u, s.menv_target = MELLO_MENV_CUTOFF;
+    s.menv_decay_ms = STYLE_DEFS[i].lead.menv_ms;
     f.reverb_wet = STYLE_DEFS[i].sound.rev_wet, f.reverb_size = STYLE_DEFS[i].sound.rev_size,
     f.reverb_decay_ms = STYLE_DEFS[i].sound.rev_ms;
     f.delay_wet = STYLE_DEFS[i].sound.dly_wet, f.delay_feedback = STYLE_DEFS[i].sound.dly_fb,
