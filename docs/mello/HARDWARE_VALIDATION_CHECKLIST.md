@@ -8,6 +8,8 @@ All boxes are mandatory before a public release.
 - [ ] Release `.fwsc` SHA-256 recorded and never replaced after validation.
 - [ ] Exact `.fwsc` boots in `fm1-emulator`; screen, PLAY/STOP, keys, knobs, LEDs and sound are exercised.
 - [ ] Real FM-1: install from official V15 succeeds.
+- [ ] Early, at -O2 (DECISIONS "Before the first release"): USB-MIDI IN from a computer, notes and clock for minutes,
+      no stuck or doubled notes ("babble"). If it babbles, build with `MELLO_CFLAGS=-Os` and try that package.
 - [ ] Real FM-1: install from another custom firmware succeeds.
 - [ ] Identity request reports SkurkyMello's unique `FM-1_9NN`.
 - [ ] USB MIDI IN/OUT and MIDI clock MASTER/SLAVE tested.
@@ -20,5 +22,5 @@ All boxes are mandatory before a public release.
 - [ ] Fill flash storage through representative repeated saves/sample replacements; no updater/settings corruption.
 - [ ] With SkurkyMello running, install another firmware successfully (critical escape/update path).
 - [ ] Interrupt another firmware install during Writing, reconnect, and resume successfully.
-- [ ] OCT− rescue verified.
+- [ ] OCT− rescue verified: held at power-on it opens the USB rescue (the boot scan settles 100 us since 0.5-f98).
 - [ ] Back-to-official V15 verified.

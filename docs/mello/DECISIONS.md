@@ -2026,6 +2026,34 @@ own files, changed because the task needs it. Not tried on the newer chip: fm1-e
 there is no FM-1 here; the emulator run shows the Puya path unchanged. The package carries 0xB36014 in the app and
 in the loader (the hub reads each package for it).
 
+## Before the first release (2026-11-07)
+
+The product owner asked whether SkurkyMello is ready to publish. The Firmware Hub lists a firmware on six things
+(open source, a GitHub release with the .fwsc, its own identity, the update loader, tested on a real FM-1, an
+fmhub.json); the review of Dinghy 0.4 (docs/mello/DINGHY_0_4.md) named two risks on real units. What could be done
+without an FM-1:
+
+- **The identity is FM-1_987.** FM-1_970 lay in zp12's range on the hub (docs/mello/PRODUCT_IDENTITY.md).
+- **The boot scan settles 100 us** (FM1_SETTLE_US, as Dinghy 0.4): at 10 us no key reads on an FM-1, so OCT- held at
+  power-on, the USB rescue, may not have worked. Only the 50 ms check at power-on scans this way (recovery_key); the
+  running scan does not. Not shown in fm1-emu, which reads keys at any settle time. Its smoke run's numbers moved
+  (32.5% -> 34.1%, the last 2 s louder) only because the 50 ms check now ends up to 1.5 ms later (a frame is 1.5 ms
+  long) and the scripted roll at 6.2 s lands elsewhere, picking another style: the same package built with 10 us
+  gives f97's numbers exactly, and each gives its own every run.
+- **-O2 stays, with a known risk.** Dinghy 0.4 keeps -Os: with -O2 (one unit, usb.c inside) the FM-1's USB-MIDI IN
+  "babbled" on OberVave's device. Nobody has seen it on SkurkyMello (no FM-1 here; fm1-emu does not reproduce
+  timing). Measured on fm1-emu (instructions, not cycles): -O2 39.1% playing, 80.5% in the worst case
+  (MELLO_STRESS); -Os 43.5% and 87.6%, the app 87 KB smaller (321 KB against 408 KB). 87.6% leaves too little for
+  the main loop to switch blind. So: USB-MIDI IN is an early item on the hardware checklist, and if it babbles there,
+  `MELLO_CFLAGS=-Os ./build.sh --release X.Y` builds the -Os package to try (the flag after -O2 wins), and the
+  device's CPU nn% (GLOBAL), which counts cycles, decides.
+- **The hub's card**: fmhub.json in the root (what, author, kinds groove, image, colour #00DD88) and docs/card.png,
+  the splash at rest without its version line, 240 x 240. The README says SkurkyMello does not read other
+  firmwares' projects or samples, as the hub asks.
+
+Not done, and needing a real FM-1: everything in docs/mello/HARDWARE_VALIDATION_CHECKLIST.md, which the hub asks for
+too ("untested firmwares are not listed").
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.
