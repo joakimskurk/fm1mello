@@ -821,6 +821,10 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
     [MELLO_UI_SUB] = {[0] = {MELLO_CTX_SUB_TOGGLE, "ON"},
                       [1] = {MELLO_CTX_BASS_SEQ, "SEQ"},
                       [2] = {MELLO_CTX_BASS_ROLL, "ROLL"},
+#if MELLO_FEATURE_CHORD_MACHINE
+                      [3] = {MELLO_CTX_CHORD_SUB_ROOT,
+                             "CHD"}, /* the bass on the chords' root: CHORD's BASS */
+#endif
                       [10] = {MELLO_CTX_PERF, "PERF"},
                       [6] = {MELLO_CTX_MUTATE, "MUT"},
                       [8] = {MELLO_CTX_UNDO, "UNDO"},
@@ -4506,6 +4510,37 @@ static const char *sub_mode_name(MelloSubMode m)
                                         : "STEP";
 }
 
+/* BASS's title (2026-11-06, the product owner: "hard to see which mode the bass is in; when it follows the chords
+ * it is very hard to understand what happens"): what plays it (BASS SEQ and its length; the 5-SEQ, which picks the
+ * notes over any MODE but DRONE; or the MODE, EUCLID with its pulses), and with CHD the chord it stands on now
+ * ("ON Fm7"; stopped, "ON CHORDS"). 27 characters at most (a[] holds 48; ui_display_integrity). */
+static void bass_title(MelloUi *ui, char *a)
+{
+    MelloEngine *e = eng(ui);
+    char *q;
+    if (!e) return;
+    q = copy_s(a, e->sub.on ? "BASS  " : "BASS OFF  ");
+    if (e->bass.on)
+        q = put_u32(copy_s(q, "SEQ "), e->bass.length);
+    else if (e->sub.x_on && e->sub.mode != MELLO_SUB_MODE_DRONE)
+        q = copy_s(q, "5-SEQ");
+    else {
+        q = copy_s(q, sub_mode_name(e->sub.mode));
+        if (e->sub.mode == MELLO_SUB_MODE_EUCLID) q = put_u32(copy_s(q, " "), e->sub.euclid_pulses);
+        if (e->sub.x_on) q = copy_s(q, " 5-SEQ");
+    }
+#if MELLO_FEATURE_CHORD_MACHINE
+    if (e->sub.on && e->chord.on && e->chord.sub_root) {
+        char on[16], *r = copy_s(on, "ON ");
+        if (ui->transport->running && e->chord_voiced_slot < e->chord.length)
+            mello_engine_chord_name(e, e->chord_voiced_slot, r);
+        else
+            (void)copy_s(r, "CHORDS");
+        (void)copy_s(copy_s(q, (q - a) + 2 + ui_text_len(on) <= 27 ? "  " : " "), on);
+    }
+#endif
+}
+
 static const char *sync_name(MelloSyncMode m)
 {
     return m == MELLO_SYNC_SLAVE ? "SLAVE" : m == MELLO_SYNC_MASTER ? "MASTER" : "OFF";
@@ -5722,16 +5757,15 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
          * framed gold, the picked one white; then K1-K4. */
         const MelloBassConfig *b = &e->bass;
         uint8_t i;
-        value_u(copy_s(copy_s(a, e->sub.on ? "BASS  " : "BASS OFF  "),
-                       b->on ? "BASS SEQ" : sub_mode_name(e->sub.mode)),
-                "  LEN ", b->length);
+        bass_title(ui, a);
         ui_section(ui, o, 32, a, e->sub.on ? UI_GOLD : UI_DIM);
         for (i = 0u; i < MELLO_BASS_STEPS; ++i) {
             const MelloBassStep *s = &b->steps[i];
             int16_t x = (int16_t)(8 + i * 14u), h = (int16_t)(6 + s->tone * 4u);
             bool in_len = i < b->length, playing = b->on && e->bass_step == (int8_t)i,
                  picked = i == ui->selected_sub_x_step % MELLO_BASS_STEPS;
-            uint16_t c = !in_len ? UI_TRACK : (s->accent ? UI_WHITE : (b->on ? UI_GOLD : UI_MID));
+            /* SEQ off, its steps wait (the MODE plays): dim, as a step past LENGTH nearly */
+            uint16_t c = !in_len ? UI_TRACK : !b->on ? UI_LINE : (s->accent ? UI_WHITE : UI_GOLD);
             o->fill(o->ctx, x, 52, 12, 44, in_len ? UI_PANEL2 : UI_PANEL);
             if (s->on && in_len) {
                 o->fill(o->ctx, (int16_t)(x + 2), (int16_t)(92 - h), 8, h,
@@ -6865,8 +6899,8 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[0], e->bass.on ? "ON" : (e->sub.x_on ? "5-SEQ" : "OFF"));
             l[1] = "LENGTH";
             value_u(v[1], "", e->bass.length);
-            l[2] = "FOLLOW";
-            copy_s(v[2], e->bass.follow ? "ON" : "OFF");
+            l[2] = "CLOCK"; /* (was FOLLOW: read as the bass following the chords, which CHD is) */
+            copy_s(v[2], e->bass.follow ? "LEAD" : "OWN");
             l[3] = "GATE";
             value_pct(v[3], e->sub.gate_amount);
         } else if (ui->sub_subpage == 2u) {
@@ -7221,7 +7255,7 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
     case MELLO_UI_DRUMS: {
         static const char *lab[DRUM_LAYERS][4] = {
             {"TUNE", "DECAY", "TONE", "LEVEL"},  {"PITCH", "DECAY", "CRUSH", "RATCH"},
-            {"CHANCE", "CRUSH", "FEED", "ROLL"}, {"LENGTH", "FOLLOW", "", "LEVEL"},
+            {"CHANCE", "CRUSH", "FEED", "ROLL"}, {"LENGTH", "CLOCK", "", "LEVEL"},
             {"DRIVE", "FOLD", "DUCK", ""},       {"V.LEN", "DIR", "RESTART", ""}};
         const MelloDrumConfig *d = &e->drums;
         const MelloDrumVoice *dv = &d->voice[ui->selected_drum_voice % MELLO_DRUM_VOICES];
@@ -7256,7 +7290,7 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
             value_pct(v[3], d->roll);
         } else if (L == 3u) {
             value_u(v[0], "", d->length);
-            copy_s(v[1], d->follow ? "ON" : "OFF");
+            copy_s(v[1], d->follow ? "LEAD" : "OWN");
             copy_s(v[2], "-"); /* SPACE: MIX's DELAY and REVERB */
             value_pct(v[3], d->level);
         } else if (L == 4u) {

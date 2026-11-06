@@ -36,12 +36,12 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/evolve-routes.png" width="96" alt="EVOLVE ROUTES"> | EVOLVE | LFO | ROUTES | `ON RND LOOP MUT UNDO RNDMZR PERF` | GATE LENGTH · FILTER OFF · OCT OFF · DECAY OFF |
 | <img src="../screens/evolve-depth.png" width="96" alt="EVOLVE DEPTH"> | EVOLVE | LFO | DEPTH | `ON RND LOOP MUT UNDO RNDMZR PERF` | GATE 35% · FILTER 35% · OCT 35% · DECAY 35% |
 | <img src="../screens/evolve-sound.png" width="96" alt="EVOLVE SOUND"> | EVOLVE | LFO | SOUND | `ON RND LOOP MUT UNDO RNDMZR PERF` | DEST A OFF · DEPTH A +50% · DEST B OFF · DEPTH B +50% |
-| <img src="../screens/bass-play.png" width="96" alt="BASS PLAY"> | BASS | ARP | PLAY | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
-| <img src="../screens/bass-seq.png" width="96" alt="BASS SEQ"> | BASS | ARP | SEQ | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
-| <img src="../screens/bass-step.png" width="96" alt="BASS STEP"> | BASS | ARP | STEP | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
-| <img src="../screens/bass-filter.png" width="96" alt="BASS FILTER"> | BASS | ARP | FILTER | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | CUT 242.0HZ · RES 0% · ENV 0% · LEVEL 75% |
-| <img src="../screens/bass-voice.png" width="96" alt="BASS VOICE"> | BASS | ARP | VOICE | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | WAVE SINE · DECAY 160MS · RELEASE 120MS · DRIVE 0% |
-| <img src="../screens/bass-tone.png" width="96" alt="BASS TONE"> | BASS | ARP | TONE | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | GLIDE 20MS · OCT -1 · F.DEC 300MS · ACCENT 50% |
+| <img src="../screens/bass-play.png" width="96" alt="BASS PLAY"> | BASS | ARP | PLAY | `ON SEQ ROLL CHD M UNDO RNDMZR P` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
+| <img src="../screens/bass-seq.png" width="96" alt="BASS SEQ"> | BASS | ARP | SEQ | `ON SEQ ROLL CHD M UNDO RNDMZR P` | SEQ OFF · LENGTH 16 · CLOCK OWN · GATE 90% |
+| <img src="../screens/bass-step.png" width="96" alt="BASS STEP"> | BASS | ARP | STEP | `ON SEQ ROLL CHD M UNDO RNDMZR P` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
+| <img src="../screens/bass-filter.png" width="96" alt="BASS FILTER"> | BASS | ARP | FILTER | `ON SEQ ROLL CHD M UNDO RNDMZR P` | CUT 242.0HZ · RES 0% · ENV 0% · LEVEL 75% |
+| <img src="../screens/bass-voice.png" width="96" alt="BASS VOICE"> | BASS | ARP | VOICE | `ON SEQ ROLL CHD M UNDO RNDMZR P` | WAVE SINE · DECAY 160MS · RELEASE 120MS · DRIVE 0% |
+| <img src="../screens/bass-tone.png" width="96" alt="BASS TONE"> | BASS | ARP | TONE | `ON SEQ ROLL CHD M UNDO RNDMZR P` | GLIDE 20MS · OCT -1 · F.DEC 300MS · ACCENT 50% |
 | <img src="../screens/global-clock.png" width="96" alt="GLOBAL CLOCK"> | GLOBAL | GLO | CLOCK | `TAP RST2 MUT UNDO RNDMZR PERF` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | <img src="../screens/global-midi.png" width="96" alt="GLOBAL MIDI"> | GLOBAL | GLO | MIDI | `TAP RST2 MUT UNDO RNDMZR PERF` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | <img src="../screens/global-groove.png" width="96" alt="GLOBAL GROOVE"> | GLOBAL | GLO | GROOVE | `TAP RST2 MUT UNDO RNDMZR PERF` | SWING 0% · LEAD GLOBAL · BASS GLOBAL · DRUMS GLOBAL |
@@ -67,7 +67,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/drums-voice.png" width="96" alt="DRUMS VOICE"> | DRUMS | ARP | VOICE | `ON VOX ACC ROLL M UNDO RNDMZR P` | TONE 25% · TUNE 40% · DECAY 335MS · LEVEL 90% |
 | <img src="../screens/drums-step.png" width="96" alt="DRUMS STEP"> | DRUMS | ARP | STEP | `ON VOX ACC ROLL M UNDO RNDMZR P` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | <img src="../screens/drums-vary.png" width="96" alt="DRUMS VARY"> | DRUMS | ARP | VARY | `ON VOX ACC ROLL M UNDO RNDMZR P` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
-| <img src="../screens/drums-kit.png" width="96" alt="DRUMS KIT"> | DRUMS | ARP | KIT | `ON VOX ACC ROLL M UNDO RNDMZR P` | LENGTH 16 · FOLLOW OFF · — · LEVEL 95% |
+| <img src="../screens/drums-kit.png" width="96" alt="DRUMS KIT"> | DRUMS | ARP | KIT | `ON VOX ACC ROLL M UNDO RNDMZR P` | LENGTH 16 · CLOCK OWN · — · LEVEL 95% |
 | <img src="../screens/drums-dist.png" width="96" alt="DRUMS DIST"> | DRUMS | ARP | DIST | `ON VOX ACC ROLL M UNDO RNDMZR P` | DRIVE 0% · FOLD 0% · DUCK 0% · — |
 | <img src="../screens/drums-line.png" width="96" alt="DRUMS LINE"> | DRUMS | ARP | LINE | `ON VOX ACC ROLL M UNDO RNDMZR P` | V.LEN KIT · DIR FWD · RESTART FREE · — |
 | <img src="../screens/chord-play.png" width="96" alt="CHORD PLAY"> | CHORD | ARP | PLAY | `ON BASS POLY FIT M UNDO RNDMZR P` | MODE BROKEN · TRIG STEP · CHORDS 1 · GATE 72% |

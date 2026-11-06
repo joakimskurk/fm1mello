@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f94.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f96.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -260,15 +260,17 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   held), the delay making the line a chord. POLY is four voices with a Juno-like chorus and STRUM, the chords
   stabbed, held, arpeggiated or by a pattern of voice masks. Both: triggered by the steps or by a grid; voice
   leading; a resonant filter with its envelope, an ADSR; their sends on MIX. B1 BASS
-  puts the bass on the chord's root. The HARMONY layer ties the chords to the rest: FOLLOW moves the lead's notes
+  puts the bass on the chord's root (CHD on the BASS page is the same switch). The HARMONY layer ties the chords to the rest: FOLLOW moves the lead's notes
   on the beats (or all of them) to the chord sounding, and DRIFT lets one chord change each time the chain comes
   round, within DEPTH (a degree of the same function, the shape, the voicing, or any), the first chord keeping
   its degree, so a long piece evolves and still comes home. RNDMZR at MED, HIGH and MUSICAL rolls a progression
   on the clock chain, so the chords change on the grid and land on the one.
 - **Bass** (ARP > BASS). The dedicated sub voice, two octaves under the key's root at its default OCT -1 (C2,
   65 Hz, in C): a step, euclidean, matrix, register or drone mode, or BASS SEQ, a
-  16-step bass line of its own with tone, octave, glide and accent per step, a resonant filter with envelope, drive.
-  ROLL (B2) writes a line under the sequence as it is: roots and fifths, or the lead's chord tones, on the beats,
+  16-step bass line of its own with tone, octave, glide and accent per step (CLOCK: its OWN steps, or one at each of
+  the LEAD's), a resonant filter with envelope, drive. The page's title says what plays the bass ("BASS  SEQ 16",
+  "BASS  EUCLID 6") and, with CHD (B3) lit, the chord it stands on now ("ON Fm7"): CHD moves the line with the
+  chords' root, the nearest way. ROLL (B2) writes a line under the sequence as it is: roots and fifths, or the lead's chord tones, on the beats,
   walks and octave jumps between, an octave down; UNDO takes it back.
 - **Drums** (ARP > DRUMS). Kick, snare, hat and a glitch voice (bleep, chirp, crackle, stutter) on a pattern of
   up to 32 steps (OCT- and OCT+ show 1-16 and 17-32; a line made longer than 16 copies its bar there) with accents, per-step pitch, decay, crush and ratchet locks, rolls, chance, swing (GLOBAL > GROOVE, for
@@ -329,12 +331,12 @@ K1-K4 with their default values.
 | EVOLVE | LFO | ROUTES | `ON RND LOOP MUT UNDO RNDMZR PERF` | GATE LENGTH · FILTER OFF · OCT OFF · DECAY OFF |
 | EVOLVE | LFO | DEPTH | `ON RND LOOP MUT UNDO RNDMZR PERF` | GATE 35% · FILTER 35% · OCT 35% · DECAY 35% |
 | EVOLVE | LFO | SOUND | `ON RND LOOP MUT UNDO RNDMZR PERF` | DEST A OFF · DEPTH A +50% · DEST B OFF · DEPTH B +50% |
-| BASS | ARP | PLAY | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
-| BASS | ARP | SEQ | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | SEQ OFF · LENGTH 16 · FOLLOW OFF · GATE 90% |
-| BASS | ARP | STEP | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
-| BASS | ARP | FILTER | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | CUT 242.0HZ · RES 0% · ENV 0% · LEVEL 75% |
-| BASS | ARP | VOICE | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | WAVE SINE · DECAY 160MS · RELEASE 120MS · DRIVE 0% |
-| BASS | ARP | TONE | `ON SEQ ROLL MUT UNDO RNDMZR PERF` | GLIDE 20MS · OCT -1 · F.DEC 300MS · ACCENT 50% |
+| BASS | ARP | PLAY | `ON SEQ ROLL CHD M UNDO RNDMZR P` | MODE STEP · PULSES 6 · ROTATE 0 · OCT -1 |
+| BASS | ARP | SEQ | `ON SEQ ROLL CHD M UNDO RNDMZR P` | SEQ OFF · LENGTH 16 · CLOCK OWN · GATE 90% |
+| BASS | ARP | STEP | `ON SEQ ROLL CHD M UNDO RNDMZR P` | TONE ROOT · OCT +0 · GLIDE OFF · ACCENT ON |
+| BASS | ARP | FILTER | `ON SEQ ROLL CHD M UNDO RNDMZR P` | CUT 242.0HZ · RES 0% · ENV 0% · LEVEL 75% |
+| BASS | ARP | VOICE | `ON SEQ ROLL CHD M UNDO RNDMZR P` | WAVE SINE · DECAY 160MS · RELEASE 120MS · DRIVE 0% |
+| BASS | ARP | TONE | `ON SEQ ROLL CHD M UNDO RNDMZR P` | GLIDE 20MS · OCT -1 · F.DEC 300MS · ACCENT 50% |
 | GLOBAL | GLO | CLOCK | `TAP RST2 MUT UNDO RNDMZR PERF` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | GLOBAL | GLO | MIDI | `TAP RST2 MUT UNDO RNDMZR PERF` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | GLOBAL | GLO | GROOVE | `TAP RST2 MUT UNDO RNDMZR PERF` | SWING 0% · LEAD GLOBAL · BASS GLOBAL · DRUMS GLOBAL |
@@ -360,7 +362,7 @@ K1-K4 with their default values.
 | DRUMS | ARP | VOICE | `ON VOX ACC ROLL M UNDO RNDMZR P` | TONE 25% · TUNE 40% · DECAY 335MS · LEVEL 90% |
 | DRUMS | ARP | STEP | `ON VOX ACC ROLL M UNDO RNDMZR P` | PITCH +0 ST · DECAY +0% · CRUSH 0% · RATCH 1 |
 | DRUMS | ARP | VARY | `ON VOX ACC ROLL M UNDO RNDMZR P` | CHANCE 100% · CRUSH 0% · FEED OFF · ROLL 50% |
-| DRUMS | ARP | KIT | `ON VOX ACC ROLL M UNDO RNDMZR P` | LENGTH 16 · FOLLOW OFF · — · LEVEL 95% |
+| DRUMS | ARP | KIT | `ON VOX ACC ROLL M UNDO RNDMZR P` | LENGTH 16 · CLOCK OWN · — · LEVEL 95% |
 | DRUMS | ARP | DIST | `ON VOX ACC ROLL M UNDO RNDMZR P` | DRIVE 0% · FOLD 0% · DUCK 0% · — |
 | DRUMS | ARP | LINE | `ON VOX ACC ROLL M UNDO RNDMZR P` | V.LEN KIT · DIR FWD · RESTART FREE · — |
 | CHORD | ARP | PLAY | `ON BASS POLY FIT M UNDO RNDMZR P` | MODE BROKEN · TRIG STEP · CHORDS 1 · GATE 72% |

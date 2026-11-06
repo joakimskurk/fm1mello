@@ -1991,6 +1991,26 @@ alone by INT is LOW, MED and HIGH, as before; MUSICAL and GROOVE now always roll
 the two its lead uses). A stale OFF in the UI's state reads as ANY. Test: style_no_off (it fails on the code
 before).
 
+## BASS says what plays it (2026-11-06)
+
+The product owner, testing: "it is a little hard and unclear to understand which mode the bass is in; when the bass
+follows the chords it is very hard to understand what happens". Four things read wrong on the page:
+
+- **The title** named the MODE and then BASS SEQ's length ("BASS  STEP  LEN 16"), a length that does nothing while
+  SEQ is off. It now says what plays the bass: "SEQ 16" (BASS SEQ and its length); "5-SEQ" (it picks the notes over
+  any MODE but DRONE); or the MODE, EUCLID with its pulses ("EUCLID 6"), DRONE with "5-SEQ" when that moves it.
+- **Following the chords was not on the page.** CHORD's B1 BASS (SUB ROOT: the line moved by the chord's root, the
+  nearest way) changes every bass note, and nothing on BASS showed it. BASS has it too now, as CHD on B3 (the same
+  switch, lit when on), and with the chords on the title says the chord the bass stands on, live: "ON Fm7" (stopped,
+  "ON CHORDS"). The title is 27 characters at most; when the long ones meet (DRONE 5-SEQ ON C#sus4) one space goes.
+- **FOLLOW** on BASS SEQ (step at the lead's steps, not every pulse) read as following the chords. It is CLOCK now,
+  OWN or LEAD; the drums' FOLLOW, the same thing, too. (CHORD's GRID and HARMONY FOLLOW are other things and stay.)
+- **SEQ's steps** were drawn in grey while SEQ was off, as if they played. They are as dim as the hairline now: there
+  to edit, and plainly not what sounds.
+
+Tests: bass_title (the titles, CHD as CHORD's BASS, every combination inside the screen), control_context_contract
+and control_authoritative_mapping (B3 CHD), rotary_mapping_parity (CLOCK).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

@@ -159,7 +159,7 @@ static const Case cases[] = {
     C("TURING DEPTH", MELLO_UI_TURING, 2, 15, 0, "GATE", "FILTER", "OCT", "DECAY"),
     C("TURING SOUND", MELLO_UI_TURING, 3, 15, 0, "DEST A", "DEPTH A", "DEST B", "DEPTH B"),
     C("SUB TRIG", MELLO_UI_SUB, 0, 15, 0, "MODE", "PULSES", "ROTATE", "OCT"),
-    C("SUB SEQ", MELLO_UI_SUB, 1, 15, 0, "SEQ", "LENGTH", "FOLLOW", "GATE"),
+    C("SUB SEQ", MELLO_UI_SUB, 1, 15, 0, "SEQ", "LENGTH", "CLOCK", "GATE"),
     C("SUB STEP", MELLO_UI_SUB, 2, 15, 0, "TONE", "OCT", "GLIDE", "ACCENT"),
     /* G6: a voice's first sound layer K1 CUT, K2 RES, K3 ENV / DECAY, K4 LEVEL */
     C("SUB FILTER", MELLO_UI_SUB, 3, 15, 0, "CUT", "RES", "ENV", "LEVEL"),
@@ -200,7 +200,7 @@ static const Case cases[] = {
     C("DRUMS VOICE", MELLO_UI_DRUMS, 0, 15, 0, "TONE", "TUNE", "DECAY", "LEVEL"),
     C("DRUMS STEP", MELLO_UI_DRUMS, 1, 15, 0, "PITCH", "DECAY", "CRUSH", "RATCH"),
     C("DRUMS VARY", MELLO_UI_DRUMS, 2, 15, 0, "CHANCE", "CRUSH", "FEED", "ROLL"),
-    C("DRUMS KIT", MELLO_UI_DRUMS, 3, 15, 0, "LENGTH", "FOLLOW", "", "LEVEL"),
+    C("DRUMS KIT", MELLO_UI_DRUMS, 3, 15, 0, "LENGTH", "CLOCK", "", "LEVEL"),
     C("DRUMS DIST", MELLO_UI_DRUMS, 4, 7, 0, "DRIVE", "FOLD", "DUCK", ""),
     C("DRUMS LINE", MELLO_UI_DRUMS, 5, 7, 0, "V.LEN", "DIR", "RESTART", ""),
 #if MELLO_FEATURE_CHORD_MACHINE
