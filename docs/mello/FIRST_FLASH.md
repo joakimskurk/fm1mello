@@ -19,7 +19,7 @@ a unit; the steps below are ordered so the rescue path is proven before anything
 ```sh
 python3 tools/fm1_install.py --info                       # the FM-1 is found and says what it runs
 python3 tools/fm1_install.py build/skurkymello-0.2-p1.fwsc
-python3 tools/fm1_install.py --info                       # now FM-1_970
+python3 tools/fm1_install.py --info                       # now FM-1_987
 ```
 
 ## Check, in this order

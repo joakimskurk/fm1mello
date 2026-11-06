@@ -48,7 +48,7 @@ SDK_SHA256 = {
     "cfg/eq_cfg_hw.bin": "41167491bffed4651750719c973d2758adeb9021a5670d02d6a53c85ed80ea7d",
 }
 
-PRODUCT = os.environ.get("MELLO_PRODUCT", "FM-1_970")  # SkurkyMello identity; 97N is also listed for zp12 in Dinghy's docs/MAKE-IT-YOURS.md, see ROADMAP.md
+PRODUCT = os.environ.get("MELLO_PRODUCT", "FM-1_987")  # SkurkyMello identity (docs/mello/PRODUCT_IDENTITY.md; 970 was zp12's range)
 VERSION = None                      # APP_VER for release builds
 
 

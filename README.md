@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f97.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f98.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -527,7 +527,7 @@ The code was written with Claude (Anthropic) as a coding assistant; the commits 
 `main` is a fork of Dinghy at `d44df7d` (0.3) with 0.4's TRS MIDI IN taken over (`midi_uart.c` and its hunks in
 `platform.c`); `git remote upstream` points there. The Mello changes to Dinghy's own files are small and listed in
 `git log -- firmware/src/platform.c firmware/src/midi_uart.c firmware/src/gfx.c tools/build.py`. Package
-identity: `FM-1_970`.
+identity: `FM-1_987` (it was `FM-1_970` up to 0.5-f97: docs/mello/PRODUCT_IDENTITY.md).
 
 The firmware is GPL-3.0-only, as Dinghy: ship it, and ship its source. The original instrument
 (`reference/skurkymello.html`) and the design record (`docs/mello/`) are not free: read them, keep them unchanged in a
