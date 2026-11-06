@@ -287,12 +287,12 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
 - **KEY** (SEL). Root, scale, global octave, pitch span.
 - **RANDOM** (hold RNDMZR). Which targets a roll touches (MASK), which follow or mirror the pitch (LINKS), how much
   each moves (AMOUNTS); the intensity on K1. MUSICAL rolls a phrase, not noise; GROOVE the same phrase with rolls, ties, ghost
-  notes and the rests that answer them. STYLE on K2: with a style (ANY, a new project's, picks one each time and never the
-  one before) a tap of RNDMZR with INT on MUSICAL or GROOVE rolls the whole band in it (on LOW, MED, HIGH the lead alone, raw, as before the styles), the lead within the mask, the bass line, the beat, the
+  notes and the rests that answer them. STYLE on K2: ANY (a new project's: a new style each time, never the one before) or a
+  style; a tap of RNDMZR with INT on MUSICAL or GROOVE rolls the whole band in it (on LOW, MED, HIGH the lead alone, raw, as before the styles), the lead within the mask, the bass line, the beat, the
   chords and some of the sound (never the tempo: that is the player's, and UNDO leaves it too): AMBIENT, DUB, TRIPHOP, TECHNO, ACID, ELECTRO, BREAKS, IDM, HOUSE, DEEP,
   MINIMAL, JUNGLE, DRONE, OUTRUN, GLITCH, its name shown
   as it lands. ROLLS on K3: ALL, or PLAYING, which leaves the parts that are off off (the drums, the chords,
-  the bass), for playing it as a melody instrument. OFF rolls the lead alone, as INT says. Playing, every roll of RNDMZR waits for the next bar's one;
+  the bass), for playing it as a melody instrument. Playing, every roll of RNDMZR waits for the next bar's one;
   UNDO before then takes it back. UNDO takes a roll back whole.
 
 ## Every page's knobs and keys

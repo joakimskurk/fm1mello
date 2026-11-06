@@ -3136,17 +3136,25 @@ static void adjust_presets(MelloUi *ui, int16_t delta)
     if (ui->page == MELLO_UI_SLOTS) mark_edit(ui);
 }
 
-/* RNDMZR's roll: the band in a style (and the style shown), or with STYLE OFF the lead alone by INT */
+/* RNDMZR's roll: with INT on MUSICAL or GROOVE the band in a style, ANY a new one each time; LOW-HIGH the lead alone
+ * by INT */
 static void show_readout(MelloUi *ui, uint8_t what, uint32_t now_ms);
 static bool style_on(const MelloUi *ui)
 {
     return ui->random_intensity == MELLO_RANDOMIZE_MUSICAL || ui->random_intensity == MELLO_RANDOMIZE_GROOVE;
 }
+/* STYLE, K2: ANY or a style. OFF is gone (2026-11-06, DECISIONS "STYLE has no OFF"): on GROOVE it rolled the lead
+ * alone and left the band, and a part, in the style rolled before it ("locked in the style chosen before OFF") */
+static uint8_t ui_style(const MelloUi *ui)
+{
+    return ui->random_style >= MELLO_STYLE_AMBIENT && ui->random_style < MELLO_STYLE_COUNT ? ui->random_style
+                                                                                           : MELLO_STYLE_ANY;
+}
 static void ui_roll(MelloUi *ui, MelloEngine *e, uint32_t now_ms)
 {
     /* playing, on the next bar's one (RNDMZR lit until then; UNDO takes it back) */
     /* STYLE only with INT on MUSICAL or GROOVE (DECISIONS "Happy accidents"): LOW, MED and HIGH roll the lead raw */
-    if (ui->random_style != MELLO_STYLE_OFF && style_on(ui)) {
+    if (style_on(ui)) {
         uint8_t parts = MELLO_PART_ALL;
         if (ui->roll_playing) { /* ROLLS PLAYING (DECISIONS "Melody first"): what is off stays off */
             if (!e->drums.on) parts &= (uint8_t)~(MELLO_PART_DRUMS | MELLO_PART_KIT);
@@ -3158,21 +3166,18 @@ static void ui_roll(MelloUi *ui, MelloEngine *e, uint32_t now_ms)
             if (!e->sub.on) parts &= (uint8_t)~MELLO_PART_BASS;
             parts |= MELLO_PART_BAND;
         }
-        (void)mello_engine_style_roll_at_bar(e, ui->random_style, parts);
+        (void)mello_engine_style_roll_at_bar(e, ui_style(ui), parts);
         (void)now_ms; /* (no style shown: DECISIONS "Less on the screen") */
         ui->dirty |= MELLO_UI_DIRTY_ALL;
     } else
         mello_engine_randomize_at_bar(e, ui->random_intensity);
 }
 
-/* One part rolled again, in the style that plays (STYLE OFF: the last style rolled, or any) */
+/* One part rolled again, in the style chosen (ANY: the style that plays, or any if none does) */
 static void ui_roll_part(MelloUi *ui, MelloEngine *e, uint8_t w, uint32_t now_ms)
 {
-    uint8_t style = ui->random_style != MELLO_STYLE_OFF ? ui->random_style
-                    : e->style_now                      ? e->style_now
-                                                        : MELLO_STYLE_ANY;
     if (w >= ROLL_PARTS) return;
-    (void)mello_engine_style_roll_at_bar(e, style, ROLL_PART_BITS[w]);
+    (void)mello_engine_style_roll_at_bar(e, ui_style(ui), ROLL_PART_BITS[w]);
     ui->rndmzr_part = true;
     (void)now_ms;
     ui->dirty |= MELLO_UI_DIRTY_ALL;
@@ -3196,10 +3201,10 @@ static void adjust_random(MelloUi *ui, uint8_t knob, int16_t delta)
         mark_edit(ui);
         return;
     }
-    if (knob == 1u) { /* K2: STYLE, OFF .. ANY .. the styles */
+    if (knob == 1u) { /* K2: STYLE, ANY .. the styles */
         if (ui->random_edit) return;
-        ui->random_style = (uint8_t)clamp_i32((int32_t)ui->random_style + (delta > 0 ? 1 : -1),
-                                              MELLO_STYLE_OFF, MELLO_STYLE_COUNT - 1);
+        ui->random_style = (uint8_t)clamp_i32((int32_t)ui_style(ui) + (delta > 0 ? 1 : -1), MELLO_STYLE_ANY,
+                                              MELLO_STYLE_COUNT - 1);
         mark_edit(ui);
         return;
     }
@@ -3680,9 +3685,9 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
         persistent_dirty(ui, now_ms);
         mark_edit(ui);
         break;
-    case MELLO_CTX_BASS_ROLL: /* in the style last rolled (or the chosen one); STYLE OFF, the walking line */
+    case MELLO_CTX_BASS_ROLL: /* in the chosen style; ANY, the one last rolled (none rolled: the walking line) */
         mello_engine_undo_snapshot(e);
-        mello_engine_style_bass(e, ui->random_style == MELLO_STYLE_ANY ? e->style_now : ui->random_style);
+        mello_engine_style_bass(e, ui_style(ui) == MELLO_STYLE_ANY ? e->style_now : ui_style(ui));
         persistent_dirty(ui, now_ms);
         mark_edit(ui);
         break;
@@ -6748,7 +6753,7 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
         l[0] = "INTENS";
         copy_s(v[0], random_intensity_name(ui->random_intensity));
         l[1] = "STYLE";
-        copy_s(v[1], style_on(ui) ? mello_style_name(ui->random_style) : "-"); /* (LOW-HIGH: raw, no style) */
+        copy_s(v[1], style_on(ui) ? mello_style_name(ui_style(ui)) : "-"); /* (LOW-HIGH: raw, no style) */
         l[2] = "ROLLS";
         copy_s(v[2], ui->roll_playing ? "PLAYING" : "ALL");
         copy_s(v[3], "-");

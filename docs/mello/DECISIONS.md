@@ -1976,6 +1976,21 @@ mastered electronic music (a rough curve: each band's share of the whole, in dB)
 - Through the stage: punch (a hit's 5 ms peak over the 100 ms after it) 9.2 -> 10.1 dB, crest 10.7 -> 11.2 dB,
   -10.2 -> -10.5 LUFS. CPU as before: the default project has no MOD ENV, the stress case had it already.
 
+## STYLE has no OFF (2026-11-06)
+
+The product owner, testing: "when I have set the randomizer to a style and turn it to OFF again, it still stays in
+that style"; and then: "if it is on OFF and still on GROOVE you should get a random style; now it is locked in the
+style chosen before OFF". STYLE OFF rolled the lead alone (by INT) and left the band as the last style had it: its
+beat, bass, chords, kit and sound. A part rolled alone (RNDMZR held and a white key) used that style too. So OFF
+read as "locked in the style before".
+
+K2 is now ANY or a style: turned all the way left it stops at ANY, which on MUSICAL and GROOVE rolls the band in a
+new style each tap, never the one before. A part alone rolls in the chosen style; with ANY, in the style that plays.
+ROLL on BASS with ANY rolls the line of the style last rolled, or the walking line when none has been. The lead
+alone by INT is LOW, MED and HIGH, as before; MUSICAL and GROOVE now always roll in a style (the style picks which of
+the two its lead uses). A stale OFF in the UI's state reads as ANY. Test: style_no_off (it fails on the code
+before).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.
