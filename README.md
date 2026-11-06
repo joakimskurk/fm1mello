@@ -387,6 +387,11 @@ last edit. SAVE held opens the slots: LOAD a slot onto the sequence, RENAME it w
 a slot for the next bar. The 16 slots, all full, fit the bank three times over. A project saved with more (there were 64
 until 0.5-f86) is read with its first 16.
 
+SkurkyMello keeps its projects and samples in its own format and its own part of the flash. It cannot read another
+firmware's projects or samples, and other firmwares cannot read its own: installing SkurkyMello over another firmware
+starts from a new project (the other firmware's saves may be overwritten), and samples go on again with
+`tools/fm1_samples.py`.
+
 MIDI in comes over USB and over the FM-1's TRS jack (Dinghy 0.4's parser: channel messages, clock and transport;
 SysEx only over USB); MIDI out goes over USB. With SYNC set to SLAVE (GLOBAL > CLOCK) the sequencer follows clock,
 start, continue and stop from either input; notes in are not played (the sequencer is the player). Notes out go for

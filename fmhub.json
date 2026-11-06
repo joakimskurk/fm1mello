@@ -1,0 +1,9 @@
+{
+  "what": "A groovebox for the FM-1: a melodic step sequencer of up to 32 steps with a bass line, chords and a four-voice drum machine. One key rolls the whole band in fifteen styles, from ambient and dub to acid, techno and glitch. Delay, reverb, effects to play on the black keys, four sample slots.",
+  "author": "joakimskurk",
+  "kinds": [
+    "groove"
+  ],
+  "image": "docs/card.png",
+  "color": "#00DD88"
+}
