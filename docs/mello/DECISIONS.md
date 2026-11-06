@@ -2011,6 +2011,21 @@ follows the chords it is very hard to understand what happens". Four things read
 Tests: bass_title (the titles, CHD as CHORD's BASS, every combination inside the screen), control_context_contract
 and control_authoritative_mapping (B3 CHD), rotary_mapping_parity (CLOCK).
 
+## The newer flash chip (2026-11-06)
+
+The product owner asked whether SkurkyMello is up to date, pointing at the Firmware Hub's rescue page: FM-1s sold
+since autumn 2026 carry a UC25HQ80 flash (JEDEC 0xB36014) where the first had a Puya P25Q80 (0x856014), and a
+firmware that knows only the Puya keeps its saves in RAM there ("SAVED (RAM)", gone at power-off) and often cannot
+take an update. SkurkyMello, on Dinghy 0.3, knew only the Puya: the app (platform.c), the USB rescue (recovery.c)
+and the update loader (loader.c) each compared the ID with 0x856014. Dinghy upstream accepted both on 2026-11-03
+(f77bf03, in 0.4's fm1_flash_map.h): the same size and the same generic SPI NOR commands, which are the only ones
+our driver sends (9F, 05/35, 06, 20, 02).
+
+Now fm1_flash.h's fl_jedec_ok() takes both, and the three use it (a function, so the ID is read once). Dinghy's
+own files, changed because the task needs it. Not tried on the newer chip: fm1-emu answers with the Puya's ID and
+there is no FM-1 here; the emulator run shows the Puya path unchanged. The package carries 0xB36014 in the app and
+in the loader (the hub reads each package for it).
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

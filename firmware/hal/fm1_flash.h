@@ -143,7 +143,12 @@ RAMINL int fl_wait_ready(uint32_t max_us, uint32_t *took_us)
 
 /* ---- entry points: IRQs OFF, args/buffers in RAM ---- */
 
-static RAMFN uint32_t fl_jedec_ram(void)                 /* expect 0x856014 */
+/* The FM-1's flash chips: the Puya P25Q80 (0x856014) of the first units and the UC25HQ80 (0xB36014) of the newer
+ * ones (sold since autumn 2026; Dinghy upstream f77bf03): 1 MiB each, the same generic SPI NOR commands (9F, 05/35,
+ * 06, 20, 02). Seeing only the first, a newer FM-1 saved to RAM and its updates stopped. */
+static inline int fl_jedec_ok(uint32_t id) { return id == 0x856014u || id == 0xB36014u; }
+
+static RAMFN uint32_t fl_jedec_ram(void)                 /* fl_jedec_ok */
 {
     fl_saved_t s; uint32_t id;
     if (fl_enter(&s)) return 0;

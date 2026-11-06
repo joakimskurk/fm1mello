@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f96.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f97.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
