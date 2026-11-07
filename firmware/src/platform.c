@@ -338,7 +338,7 @@ void fm1_cstart(void)
 {
     extern uint32_t _data_start[], _data_end[], _data_load[], _bss_start[], _bss_end[];
     extern uint32_t _pool_start[], _pool_end[], _rt_start[], _rt_end[], _rt_load[];
-    uint32_t *s, *d, p3, boot_mode;
+    uint32_t *s, *d, p3, boot_mode, jedec;
     fm1_time_init();
     fm1_reset_reason();
     p3 = fm1_boot.p3_rst;
@@ -358,7 +358,8 @@ void fm1_cstart(void)
     fm1_boot.p3_rst = (uint8_t)p3;
     if (boot_mode == BOOT_RECOVERY || recovery_key())
         recovery_main();                        /* OCT- at power-on: the USB rescue */
-    flash_ok = fl_jedec_ok(FL_FAR(fl_jedec_ram)());
+    jedec = FL_FAR(fl_jedec_ram)();             /* (one read: FL_JEDEC_OK names its argument twice) */
+    flash_ok = FL_JEDEC_OK(jedec);
     ota_boot_cleanup();
     lcd_init();
     lcd_fill(0, 0, 240, 240, C_BLACK);

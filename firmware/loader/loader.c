@@ -71,7 +71,11 @@ static void ldr_record_clear(void)
 {
     fm1_updata_parm_clear();                        /* CRC 0: the SPL ignores it on a warm reset */
 }
-static int ldr_flash_known(void) { return fl_jedec_ok(fl_jedec_ram()); }   /* as the app (platform.c) */
+static int ldr_flash_known(void)                    /* as the app (platform.c) */
+{
+    uint32_t id = fl_jedec_ram();                   /* (one read: FL_JEDEC_OK names its argument twice) */
+    return FL_JEDEC_OK(id);
+}
 static void ldr_progress(uint32_t done, uint32_t total) { (void)done; (void)total; ldr_poll(); }
 #include "ldr_core.c"
 
