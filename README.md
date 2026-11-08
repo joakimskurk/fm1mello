@@ -3,6 +3,7 @@
 <h3 align="center">A generative step sequencer and synth for the M-VAVE FM-1</h3>
 
 <p align="center">
+  <a href="https://joakimskurk.github.io/fm1mello/">Website</a> ·
   <a href="#install">Install</a> ·
   <a href="#a-first-tour">First tour</a> ·
   <a href="#the-panel">The panel</a> ·
@@ -43,8 +44,8 @@
 
 ## What it is
 
-The firmware is a port of [SkurkyMello](reference/skurkymello.html), the browser instrument, to the FM-1's keys,
-knobs and 240 x 240 screen; the HTML stays the reference for sound and feel. It is built on
+The firmware is a port of [SkurkyMello](https://jhf.no/skurky/skurkymello.html), the browser instrument, to the
+FM-1's keys, knobs and 240 x 240 screen; the HTML stays the reference for sound and feel. It is built on
 [Dinghy](https://github.com/zvenson/dinghy) 0.5 by zvenson (its FM-1 platform) and, under that, the Felucca / SLOOP
 platform.
 
@@ -68,6 +69,9 @@ Anyway, enjoy.
 *- Joakim*
 
 ## Install
+
+From the browser: [the website](https://joakimskurk.github.io/fm1mello/) installs the latest build of `main`
+over USB MIDI (Chrome or Edge on a computer), and has three takes of the firmware playing, rendered by its own code.
 
 Packages are `build/skurkymello-<version>.fwsc`. Install one on an FM-1 running M-VAVE's official V15 (or another
 firmware with the FM-1 update loader), over USB-MIDI:
@@ -537,7 +541,7 @@ firmware/loader/               the update loader, with its screen (ldr_screen.c)
 tests/mello/                   host tests;  tests/bench/  the CPU bench;  tests/parity/  the HTML parity
 tools/fm1_samples.py (WAVs into the sample slots), fm1_install.py (Dinghy 0.5's), screens.py (the pages as PNG), emu_cpu.sh, emu_smoke.sh,
                                emu_stack.sh, build.py
-reference/skurkymello.html     the original: the reference for sound and feel
+reference/skurkymello.html     the original (it plays at jhf.no/skurky/skurkymello.html): the reference for sound and feel
 web/                           the website: its page, its installer (SLOOP's), its demos (make_site.py)
 docs/mello/                    DECISIONS.md, UI_MAP.md, CONTROL_GRAMMAR.md, UI_ICEBERG.md, FIRST_FLASH.md
 docs/screens/                  every page of the firmware as a picture, drawn by the host build (make screens)
