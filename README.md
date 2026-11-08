@@ -1,4 +1,58 @@
-# SkurkyMello for the M-VAVE FM-1
+<p align="center"><img src="docs/logo.png" width="560" alt="SkurkyMello: sixteen bars rising and falling in green, amber, blue and purple over the word SKURKYMELLO"></p>
+
+<h3 align="center">A generative step sequencer and synth for the M-VAVE FM-1</h3>
+
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="#a-first-tour">First tour</a> ·
+  <a href="#the-panel">The panel</a> ·
+  <a href="#every-pages-knobs-and-keys">Every page</a> ·
+  <a href="#work-on-it">Build it</a> ·
+  <a href="#support">Support</a>
+</p>
+
+<p align="center">
+  <img alt="Firmware for the M-VAVE FM-1" src="https://img.shields.io/badge/M--VAVE-FM--1-00DD88?labelColor=101010">
+  <img alt="Built on Dinghy 0.5" src="https://img.shields.io/badge/built%20on-Dinghy%200.5-B48CFF?labelColor=101010">
+  <img alt="Licence: GPL-3.0" src="https://img.shields.io/badge/licence-GPL--3.0-8E948F?labelColor=101010">
+  <img alt="Status: tested in emulators" src="https://img.shields.io/badge/status-tested%20in%20emulators-FFCC00?labelColor=101010">
+  <a href="https://buymeacoffee.com/skurk"><img alt="Buy Me a Coffee" src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-skurk-FFDD00?logo=buymeacoffee&logoColor=black"></a>
+</p>
+
+<p align="center"><img src="docs/hero.gif" width="360" alt="The FM-1's screen: the splash, HOME playing a sequence, a roll of the randomizer, then PERFORM with HP SWP and STUTTER held"></p>
+
+> **Status: tested on emulators, not yet on an FM-1.** Every package runs in
+> [fm1-emu](https://github.com/joakimeriksson/fm1-emu) and its web emulator; the first install on real hardware
+> follows [docs/mello/FIRST_FLASH.md](docs/mello/FIRST_FLASH.md). Every flash can brick a unit: hold OCT- while
+> switching on to reach the updater.
+
+## At a glance
+
+- **A melody at its heart.** Sixteen steps in four segments, a lead voice with filter, grit and a second oscillator,
+  16 pattern slots (one a white key) and a loop cycle.
+- **A band around it.** A bass with its own sequencer, a chord layer, a four-voice drum kit and a sample layer, with
+  delay, reverb and distortion.
+- **Movement.** DOT reads five 4 x 4 matrices along a route for accents, ratchets, the sub and two modulation lanes;
+  EVOLVE, a Turing-machine register, mutates and bends the gate, the filter, the octave, the decay and two sound
+  destinations as it plays.
+- **Happy accidents.** RNDMZR rolls the lead, or the whole band in one of fifteen styles from AMBIENT to GLITCH, and
+  UNDO takes it back.
+- **Hands on.** PERFORM puts stutter, tape stop, repeats, filter sweeps and throws on the keys.
+- **Connected.** MIDI in over USB and the TRS jack, MIDI clock in and out, the sound as a USB audio input, and the
+  screen large on a computer ([Big screen](#big-screen)).
+
+## What it is
+
+The firmware is a port of [SkurkyMello](reference/skurkymello.html), the browser instrument, to the FM-1's keys,
+knobs and 240 x 240 screen; the HTML stays the reference for sound and feel. It is built on
+[Dinghy](https://github.com/zvenson/dinghy) 0.5 by zvenson (its FM-1 platform) and, under that, the Felucca / SLOOP
+platform.
+
+This README is the manual. The design record is in [docs/mello/DECISIONS.md](docs/mello/DECISIONS.md), the plan in
+[ROADMAP.md](ROADMAP.md), and every page's knobs and keys, generated from the code, in
+[docs/mello/UI_MAP.md](docs/mello/UI_MAP.md).
+
+## A word from me
 
 This started as an HTML project where I tried to build my dream sequencer, inspired by the way I work on my modular
 synth. After working on it for a few months it has since become the prototype I use most. The FM-1 version is my first attempt at porting an idea to actual
@@ -12,27 +66,6 @@ Scope creep got the better of me, by the way, so there are a lot of menus on a v
 Anyway, enjoy.
 
 *- Joakim*
-
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-skurk-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/skurk)
-
-## What it is
-
-A generative step sequencer and synth as a firmware for the M-VAVE FM-1: a 16-step sequence with segments, a lead
-voice with filter, grit and a second oscillator, a bass with its own sequencer, a chord layer, a four-voice drum kit,
-a sample layer, delay, reverb, distortion, a dot-matrix and an evolving-register modulator, a randomizer with undo,
-performance keys, 16 pattern slots (one a white key) and a loop cycle, all on the FM-1's keys, knobs and 240 x 240 screen. It is a
-port of [SkurkyMello](reference/skurkymello.html), the browser instrument, which stays the reference for sound and
-feel, and it is built on [Dinghy](https://github.com/zvenson/dinghy) 0.5 by zvenson (its FM-1 platform) and, under that,
-the Felucca / SLOOP platform.
-
-> **Status: tested on emulators, not yet on an FM-1.** Every package runs in
-> [fm1-emu](https://github.com/joakimeriksson/fm1-emu) and its web emulator; the first install on real hardware
-> follows [docs/mello/FIRST_FLASH.md](docs/mello/FIRST_FLASH.md). Every flash can brick a unit: hold OCT- while
-> switching on to reach the updater.
-
-This README is the manual. The design record is in [docs/mello/DECISIONS.md](docs/mello/DECISIONS.md), the plan in
-[ROADMAP.md](ROADMAP.md), and every page's knobs and keys, generated from the code, in
-[docs/mello/UI_MAP.md](docs/mello/UI_MAP.md).
 
 ## Install
 
@@ -446,12 +479,13 @@ pixel.
 ## Work on it
 
 ```sh
-make test          # the host tests (tests/mello): seconds, no FM-1, no toolchain
+make test          # the host tests (tests/mello, Dinghy's installer and loader screen): no FM-1, no toolchain
 make sanitize      # the same with UBSan and ASan
 make parity        # the C engine against the HTML's renders (needs numpy)
 make bench         # where the audio's time goes on this computer
 make host          # the whole firmware on this computer: a WAV and screen PNGs (pip3 install Pillow)
 make screens       # every page as PNG in docs/screens, and the UI map's pictures (python3, nothing else)
+make art          # the README's logo and the GIF at its top, from the firmware (needs Pillow)
 make format        # clang-format the Mello sources (pip3 install clang-format)
 make emu PKG=build/skurkymello-0.5-f60.fwsc   # a package on fm1-emu: played and edited live, its load, its stacks
 ```
@@ -544,3 +578,5 @@ The firmware is GPL-3.0-only, as Dinghy: ship it, and ship its source. The origi
 clone, nothing more. The Big screen encoder and its protocol (`firmware/src/screen_mirror.c`) are Patrick F.
 Kellogg's, MIT licensed, from his [FM-1 Mirror](https://github.com/pfkellogg/fm1-mirror) work; thank you.
 [LICENSING.md](LICENSING.md) has who made what and the exact terms.
+
+SkurkyMello is a fan project, not an official M-VAVE product. "M-VAVE" and "FM-1" belong to their owners.

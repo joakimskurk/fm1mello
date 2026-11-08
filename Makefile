@@ -1,6 +1,6 @@
 # SkurkyMello: the everyday commands. The firmware itself is built by ./build.sh (see README.md).
-.PHONY: test sanitize bench host screens parity reference emu format format-check clean
-test:            ## Mello host tests (tests/mello) and the Big screen check, seconds, no FM-1 or toolchain needed
+.PHONY: test sanitize bench host screens art parity reference emu format format-check clean
+test:            ## Mello host tests (tests/mello), Dinghy's installer and loader screen, the Big screen check; no FM-1 or toolchain
 	sh tests/run_mello.sh
 	sh tests/mirror_check.sh
 sanitize:        ## the same tests with UBSan and ASan: any signed overflow or bad access fails
@@ -21,6 +21,8 @@ host:            ## the whole firmware on this computer: build/host/dinghy.wav a
 	sh tests/run_host.sh
 screens:         ## every page as PNG in docs/screens, and the UI map's pictures (python3, nothing else)
 	python3 tools/screens.py
+art:             ## the README's logo (docs/logo.png, from docs/card.png) and its GIF (docs/hero.gif, the host build playing)
+	python3 tools/readme_art.py
 emu:             ## a built package on fm1-emu: played and edited live, its load and its stacks (PKG=build/....fwsc)
 	sh tools/emu_smoke.sh $(PKG)
 	sh tools/emu_stack.sh $(PKG)
