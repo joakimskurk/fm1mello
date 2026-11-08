@@ -56,6 +56,24 @@ for n in $NAMES; do
     run "$n" "" ""
     case " $FEATURE_OFF " in *" $n "*) run "$n" "_chord_off" "-DMELLO_FEATURE_CHORD_MACHINE=0" ;; esac
 done
+# Dinghy's own host tests, in the full run (taken with Dinghy 0.5; docs/mello/DINGHY_0_4.md): the installer against a
+# simulated FM-1 (python3, no device, no mido)
+dinghy_test() {    # name, command...
+    name="$1"
+    shift
+    if "$@" >"$OUT/$name.txt" 2>&1; then
+        echo "PASS $name"
+    else
+        echo "FAIL $name (see $OUT/$name.txt)"; tail -5 "$OUT/$name.txt"; FAILED=1
+    fi
+}
+if [ $# -eq 0 ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        dinghy_test install_test python3 -I tests/install_test.py
+    else
+        echo "install_test: no python3, skipped"
+    fi
+fi
 if [ "$FAILED" = 0 ]; then
     echo "all Mello host tests passed"
 else    # loud, and last, so a run read through tail cannot pass for green

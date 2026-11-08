@@ -9,7 +9,7 @@ and the design record in this repository are not free: see "Not free" below.
 
 | | |
 | --- | --- |
-| The platform: `firmware/hal/`, `firmware/loader/`, `crt0.S`, `app.ld`, `firmware/src/` (`usb.c`, `ota.c`, `recovery.c`, `lcd.c`, `gfx.c`, `libc.c`, `bootguard.h`, `uac_fir.h`), `tools/` | Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments ([Felucca](https://github.com/hugelton/Felucca)), with the changes of [SLOOP](https://github.com/isod89/sloop-fm1) (isod89) |
+| The platform: `firmware/hal/`, `firmware/loader/`, `crt0.S`, `app.ld`, `firmware/src/` (`usb.c`, `ota.c`, `recovery.c`, `lcd.c`, `gfx.c`, `libc.c`, `bootguard.h`, `uac_fir.h`), `tools/`, the installer's test `tests/install_test.py` | Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments ([Felucca](https://github.com/hugelton/Felucca)), with the changes of [SLOOP](https://github.com/isod89/sloop-fm1) (isod89) |
 | The wiring `platform.c`, the host mode `tests/host.c` and `tests/run_host.sh`, Dinghy's docs, the app skeleton `firmware/src/dinghy.c` | zvenson |
 | SkurkyMello: `firmware/src/mello_*`, the app in `firmware/src/dinghy.c`, `tests/mello/`, `tests/bench/`, `tests/parity/`, `tools/fm1_samples.py`, `tools/screens.py`, `tools/gen_*.py`, `tools/emu_cpu.sh`, and its changes to Dinghy's files | Copyright (C) 2026 joakimskurk, GPL-3.0-only |
 | The original instrument `reference/skurkymello.html`, the design record and manual pages in `docs/mello/` and `docs/review-2026-10/`, the name SkurkyMello | Copyright (C) 2026 joakimskurk, **not** under the GPL: see "Not free" below |
