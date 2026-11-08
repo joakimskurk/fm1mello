@@ -63,6 +63,7 @@
 #define FM1_NCOL 11u
 #define FM1_NKEY 41u              /* ids: 0..13 buttons, 14..40 note keys */
 #define FM1_NENC 7u
+#define FM1_NBTN 14u              /* buttons: ids 0..13 */
 
 
 /* key id at (physical column, packed row bit), -1 = none */
@@ -79,6 +80,7 @@ static const uint8_t FM1_ENC[FM1_NENC][4] = {
     {0, 0, 1, 0}, {2, 0, 3, 0}, {8, 1, 9, 1}, {8, 0, 9, 0}, {6, 0, 7, 0}, {4, 0, 5, 0}, {0, 5, 1, 5},
 };
 enum { FM1_BTN_OCT_DOWN = 0, FM1_BTN_OCT_UP = 1 };
+#define FM1_OCT_BOTH (1u << FM1_BTN_OCT_DOWN | 1u << FM1_BTN_OCT_UP)
 
 static const int8_t FM1_LED_PORT[6] = {-1, FM1_PA, FM1_PA, FM1_PH, FM1_PH, -1};
 static const uint8_t FM1_LED_BIT[6] = {0, 9, 10, 6, 9, 0};
@@ -359,20 +361,6 @@ static uint32_t fm1_input_note_edges(void)
     fm1_in.notes_pressed = 0;
     fm1__unlock(k);
     return p;
-}
-
-/* the glow of key id (fm1_led_dim: lit for FM1_GLOW_NS a frame), for a set-but-not-now light (SkurkyMello G5) */
-static void fm1_led_glow_key(uint32_t id, int on)
-{
-    uint32_t p, r;
-    for (p = 0; p < FM1_NCOL; p++)
-        for (r = 1; r < 5u; r++)
-            if (FM1_KEYMAP[r][p] == (int8_t)id) {
-                if (on)
-                    fm1_led_dim[p] |= (uint8_t)(1u << r);
-                else
-                    fm1_led_dim[p] &= (uint8_t)~(1u << r);
-            }
 }
 
 /* LED of key id (button 0..13 or note key 14..40) */

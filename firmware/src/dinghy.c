@@ -135,7 +135,7 @@ static void ui_key_led(void *ctx, uint8_t key_index, bool on)
 static void ui_key_glow(void *ctx, uint8_t key_index, bool on)
 {
     (void)ctx;
-    fm1_led_glow_key(KEY_LED(key_index), on);
+    fm1_led_key_glow(KEY_LED(key_index), on);
 }
 static void ui_button_led(void *ctx, uint8_t button_id, bool on)
 {
