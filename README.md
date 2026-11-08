@@ -22,8 +22,8 @@ voice with filter, grit and a second oscillator, a bass with its own sequencer, 
 a sample layer, delay, reverb, distortion, a dot-matrix and an evolving-register modulator, a randomizer with undo,
 performance keys, 16 pattern slots (one a white key) and a loop cycle, all on the FM-1's keys, knobs and 240 x 240 screen. It is a
 port of [SkurkyMello](reference/skurkymello.html), the browser instrument, which stays the reference for sound and
-feel, and it is built on [Dinghy](https://github.com/zvenson/dinghy) 0.3 by zvenson (with 0.4's MIDI IN on the TRS
-jack) and, under that, the Felucca / SLOOP platform.
+feel, and it is built on [Dinghy](https://github.com/zvenson/dinghy) 0.5 by zvenson (its FM-1 platform) and, under that,
+the Felucca / SLOOP platform.
 
 > **Status: tested on emulators, not yet on an FM-1.** Every package runs in
 > [fm1-emu](https://github.com/joakimeriksson/fm1-emu) and its web emulator; the first install on real hardware
@@ -41,7 +41,7 @@ firmware with the FM-1 update loader), over USB-MIDI:
 
 ```sh
 pip3 install mido python-rtmidi
-python3 tools/fm1_install.py build/skurkymello-0.5-f98.fwsc
+python3 tools/fm1_install.py build/skurkymello-0.5-f99.fwsc
 python3 tools/fm1_install.py --info        # what the FM-1 runs now
 ```
 
@@ -497,9 +497,10 @@ firmware/src/mello_ui.*        pages, keys, pictures
 firmware/src/mello_storage.*   projects in flash (A/B banks with CRC)
 firmware/src/mello_sample.*    user samples
 firmware/src/platform.c, hal/  Dinghy's platform, as close to upstream as possible
-firmware/src/midi_uart.c       Dinghy 0.4's MIDI IN on the TRS jack, as upstream has it
+firmware/src/midi_uart.c       Dinghy's MIDI IN on the TRS jack, as upstream has it
+firmware/loader/               the update loader, with its screen (ldr_screen.c), as Dinghy 0.5 has it
 tests/mello/                   host tests;  tests/bench/  the CPU bench;  tests/parity/  the HTML parity
-tools/fm1_samples.py (WAVs into the sample slots), fm1_install.py, screens.py (the pages as PNG), emu_cpu.sh, emu_smoke.sh,
+tools/fm1_samples.py (WAVs into the sample slots), fm1_install.py (Dinghy 0.5's), screens.py (the pages as PNG), emu_cpu.sh, emu_smoke.sh,
                                emu_stack.sh, build.py
 reference/skurkymello.html     the original: the reference for sound and feel
 docs/mello/                    DECISIONS.md, UI_MAP.md, CONTROL_GRAMMAR.md, UI_ICEBERG.md, FIRST_FLASH.md
@@ -516,7 +517,8 @@ SkurkyMello is free. If it gives you music, you can [buy me a coffee](https://bu
 
 SkurkyMello stands on other people's work. Thank you all:
 
-- **[Dinghy](https://github.com/zvenson/dinghy)** by zvenson: the app framework, the host mode and the TRS MIDI IN.
+- **[Dinghy](https://github.com/zvenson/dinghy)** by zvenson: the app framework, the host mode, the TRS MIDI IN, the
+  installer's updates and the update loader's screen (from OberVave and from Skiff by illuminus5).
 - **[Felucca](https://github.com/hugelton/Felucca)** by Leo Kuroshita (@kurogedelic), Hügelton Instruments: the
   platform under Dinghy (HAL, loader, USB, the build tools).
 - **[SLOOP](https://github.com/isod89/sloop-fm1)** by isod89: its changes to that platform.
@@ -529,9 +531,12 @@ The code was written with Claude (Anthropic) as a coding assistant; the commits 
 
 ## Upstream and licence
 
-`main` is a fork of Dinghy at `d44df7d` (0.3) with 0.4's TRS MIDI IN taken over (`midi_uart.c` and its hunks in
-`platform.c`); `git remote upstream` points there. The Mello changes to Dinghy's own files are small and listed in
-`git log -- firmware/src/platform.c firmware/src/midi_uart.c firmware/src/gfx.c tools/build.py`. Package
+`main` is a fork of Dinghy at `d44df7d` (0.3), brought up to Dinghy 0.5 (`ea1b6bf`) piece by piece: the TRS MIDI
+IN, the newer FM-1s' flash chip, the flash map, the installer, the USB buffers and the update loader's screen.
+`firmware/hal/` is 0.5's but for the SMK-37's `smk_input.h`; not taken are the SMK-37 port, Dinghy's blobs and slots
+(SkurkyMello has its own storage), `LCD_IDLE` and `-Os` ([docs/mello/DINGHY_0_4.md](docs/mello/DINGHY_0_4.md)).
+`git remote upstream` points there. The Mello changes to Dinghy's own files are small and listed in
+`git log -- firmware/src/platform.c firmware/src/lcd.c firmware/src/usb.c firmware/src/gfx.c tools/build.py`. Package
 identity: `FM-1_987` (it was `FM-1_970` up to 0.5-f97: docs/mello/PRODUCT_IDENTITY.md).
 
 The firmware is GPL-3.0-only, as Dinghy: ship it, and ship its source. The original instrument

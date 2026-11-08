@@ -1,8 +1,37 @@
-# SkurkyMello and Dinghy 0.4
+# SkurkyMello and Dinghy 0.4 / 0.5
 
 Review of 2026-11-06. SkurkyMello `main` at `3976141` (0.5-f96), built on Dinghy 0.3 (merge base `d44df7d`). Upstream
 `zvenson/dinghy` `main` at `f77bf03`: Dinghy 0.4 (`7c31bb2`, 41 files, +4001 / -238), `22acb91` (CI) and `f77bf03`
 (the UC25HQ80 flash chip). This is a report only: nothing here changes the firmware.
+
+## Dinghy 0.5, taken (2026-11-08)
+
+Dinghy 0.5 (`ea1b6bf`, 2026-11-07) is 0.4, the UC25HQ80 flash chip (`f77bf03`), a README line and a fix to its
+release workflow. Its firmware brings nothing 0.4 did not have. The "worth taking" list below is now done, one commit
+each, in 0.5-f99:
+
+| Step | Commit | On the FM-1 |
+|---|---|---|
+| 1. The newer flash chip | `b0672a0` (0.5-f97) | Newer units save to flash and take updates |
+| 2. The boot scan's 100 us | `bf74925` (0.5-f98) | OCT- at power-on reads (the USB rescue) |
+| 3. `-O2` or `-Os` | `ca4b854` (DECISIONS "Before the first release") | `-O2` stays; USB-MIDI IN early on the checklist |
+| 4. The flash map, `FL_JEDEC_OK` | `0989f2e` | None: the same package, byte for byte |
+| 4. The no-op syncs (`ota.c`, `bootguard.h`, `ldr_core.c`, `fm1_input.h`) | `66f4194` | None: the same package, byte for byte |
+| 4. The USB buffers aligned to 32 | `0a9cb28` | RAM +64 B (padding) |
+| 5. The installer and its test | `3842ffa` | None (a host tool); `make test` runs `install_test.py` |
+| 6. The update loader's screen | `7192c2b` | The loader draws SKURKYMELLO, UPDATE MODE, WRITING, UPDATE FAILED |
+
+`firmware/hal/` is now 0.5's but for `smk_input.h` (the SMK-37's, not taken). `ota.c`, `bootguard.h`,
+`recovery.c` (but for the chip id read once) and `ldr_core.c` are 0.5's; `loader.c`, `lcd.c`, `usb.c` and `platform.c`
+differ by SkurkyMello's hooks (the Big screen, its storage window, the chip id read once). `FL_JEDEC_OK(id)` names its
+argument twice, so every call site reads the chip into a variable first: upstream's `FL_JEDEC_OK(fl_jedec_ram())` reads
+it twice on a UC25HQ80 (harmless, but two flash sessions).
+
+Still not taken, as below: the SMK-37 port, blobs and slots (`store.h`), `FELUCCA_UAC 0`, `LCD_IDLE` (later, if
+the keys lag while the screen redraws), `CV_MAX`'s `#ifndef` (tests/host.c sets its own), and the OTA and loader host
+tests (`ota_test.c`, `ldr_test.c`: they need a built package, so the toolchain). The loader's screen cannot run in
+fm1-emu (it boots apps, not the loader alone): `tests/ldr_screen_test.c` draws it on the host, and the hardware
+checklist has an item for it.
 
 ## In short
 

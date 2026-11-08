@@ -1,7 +1,7 @@
 # Make it yours
 
 Dinghy is meant to be copied. This is how a copy becomes your firmware, gets released, and gets into the
-[FM-1 Firmware Hub](https://fm1.designburgapps.com) next to the others.
+[FM-1 Firmware Hub](https://thefirmwarehub.com) next to the others.
 
 ## 1. Copy
 
@@ -43,7 +43,7 @@ them.
 
 ## 5. Into the hub
 
-The [FM-1 Firmware Hub](https://fm1.designburgapps.com) installs open-source FM-1 firmwares with one click,
+The [FM-1 Firmware Hub](https://thefirmwarehub.com) installs open-source FM-1 firmwares with one click,
 and checks every night for new releases. To be listed:
 
 - the source is public and GPL-3.0 (Dinghy already is: keep it so);

@@ -2054,6 +2054,31 @@ without an FM-1:
 Not done, and needing a real FM-1: everything in docs/mello/HARDWARE_VALIDATION_CHECKLIST.md, which the hub asks for
 too ("untested firmwares are not listed").
 
+## Dinghy 0.5 (2026-11-08)
+
+The product owner asked for Dinghy 0.5 ("Dinghy 0.5 må implementeres/oppgraderes"). Dinghy 0.5 is 0.4 plus the
+UC25HQ80 flash chip, which SkurkyMello had since 0.5-f97, so the work was the rest of the 0.4 review's list
+(docs/mello/DINGHY_0_4.md, its first section has the commits), not a merge: the SMK-37 port and Dinghy's blobs and
+slots would sit on top of the Mello banks.
+
+- **Byte-identical where it should be.** The flash map, the chip check as `FL_JEDEC_OK` and the syncs of `ota.c`,
+  `bootguard.h`, `ldr_core.c` and `fm1_input.h` were each checked by building `--release 0.5-zz` before and after:
+  the same package, byte for byte. The glow layer kept its behaviour under Dinghy's name (`fm1_led_key_glow`, in
+  `platform.c`).
+- **The chip id is read once.** `FL_JEDEC_OK(id)` names its argument twice; the three call sites read the chip into a
+  variable first, where upstream calls `fl_jedec_ram()` inside the macro.
+- **The update loader draws.** Dinghy 0.4's loader screen (from OberVave and Skiff): the name SKURKYMELLO in the app's
+  green (#00DD88, RGB565 0x06F1, `SCREEN_NAME` / `SCREEN_COLOUR` in tools/build.py), UPDATE MODE while it waits,
+  WRITING with 20 segments and the percent, UPDATE FAILED after a cut install, thefirmwarehub.com at the foot. The
+  loader grows from 12.6 KB to 15.6 KB of its 80 KB RAM window; `ota.bin` from 8.5 KB to 11.3 KB (the staging area
+  holds 20 KB). SkurkyMello's Big screen hooks in `lcd.c` are kept out of the loader by `LCD_MIRROR`, which only
+  `mirror.c` defines. The app's screen code is unchanged (the same instructions in `lcd_fill` and `lcd_init`).
+  `make test` draws the four screens on the host with the build's name and colour; fm1-emu cannot run the loader, so
+  the hardware checklist has an item for it.
+- **Unchanged decisions.** `-O2` stays (DECISIONS "Before the first release"). The USB buffers are aligned to 32 as
+  upstream, which upstream says did not cure its babble. Not taken, each for its reason in DINGHY_0_4.md: the SMK-37,
+  `store.h`, `FELUCCA_UAC 0`, `LCD_IDLE`, `CV_MAX`'s `#ifndef`, the toolchain-needing OTA and loader tests.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

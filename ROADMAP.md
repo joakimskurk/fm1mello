@@ -596,6 +596,6 @@ simple (Phase 3's iceberg).
 
 ## Phase 4: validate, then grow
 
-`docs/mello/HARDWARE_VALIDATION_CHECKLIST.md` on a unit. Then: the rest of Dinghy 0.4 as needed (its TRS MIDI IN
-is in since 2026-11-01), Undo Last Random, new engines. The package identity is `FM-1_987` since 0.5-f98 (970 was in zp12's range on the Firmware Hub:
+`docs/mello/HARDWARE_VALIDATION_CHECKLIST.md` on a unit. Dinghy 0.5's FM-1 parts are in since 2026-11-08
+(docs/mello/DINGHY_0_4.md; later, as needed: `LCD_IDLE`, the OTA and loader host tests). Then: Undo Last Random, new engines. The package identity is `FM-1_987` since 0.5-f98 (970 was in zp12's range on the Firmware Hub:
 docs/mello/PRODUCT_IDENTITY.md); re-check it there before each tagged release.

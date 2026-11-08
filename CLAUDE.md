@@ -1,6 +1,7 @@
 # Working on SkurkyMello
 
-- Bare-metal FM-1 firmware on Dinghy 0.3. Read README.md and ROADMAP.md first; the current phase is the first
+- Bare-metal FM-1 firmware on Dinghy 0.5's FM-1 platform (a 0.3 fork brought up to 0.5 piece by piece:
+  docs/mello/DINGHY_0_4.md). Read README.md and ROADMAP.md first; the current phase is the first
   unchecked one in ROADMAP.md.
 - `reference/skurkymello.html` is the reference for sound and feel. When the C code and the HTML disagree, the HTML wins
   unless docs/mello/DECISIONS.md says otherwise.

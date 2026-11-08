@@ -22,5 +22,8 @@ All boxes are mandatory before a public release.
 - [ ] Fill flash storage through representative repeated saves/sample replacements; no updater/settings corruption.
 - [ ] With SkurkyMello running, install another firmware successfully (critical escape/update path).
 - [ ] Interrupt another firmware install during Writing, reconnect, and resume successfully.
+- [ ] The update loader's screen (Dinghy 0.5's, since 0.5-f99): SKURKYMELLO in green and UPDATE MODE while it
+      waits, WRITING with its bar and percent during an install, UPDATE FAILED after a cut one; the install still
+      finishes (the loader draws before it starts USB).
 - [ ] OCT− rescue verified: held at power-on it opens the USB rescue (the boot scan settles 100 us since 0.5-f98).
 - [ ] Back-to-official V15 verified.
