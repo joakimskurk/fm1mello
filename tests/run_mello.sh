@@ -57,7 +57,7 @@ for n in $NAMES; do
     case " $FEATURE_OFF " in *" $n "*) run "$n" "_chord_off" "-DMELLO_FEATURE_CHORD_MACHINE=0" ;; esac
 done
 # Dinghy's own host tests, in the full run (taken with Dinghy 0.5; docs/mello/DINGHY_0_4.md): the installer against a
-# simulated FM-1 (python3, no device, no mido)
+# simulated FM-1 (python3, no device, no mido) and the update loader's screen
 dinghy_test() {    # name, command...
     name="$1"
     shift
@@ -72,6 +72,15 @@ if [ $# -eq 0 ]; then
         dinghy_test install_test python3 -I tests/install_test.py
     else
         echo "install_test: no python3, skipped"
+    fi
+    # the update loader's screen (loader/ldr_screen.c through lcd.c on a fake panel), with tools/build.py's name and colour
+    ldr_name=$(sed -n 's/^SCREEN_NAME = "\([A-Z0-9 ]*\)".*/\1/p' tools/build.py)
+    ldr_colour=$(sed -n 's/^SCREEN_COLOUR = \(0x[0-9A-Fa-f]*\).*/\1/p' tools/build.py)
+    if "$CC" -std=gnu11 -O1 -Wall -Wextra -Wno-unused-function -Werror -DLDR_NAME="\"$ldr_name\"" -DLDR_COLOUR="${ldr_colour}u" \
+        tests/ldr_screen_test.c -o "$OUT/ldr_screen_test"; then
+        dinghy_test ldr_screen_test "$OUT/ldr_screen_test" "$OUT"
+    else
+        echo "FAIL ldr_screen_test (does not compile)"; FAILED=1
     fi
 fi
 if [ "$FAILED" = 0 ]; then

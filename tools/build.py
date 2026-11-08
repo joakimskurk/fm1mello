@@ -48,6 +48,8 @@ SDK_SHA256 = {
     "cfg/eq_cfg_hw.bin": "41167491bffed4651750719c973d2758adeb9021a5670d02d6a53c85ed80ea7d",
 }
 
+SCREEN_NAME = "SKURKYMELLO"         # the update loader's screen (ldr_screen.c): the name, in letters its font has
+SCREEN_COLOUR = 0x06F1              # and its colour, RGB565: #00DD88, the app's green (UI_ACC; fmhub.json)
 PRODUCT = os.environ.get("MELLO_PRODUCT", "FM-1_987")  # SkurkyMello identity (docs/mello/PRODUCT_IDENTITY.md; 970 was zp12's range)
 VERSION = None                      # APP_VER for release builds
 
@@ -123,7 +125,7 @@ def ldr_wrap(image):
 def build_loader():
     LDR.mkdir(parents=True, exist_ok=True)
     src = FW / "loader"
-    flags = [*CFLAGS, "-Ifirmware/hal", "-Ifirmware/src"]
+    flags = [*CFLAGS, "-Ifirmware/hal", "-Ifirmware/src", f'-DLDR_NAME="{SCREEN_NAME}"', f"-DLDR_COLOUR={SCREEN_COLOUR:#x}u"]
     tc_all(("cc", "-c", src / "crt0_ldr.S", "-o", LDR / "crt0_ldr.o"),
            ("cc", *flags, "-c", src / "loader.c", "-o", LDR / "loader.o"))
     elf = LDR / "loader.elf"

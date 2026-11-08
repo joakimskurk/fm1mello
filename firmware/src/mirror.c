@@ -10,6 +10,7 @@
  * for its zone again, once the queue has drained. An app that stopped reading gets no waiting: the next hello (or
  * 3 s) sorts it out. */
 #include "mirror.h"
+#define LCD_MIRROR 1 /* lcd.c (included after this file) sends what it draws here too; the update loader has no mirror */
 #include "screen_mirror.h"
 
 #ifndef MIRROR_NOW
