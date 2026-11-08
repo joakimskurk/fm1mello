@@ -1,5 +1,6 @@
 # Every push and pull request: the Mello host tests, Dinghy's host mode and the real FM-1 package, built and attested
-# by the shared zvenson/fm1-build workflow (JieLi toolchain + AC79 SDK). A tag vX.Y also publishes the release.
+# by the shared zvenson/fm1-build workflow (JieLi toolchain + AC79 SDK). A tag vX.Y also publishes the release, and
+# a push to main the website (the site job below).
 name: build
 
 on:
@@ -21,3 +22,63 @@ jobs:
         if [ "$GITHUB_REF_TYPE" = tag ]; then ./build.sh --release "${GITHUB_REF_NAME#v}"; else ./build.sh; fi
       test: sh tests/run_mello.sh && sh tests/run_host.sh && sh tests/mirror_check.sh
       packages: build/skurkymello-*.fwsc
+
+  # The website (GitHub Pages, https://joakimskurk.github.io/fm1mello/): SkurkyMello's page and its installer in the
+  # browser (Web MIDI), with the package this run built and tested, and the demos the firmware plays on the runner
+  # (web/make_site.py: the host build, AAC by ffmpeg). From main only. GitHub Pages takes its site from GitHub Actions
+  # (Settings -> Pages -> Build and deployment -> Source: GitHub Actions); while it is off, this job says so and
+  # publishes nothing, and the build stays green. As VaveHero's and Star Distroyer's.
+  site:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Python packages and ffmpeg (the demos' pictures and audio)
+        run: |
+          python3 -m pip install Pillow numpy
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: GitHub Pages switched on?
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/pages" >/dev/null 2>&1; then
+            echo "on=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=GitHub Pages is off::Settings -> Pages -> Build and deployment -> Source: GitHub Actions, then run the build again"
+            echo "on=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: The site
+        run: python3 web/make_site.py build/skurkymello-dev.fwsc "dev-${GITHUB_SHA::7}" _site
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.pages.outputs.on == '1'
+        with:
+          path: _site
+
+      - id: deploy
+        if: steps.pages.outputs.on == '1'
+        uses: actions/deploy-pages@v4

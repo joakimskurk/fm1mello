@@ -1,0 +1,612 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 joakimskurk
+     SkurkyMello's page and installer (web/make_site.py makes the site). The install flow follows VaveHero's, FM-1
+     Clock's and Star Distroyer's pages, after SLOOP's installer page (web/index_pkg.html, Copyright (C) 2026 Leo
+     Kuroshita (@kurogedelic), Hügelton Instruments; isod89); its protocol is SLOOP's own, unchanged: web/fm1pkg.js,
+     web/fm1ota.js. The look is the instrument's: near black with a green glow, the HTML's green, the segments'
+     colours A-D. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkurkyMello</title>
+<meta name="description" content="SkurkyMello: a generative step sequencer and synth firmware for the M-VAVE FM-1. Sixteen steps at its heart, a band around it, a randomizer that rolls in fifteen styles, performance effects on the keys. Install it from the browser.">
+<!-- the link preview: the card a chat or a post shows for the link (web/make_og.py makes the picture) -->
+<link rel="canonical" href="https://joakimskurk.github.io/fm1mello/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SkurkyMello">
+<meta property="og:title" content="SkurkyMello: a generative step sequencer and synth for the M-VAVE FM-1">
+<meta property="og:description" content="Sixteen steps at its heart, a band around it, a randomizer that rolls in fifteen styles and performance effects on the keys. Free firmware, installed from the browser.">
+<meta property="og:url" content="https://joakimskurk.github.io/fm1mello/">
+<meta property="og:image" content="https://joakimskurk.github.io/fm1mello/screens/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The SkurkyMello logo, sixteen bars over the word SKURKYMELLO, over three of its FM-1 screens: HOME playing, PERFORM and DOT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#020806">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="screens/logo.png">
+<style>
+  :root { --bg: #020806; --panel: #07150e; --panel2: #0b1f15; --line: #163626; --line2: #1f4a34; --fg: #d8f3e5;
+          --dim: #80aa92; --acc: #00dd88; --mint: #42ffb5; --cyan: #00ffee;
+          --a: #00dd88; --b: #e1ab48; --c: #5c92dc; --d: #ae69d2; --good: #6ee7a0; --bad: #ff6b5a;
+          --mono: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", "Courier New", monospace; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; background: var(--bg); }
+  body { margin: 0; color: var(--fg);
+         background: radial-gradient(ellipse 70% 520px at 50% 0, rgba(0, 221, 136, .15), transparent 70%),
+                     radial-gradient(ellipse 40% 380px at 88% 420px, rgba(0, 255, 238, .06), transparent 70%),
+                     linear-gradient(#04120b, var(--bg) 1100px) no-repeat var(--bg);
+         font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 32px 16px 56px; }
+  a { color: var(--mint); }
+  a:hover { color: #9dffd6; }
+  .nw { white-space: nowrap; }
+  header { text-align: center; }
+  h1 { margin: 0; line-height: 0; }
+  h1 img { display: block; width: min(560px, 100%); height: auto; margin: 0 auto; }
+  .tag { margin: 14px 0 0; font-size: 19px; line-height: 1.35; }
+  .sub { margin: 8px 0 0; color: var(--dim); font: 13px/1.5 var(--mono); letter-spacing: .02em; }
+  nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; margin: 18px 0 0;
+        font: 600 13px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+  nav a { color: var(--dim); text-decoration: none; border-bottom: 1px solid var(--line2); }
+  nav a:hover { color: var(--acc); border-color: var(--acc); }
+  /* a section's title: as the screen's header line, the segments' colours before it */
+  h2 { display: flex; align-items: center; gap: 12px; margin: 52px 0 14px; color: var(--acc);
+       font: 700 19px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+  h2::before { content: ""; flex: none; width: 44px; height: 4px; border-radius: 2px;
+               background: linear-gradient(90deg, var(--a) 0 25%, var(--b) 25% 50%, var(--c) 50% 75%, var(--d) 75%); }
+  h2 small { color: var(--dim); font-size: 13px; letter-spacing: .06em; text-transform: none; font-weight: 400; }
+  h3 { margin: 0 0 6px; font: 700 15px/1.3 var(--mono); letter-spacing: .08em; color: var(--fg); }
+  h3 span { color: var(--dim); font-weight: 400; }
+  .notes { margin: 26px 0 0; }
+  .warn { margin: 0; padding: 12px 16px; border: 2px solid #e0443a; border-radius: 4px; background: #2e100c;
+          color: #ffdcd5; font-size: 15px; line-height: 1.5; }
+  .warn b { color: #ff6f61; }
+  .testers { margin: 10px 0 0; padding: 10px 16px; border-left: 3px solid var(--b); background: var(--panel);
+             font-size: 15px; line-height: 1.5; }
+  .testers b { color: var(--b); }
+  .hero { margin: 32px auto 8px; width: min(400px, 100%); }
+  .hero img { display: block; width: 100%; height: auto; border: 1px solid var(--line2); border-radius: 6px;
+              image-rendering: pixelated; box-shadow: 0 0 0 6px #050d09, 0 0 0 7px var(--line), 0 18px 60px rgba(0, 221, 136, .16); }
+  .hero figcaption { margin: 14px 0 0; color: var(--dim); font-size: 13px; text-align: center; }
+  .scr { display: block; width: 100%; height: auto; border: 1px solid var(--line2); background: #000;
+         image-rendering: pixelated; }
+  .lead { font-size: 18px; margin: 26px 0 0; }
+  .lead b { color: var(--mint); font-weight: 600; }
+  .facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 24px 0 0; }
+  .fact { background: var(--panel); border-top: 3px solid var(--a); padding: 10px 12px 12px; }
+  .fact:nth-child(2) { border-color: var(--b); } .fact:nth-child(3) { border-color: var(--c); }
+  .fact:nth-child(4) { border-color: var(--d); }
+  .fact b { display: block; font: 700 28px/1.1 var(--mono); color: var(--a); }
+  .fact:nth-child(2) b { color: var(--b); } .fact:nth-child(3) b { color: var(--c); }
+  .fact:nth-child(4) b { color: var(--d); }
+  .fact span { display: block; color: var(--dim); font-size: 13px; line-height: 1.4; margin-top: 6px; }
+  .word { margin: 30px 0 0; padding: 18px 20px 16px; background: var(--panel); border-left: 3px solid var(--acc); }
+  .word h3 { color: var(--acc); }
+  .word p { margin: 0 0 10px; font-size: 15.5px; }
+  .word .me { margin: 0; color: var(--dim); font-style: italic; }
+  /* the demos */
+  .demo { margin: 0 0 16px; padding: 14px 14px 12px; background: var(--panel); border: 1px solid var(--line); }
+  .demo-top { display: flex; gap: 14px; align-items: flex-start; margin: 0 0 12px; }
+  .pp { flex: none; width: 46px; height: 46px; border: 1px solid var(--acc); border-radius: 50%; background: transparent;
+        color: var(--acc); cursor: pointer; display: grid; place-items: center; padding: 0; }
+  .pp:hover { background: var(--acc); color: var(--bg); }
+  .pp.on { background: var(--acc); color: var(--bg); box-shadow: 0 0 16px rgba(0, 221, 136, .5); }
+  .pp svg { width: 18px; height: 18px; fill: currentColor; }
+  .demo-top b { font: 700 15px/1.3 var(--mono); letter-spacing: .12em; color: var(--fg); }
+  .demo-top .len { margin-left: 8px; font: 13px var(--mono); color: var(--dim); }
+  .demo-top p { margin: 2px 0 0; color: var(--dim); font-size: 14px; line-height: 1.45; }
+  .spec { position: relative; height: 112px; border: 1px solid var(--line2); background: #030a07; overflow: hidden;
+          touch-action: none; }
+  .spec img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .spec .hz { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(128, 170, 146, .2); pointer-events: none; }
+  .spec .hz span { position: absolute; left: 4px; top: -8px; font: 10px/1 var(--mono); color: var(--dim);
+                   background: rgba(2, 8, 6, .7); padding: 1px 3px; }
+  .spec .head { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; margin-left: -1px; background: #fff;
+                box-shadow: 0 0 8px var(--acc); pointer-events: none; }
+  .spec .hover { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(216, 243, 229, .45); display: none;
+                 pointer-events: none; }
+  .spec:hover .hover { display: block; }
+  .spec input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+  .spec input:focus-visible + .ring { outline: 2px solid var(--acc); outline-offset: -2px; }
+  .ring { position: absolute; inset: 0; pointer-events: none; }
+  .clock { display: flex; justify-content: space-between; margin: 6px 0 0; font: 12px var(--mono); color: var(--dim);
+           font-variant-numeric: tabular-nums; }
+  .clock .now { color: var(--acc); }
+  /* the original */
+  .orig { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; padding: 18px 20px;
+          background: linear-gradient(120deg, rgba(0, 221, 136, .10), rgba(0, 255, 238, .04)), var(--panel);
+          border: 1px solid var(--line2); }
+  .orig p { margin: 0; }
+  .orig p + p { margin-top: 8px; color: var(--dim); font-size: 14px; }
+  .go { display: inline-block; padding: 12px 20px; background: var(--acc); color: #01140b; font-weight: 700;
+        text-decoration: none; letter-spacing: .04em; white-space: nowrap; border-radius: 3px; }
+  .go:hover { background: var(--mint); color: #01140b; }
+  /* the install */
+  .box { background: var(--panel); border: 1px solid var(--line2); padding: 20px; }
+  ol { margin: 0 0 16px; padding-left: 22px; } li { margin: 0 0 4px; }
+  .ack { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 14px; cursor: pointer; }
+  .ack input { width: 18px; height: 18px; margin: 3px 0 0; flex: none; accent-color: var(--acc); }
+  button#go { font: 700 16px/1 inherit; font-family: inherit; width: 100%; padding: 16px 0; border: 0;
+              background: var(--acc); color: #01140b; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+  button#go:hover:not(:disabled) { background: var(--mint); }
+  button#go:disabled { background: var(--line); color: var(--dim); cursor: default; }
+  progress { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; margin: 14px 0 0; border: 0;
+             background: var(--line); }
+  progress::-webkit-progress-bar { background: var(--line); }
+  progress::-webkit-progress-value { background: var(--acc); }
+  progress::-moz-progress-bar { background: var(--acc); }
+  #status { margin: 12px 0 0; min-height: 1.6em; font-variant-numeric: tabular-nums; }
+  #status.good { color: var(--good); } #status.bad { color: var(--bad); }
+  .pkg { color: var(--dim); font-size: 13px; margin: 10px 0 0; overflow-wrap: anywhere; }
+  details { margin: 12px 0 0; } summary { cursor: pointer; color: var(--dim); font-size: 14px; }
+  pre { color: var(--dim); font-size: 12px; white-space: pre-wrap; max-height: 180px; overflow: auto; margin: 8px 0 0; }
+  .small { color: var(--dim); font-size: 14px; }
+  /* the tour and the pages */
+  .tour { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 10px; margin: 0; }
+  figure { margin: 0; }
+  figcaption { margin: 6px 0 0; color: var(--dim); font-size: 12.5px; line-height: 1.4; }
+  figcaption b { display: block; color: var(--fg); font: 700 12px/1.4 var(--mono); letter-spacing: .06em; }
+  .eng { display: grid; grid-template-columns: 200px 1fr; gap: 18px; align-items: start; margin: 0 0 14px;
+         padding: 14px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--a); }
+  .eng:nth-child(4n+2) { border-left-color: var(--b); } .eng:nth-child(4n+3) { border-left-color: var(--c); }
+  .eng:nth-child(4n) { border-left-color: var(--d); }
+  .eng ul { margin: 0; padding-left: 18px; font-size: 15px; line-height: 1.5; }
+  .eng li { margin: 0 0 5px; }
+  .eng li b { color: var(--mint); font-weight: 600; }
+  .shots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px 8px; margin: 18px 0 0; }
+  .shots figcaption { text-align: center; font: 11.5px/1.3 var(--mono); letter-spacing: .04em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0 0 12px; list-style: none; }
+  .chips li { margin: 0; padding: 6px 11px; border: 1px solid var(--line2); background: var(--panel); border-radius: 3px;
+              font: 600 13px/1 var(--mono); letter-spacing: .08em; color: var(--fg); }
+  .chips li:nth-child(4n+1) { border-color: rgba(0, 221, 136, .45); color: var(--a); }
+  .chips li:nth-child(4n+2) { border-color: rgba(225, 171, 72, .45); color: var(--b); }
+  .chips li:nth-child(4n+3) { border-color: rgba(92, 146, 220, .5); color: #8db6ee; }
+  .chips li:nth-child(4n) { border-color: rgba(174, 105, 210, .5); color: #c99ce4; }
+  .perf { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start; }
+  .perf dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 15px; }
+  .perf dt { font: 700 13px/1.6 var(--mono); letter-spacing: .06em; color: var(--mint); white-space: nowrap; }
+  .perf dd { margin: 0; color: var(--fg); }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  td { border-top: 1px solid var(--line); padding: 7px 10px 7px 0; vertical-align: top; }
+  td:first-child { white-space: nowrap; font: 700 13px/1.8 var(--mono); letter-spacing: .05em; color: var(--acc);
+                   padding-right: 16px; }
+  code { background: var(--panel2); padding: 1px 5px; font: 14px var(--mono); }
+  ul.links, ul.conn { padding-left: 20px; } ul.links li, ul.conn li { margin: 0 0 8px; }
+  ul.conn b { color: var(--mint); font-weight: 600; }
+  .coffee { margin: 22px 0 0; text-align: center; }
+  .coffee a { display: inline-block; padding: 10px 18px; border-radius: 8px; background: #ffdd00; color: #1b1309;
+              font-weight: 700; text-decoration: none; }
+  .coffee a:hover { background: #ffe74d; color: #1b1309; }
+  footer { margin-top: 52px; border-top: 1px solid var(--line); padding-top: 16px; color: var(--dim); font-size: 13px; }
+  footer p { margin: 0 0 8px; }
+  @media (max-width: 680px) {
+    .tour { grid-template-columns: repeat(2, 1fr); }
+    .shots { grid-template-columns: repeat(3, 1fr); }
+    .eng, .perf { grid-template-columns: 1fr; }
+    .eng .scr, .perf .scr { max-width: 280px; }
+    .orig { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .facts { grid-template-columns: repeat(2, 1fr); }
+    td:first-child { white-space: normal; }
+    .perf dl { grid-template-columns: 1fr; gap: 0; }
+    .perf dd { margin: 0 0 8px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1><img src="screens/logo.png" width="960" height="400" alt="SkurkyMello"></h1>
+    <p class="tag">A generative step sequencer and synth for the <span class="nw">M-VAVE FM-1</span></p>
+    <p class="sub">Sixteen steps at its heart · a band around it · fifteen styles to roll · performance on the keys</p>
+    <nav aria-label="On this page">
+      <a href="#hear">Hear it</a><a href="#original">The original</a><a href="#install">Install</a>
+      <a href="#tour">First tour</a><a href="#instrument">The instrument</a><a href="#perform">Perform</a>
+      <a href="#more">More</a>
+    </nav>
+  </header>
+
+  <div class="notes">
+    <p class="warn" role="note"><b>⚠ Not yet tried on a real FM-1.</b> SkurkyMello is built and tested on every change,
+      in CI, on a computer and in the FM-1 emulator, but it has not run on an actual device yet. Install it at your own
+      risk.</p>
+    <p class="testers" role="note"><b>Testers wanted.</b> Have an FM-1, and know how to get it back (below the Install
+      button)? Be the first to play SkurkyMello on one, following the
+      <a href="https://github.com/joakimskurk/fm1mello/blob/HEAD/docs/mello/FIRST_FLASH.md">first-install steps</a>,
+      and tell how it went in an
+      <a href="https://github.com/joakimskurk/fm1mello/issues/new?title=Tried+on+an+FM-1">issue on GitHub</a>: what
+      worked, what did not, what the screen showed and how it sounded.</p>
+  </div>
+
+  <figure class="hero">
+    <img src="screens/hero.gif" width="480" height="480" alt="The FM-1's screen, playing: the splash with its sixteen bars, HOME with the sequence as bars in the segments' colours, a roll of the randomizer, then PERFORM with its effects held">
+    <figcaption>The firmware's own screen, drawn on a computer by the same C the FM-1 runs</figcaption>
+  </figure>
+
+  <p class="lead">SkurkyMello turns the FM-1 into a melody sequencer with a band around it. <b>Sixteen steps</b> at
+    its heart, cut into segments, with a lead voice of filter, grit and a second oscillator; <b>a bass</b> with a line
+    of its own, <b>a chord layer</b>, <b>a four-voice drum kit</b> and four sample slots; delay, reverb and
+    distortion. <b>DOT</b> and <b>EVOLVE</b> keep it moving, <b>RNDMZR</b> rolls happy accidents in fifteen styles,
+    and <b>PERFORM</b> puts stutter, tape stop, repeats and sweeps on the keys. Every sound but your own samples is
+    synthesised on the FM-1 itself.</p>
+
+  <div class="facts">
+    <div class="fact"><b>16</b><span>steps at its heart (up to 32), in up to six segments</span></div>
+    <div class="fact"><b>5</b><span>parts: the lead, the bass, the chords, the drums, the samples</span></div>
+    <div class="fact"><b>15</b><span>styles RNDMZR rolls the whole band in, AMBIENT to GLITCH</span></div>
+    <div class="fact"><b>24</b><span>keys of PERFORM: effects, repeats, sweeps and mutes, held in time</span></div>
+  </div>
+
+  <section class="word" aria-labelledby="word">
+    <h3 id="word">A WORD FROM ME</h3>
+    <p>This started as an HTML project where I tried to build my dream sequencer, inspired by the way I work on my
+      modular synth. After working on it for a few months it has since become the prototype I use most. The FM-1
+      version is my first attempt at porting an idea to actual firmware, so please be kind.</p>
+    <p>This is a melody-focused firmware. The main sequencer is its heart. The chords and drums were only added for the
+      FM-1 version, and I personally actually prefer using it without them.</p>
+    <p>Scope creep got the better of me, by the way, so there are a lot of menus on a very small screen. Sorry about
+      that!</p>
+    <p>Anyway, enjoy.</p>
+    <p class="me">- Joakim</p>
+  </section>
+
+  <h2 id="hear">Hear it</h2>
+  <p>Three takes, each played the way one person plays one FM-1: the panel's own buttons, keys and knobs, pressed and
+    turned in time. They are rendered on a computer by the firmware itself, the same C the FM-1 runs, and its sound is
+    what the FM-1 sends over USB. The picture under each is its spectrum, low to high, from start to end: tap it to
+    jump.</p>
+  <div id="demos"></div>
+
+  <h2 id="original">The original</h2>
+  <div class="orig">
+    <div>
+      <p>SkurkyMello began in the browser, and it still lives there. The firmware is its port to the FM-1's keys, knobs
+        and 240 × 240 screen, and the browser instrument stays the reference for its sound and feel.</p>
+      <p>No FM-1 needed: it runs in any modern browser, with the computer's keyboard or a MIDI keyboard.</p>
+    </div>
+    <a class="go" href="https://jhf.no/skurky/skurkymello.html" target="_blank" rel="noopener">Play SkurkyMello in the browser ↗</a>
+  </div>
+
+  <h2 id="install">Install</h2>
+  <div class="box">
+    <ol>
+      <li>If another firmware's projects on the FM-1 matter to you, <b>back up its flash first</b> (M-Flasher or
+        MvaveFM1Unbricker): SkurkyMello starts on a new project, and its saves may overwrite another firmware's.</li>
+      <li>Open this page in <b>Chrome or Edge</b> on a computer (they can talk to the FM-1 over USB MIDI).</li>
+      <li>Connect the FM-1 <b>directly</b> to the computer with a USB data cable, and switch it on.</li>
+      <li>Close other apps that use MIDI, tick the box, press <b>Install</b> and allow MIDI when the browser asks.</li>
+    </ol>
+    <label class="ack"><input type="checkbox" id="ack"><span>I understand that SkurkyMello has not been tried on a real
+      FM-1 yet, and I install it at my own risk.</span></label>
+    <button id="go" disabled>Install</button>
+    <progress id="bar" max="100" value="0"></progress>
+    <p id="status">Loading the firmware…</p>
+    <p class="pkg" id="pkg"></p>
+    <details><summary>Log</summary><pre id="log"></pre></details>
+  </div>
+  <p class="small">Do not unplug the cable while it writes (about a minute). If an install is cut off, the FM-1 stays
+    in update mode: replug it and press Install again, and it finishes. If the FM-1 does not start at all, hold
+    <b>OCT−</b> while switching it on: it starts in the USB rescue, where an installer always works. To go back, install
+    any firmware from the FM-1 Firmware Hub, or the official one with M-VAVE's own updater M-UPGRADE. Both FM-1 flash
+    chips are supported. Installing firmware is at your own risk.</p>
+
+  <h2 id="tour">A first tour</h2>
+  <div class="tour">
+    <figure><img class="scr" src="screens/home.png" width="480" height="480" alt="HOME, stopped">
+      <figcaption><b>HOME</b>Sixteen steps as bars, the height the pitch, the segments A–D over them; the four macros on K1–K4.</figcaption></figure>
+    <figure><img class="scr" src="screens/home-playing.png" width="480" height="480" alt="HOME, playing">
+      <figcaption><b>PLAY</b>The step playing bright, the beats counted to the reset; SELECT is the tempo, PRESETS the slot.</figcaption></figure>
+    <figure><img class="scr" src="screens/home-rolled.png" width="480" height="480" alt="HOME after a roll">
+      <figcaption><b>RNDMZR</b>A roll, landing on the next bar's one. UNDO, the key before it, takes it back.</figcaption></figure>
+    <figure><img class="scr" src="screens/rndmzr-held.png" width="480" height="480" alt="RNDMZR held">
+      <figcaption><b>RNDMZR HELD</b>A white key rolls one part again: lead, bass, drums, kit, chords, sound. B0–B5 lock them.</figcaption></figure>
+    <figure><img class="scr" src="screens/home-held-step.png" width="480" height="480" alt="A step held">
+      <figcaption><b>A KEY HELD</b>That step's pitch, pulses, ratchet and gate on the knobs, its flags on the black keys.</figcaption></figure>
+    <figure><img class="scr" src="screens/home-rec.png" width="480" height="480" alt="REC in KEYS">
+      <figcaption><b>REC</b>The keys a keyboard, lit where the scale has a tone, writing the sequence, then the bass, the chords, the drums.</figcaption></figure>
+    <figure><img class="scr" src="screens/home-macros.png" width="480" height="480" alt="MACROS">
+      <figcaption><b>EDIT HELD</b>MACROS: each knob picks what it turns, from cutoff to swing, saved with the project.</figcaption></figure>
+    <figure><img class="scr" src="screens/step-playing.png" width="480" height="480" alt="SEQ, STEP">
+      <figcaption><b>SEQ</b>The picked step's values, the picture drawn from them; SEQ again for segments, loop cycle, slot sequence.</figcaption></figure>
+  </div>
+
+  <h2 id="instrument">The instrument</h2>
+  <div class="engs">
+  <div class="eng">
+    <img class="scr" src="screens/segment.png" width="480" height="480" alt="SEQ, SEGMENT">
+    <div><h3>THE SEQUENCE <span>·</span> sixteen steps, the heart</h3>
+      <ul>
+        <li>Each step a pitch in the key, its pulses, ratchets, a gate (SINGLE, MULTI, HOLD, REST), an octave, a chance, a sample and its own wave; flags for accent, sub, slide and skip.</li>
+        <li><b>Segments</b> A–F, each with its repeats, its order (forward, reverse, ping-pong, random) and a skip.</li>
+        <li>The <b>loop cycle</b> holds up to eight positions, a progression over the loop that never leaves the key; the <b>slot sequence</b> plays the 16 pattern slots in a row.</li>
+      </ul></div>
+  </div>
+  <div class="eng">
+    <img class="scr" src="screens/sound-filter.png" width="480" height="480" alt="ENV, SOUND, FILTER">
+    <div><h3>THE LEAD <span>·</span> a mono synth with character</h3>
+      <ul>
+        <li>Saw, square, triangle, sine or pulse through a 24 dB filter (LP, HP, BP, NOTCH), an ADSR and an LFO.</li>
+        <li>A <b>follower</b> sub an octave or two under it, <b>grit</b> (noise, noise FM, unison with detune), a <b>second oscillator</b> with sync and FM, saturation, a MOD envelope, velocity and key tracking.</li>
+      </ul></div>
+  </div>
+  <div class="eng">
+    <img class="scr" src="screens/bass-seq.png" width="480" height="480" alt="ARP, BASS">
+    <div><h3>THE BASS <span>·</span> a sub voice with its own line</h3>
+      <ul>
+        <li>Step, euclidean, matrix, register or drone, or <b>BASS SEQ</b>: 16 steps of its own with tone, octave, glide and accent.</li>
+        <li>A resonant filter with its envelope, drive; <b>CHD</b> moves the line with the chords' root, <b>ROLL</b> writes a line under the sequence.</li>
+      </ul></div>
+  </div>
+  <div class="eng">
+    <img class="scr" src="screens/chord-chord.png" width="480" height="480" alt="ARP, CHORD">
+    <div><h3>THE CHORDS <span>·</span> a chain in the key</h3>
+      <ul>
+        <li>Up to eight chords: degree, shape, inversion, spread, octave. <b>FIT</b> makes the chain from the bass line, so the bass is always in the chord.</li>
+        <li><b>SUB MELLO</b>, one voice playing the chord's tones broken, walking or arpeggiated, or <b>POLY</b>, four voices with a Juno-like chorus and strum.</li>
+        <li><b>HARMONY</b>: the lead's notes follow the chord, and DRIFT lets the chain evolve and still come home.</li>
+      </ul></div>
+  </div>
+  <div class="eng">
+    <img class="scr" src="screens/drums-voice.png" width="480" height="480" alt="ARP, DRUMS">
+    <div><h3>THE DRUMS <span>·</span> four voices, and samples</h3>
+      <ul>
+        <li>Kick, snare, hat and a glitch voice on up to 32 steps, with accents, per-step locks, rolls, chance and swing.</li>
+        <li>A length and a direction per voice for polyrhythms, a kit drive with fold, and <b>DUCK</b>: the kick's sidechain.</li>
+        <li>Four <b>sample slots</b> of your own sounds, per step or as a layer, sent from the computer with <code>tools/fm1_samples.py</code>.</li>
+      </ul></div>
+  </div>
+  <div class="eng">
+    <img class="scr" src="screens/dot-playing.png" width="480" height="480" alt="LFO, DOT, playing">
+    <div><h3>MOVEMENT <span>·</span> DOT and EVOLVE</h3>
+      <ul>
+        <li><b>DOT</b> reads five 4 × 4 matrices along a route (horizontal, spiral, random, walk...): accents, ratchets, the sub and two modulation lanes.</li>
+        <li><b>EVOLVE</b>, a Turing-machine register, mutates as it plays and bends the gate, the filter, the octave, the decay and two sound destinations; a negative depth inverts.</li>
+      </ul></div>
+  </div>
+  <div class="eng">
+    <img class="scr" src="screens/random-mask.png" width="480" height="480" alt="RANDOM, MASK">
+    <div><h3>RNDMZR <span>·</span> happy accidents</h3>
+      <ul>
+        <li>LOW, MED and HIGH roll the lead, raw. <b>MUSICAL</b> rolls a phrase, not noise; <b>GROOVE</b> the same with rolls, ties and ghost notes.</li>
+        <li>On those two, a tap rolls the whole band in a style: the melody, the bass line, the beat, the chords and some of the sound, never the tempo.</li>
+        <li>Parts can be locked; <b>UNDO</b> takes a roll back whole, and UNDO held brings back the band before each of the last three.</li>
+      </ul></div>
+  </div>
+  <div class="eng">
+    <img class="scr" src="screens/fx-reverb-room.png" width="480" height="480" alt="FX, REVERB">
+    <div><h3>THE EFFECTS <span>·</span> distortion, delay, reverb</h3>
+      <ul>
+        <li>A distortion with character and tone, before or after the delay.</li>
+        <li>A delay on the beat (32nds to a bar, triplets and dotted, up to 2.97 s) or free, with <b>PING</b> and its own filters.</li>
+        <li>A reverb with size, decay, pre-delay and tone; every part has its own sends on MIX.</li>
+      </ul></div>
+  </div>
+  </div>
+  <div class="shots">
+    <figure><img class="scr" src="screens/loop-loop.png" width="480" height="480" alt="LOOP CYCLE"><figcaption>LOOP CYCLE</figcaption></figure>
+    <figure><img class="scr" src="screens/sound-osc-2.png" width="480" height="480" alt="OSC 2"><figcaption>OSC 2</figcaption></figure>
+    <figure><img class="scr" src="screens/chord-harmony.png" width="480" height="480" alt="HARMONY"><figcaption>HARMONY</figcaption></figure>
+    <figure><img class="scr" src="screens/evolve-main.png" width="480" height="480" alt="EVOLVE"><figcaption>EVOLVE</figcaption></figure>
+    <figure><img class="scr" src="screens/fx-delay-send.png" width="480" height="480" alt="DELAY"><figcaption>DELAY</figcaption></figure>
+    <figure><img class="scr" src="screens/key-scale.png" width="480" height="480" alt="KEY"><figcaption>KEY</figcaption></figure>
+    <figure><img class="scr" src="screens/mix.png" width="480" height="480" alt="MIX"><figcaption>MIX</figcaption></figure>
+    <figure><img class="scr" src="screens/sample-main.png" width="480" height="480" alt="SAMPLE"><figcaption>SAMPLE</figcaption></figure>
+    <figure><img class="scr" src="screens/global-clock.png" width="480" height="480" alt="GLOBAL"><figcaption>GLOBAL</figcaption></figure>
+    <figure><img class="scr" src="screens/home-macros.png" width="480" height="480" alt="MACROS"><figcaption>MACROS</figcaption></figure>
+  </div>
+
+  <h2 id="styles">The styles</h2>
+  <ul class="chips" aria-label="The fifteen styles">
+    <li>AMBIENT</li><li>DUB</li><li>TRIPHOP</li><li>TECHNO</li><li>ACID</li><li>ELECTRO</li><li>BREAKS</li><li>IDM</li>
+    <li>HOUSE</li><li>DEEP</li><li>MINIMAL</li><li>JUNGLE</li><li>DRONE</li><li>OUTRUN</li><li>GLITCH</li>
+  </ul>
+  <p>With RNDMZR on MUSICAL or GROOVE, a tap rolls the whole band in one of them, its name shown as it lands; on ANY,
+    a new one each time, never the one before. Each sets the band's levels as it rolls, so every style plays at about
+    the same loudness. Held, RNDMZR and a white key roll one part again in the style that plays.</p>
+
+  <h2 id="perform">Perform</h2>
+  <div class="perf">
+    <img class="scr" src="screens/perform.png" width="480" height="480" alt="PERFORM: the sixteen white keys in four rows, the eight black keys' effects along the top">
+    <dl>
+      <dt>FILL · ARP</dt><dd>A snare roll that builds, the bass and chords on every step · the lead's note as an arpeggio</dd>
+      <dt>REVERSE · ACCENT</dt><dd>What was heard, backwards, from the press · every note and hit accented</dd>
+      <dt>REP 8 4 2 1</dt><dd>The last 8, 4, 2 or 1 sixteenths round and round, the drums, bass and chords with them</dd>
+      <dt>LP SWP · HP SWP</dt><dd>A filter over the whole mix, closing in 1.5 s; both held, a band gliding down</dd>
+      <dt>THROW · WASH</dt><dd>Everything into the delay, or into the reverb, its tail ringing on when let go</dd>
+      <dt>LD BS CH DR OFF</dt><dd>The parts' mutes, latched on the next beat</dd>
+      <dt>STU TPE PLK CRS</dt><dd>Stutter, tape stop, everything plucked short, bits and rate crushed</dd>
+      <dt>CHP OC− OC+ WRP</dt><dd>The mix chopped in time, an octave down or up, a worn tape's waver</dd>
+    </dl>
+  </div>
+  <p>Tap PERF, the last black key, and the keys are the performance: held, together as you like, K1 turning a held
+    black key's amount. They keep time: every part moves on underneath, so letting go lands where it would have been.</p>
+
+  <h2 id="panel">The panel</h2>
+  <table>
+    <tr><td>HOME</td><td>The sequence, the four sound macros, the performance keys. From anywhere.</td></tr>
+    <tr><td>SEQ ENV LFO FX ARP SEL GLO</td><td>The sections: the sequence, the lead's sound and samples, the movement, the effects, the band, the key, the mix. Again: the next page. Held: the section's pages on the white keys.</td></tr>
+    <tr><td>ALGORITHM · SELECT</td><td>The page in the section · the layer in the page. On HOME: the randomizer's intensity · the tempo.</td></tr>
+    <tr><td>K1–K4</td><td>The layer's four values, always musical, never navigation: the screen's footer names them.</td></tr>
+    <tr><td>PRESETS</td><td>On HOME: the pattern slot, switched on the next bar.</td></tr>
+    <tr><td>White keys</td><td>Positions: steps, cells, bits, slots, chords. A tap toggles what sits on the key and picks it.</td></tr>
+    <tr><td>Black keys</td><td>The action rail, the same on every page: B0 ON, the page's own keys, B6 MUTATE, B8 UNDO, B9 RNDMZR, B10 PERF.</td></tr>
+    <tr><td>OCT− · OCT+</td><td>The step bank past 16, the octave in KEYS.</td></tr>
+    <tr><td>PLAY · REC</td><td>Start and stop, the LED on the beat · record where you are, stopped a step at a time or live in time.</td></tr>
+    <tr><td>SAVE · EDIT</td><td>Save to flash (held: the 16 slots) · the page's mode (held on HOME: MACROS).</td></tr>
+  </table>
+  <p class="small">Every page's knobs and keys are in <a href="https://github.com/joakimskurk/fm1mello#readme">the
+    manual</a>, and pictured row by row in <a href="https://github.com/joakimskurk/fm1mello/blob/HEAD/docs/mello/UI_MAP.md">the
+    UI map</a>, generated from the code.</p>
+
+  <h2 id="connected">Connected</h2>
+  <ul class="conn">
+    <li><b>MIDI in</b> over USB and the FM-1's TRS jack, and <b>clock</b> in and out: on SLAVE it follows clock, start,
+      continue and stop.</li>
+    <li><b>Notes out</b> for the lead and the bass on their channels, the chords on the lead's, the drums on channel 10 as
+      General MIDI.</li>
+    <li><b>The sound</b> as a USB audio input on the computer.</li>
+    <li><b>The big screen</b>: the FM-1's screen large on a computer, tablet or phone with
+      <a href="https://github.com/pfkellogg/fm1-mirror">FM-1 Mirror</a>, nothing to set up.</li>
+    <li><b>Samples</b>: a WAV into one of four slots over USB-MIDI with <code>tools/fm1_samples.py</code>.</li>
+    <li><b>Projects</b> in flash, in two banks with checksums, so a cut power never loses more than the last edit.</li>
+  </ul>
+
+  <h2 id="more">More</h2>
+  <ul class="links">
+    <li><a href="https://github.com/joakimskurk/fm1mello">The source on GitHub</a>, with
+      <a href="https://github.com/joakimskurk/fm1mello#readme">the manual</a>,
+      <a href="https://github.com/joakimskurk/fm1mello/blob/HEAD/docs/mello/DECISIONS.md">the decisions</a> and
+      <a href="https://github.com/joakimskurk/fm1mello/blob/HEAD/ROADMAP.md">the plan</a>.</li>
+    <li><a href="https://jhf.no/skurky/skurkymello.html" target="_blank" rel="noopener">The original SkurkyMello</a>,
+      the browser instrument the firmware is a port of.</li>
+    <li><a id="dl" href="#">Download the firmware file</a> (<code>.fwsc</code>), to install it another way
+      (<code>tools/fm1_install.py</code>).</li>
+    <li>Try the firmware without an FM-1: open the file in
+      <a href="https://joakimeriksson.github.io/fm1-emu/" target="_blank" rel="noopener">fm1-emu</a>, the FM-1 emulator,
+      in the browser.</li>
+  </ul>
+
+  <footer>
+    <p>SkurkyMello's firmware is free software under the GPL-3.0, with no warranty. It runs on
+      <a href="https://github.com/zvenson/dinghy">Dinghy</a> (zvenson), built on
+      <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita (Hügelton Instruments) and the platform of
+      <a href="https://github.com/isod89/sloop-fm1">SLOOP</a> (isod89), whose installer this page uses. The big screen
+      speaks Patrick F. Kellogg's FM-1 Mirror protocol (MIT); the screen's letters are Terminus (SIL Open Font License).</p>
+    <p>The original browser instrument and the design record are not free software: they stay their author's.
+      "M-VAVE" and "FM-1" belong to their owners; this is a fan project, not an official M-VAVE product.</p>
+    <p class="coffee"><a href="https://buymeacoffee.com/skurk" target="_blank" rel="noopener">☕ Buy me a coffee</a></p>
+  </footer>
+</main>
+<script type="module">
+/*LIB*/
+const $ = (id) => document.getElementById(id);
+const meta = /*META*/;
+const DEMOS = /*DEMOS*/;
+
+/* ---- the demos: a player each, its spectrum the seek bar */
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const ICON = { play: '<svg viewBox="0 0 18 18"><path d="M5 2l11 7-11 7z"/></svg>',
+               pause: '<svg viewBox="0 0 18 18"><path d="M3 2h4v14H3zM11 2h4v14h-4z"/></svg>' };
+const HZ = [10000, 1000, 100];                   /* the guides: the picture is 40 Hz .. 16 kHz, log */
+const players = [];
+for (const d of DEMOS) {
+  const el = document.createElement("div");
+  el.className = "demo";
+  el.innerHTML = `<div class="demo-top"><button class="pp" aria-label="Play ${d.title}">${ICON.play}</button>
+    <div><b>${d.title}</b><span class="len">${mmss(d.secs)}</span><p>${d.about}</p></div></div>
+    <div class="spec"><img src="${d.spectrum}" alt="${d.title}'s spectrum from start to end, low to high">
+    ${HZ.map((f) => `<div class="hz" style="top:${(100 * Math.log(16000 / f) / Math.log(16000 / 40)).toFixed(1)}%"><span>${f >= 1000 ? f / 1000 + "k" : f}</span></div>`).join("")}
+    <div class="hover"></div><div class="head"></div>
+    <input type="range" min="0" max="1000" value="0" step="1" aria-label="Position in ${d.title}"><div class="ring"></div></div>
+    <div class="clock"><span>0:00</span><span class="now">0:00</span><span>${mmss(d.secs)}</span></div>`;
+  $("demos").append(el);
+  const audio = new Audio();
+  audio.preload = "none";
+  audio.src = d.src;
+  const pp = el.querySelector(".pp"), head = el.querySelector(".head"), range = el.querySelector("input"),
+        now = el.querySelector(".now"), hover = el.querySelector(".hover"), spec = el.querySelector(".spec");
+  const dur = () => (isFinite(audio.duration) && audio.duration > 0 ? audio.duration : d.secs);
+  let want = null;                              /* a jump asked for before the file's length is known */
+  const show = () => {
+    const t = want !== null ? want * dur() : audio.currentTime, f = Math.min(1, t / dur());
+    head.style.left = `${(f * 100).toFixed(3)}%`;
+    range.value = Math.round(f * 1000);
+    now.textContent = mmss(t);
+  };
+  const seek = (f) => { if (audio.readyState >= 1) audio.currentTime = f * dur(); else want = f; show(); };
+  audio.addEventListener("loadedmetadata", () => { if (want !== null) { audio.currentTime = want * dur(); want = null; } });
+  const set = (on) => { pp.classList.toggle("on", on); pp.innerHTML = on ? ICON.pause : ICON.play;
+                        pp.setAttribute("aria-label", `${on ? "Pause" : "Play"} ${d.title}`); };
+  let raf = 0;
+  const tick = () => { show(); if (!audio.paused) raf = requestAnimationFrame(tick); };
+  audio.addEventListener("play", () => { for (const p of players) if (p !== audio) p.pause(); set(true); tick(); });
+  audio.addEventListener("pause", () => { set(false); cancelAnimationFrame(raf); show(); });
+  audio.addEventListener("ended", () => { audio.currentTime = 0; show(); });
+  pp.addEventListener("click", () => { if (audio.paused) audio.play(); else audio.pause(); });
+  range.addEventListener("input", () => { seek(range.value / 1000); if (audio.paused) audio.play(); });
+  spec.addEventListener("pointermove", (e) => { const r = spec.getBoundingClientRect(); hover.style.left = `${e.clientX - r.left}px`; });
+  players.push(audio);
+}
+
+/* ---- the installer (SLOOP's protocol: Updater, productOf, logicalImage above) */
+const TEXT = {
+  nomidi: "This browser cannot talk to the FM-1. Open the page in Chrome or Edge on a computer.",
+  loadfail: "Could not load the firmware: ", badpkg: "The firmware file is damaged. Reload the page.",
+  start: "Starting", verify: "Checking", loader: "Switching the FM-1 to update mode", write: "Writing",
+  reboot: "Restarting", done: "Done: SkurkyMello is installed.",
+  stopped: "Stopped. Replug the USB cable and press Install again.",
+  error: "Error: ",
+  denied: "MIDI (SysEx) was not allowed. Allow MIDI in the site settings (the address bar) and press Install again.",
+  notfound: "FM-1 not found. Check the USB cable (a data cable, directly to the computer), close other apps that use MIDI, and press Install again.",
+  model: "The connected device is not an FM-1.",
+  lost: "The USB connection was lost. Replug it and press Install again.",
+  noloader: "The FM-1 in update mode was not found. Replug the USB cable and press Install again (it stays in update mode until it is finished).",
+  noreturn: "The FM-1 did not come back. Switch it off and on.",
+  mismatch: "Written, but the FM-1 reports another version: ",
+  foreign: "The FM-1 is in the update mode of another firmware. Finish that update with its own updater (M-UPGRADE), then press Install again: ",
+  leave: "Writing. Do not close the page.",
+};
+const say = (k, arg = "", cls = "") => { const s = $("status"); s.textContent = (TEXT[k] ?? k) + arg; s.className = cls; };
+const log = (t) => { $("log").textContent += t + "\n"; };
+let image = null, writing = false;
+const lock = (on) => { writing = on; $("go").disabled = on || !image || !$("ack").checked; };   /* (not tried on an FM-1: the box first) */
+$("ack").addEventListener("change", () => lock(writing));
+window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault(); e.returnValue = TEXT.leave; } });
+$("dl").href = meta.pkg;
+$("dl").setAttribute("download", meta.pkg.split("/").pop());
+$("pkg").textContent = `SkurkyMello ${meta.version} · ${meta.product} · SHA-256 ${meta.sha256}`;
+(async () => {
+  try {
+    const sha = async (b) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", b))].map((x) => x.toString(16).padStart(2, "0")).join("");
+    const get = async (cache) => {
+      const r = await fetch(meta.pkg, { cache });
+      if (!r.ok) throw new Error(`${meta.pkg}: HTTP ${r.status}`);
+      return new Uint8Array(await r.arrayBuffer());
+    };
+    let pkg = await get("no-cache");                 /* (a copy the browser kept of an older build: fetched again) */
+    const check = self.crypto && crypto.subtle;
+    if (check && (await sha(pkg)) !== meta.sha256) pkg = await get("reload");
+    if (productOf(pkg) !== meta.product || (check && (await sha(pkg)) !== meta.sha256)) { say("badpkg", "", "bad"); return; }
+    image = logicalImage(pkg);
+    if (!navigator.requestMIDIAccess) { say("nomidi", "", "bad"); return; }
+    say(`Ready: SkurkyMello ${meta.version}.`);
+    lock(false);
+  } catch (e) { say("loadfail", e.message, "bad"); }
+})();
+const step = (k, a) => {
+  const total = 74 + Math.ceil((image ? image.length : 0) / 512);   /* the reads: the check, then the write */
+  log(`${k} ${a ?? ""}`);
+  if (k === "verify") $("bar").value = Math.min(100, (a / total) * 100);
+  if (k === "write") $("bar").value = Math.min(100, ((74 + a) / total) * 100);
+  if (k === "done") { $("bar").value = 100; say("done", "", "good"); return; }
+  if (["start", "verify", "loader", "write", "reboot"].includes(k)) say(k);
+};
+$("go").addEventListener("click", async () => {
+  if (writing || !$("ack").checked) return;
+  lock(true);
+  let midi;
+  try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { say("denied", "", "bad"); lock(false); return; }
+  try {
+    const up = new Updater(midi, log);
+    const ota = await up.find((id) => /^ota-/i.test(id.model), true);   /* an install cut off: finish it */
+    if (ota) {
+      ota.link.close();
+      if (await up.resume(image, step)) say("done", "", "good"); else say("stopped", "", "bad");
+    } else {
+      await up.install(image, meta.product, step);
+    }
+  } catch (e) {
+    if (e && e.code && TEXT[e.code]) say(e.code, e.detail || "", "bad"); else say("error", e && e.message, "bad");
+    log(String(e && e.stack || e));
+  }
+  lock(false);
+});
+</script>
+</body>
+</html>
