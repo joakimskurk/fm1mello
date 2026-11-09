@@ -490,6 +490,7 @@ make bench         # where the audio's time goes on this computer
 make host          # the whole firmware on this computer: a WAV and screen PNGs (pip3 install Pillow)
 make screens       # every page as PNG in docs/screens, and the UI map's pictures (python3, nothing else)
 make art           # the README's logo, the GIF at its top and the website's link preview (needs Pillow)
+make web           # the website's player: the firmware as WebAssembly and its test (clang with wasm32 and lld, node)
 make site          # the website in build/site, as CI publishes it (PKG=, VER=; needs numpy, ffmpeg or afconvert)
 make format        # clang-format the Mello sources (pip3 install clang-format)
 make emu PKG=build/skurkymello-0.5-f60.fwsc   # a package on fm1-emu: played and edited live, its load, its stacks
@@ -542,7 +543,8 @@ tests/mello/                   host tests;  tests/bench/  the CPU bench;  tests/
 tools/fm1_samples.py (WAVs into the sample slots), fm1_install.py (Dinghy 0.5's), screens.py (the pages as PNG), emu_cpu.sh, emu_smoke.sh,
                                emu_stack.sh, build.py
 reference/skurkymello.html     the original (it plays at jhf.no/skurky/skurkymello.html): the reference for sound and feel
-web/                           the website: its page, its installer (SLOOP's), its demos (make_site.py)
+web/                           the website: its page, its installer (SLOOP's), its take (make_site.py, take.c), and
+                               web/app/ its player: the firmware on web_host.c as WebAssembly (build.sh), in the page
 docs/mello/                    DECISIONS.md, UI_MAP.md, CONTROL_GRAMMAR.md, UI_ICEBERG.md, FIRST_FLASH.md
 docs/screens/                  every page of the firmware as a picture, drawn by the host build (make screens)
 ```

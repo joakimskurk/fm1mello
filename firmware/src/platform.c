@@ -23,14 +23,19 @@ enum { BTN_OCT_DOWN = 0, BTN_OCT_UP = 1, BTN_FX = 2, BTN_SEL = 3, BTN_ENV = 4, B
 enum { ENC_SELECT = 0, ENC_ALGORITHM = 1, ENC_KNOB1 = 2, ENC_KNOB2 = 3, ENC_KNOB3 = 4, ENC_KNOB4 = 5, ENC_PRESETS = 6 };
 #define KEY_LED(k) (14u + (k))
 
-#if defined(DINGHY_HOST) && defined(__APPLE__)
-#define FM1_SECTION(s)                         /* host mode on macOS: Mach-O names need a segment; none needed */
+#if defined(DINGHY_HOST) && (defined(__APPLE__) || defined(DINGHY_WEB))
+#define FM1_SECTION(s)                         /* host mode on macOS (Mach-O names need a segment) and in a browser
+                                                * (WebAssembly has none): none needed */
 #else
 #define FM1_SECTION(s) __attribute__((section(s)))
 #endif
 #include "mirror.h"                             /* Big screen: the LCD's writes mirrored over USB MIDI (mirror.c) */
 #ifdef DINGHY_HOST
+#ifdef DINGHY_WEB
+#include "../../web/app/web_host.c"            /* in a browser: the page's FM-1 (web/app/), WebAssembly */
+#else
 #include "../../tests/host.c"                  /* on a computer: a fake FM-1 (tests/host.c) */
+#endif
 #else
 #include <stdint.h>
 #include "fm1_time.h"

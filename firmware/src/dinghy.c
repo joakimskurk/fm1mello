@@ -52,6 +52,11 @@ static MelloSampleTransfer sample_xfer;
 static bool storage_ready;
 static bool sample_ready;
 #endif
+#ifdef DINGHY_WEB
+/* in a browser: the project in the page's flash (web/app/web_host.c), kept there */
+static MelloStorage storage;
+static bool storage_ready;
+#endif
 
 static void midi_out_cb(void *ctx, uint8_t st, uint8_t d1, uint8_t d2)
 {
@@ -91,7 +96,7 @@ static void app_audio(int32_t *out, uint32_t n)
     }
 }
 
-#ifndef DINGHY_HOST
+#if !defined(DINGHY_HOST) || defined(DINGHY_WEB)
 static bool mello_flash_read(void *ctx, uint32_t address, void *dst, uint32_t length)
 {
     (void)ctx;
@@ -189,11 +194,24 @@ static void sync_audio_config(void)
     }
 }
 
+/* In a browser (web/app/web_host.c) the page's sound asks for its frames, and app_main runs a pass a call: the start
+ * in the first, then the splash's passes, then the loop's, its state kept between them. */
 static void app_main(void)
 {
+#ifdef DINGHY_WEB
+    static uint32_t last_render_ms = 0u, last_service_ms = 0xFFFFFFFFu, splash_us, play_us, shown_ms;
+    static uint8_t phase; /* 0: to start, 1: the splash, 2: the loop */
+    static MelloUiDrawOps draw;
+    MelloProject project;
+    if (phase == 1u) goto splash;
+    if (phase == 2u) goto pass;
+    phase = 1u;
+    draw = ui_draw_ops();
+#else
     uint32_t last_render_ms = 0u, last_service_ms = 0xFFFFFFFFu, splash_us;
     MelloUiDrawOps draw = ui_draw_ops();
     MelloProject project; /* the defaults to start the transport from; the engine keeps its own (B4: 596 B) */
+#endif
 
     mello_ui_draw_splash(&draw, APP_VER); /* while storage and the samples load */
     splash_us = fm1_micros();
@@ -236,7 +254,22 @@ static void app_main(void)
         }
     }
 #else
+#ifdef DINGHY_WEB
+    { /* the project in the page's flash: SAVE and the autosave keep it in the browser */
+        MelloStorageIo io;
+        memset(&io, 0, sizeof io);
+        io.read = mello_flash_read;
+        io.erase4k = mello_flash_erase;
+        io.program = mello_flash_program;
+        mello_storage_init(&storage, &io, 0);
+        (void)mello_storage_load(&storage, &mt.engine);
+        mello_transport_set_bpm(&mt, mt.engine.project.bpm);
+        storage_ready = true;
+        mello_ui_init(&ui, &mt, &storage);
+    }
+#else
     mello_ui_init(&ui, &mt, 0);
+#endif
     mello_sample_bank_init(&sample_bank, 0, 0, 0, 0, 0u);
     mello_ui_attach_sample_bank(&ui, &sample_bank);
 #endif
@@ -256,6 +289,26 @@ static void app_main(void)
     audio_ready = true;
     last_running = mt.running;
 
+#ifdef DINGHY_WEB
+    play_us = fm1_micros(), shown_ms = 0u;
+    return;
+splash: /* the splash, as below: a pass a call for 1.5 s, a frame every 30 ms */
+    if ((uint32_t)(fm1_micros() - splash_us) < 1500000u) {
+        uint32_t now_ms;
+        platform_poll();
+        now_ms = (uint32_t)(fm1_micros() - play_us) / 1000u;
+        if (now_ms - shown_ms >= 30u) {
+            mello_ui_splash_frame(&draw, shown_ms, now_ms);
+            shown_ms = now_ms;
+        }
+        return;
+    }
+    phase = 2u;
+    mello_ui_render(&ui, &draw);
+    mello_ui_sync_leds(&ui, &draw);
+pass: /* the loop's body, once a call */
+    do {
+#else
     { /* the splash for 1.5 s at least (on the host too: tools/screens.py pictures it), its skyline playing: a frame
        * every 30 ms, the bars that moved */
         uint32_t play_us = fm1_micros(), shown_ms = 0u, now_ms;
@@ -272,6 +325,7 @@ static void app_main(void)
     mello_ui_sync_leds(&ui, &draw);
 
     for (;;) {
+#endif
         uint32_t now_us, pressed, released, notes;
         uint8_t st, d1, d2;
         int16_t enc[MELLO_UI_ENCODER_COUNT];
@@ -319,7 +373,7 @@ static void app_main(void)
         if (!(fm1_ms & 7u)) sync_audio_config();
         mello_ui_tick(&ui);
 
-#ifndef DINGHY_HOST
+#if !defined(DINGHY_HOST) || defined(DINGHY_WEB)
         if (storage_ready)
             (void)mello_storage_poll(&storage, &mt.engine, fm1_ms,
                                      !mt.running && mello_audio_is_silent(&audio));
@@ -342,5 +396,9 @@ static void app_main(void)
          * loop serves arrives by interrupt, and an emulator skips the sleep instead of spinning through it. */
         fm1_idle();
 #endif
+#ifdef DINGHY_WEB
+    } while (0);
+#else
     }
+#endif
 }
