@@ -93,7 +93,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | SEGMENT | Cuts or joins a segment at that step; SEL held: picks the segment. |
 | LOOP CYCLE | Picks a loop position (the first eight keys); off, auditions it. |
 | SLOT SEQ | Picks a position. |
-| RANDOM | A target on or off (MASK), + / - (LINKS), picks the target (AMOUNTS). |
+| RANDOM | A target on or off (MASK; the key after them is BAND: off, a tap of RNDMZR rolls the lead alone), + / - (LINKS), picks the target (AMOUNTS). |
 | KEY / SCALE | The root. |
 | SLOTS | Picks a slot. |
 | DOT MATRIX | A cell on or off. |

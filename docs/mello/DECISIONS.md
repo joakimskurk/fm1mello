@@ -2079,6 +2079,26 @@ slots would sit on top of the Mello banks.
   upstream, which upstream says did not cure its babble. Not taken, each for its reason in DINGHY_0_4.md: the SMK-37,
   `store.h`, `FELUCCA_UAC 0`, `LCD_IDLE`, `CV_MAX`'s `#ifndef`, the toolchain-needing OTA and loader tests.
 
+## MASK's BAND (2026-11-10)
+
+The product owner, testing: a whole piece built around one theme; to change only the melody's pitches the mask was
+set to PITCH alone, and a tap of RNDMZR still rolled another bass, style, chords and drums. "The mask must also be able
+to leave a whole style alone." The mask is the lead's: its thirteen targets are what a roll of the lead touches, and a
+tap with INT on MUSICAL or GROOVE rolled the band besides, ANY in a new style each time (since "STYLE has no OFF").
+
+- **BAND**, on RANDOM > MASK the key after the targets (white key 14; a pill on the line under them): lit, a tap of
+  RNDMZR rolls the band as before; dark, the lead alone, within the mask, in the style that plays (as RNDMZR held and
+  key 1), and the bass, the drums, the chords, the kit, the sound, the effects and the style stay. On LOW, MED and HIGH
+  a tap rolls the lead alone anyway. ROLLS (K3) still says which parts a roll of the band rolls.
+- **Saved with the mask**, a pattern slot's own as the rest of it. Kept the other way round (MELLO_RAND_BAND_OFF, bit
+  13: set is BAND off), so a project saved before reads BAND on and plays as it did, and a firmware before this one
+  reads such a mask with BAND on (its sanitizing drops the bit). No format change.
+- **NONE and ALL** (B0, B1 on RANDOM) set the thirteen targets and leave BAND as it is: NONE with BAND on is "keep my
+  melody, roll the band", the other way round.
+- **Locks, mended**: with every part but the lead locked (RNDMZR held, B1-B5) a tap rolled the lead in a new style and
+  named it, the band still playing the old one, and set the new style's TRIM. Now that is a roll of the lead in the
+  style that plays, as BAND off. Test: mask_band.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

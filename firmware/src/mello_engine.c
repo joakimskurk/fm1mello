@@ -2497,7 +2497,7 @@ static bool apply_slot(MelloEngine *e, uint8_t index, bool from_slot_seq, uint32
     e->randomize = e->slots[index].randomize;
     e->sound = sanitize_sound_config(e->slots[index].sound);
     e->sample = sanitize_sample_config(e->slots[index].sample);
-    e->randomize.mask &= MELLO_RAND_ALL;
+    e->randomize.mask &= MELLO_RAND_KEPT;
     mello_engine_dot_reset_runtime(e); /* dotMatrixCfg setEffect resets runtime and counters. */
     if (e->sub.x_reset) {
         e->sub_x_pos = 0u;
@@ -2570,7 +2570,7 @@ bool mello_engine_restore_working(MelloEngine *e, const MelloPatternSlot *snapsh
     e->tm_bool_len = MELLO_TM_MAX_STEPS;
     e->sub = sanitize_sub_config(snapshot->sub);
     e->randomize = snapshot->randomize;
-    e->randomize.mask &= MELLO_RAND_ALL;
+    e->randomize.mask &= MELLO_RAND_KEPT;
     e->sound = sanitize_sound_config(snapshot->sound);
     e->sample = sanitize_sample_config(snapshot->sample); /* (FX: its own section, SEC_FX) */
     e->playing = false;
@@ -2618,7 +2618,7 @@ bool mello_engine_import_slot(MelloEngine *e, uint8_t index, const MelloPatternS
     clean.tm_bool_bits = n >= 32u ? slot->tm_bool_bits : slot->tm_bool_bits & ((1ul << n) - 1u);
     clean.sub = sanitize_sub_config(slot->sub);
     clean.randomize = slot->randomize;
-    clean.randomize.mask &= MELLO_RAND_ALL;
+    clean.randomize.mask &= MELLO_RAND_KEPT;
     clean.sound = sanitize_sound_config(slot->sound);
     clean.sample = sanitize_sample_config(slot->sample);
     e->slots[index] = clean;
@@ -2991,7 +2991,7 @@ void mello_engine_macros_set(MelloEngine *e, const MelloMacroConfig *c)
 
 void mello_engine_set_randomize_mask(MelloEngine *e, uint16_t mask)
 {
-    if (e) e->randomize.mask = (uint16_t)(mask & MELLO_RAND_ALL);
+    if (e) e->randomize.mask = (uint16_t)(mask & MELLO_RAND_KEPT);
 }
 
 static uint16_t prob_from_hundredths(uint8_t hundredths);
@@ -4622,6 +4622,12 @@ static bool roll_is_band(uint8_t parts)
 {
     return (parts & MELLO_PART_BAND) || (parts & MELLO_PART_ALL) == MELLO_PART_ALL;
 }
+/* What a roll is once the locks are taken off: with every part but the lead locked, a roll of the lead, in the style
+ * that plays (no new style named while the band plays the old, no TRIM) */
+static uint8_t roll_unlocked(const MelloEngine *e, uint8_t parts)
+{
+    return (parts & MELLO_PART_ALL & ~e->roll_lock) == MELLO_PART_LEAD ? MELLO_PART_LEAD : parts;
+}
 static uint8_t style_resolve(MelloEngine *e, uint8_t style, uint8_t parts)
 {
     uint8_t st = style;
@@ -4689,6 +4695,7 @@ uint8_t mello_engine_style_roll_parts(MelloEngine *e, uint8_t style, uint8_t par
     if (!e || !(parts & MELLO_PART_ALL)) return MELLO_STYLE_OFF;
     parts &= (uint8_t)(MELLO_PART_ALL & ~e->roll_lock); /* the locked parts stay (DECISIONS "Locks") */
     if (!parts) return e->style_now;
+    band = roll_unlocked(e, band);
     st = style_resolve(e, style, band);
     if (st < MELLO_STYLE_AMBIENT || st >= MELLO_STYLE_COUNT) {
         if (e->roll_lock & MELLO_PART_LEAD) return MELLO_STYLE_OFF;
@@ -4757,7 +4764,7 @@ uint8_t mello_engine_style_roll_at_bar(MelloEngine *e, uint8_t style, uint8_t pa
 {
     uint8_t st;
     if (!e || !(parts & MELLO_PART_ALL)) return MELLO_STYLE_OFF;
-    st = style_resolve(e, style, parts);
+    st = style_resolve(e, style, roll_unlocked(e, parts));
     if (st < MELLO_STYLE_AMBIENT || st >= MELLO_STYLE_COUNT) st = MELLO_STYLE_OFF;
     e->roll_wait = 1u, e->roll_style = st, e->roll_parts = parts;
     if (roll_now(e)) roll_fire(e);

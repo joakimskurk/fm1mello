@@ -1716,6 +1716,10 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
                 mello_engine_mod_routing_set(e, &m);
             }
             mark_edit(ui);
+        } else if ((uint8_t)w == random_target_count() && !ui->random_edit && !ui->random_links &&
+                   !pick_only) {
+            e->randomize.mask ^= MELLO_RAND_BAND_OFF; /* BAND: a tap rolls the band, or the lead alone */
+            mark_edit(ui);
         }
         break;
     case MELLO_UI_SLOTS: {
@@ -3160,7 +3164,10 @@ static void ui_roll(MelloUi *ui, MelloEngine *e, uint32_t now_ms)
     /* STYLE only with INT on MUSICAL or GROOVE (DECISIONS "Happy accidents"): LOW, MED and HIGH roll the lead raw */
     if (style_on(ui)) {
         uint8_t parts = MELLO_PART_ALL;
-        if (ui->roll_playing) { /* ROLLS PLAYING (DECISIONS "Melody first"): what is off stays off */
+        if (e->randomize.mask &
+            MELLO_RAND_BAND_OFF) /* MASK's BAND off: the lead alone, in the style that plays */
+            parts = MELLO_PART_LEAD;
+        else if (ui->roll_playing) { /* ROLLS PLAYING (DECISIONS "Melody first"): what is off stays off */
             if (!e->drums.on) parts &= (uint8_t)~(MELLO_PART_DRUMS | MELLO_PART_KIT);
 #if MELLO_FEATURE_CHORD_MACHINE
             if (!e->chord.on) parts &= (uint8_t)~MELLO_PART_CHORDS;
@@ -3779,12 +3786,13 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
             mark_edit(ui);
         }
         break;
-    case MELLO_CTX_RANDOM_NONE:
-        mello_engine_set_randomize_mask(e, 0u);
+    case MELLO_CTX_RANDOM_NONE: /* (the lead's targets; BAND stays as it is) */
+        mello_engine_set_randomize_mask(e, (uint16_t)(e->randomize.mask & MELLO_RAND_BAND_OFF));
         mark_edit(ui);
         break;
     case MELLO_CTX_RANDOM_ALL:
-        mello_engine_set_randomize_mask(e, MELLO_RAND_ALL);
+        mello_engine_set_randomize_mask(
+            e, (uint16_t)(MELLO_RAND_ALL | (e->randomize.mask & MELLO_RAND_BAND_OFF)));
         mark_edit(ui);
         break;
     case MELLO_CTX_DOT_TOGGLE: { /* G1: the picked matrix on or off */
@@ -5552,10 +5560,11 @@ static void draw_body(MelloUi *ui, const MelloUiDrawOps *o)
             o->text(o->ctx, 10, 95, 220, 0, "KEY PICKS  K1 HOW MUCH", UI_DIM, 0);
         else if (ui->random_links)
             o->text(o->ctx, 10, 95, 220, 0, "+ FOLLOWS  - MIRRORS PITCH", UI_DIM, 0);
-        else {
+        else { /* BAND (the key after the targets): lit, a tap rolls the band; dark, the lead alone */
+            ui_pill(o, 10, 95, 38, "BAND", !(e->randomize.mask & MELLO_RAND_BAND_OFF), UI_PURPLE);
             value_u(a, "ROLLS", enabled);
-            o->text(o->ctx, 10, 95, 80, 0, a, UI_MID, 0);
-            o->text(o->ctx, 92, 95, 138, 0, random_intensity_name(ui->random_intensity), UI_PURPLE, 2);
+            o->text(o->ctx, 54, 95, 80, 0, a, UI_MID, 0);
+            o->text(o->ctx, 136, 95, 94, 0, random_intensity_name(ui->random_intensity), UI_PURPLE, 2);
         }
         draw_random_skyline(ui, o);
         break;
@@ -8230,10 +8239,15 @@ static void calc_key_levels(MelloUi *ui, uint32_t *lit_out, uint32_t *glow_out)
     } else if (ui->page == MELLO_UI_SEQ_SLOTSEQ) {
         for (i = 0u; i < e->slot_seq.length && i < 16u; ++i) glow |= WK(i);
         lit |= WK(ui->selected_slot_seq_step);
-    } else if (ui->page == MELLO_UI_RANDOM) { /* the targets glow, those a roll touches lit */
+    } else if (ui->page ==
+               MELLO_UI_RANDOM) { /* the targets glow, those a roll touches lit; on MASK, BAND after them */
         for (i = 0u; i < random_target_count(); ++i) {
             glow |= WK(i);
             if (e->randomize.mask & random_target_bit(i)) lit |= WK(i);
+        }
+        if (!ui->random_edit && !ui->random_links) {
+            glow |= WK(random_target_count());
+            if (!(e->randomize.mask & MELLO_RAND_BAND_OFF)) lit |= WK(random_target_count());
         }
     } else if (ui->page == MELLO_UI_SLOTS) { /* saved slots glow, the picked one lit */
         uint8_t base = (uint8_t)(ui->slot_bank * 16u);

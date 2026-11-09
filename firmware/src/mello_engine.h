@@ -80,6 +80,12 @@ extern "C" {
 #else
 #define MELLO_RAND_ALL (MELLO_RAND_BASE_ALL | MELLO_RAND_WAVE)
 #endif
+/* MASK's BAND (DECISIONS "MASK's BAND"), the key after the targets: off, a tap of RNDMZR rolls the lead alone, within
+ * the mask, in the style that plays, and the bass, the drums, the chords and the sound stay. Kept the other way round
+ * (the bit set: BAND off), so a project saved before reads BAND on and rolls the band, as it did. Not one of the lead's
+ * targets (MELLO_RAND_ALL leaves it out); the UI's tap reads it. */
+#define MELLO_RAND_BAND_OFF (1u << 13)
+#define MELLO_RAND_KEPT     (MELLO_RAND_ALL | MELLO_RAND_BAND_OFF) /* what a mask keeps */
 
 /* EVOLVE's routes. GATE is two (ROADMAP E7, DECISIONS.md "EVOLVE's GATE: LENGTH and RETRIG"): LENGTH shortens each
  * note by the register (the old GATE bit, so a saved GATE ON plays LENGTH), RETRIG turns a lit bit into MULTI. */
