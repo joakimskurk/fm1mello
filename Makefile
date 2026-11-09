@@ -29,7 +29,7 @@ VER ?= dev
 web:             ## the player: the firmware as WebAssembly (build/web/skurkymello.wasm; clang with wasm32 and lld, or CC_WASM=) and its test (node)
 	sh web/app/build.sh build/web/skurkymello.wasm
 	node tests/web_test.mjs build/web/skurkymello.wasm
-site:            ## the website in build/site, as CI publishes it: the page, the installer with PKG, the demos (needs numpy, ffmpeg or afconvert)
+site:            ## the website in build/site, as CI publishes it: the page, the installer with PKG, the take, the player (make web first; needs numpy, ffmpeg or afconvert)
 	python3 web/make_site.py $(PKG) $(VER) build/site
 emu:             ## a built package on fm1-emu: played and edited live, its load and its stacks (PKG=build/....fwsc)
 	sh tools/emu_smoke.sh $(PKG)

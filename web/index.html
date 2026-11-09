@@ -126,16 +126,166 @@
   .chap button.on { border-left-color: var(--acc); background: var(--panel2); color: var(--fg); }
   .chap .at { flex: none; font: 12px/1.6 var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; }
   .chap b { font: 700 12.5px/1.5 var(--mono); letter-spacing: .06em; color: var(--acc); margin-right: 6px; }
-  /* the original */
-  .orig { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; padding: 18px 20px;
-          background: linear-gradient(120deg, rgba(0, 221, 136, .10), rgba(0, 255, 238, .04)), var(--panel);
-          border: 1px solid var(--line2); }
-  .orig p { margin: 0; }
-  .orig p + p { margin-top: 8px; }
-  .orig .dim { color: var(--dim); font-size: 14px; }
-  .go { display: inline-block; padding: 12px 20px; background: var(--acc); color: #01140b; font-weight: 700;
-        text-decoration: none; letter-spacing: .04em; white-space: nowrap; border-radius: 3px; }
-  .go:hover { background: var(--mint); color: #01140b; }
+  /* the player: the FM-1's panel in the firmware's look (web/app/player.js draws it): near black with its green, the
+     LEDs its green glow, the segments' colours on the name and the level. Its sizes are shares of its own width (cqw),
+     so it scales as one piece; under 620 px it stacks */
+  .player { width: min(1040px, calc(100vw - 32px)); margin: 0 0 0 calc(50% - min(520px, 50vw - 16px)); }
+  .fm1 { --cap: #0c1a13; --cap2: #08120d; --off: #0d1c14; container-type: inline-size; position: relative;
+         user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; font-family: var(--mono);
+         background: radial-gradient(120% 80% at 50% 0%, #0b2116 0%, #06110c 55%, #030a06 100%);
+         border: 1px solid var(--line2); border-radius: 1.4cqw;
+         box-shadow: 0 0 0 .6cqw #050d09, 0 0 0 calc(.6cqw + 1px) var(--line), 0 2cqw 6cqw rgba(0, 221, 136, .13); }
+  .fm1 s { text-decoration: none; }
+  .fm1 small { display: block; max-width: 100%; font: 600 max(6.5px, .72cqw)/1.25 var(--mono); letter-spacing: .05em;
+               color: var(--dim); text-align: center; }
+  /* the top strip: the name, the unit, the lamps */
+  .fhead { display: flex; align-items: center; gap: 2cqw; padding: 1.5cqw 3cqw 1.3cqw; border-bottom: 1px solid var(--line); }
+  .fname { display: inline-flex; align-items: center; gap: 1.2cqw; font: 700 max(8px, 1.25cqw)/1 var(--mono);
+           letter-spacing: .22em; color: var(--acc); }
+  .segs { display: block; width: 5cqw; height: .45cqw; border-radius: .3cqw;
+          background: linear-gradient(90deg, var(--a) 0 25%, var(--b) 25% 50%, var(--c) 50% 75%, var(--d) 75%); }
+  .fhead .unit { font: 600 max(7px, .8cqw)/1 var(--mono); letter-spacing: .2em; color: var(--dim); }
+  .lights { margin-left: auto; display: flex; align-items: center; gap: 2.2cqw; }
+  .lamp { display: inline-flex; align-items: center; gap: .7cqw; font: 700 max(7px, .82cqw)/1 var(--mono);
+          letter-spacing: .16em; color: var(--dim); }
+  .lamp i { width: .9cqw; height: .9cqw; border-radius: 50%; background: var(--off); box-shadow: inset 0 0 0 1px var(--line2);
+            transition: background .08s, box-shadow .08s; }
+  .lamp.on i { background: var(--acc); box-shadow: 0 0 .6cqw var(--acc), 0 0 1.6cqw rgba(0, 221, 136, .5); }
+  #l-pwr { cursor: pointer; }
+  .vu { display: grid; gap: .25cqw; width: 7cqw; }
+  .vu b { --l: 0; position: relative; display: block; height: .42cqw; background: var(--off); }
+  .vu b::after { content: ""; position: absolute; inset: 0; clip-path: inset(0 calc(100% - var(--l) * 100%) 0 0);
+                 background: linear-gradient(90deg, var(--a) 0 60%, var(--b) 60% 85%, var(--bad) 85%); }
+  /* the deck: left (MASTER, SELECT, PRESETS, ALGORITHM, OCT), the screen, right (K1-K4, the buttons) */
+  .deck { display: grid; grid-template-columns: 19.6cqw 35.6cqw minmax(0, 1fr); gap: 2.2cqw; align-items: center;
+          padding: 2.2cqw 2.6cqw 1.6cqw; }
+  .zl, .zr { position: relative; padding: 3.4cqw 1.2cqw 1.4cqw; border: 1px solid var(--line); border-radius: .8cqw;
+             background: rgba(2, 8, 6, .45); }
+  .ztag { position: absolute; left: 1.4cqw; top: 1cqw; font: 700 max(7px, .78cqw)/1 var(--mono); letter-spacing: .2em;
+          color: var(--acc); }
+  .kg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2cqw 1cqw; justify-items: center; }
+  .kr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1cqw; justify-items: center; margin: 0 0 1.6cqw; }
+  .kc { display: grid; justify-items: center; gap: .5cqw; min-width: 0; }
+  .kc > b { margin-top: .9cqw; font: 700 max(7.5px, .9cqw)/1 var(--mono); letter-spacing: .08em; color: var(--fg); }
+  .knob { --d: 6.4cqw; --a: 0deg; position: relative; width: var(--d); height: var(--d); border-radius: 50%;
+          cursor: ns-resize; touch-action: none; outline: none; }
+  .kr .knob { --d: 5cqw; }
+  .knob::before { content: ""; position: absolute; inset: -16%; border-radius: 50%;
+          background: repeating-conic-gradient(rgba(128, 170, 146, .36) 0 2deg, transparent 2deg 15deg);
+          -webkit-mask: radial-gradient(closest-side, transparent 85%, #000 86% 99%, transparent 100%);
+          mask: radial-gradient(closest-side, transparent 85%, #000 86% 99%, transparent 100%); }
+  .knob.hot::before { background: repeating-conic-gradient(var(--mint) 0 2deg, transparent 2deg 15deg); }
+  .knob:focus-visible { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--acc); }
+  .knob .sk, .knob .pt, .knob .arc { position: absolute; border-radius: 50%; pointer-events: none; }
+  .knob .sk { inset: 0; background: radial-gradient(circle at 38% 30%, #1f3d2e 0%, #0d1d15 50%, #06100b 100%);
+              box-shadow: 0 .5cqw 1cqw rgba(0, 0, 0, .8), 0 0 0 1px #020604, inset 0 1px 1px rgba(216, 243, 229, .14); }
+  .knob .pt { inset: 0; transform: rotate(var(--a)); transition: transform .06s; }
+  .knob .pt::after { content: ""; position: absolute; left: 50%; top: 8%; width: max(2px, .34cqw); height: 32%;
+                     transform: translateX(-50%); border-radius: 2px; background: var(--acc); box-shadow: 0 0 .5cqw var(--acc); }
+  .knob.pot .pt::after { background: var(--fg); box-shadow: 0 0 .4cqw rgba(216, 243, 229, .6); }
+  .knob .arc { inset: -16%; --v: .7;
+               background: conic-gradient(from 225deg, var(--acc) calc(var(--v) * 270deg), rgba(128, 170, 146, .2) 0 270deg, transparent 0);
+               -webkit-mask: radial-gradient(closest-side, transparent 76%, #000 77% 82%, transparent 83%);
+               mask: radial-gradient(closest-side, transparent 76%, #000 77% 82%, transparent 83%); }
+  /* the buttons: a cap with an LED window each (lit: the firmware's LED; dim: its glow) */
+  .octs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1cqw; margin: 2.4cqw 0 0; }
+  .br { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .8cqw; margin: 0 0 1.1cqw; }
+  .bc { display: grid; justify-items: center; gap: .55cqw; min-width: 0; }
+  .btn { position: relative; width: 4.5cqw; height: 4.5cqw; padding: 0; border: 0; border-radius: .7cqw; cursor: pointer;
+         touch-action: none; color: var(--fg); font-family: var(--mono); background: linear-gradient(var(--cap), var(--cap2));
+         box-shadow: inset 0 1px 0 rgba(216, 243, 229, .1), inset 0 0 0 1px var(--line2), 0 .3cqw .6cqw rgba(0, 0, 0, .6);
+         transition: transform .05s, background .05s; }
+  .wide .btn { width: 100%; height: 3.6cqw; }
+  .btn span { position: absolute; left: 0; right: 0; bottom: 18%; font: 700 max(7.5px, .95cqw)/1 var(--mono); letter-spacing: .06em; }
+  .btn i { position: absolute; left: 26%; right: 26%; top: 17%; height: max(2px, .36cqw); border-radius: 1px;
+           background: var(--off); box-shadow: inset 0 0 0 1px var(--line); }
+  .wide .btn i { left: 40%; right: 40%; }
+  .btn:hover { background: linear-gradient(#11251a, #0a160f); }
+  .btn.down { transform: translateY(1px); background: linear-gradient(#081109, #0d1b13);
+              box-shadow: inset 0 1px 3px rgba(0, 0, 0, .8), inset 0 0 0 1px var(--line2); }
+  .btn.glow i, .key.glow i { background: rgba(0, 221, 136, .34); box-shadow: 0 0 .4cqw rgba(0, 221, 136, .3); }
+  .btn.lit i, .key.lit i { background: var(--acc); box-shadow: 0 0 .5cqw var(--acc), 0 0 1.4cqw rgba(0, 221, 136, .55); }
+  .btn.rec.lit i { background: var(--bad); box-shadow: 0 0 .5cqw var(--bad), 0 0 1.4cqw rgba(255, 107, 90, .55); }
+  .btn.locked, .key.locked { outline: 2px solid var(--b); outline-offset: 1px; }
+  .btn:focus-visible { outline: 2px solid var(--acc); outline-offset: -4px; }
+  /* the screen, in its bezel; before POWER ON, HOME as a picture behind the button */
+  .zs { position: relative; }
+  .bezel { position: relative; padding: 1.4cqw; border-radius: 1cqw;
+           background: linear-gradient(145deg, #0f2419, #040b07 60%, #0a1a12);
+           box-shadow: inset 0 0 0 1px var(--line2), inset 0 0 0 .45cqw #030805; }
+  #lcd { display: block; width: 100%; height: auto; aspect-ratio: 1; background: #000 url("screens/home.png") center / cover;
+         image-rendering: pixelated; box-shadow: 0 0 0 1px #000; }
+  .fm1.on #lcd { box-shadow: 0 0 0 1px #000, 0 0 3cqw rgba(0, 221, 136, .14); }
+  .power { position: absolute; inset: 1.4cqw; display: grid; place-content: center; gap: 1.2cqw; border: 0; cursor: pointer;
+           background: radial-gradient(circle, rgba(2, 8, 6, .55), rgba(2, 8, 6, .9) 70%); color: var(--fg);
+           font-family: var(--mono); }
+  .power span { padding: 1.3cqw 2.4cqw; border: 1px solid var(--acc); background: rgba(0, 221, 136, .12); color: var(--acc);
+                font: 700 1.6cqw/1 var(--mono); letter-spacing: .2em; box-shadow: 0 0 2cqw rgba(0, 221, 136, .3);
+                animation: pulse 2.4s ease-in-out infinite; }
+  .power small { color: var(--dim); font-size: .95cqw; letter-spacing: .12em; }
+  .power:hover span { background: var(--acc); color: #01140b; }
+  .power.busy span { animation: none; opacity: .6; }
+  .power[hidden] { display: none; }
+  @keyframes pulse { 50% { box-shadow: 0 0 3.4cqw rgba(0, 221, 136, .55); } }
+  /* the keys: the whites in a row along the bottom (the steps, numbered), the blacks in a row over the gaps (the
+     action rail, its fixed places named over it); an LED in each */
+  .bed { position: relative; height: 15.8cqw; margin: 2.6cqw 3.4cqw 0; touch-action: none; }
+  .key { position: absolute; border-radius: 1cqw; cursor: pointer; background: linear-gradient(#13261c, #0b1811 60%, #08120d);
+         box-shadow: inset 0 1px 0 rgba(216, 243, 229, .1), inset 0 0 0 1px var(--line2), 0 .4cqw .8cqw rgba(0, 0, 0, .7);
+         transition: transform .04s, background .04s; }
+  .key.w { bottom: 2cqw; height: 7.6cqw; }
+  .key.b { top: 0; height: 5.8cqw; background: linear-gradient(#0a140f, #050b08 60%, #040907); }
+  .key i { position: absolute; left: 30%; right: 30%; top: 13%; height: max(2px, .38cqw); border-radius: 2px;
+           background: var(--off); box-shadow: inset 0 0 0 1px var(--line); }
+  .key::after { content: attr(data-name); position: absolute; left: 0; right: 0; bottom: 12%; text-align: center;
+                font: 600 max(7px, .8cqw)/1 var(--mono); color: rgba(128, 170, 146, .6); pointer-events: none; }
+  .key.b[data-rail]::before { content: attr(data-rail); position: absolute; left: -60%; right: -60%; top: -1.9cqw;
+                              text-align: center; font: 700 max(6.5px, .7cqw)/1 var(--mono); letter-spacing: .06em;
+                              color: var(--dim); pointer-events: none; }
+  .key.lit { box-shadow: inset 0 1px 0 rgba(216, 243, 229, .14), inset 0 0 0 1px #2f6a4c, inset 0 0 2cqw rgba(0, 221, 136, .12),
+                         0 .4cqw .8cqw rgba(0, 0, 0, .7); }
+  .key.down { transform: translateY(.18cqw); background: linear-gradient(#1a3526, #102218); }
+  .key.down i { background: var(--mint); box-shadow: 0 0 .5cqw var(--mint); }
+  .ffoot { display: flex; justify-content: center; padding: .6cqw 2.6cqw 1.6cqw; font: 700 max(6.5px, .72cqw)/1 var(--mono);
+           letter-spacing: .22em; color: var(--dim); }
+  /* off: the panel dim */
+  .fm1:not(.on) .zl, .fm1:not(.on) .zr, .fm1:not(.on) .bed { opacity: .55; }
+  .fm1.on .zl, .fm1.on .zr, .fm1.on .bed { transition: opacity .6s; }
+  .pctl { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
+  .pctl button { padding: 9px 14px; border: 1px solid var(--line2); background: var(--panel); color: var(--fg);
+                 font: 700 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+  .pctl button:hover { border-color: var(--acc); color: var(--acc); }
+  #appstatus { min-height: 1.6em; margin: 10px 0 0; }
+  @media (prefers-reduced-motion: reduce) { .power span { animation: none; } }
+  @container (max-width: 620px) {
+    .fhead { gap: 3cqw; padding: 3cqw 4cqw; flex-wrap: wrap; }
+    .fname { font-size: 3cqw; } .segs { width: 9cqw; height: 1cqw; }
+    .fhead .unit { display: none; }
+    .lamp { font-size: 2.3cqw; gap: 1.4cqw; } .lamp i { width: 2cqw; height: 2cqw; } .vu { width: 12cqw; gap: .6cqw; }
+    .vu b { height: .9cqw; }
+    .deck { grid-template-columns: 1fr; gap: 4cqw; padding: 4cqw; }
+    .zs { order: -1; width: 86%; justify-self: center; }
+    .zl, .zr { padding: 6.5cqw 2cqw 2cqw; border-radius: 2cqw; }
+    .ztag { font-size: 2.2cqw; left: 3cqw; top: 2cqw; }
+    .kg { grid-template-columns: repeat(4, 1fr); }
+    .knob { --d: 14cqw; } .kr .knob { --d: 13cqw; }
+    .kc > b { font-size: 2.3cqw; margin-top: 2cqw; }
+    .fm1 small { font-size: 1.9cqw; }
+    .octs { gap: 3cqw; margin-top: 4cqw; }
+    .wide .btn { height: 9cqw; }
+    .br { gap: 2cqw; margin-bottom: 3cqw; }
+    .btn { width: 13cqw; height: 12cqw; border-radius: 1.8cqw; }
+    .btn span { font-size: 2.4cqw; }
+    .btn i { height: .9cqw; }
+    .bed { height: 30cqw; margin: 5cqw 3cqw 0; }
+    .key { border-radius: 1.6cqw; }
+    .key.w { bottom: 3.4cqw; height: 15cqw; } .key.b { height: 11cqw; }
+    .key i { height: .8cqw; }
+    .key::after { font-size: 1.9cqw; }
+    .key.b[data-rail]::before { font-size: 1.45cqw; letter-spacing: 0; top: -3.2cqw; }
+    .ffoot { font-size: 2cqw; padding: 1cqw 4cqw 4cqw; }
+    .power span { font-size: 3.6cqw; } .power small { font-size: 2.2cqw; }
+  }
   /* the install */
   .box { background: var(--panel); border: 1px solid var(--line2); padding: 20px; }
   ol { margin: 0 0 16px; padding-left: 22px; } li { margin: 0 0 4px; }
@@ -200,8 +350,6 @@
     .chap { grid-template-columns: 1fr; grid-template-rows: none !important; grid-auto-flow: row; }
     .eng, .perf { grid-template-columns: 1fr; }
     .eng .scr, .perf .scr { max-width: 280px; }
-    .orig { grid-template-columns: minmax(0, 1fr); }
-    .go { white-space: normal; text-align: center; }
   }
   @media (max-width: 560px) {
     .facts { grid-template-columns: repeat(2, 1fr); }
@@ -218,7 +366,7 @@
     <p class="tag">A generative step sequencer and synth for the <span class="nw">M-VAVE FM-1</span></p>
     <p class="sub">Sixteen steps at its heart · a band around it · fifteen styles to roll · performance on the keys</p>
     <nav aria-label="On this page">
-      <a href="#hear">Hear it</a><a href="#original">The original</a><a href="#install">Install</a>
+      <a href="#hear">Hear it</a><a href="#play">Play it</a><a href="#install">Install</a>
       <a href="#tour">First tour</a><a href="#instrument">The instrument</a><a href="#perform">Perform</a>
       <a href="#more">More</a>
     </nav>
@@ -275,16 +423,19 @@
     jump.</p>
   <div id="demos"></div>
 
-  <h2 id="original">The original</h2>
-  <div class="orig">
-    <div>
-      <p>SkurkyMello began in the browser, and it still lives there. The firmware is its port to the FM-1's keys, knobs
-        and 240 × 240 screen, and the browser instrument stays the reference for its sound and feel.</p>
-      <p>The original is all about the melody: the sequencer and its voice. The drums and the chords were added for the
-        FM-1, to make the port a complete package on its own.</p>
-      <p class="dim">No FM-1 needed: it runs in any modern browser.</p>
+  <h2 id="play">Play it here</h2>
+  <p>The firmware itself, compiled for the browser: the same C the FM-1 runs, its sound, its screen and its lights, on
+    a panel laid out as the FM-1's. Turn it on and play the keys with the mouse or a finger: the white ones are the
+    steps, the black ones the action rail. Drag or scroll a knob to turn it; Space is PLAY. Shift-click a key or a
+    button to keep it held (SAVE held is the slots, a section held its pages on the white keys, RNDMZR held the RANDOM
+    page). What SAVE keeps stays in this browser.</p>
+  <div class="player">
+    <div class="fm1" id="fm1"></div>
+    <div class="pctl">
+      <button id="p-off">Power off · on</button>
+      <button id="p-reset" title="Forget the project and the slots SAVE kept in this browser, and start as an FM-1 out of the box">Factory reset</button>
     </div>
-    <a class="go" href="https://jhf.no/skurky/skurkymello.html" target="_blank" rel="noopener">Play SkurkyMello in the browser ↗</a>
+    <p class="small" id="appstatus">POWER ON starts it: the firmware loads (half a megabyte) and plays here.</p>
   </div>
 
   <h2 id="install">Install</h2>
@@ -632,5 +783,6 @@ $("go").addEventListener("click", async () => {
   lock(false);
 });
 </script>
+<script type="module" src="app/player.js"></script>
 </body>
 </html>

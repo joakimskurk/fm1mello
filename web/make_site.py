@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 joakimskurk
 """SkurkyMello's site (GitHub Pages, https://joakimskurk.github.io/fm1mello/): its page, its installer in the
-browser, the firmware, the take.
+browser, the firmware, the take, the player.
 
   index.html                       web/index.html with fm1pkg.js and fm1ota.js (SLOOP's, unchanged) and the metadata
                                    inlined: the installer (Web MIDI, Chrome or Edge), the take, the pages, the links
@@ -10,9 +10,12 @@ browser, the firmware, the take.
                                    never offered)
   audio/                           the take (web/take.c: one performance on the firmware's own UI, engine and audio
                                    code, rendered on this computer), AAC, and its spectrum as a picture
+  app/                             the player: the firmware as WebAssembly (web/app/build.sh:
+                                   build/web/skurkymello.wasm), its audio thread and its panel (web/app/)
   screens/                         the pictures (docs/logo.png, docs/hero.gif, docs/screens, web/og.png)
   .nojekyll                        (served as it is)
 
+  sh web/app/build.sh              (the player, first: it needs clang with wasm32 and lld)
   python3 web/make_site.py build/skurkymello-dev.fwsc VERSION OUT_DIR
 
 The package must be SkurkyMello's (its identity FM-1_987) with its update loader in it, which the installer talks
@@ -40,6 +43,8 @@ BLOCKS, BLK, KEEP = 20, 0x30, 0x2F
 PRODUCT = "FM-1_987"  # docs/mello/PRODUCT_IDENTITY.md
 PICTURES = {ROOT / "docs/logo.png": "logo.png", ROOT / "docs/hero.gif": "hero.gif", HERE / "og.png": "og.png",
             ROOT / "docs/buymeacoffee.png": "coffee.png"}
+PLAYER = {ROOT / "build" / "web" / "skurkymello.wasm": "skurkymello.wasm", HERE / "app" / "worklet.js": "worklet.js",
+          HERE / "app" / "player.js": "player.js"}
 SCREENS = ("home", "home-playing", "home-rolled", "rndmzr-held", "home-held-step", "home-rec", "home-macros",
            "step-playing", "segment", "loop-loop", "sound-filter", "sound-osc-2", "bass-seq", "chord-chord",
            "chord-harmony", "drums-voice", "dot-playing", "evolve-main", "fx-delay-send", "fx-reverb-room",
@@ -152,8 +157,13 @@ def main():
     name = f"skurkymello-{re.sub(r'[^A-Za-z0-9.-]', '-', a.version)}.fwsc"
     if out.exists():
         shutil.rmtree(out)
-    for sub in ("firmware", "screens", "audio"):
+    for src in PLAYER:
+        if not src.exists():
+            raise SystemExit(f"{src.relative_to(ROOT)}: missing (sh web/app/build.sh makes the player)")
+    for sub in ("firmware", "screens", "audio", "app"):
         (out / sub).mkdir(parents=True)
+    for src, dst in PLAYER.items():
+        shutil.copy(src, out / "app" / dst)
     shutil.copy(pkg, out / "firmware" / name)
     for src, dst in PICTURES.items():
         shutil.copy(src, out / "screens" / dst)
@@ -186,8 +196,9 @@ def main():
     (out / "index.html").write_text(html, encoding="utf-8")
     (out / ".nojekyll").write_text("")
     size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
-    print(f"site: {out}: index.html ({len(html)} B), firmware/{name} ({len(raw)} B, {product}), 1 take, "
-          f"{len(PICTURES) + len(SCREENS)} pictures, {size // 1024} KB in all")
+    print(f"site: {out}: index.html ({len(html)} B), firmware/{name} ({len(raw)} B, {product}), 1 take, the player "
+          f"({(out / 'app' / 'skurkymello.wasm').stat().st_size} B), {len(PICTURES) + len(SCREENS)} pictures, "
+          f"{size // 1024} KB in all")
 
 
 if __name__ == "__main__":

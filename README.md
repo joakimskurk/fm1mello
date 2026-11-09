@@ -71,7 +71,8 @@ Anyway, enjoy.
 ## Install
 
 From the browser: [the website](https://joakimskurk.github.io/fm1mello/) installs the latest build of `main`
-over USB MIDI (Chrome or Edge on a computer), and has a take of the firmware playing, rendered by its own code.
+over USB MIDI (Chrome or Edge on a computer), has a take of the firmware playing, rendered by its own code, and
+plays the firmware itself, compiled for the browser, on a panel laid out as the FM-1's: no FM-1 needed to try it.
 
 Packages are `build/skurkymello-<version>.fwsc`. Install one on an FM-1 running M-VAVE's official V15 (or another
 firmware with the FM-1 update loader), over USB-MIDI:
@@ -491,7 +492,7 @@ make host          # the whole firmware on this computer: a WAV and screen PNGs 
 make screens       # every page as PNG in docs/screens, and the UI map's pictures (python3, nothing else)
 make art           # the README's logo, the GIF at its top and the website's link preview (needs Pillow)
 make web           # the website's player: the firmware as WebAssembly and its test (clang with wasm32 and lld, node)
-make site          # the website in build/site, as CI publishes it (PKG=, VER=; needs numpy, ffmpeg or afconvert)
+make site          # the website in build/site, as CI publishes it (PKG=, VER=; make web first; numpy, ffmpeg or afconvert)
 make format        # clang-format the Mello sources (pip3 install clang-format)
 make emu PKG=build/skurkymello-0.5-f60.fwsc   # a package on fm1-emu: played and edited live, its load, its stacks
 ```

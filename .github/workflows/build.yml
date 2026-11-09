@@ -24,8 +24,8 @@ jobs:
       packages: build/skurkymello-*.fwsc
 
   # The website (GitHub Pages, https://joakimskurk.github.io/fm1mello/): SkurkyMello's page and its installer in the
-  # browser (Web MIDI), with the package this run built and tested, and the demos the firmware plays on the runner
-  # (web/make_site.py: the host build, AAC by ffmpeg). From main only. GitHub Pages takes its site from GitHub Actions
+  # browser (Web MIDI), with the package this run built and tested, the take the firmware plays on the runner
+  # (web/make_site.py: web/take.c, AAC by ffmpeg), and the player: the firmware as WebAssembly (web/app/). From main only. GitHub Pages takes its site from GitHub Actions
   # (Settings -> Pages -> Build and deployment -> Source: GitHub Actions); while it is off, this job says so and
   # publishes nothing, and the build stays green. As VaveHero's and Star Distroyer's.
   site:
@@ -53,11 +53,11 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Python packages and ffmpeg (the demos' pictures and audio)
+      - name: Python packages, ffmpeg (the take's picture and audio), clang and lld (the player)
         run: |
           python3 -m pip install Pillow numpy
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          sudo apt-get install -y -qq ffmpeg clang lld
 
       - name: GitHub Pages switched on?
         id: pages
@@ -70,6 +70,11 @@ jobs:
             echo "::notice title=GitHub Pages is off::Settings -> Pages -> Build and deployment -> Source: GitHub Actions, then run the build again"
             echo "on=0" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: The player (the firmware as WebAssembly, web/app/) and its test
+        run: |
+          APP_VER="dev-${GITHUB_SHA::7}" sh web/app/build.sh build/web/skurkymello.wasm
+          node tests/web_test.mjs build/web/skurkymello.wasm
 
       - name: The site
         run: python3 web/make_site.py build/skurkymello-dev.fwsc "dev-${GITHUB_SHA::7}" _site
