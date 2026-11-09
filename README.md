@@ -71,7 +71,7 @@ Anyway, enjoy.
 ## Install
 
 From the browser: [the website](https://joakimskurk.github.io/fm1mello/) installs the latest build of `main`
-over USB MIDI (Chrome or Edge on a computer), and has three takes of the firmware playing, rendered by its own code.
+over USB MIDI (Chrome or Edge on a computer), and has a take of the firmware playing, rendered by its own code.
 
 Packages are `build/skurkymello-<version>.fwsc`. Install one on an FM-1 running M-VAVE's official V15 (or another
 firmware with the FM-1 update loader), over USB-MIDI:

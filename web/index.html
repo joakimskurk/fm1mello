@@ -88,7 +88,7 @@
   .word h3 { color: var(--acc); }
   .word p { margin: 0 0 10px; font-size: 15.5px; }
   .word .me { margin: 0; color: var(--dim); font-style: italic; }
-  /* the demos */
+  /* the take */
   .demo { margin: 0 0 16px; padding: 14px 14px 12px; background: var(--panel); border: 1px solid var(--line); }
   .demo-top { display: flex; gap: 14px; align-items: flex-start; margin: 0 0 12px; }
   .pp { flex: none; width: 46px; height: 46px; border: 1px solid var(--acc); border-radius: 50%; background: transparent;
@@ -116,12 +116,23 @@
   .clock { display: flex; justify-content: space-between; margin: 6px 0 0; font: 12px var(--mono); color: var(--dim);
            font-variant-numeric: tabular-nums; }
   .clock .now { color: var(--acc); }
+  .chap { display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-flow: column; gap: 4px 14px; margin: 12px 0 0;
+          padding: 0; list-style: none; }
+  .chap li { margin: 0; }
+  .chap button { display: flex; gap: 10px; width: 100%; padding: 5px 8px; border: 0; border-left: 2px solid var(--line2);
+                 background: transparent; color: var(--dim); font-family: inherit; font-size: 13px; line-height: 1.4;
+                 text-align: left; cursor: pointer; }
+  .chap button:hover { background: var(--panel2); color: var(--fg); }
+  .chap button.on { border-left-color: var(--acc); background: var(--panel2); color: var(--fg); }
+  .chap .at { flex: none; font: 12px/1.6 var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+  .chap b { font: 700 12.5px/1.5 var(--mono); letter-spacing: .06em; color: var(--acc); margin-right: 6px; }
   /* the original */
   .orig { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; padding: 18px 20px;
           background: linear-gradient(120deg, rgba(0, 221, 136, .10), rgba(0, 255, 238, .04)), var(--panel);
           border: 1px solid var(--line2); }
   .orig p { margin: 0; }
-  .orig p + p { margin-top: 8px; color: var(--dim); font-size: 14px; }
+  .orig p + p { margin-top: 8px; }
+  .orig .dim { color: var(--dim); font-size: 14px; }
   .go { display: inline-block; padding: 12px 20px; background: var(--acc); color: #01140b; font-weight: 700;
         text-decoration: none; letter-spacing: .04em; white-space: nowrap; border-radius: 3px; }
   .go:hover { background: var(--mint); color: #01140b; }
@@ -130,7 +141,7 @@
   ol { margin: 0 0 16px; padding-left: 22px; } li { margin: 0 0 4px; }
   .ack { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 14px; cursor: pointer; }
   .ack input { width: 18px; height: 18px; margin: 3px 0 0; flex: none; accent-color: var(--acc); }
-  button#go { font: 700 16px/1 inherit; font-family: inherit; width: 100%; padding: 16px 0; border: 0;
+  button#go { font-family: inherit; font-weight: 700; font-size: 16px; line-height: 1; width: 100%; padding: 16px 0; border: 0;
               background: var(--acc); color: #01140b; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
   button#go:hover:not(:disabled) { background: var(--mint); }
   button#go:disabled { background: var(--line); color: var(--dim); cursor: default; }
@@ -186,9 +197,11 @@
   @media (max-width: 680px) {
     .tour { grid-template-columns: repeat(2, 1fr); }
     .shots { grid-template-columns: repeat(3, 1fr); }
+    .chap { grid-template-columns: 1fr; grid-template-rows: none !important; grid-auto-flow: row; }
     .eng, .perf { grid-template-columns: 1fr; }
     .eng .scr, .perf .scr { max-width: 280px; }
-    .orig { grid-template-columns: 1fr; }
+    .orig { grid-template-columns: minmax(0, 1fr); }
+    .go { white-space: normal; text-align: center; }
   }
   @media (max-width: 560px) {
     .facts { grid-template-columns: repeat(2, 1fr); }
@@ -256,9 +269,9 @@
   </section>
 
   <h2 id="hear">Hear it</h2>
-  <p>Three takes, each played the way one person plays one FM-1: the panel's own buttons, keys and knobs, pressed and
-    turned in time. They are rendered on a computer by the firmware itself, the same C the FM-1 runs, and its sound is
-    what the FM-1 sends over USB. The picture under each is its spectrum, low to high, from start to end: tap it to
+  <p>One take, played the way one person plays one FM-1: the panel's keys held and tapped in time, the knobs turned. It
+    is rendered on a computer by the firmware's own code, the same C the FM-1 runs: its pages, its sequencer and its
+    sound. The picture under it is its spectrum, low to high, from start to end: tap it, or a section below it, to
     jump.</p>
   <div id="demos"></div>
 
@@ -267,7 +280,9 @@
     <div>
       <p>SkurkyMello began in the browser, and it still lives there. The firmware is its port to the FM-1's keys, knobs
         and 240 × 240 screen, and the browser instrument stays the reference for its sound and feel.</p>
-      <p>No FM-1 needed: it runs in any modern browser, with the computer's keyboard or a MIDI keyboard.</p>
+      <p>The original is all about the melody: the sequencer and its voice. The drums and the chords were added for the
+        FM-1, to make the port a complete package on its own.</p>
+      <p class="dim">No FM-1 needed: it runs in any modern browser, with the computer's keyboard or a MIDI keyboard.</p>
     </div>
     <a class="go" href="https://jhf.no/skurky/skurkymello.html" target="_blank" rel="noopener">Play SkurkyMello in the browser ↗</a>
   </div>
@@ -486,15 +501,15 @@
 /*LIB*/
 const $ = (id) => document.getElementById(id);
 const meta = /*META*/;
-const DEMOS = /*DEMOS*/;
+const TAKE = /*TAKE*/;
 
-/* ---- the demos: a player each, its spectrum the seek bar */
+/* ---- the take: a player, its spectrum the seek bar, its sections under it */
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const ICON = { play: '<svg viewBox="0 0 18 18"><path d="M5 2l11 7-11 7z"/></svg>',
                pause: '<svg viewBox="0 0 18 18"><path d="M3 2h4v14H3zM11 2h4v14h-4z"/></svg>' };
 const HZ = [10000, 1000, 100];                   /* the guides: the picture is 40 Hz .. 16 kHz, log */
 const players = [];
-for (const d of DEMOS) {
+for (const d of [TAKE]) {
   const el = document.createElement("div");
   el.className = "demo";
   el.innerHTML = `<div class="demo-top"><button class="pp" aria-label="Play ${d.title}">${ICON.play}</button>
@@ -503,7 +518,9 @@ for (const d of DEMOS) {
     ${HZ.map((f) => `<div class="hz" style="top:${(100 * Math.log(16000 / f) / Math.log(16000 / 40)).toFixed(1)}%"><span>${f >= 1000 ? f / 1000 + "k" : f}</span></div>`).join("")}
     <div class="hover"></div><div class="head"></div>
     <input type="range" min="0" max="1000" value="0" step="1" aria-label="Position in ${d.title}"><div class="ring"></div></div>
-    <div class="clock"><span>0:00</span><span class="now">0:00</span><span>${mmss(d.secs)}</span></div>`;
+    <div class="clock"><span>0:00</span><span class="now">0:00</span><span>${mmss(d.secs)}</span></div>
+    <ol class="chap" style="grid-template-rows: repeat(${Math.ceil(d.chapters.length / 2)}, auto)" aria-label="The sections of ${d.title}">${d.chapters.map((c, i) => `<li><button data-i="${i}"><span class="at">${mmss(c.t)}</span>
+      <span><b>${c.style}</b>${c.keys.length ? "then " + c.keys.join(", ") : ""}</span></button></li>`).join("")}</ol>`;
   $("demos").append(el);
   const audio = new Audio();
   audio.preload = "none";
@@ -512,11 +529,15 @@ for (const d of DEMOS) {
         now = el.querySelector(".now"), hover = el.querySelector(".hover"), spec = el.querySelector(".spec");
   const dur = () => (isFinite(audio.duration) && audio.duration > 0 ? audio.duration : d.secs);
   let want = null;                              /* a jump asked for before the file's length is known */
+  const chap = [...el.querySelectorAll(".chap button")];
   const show = () => {
     const t = want !== null ? want * dur() : audio.currentTime, f = Math.min(1, t / dur());
     head.style.left = `${(f * 100).toFixed(3)}%`;
     range.value = Math.round(f * 1000);
     now.textContent = mmss(t);
+    let at = 0;
+    d.chapters.forEach((c, i) => { if (t >= c.t) at = i; });
+    chap.forEach((b, i) => b.classList.toggle("on", i === at && (t > 0 || !audio.paused)));
   };
   const seek = (f) => { if (audio.readyState >= 1) audio.currentTime = f * dur(); else want = f; show(); };
   audio.addEventListener("loadedmetadata", () => { if (want !== null) { audio.currentTime = want * dur(); want = null; } });
@@ -529,6 +550,9 @@ for (const d of DEMOS) {
   audio.addEventListener("ended", () => { audio.currentTime = 0; show(); });
   pp.addEventListener("click", () => { if (audio.paused) audio.play(); else audio.pause(); });
   range.addEventListener("input", () => { seek(range.value / 1000); if (audio.paused) audio.play(); });
+  chap.forEach((b) => b.addEventListener("click", () => {
+    seek(d.chapters[b.dataset.i].t / dur()); if (audio.paused) audio.play();
+  }));
   spec.addEventListener("pointermove", (e) => { const r = spec.getBoundingClientRect(); hover.style.left = `${e.clientX - r.left}px`; });
   players.push(audio);
 }
