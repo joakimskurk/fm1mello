@@ -4772,9 +4772,21 @@ static void roll_fire(MelloEngine *e)
         mello_engine_randomize_steps_intensity(e, (MelloRandomizeIntensity)e->roll_intensity);
     }
 }
+/* Where a roll lands, playing, in pulses (DECISIONS "A roll lands on the one"): the loop's one, where RESET starts it
+ * again and the header's count is back at 1 (a slot's change waits for the loop's end the same way), at most four
+ * bars apart (a loop of 8 or 16 bars: every four); with RESET on FREE, every bar's one. A bar is 16 sixteenths, so
+ * 16 / DIV pulses. */
+static uint32_t roll_cycle(const MelloEngine *e)
+{
+    uint32_t div = e->project.clock_div ? e->project.clock_div : 1u, bar = (16u + div - 1u) / div,
+             len = e->project.master_len ? e->loop_pulse_length : 0u;
+    if (!len) return bar;
+    while (len > 4u * bar && len % 2u == 0u) len /= 2u;
+    return len;
+}
 static bool roll_now(const MelloEngine *e)
 {
-    return !e->playing || e->absolute_pulse % 16u == 0u;
+    return !e->playing || e->absolute_pulse % roll_cycle(e) == 0u;
 }
 uint8_t mello_engine_style_roll_at_bar(MelloEngine *e, uint8_t style, uint8_t parts)
 {
@@ -5468,8 +5480,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     int8_t auto_slot = -1;
     uint8_t i;
 
-    if (e && e->playing && e->roll_wait && e->absolute_pulse % 16u == 0u)
-        roll_fire(e); /* RNDMZR's, on the one */
+    if (e && e->playing && e->roll_wait && roll_now(e)) roll_fire(e); /* RNDMZR's, on the loop's one */
     if (!e || !e->playing || !e->has_active_step || !e->runtime_built || e->runtime_segment_count == 0u)
         return false;
     if (e->countin) { /* a bar's count-in before a take (DECISIONS "Record it yourself, easily"): the click alone */

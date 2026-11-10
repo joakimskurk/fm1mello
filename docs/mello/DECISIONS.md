@@ -1627,9 +1627,13 @@ the tempo from 128 to 96. The product owner: "the tempo shall never be rolled".
 - **The tempo is never rolled**: not by a STYLE roll, not by a part (TEMPO is gone from the parts on RNDMZR held:
   six keys now), and UNDO leaves the tempo as it is (the snapshot still keeps the project; the tempo is put back
   after the swap). The styles' tempo ranges in the tables above are now what each style suits, not what it sets.
-- **A roll lands on the one.** Playing, RNDMZR's roll (the band, a part, or the lead by INT) waits for the next
-  bar's one (every 16th pulse from the start) and lands there, as a slot does at the loop's end; the style it will
-  be is chosen at the press and shown (ON THE ONE), and RNDMZR stays lit until it lands. Another press before then
+- **A roll lands on the one.** Playing, RNDMZR's roll (the band, a part, or the lead by INT) waits for the loop's one
+  and lands there, as a slot does at the loop's end; the style it will be is chosen at the press and shown (ON THE
+  ONE), and RNDMZR stays lit until it lands. (2026-11-10: it waited for the next bar's one, every 16th pulse, and
+  the product owner heard it land "when the sequence is done in width, but before all the steps are done (32 by
+  default)": at 16 of 32. Now the loop's one, where RESET starts it again and the header's count is back at 1, at
+  most four bars apart, so RESET 128 and 256 every four bars; with RESET on FREE a bar's one; a bar 16 / DIV pulses,
+  where it was 16 pulses whatever DIV said.) Another press before then
   replaces it; UNDO takes it back; a stop plays it at once. Stopped, at once, as before. Test: roll_on_the_one.
 - The manual's defaults checked against the code (a dump of every page's K1-K4): BASS LEVEL 75%, CHORD PLAY BROKEN /
   STEP / one chord, CHORD LEVEL 13%, NEXT STEPS, the kit's LEVEL 95%, MIX; the install line (it named f55, and
