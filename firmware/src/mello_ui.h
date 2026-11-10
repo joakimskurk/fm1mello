@@ -81,6 +81,7 @@ typedef enum {
 #define MELLO_UI_READOUT_KEPT      10u   /* RNDMZR + SAVE: kept in a slot */
 #define MELLO_UI_READOUT_TAKE      11u   /* a take ended: locked (and the chords fitted) */
 #define MELLO_UI_READOUT_INIT      12u   /* CLR held: a clean slate */
+#define MELLO_UI_READOUT_UNLOCK    13u   /* UNLOCK (B7 while a part is locked): the parts unlocked */
 #define MELLO_UI_READOUT_MS        1200u /* how long the readout stays after the last detent */
 
 enum {
@@ -138,6 +139,7 @@ typedef struct {
     /* The readout: what the last turned control moves, large over the body, until readout_until_ms. */
     uint8_t readout; /* 0 = none, 1..4 = K1..K4, MELLO_UI_READOUT_LAYER = SELECT changed the layer */
     uint32_t readout_until_ms;
+    uint8_t unlocked; /* the parts UNLOCK unlocked last (MELLO_PART_*), for its readout */
     /* HOME: a white key held down holds its step (K1-K4 edit it); released without a turn, it toggles the step. */
     uint32_t held_notes; /* mello_ui_set_held_notes: the note keys held now */
     uint16_t audio_load; /* mello_ui_set_audio_load: the chip's audio load, permille (GLOBAL shows it) */

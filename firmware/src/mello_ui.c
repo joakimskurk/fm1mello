@@ -736,6 +736,7 @@ typedef enum {
     MELLO_CTX_DRUM_VOICE,     /* DRUMS: the next voice (KICK, SNARE, HAT, GLITCH) */
     MELLO_CTX_LOOP_TOGGLE,    /* LOOP CYCLE on / off */
     MELLO_CTX_SLOTSEQ_TOGGLE, /* SLOT SEQ on / off */
+    MELLO_CTX_UNLOCK, /* B7 while a part is locked against RNDMZR (DECISIONS "UNLOCK"): every lock off */
     MELLO_CTX_COUNT
 } MelloContextVerb;
 
@@ -890,6 +891,18 @@ static const MelloContextAction *context_action(MelloUiPage page, uint8_t slot)
 {
     if ((uint32_t)page > (uint32_t)MELLO_UI_MIX || slot >= 11u) return 0;
     return &context_actions[(uint32_t)page][slot];
+}
+/* A black key's action as it is now: the page's, and on B7 (free on every page) UNLOCK while a part is locked
+ * against RNDMZR, so a lock (a take's, or RNDMZR held and B0-B5) is in view where it is and is undone there
+ * (DECISIONS "UNLOCK") */
+#define UNLOCK_KEY 7u
+static const MelloContextAction UNLOCK_ACTION = {MELLO_CTX_UNLOCK, "UNLOCK"};
+static const MelloContextAction *ui_action(MelloUi *ui, uint8_t slot)
+{
+    const MelloContextAction *a = context_action(ui->page, slot);
+    if (slot == UNLOCK_KEY && (!a || a->verb == MELLO_CTX_NONE) && eng(ui) && eng(ui)->roll_lock)
+        return &UNLOCK_ACTION;
+    return a;
 }
 
 static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action);
@@ -1609,7 +1622,7 @@ static void handle_note_press(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uin
             return;
         }
         if (b >= 0) {
-            const MelloContextAction *ca = context_action(ui->page, (uint8_t)b);
+            const MelloContextAction *ca = ui_action(ui, (uint8_t)b);
             if (ca && ca->verb == MELLO_CTX_RNDMZR) ui->rndmzr_key = note_index; /* to see it let go */
             handle_context_action(ui, now_ms, (uint8_t)b);
             return;
@@ -3600,7 +3613,7 @@ static void factory_reset_ui(MelloUi *ui, uint32_t now_ms)
 static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a);
 static void handle_context_action(MelloUi *ui, uint32_t now_ms, uint8_t action)
 {
-    run_action(ui, now_ms, context_action(ui->page, action));
+    run_action(ui, now_ms, ui_action(ui, action));
 }
 /* A black key's verb, or one of PERFORM's (perform_key). */
 static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a)
@@ -3746,6 +3759,12 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
             persistent_dirty(ui, now_ms);
             mark_edit(ui);
         }
+        break;
+    case MELLO_CTX_UNLOCK: /* every part RNDMZR skipped rolls again; the readout names them */
+        ui->unlocked = e->roll_lock;
+        e->roll_lock = 0u;
+        show_readout(ui, MELLO_UI_READOUT_UNLOCK, now_ms);
+        ui->dirty |= MELLO_UI_DIRTY_ALL;
         break;
     case MELLO_CTX_MUTATE: {
         uint16_t mask = e->randomize.mask;
@@ -4295,7 +4314,7 @@ void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pres
         uint8_t b;
         uint32_t k = 0u;
         for (b = 0u; b < 11u; ++b) {
-            const MelloContextAction *a = context_action(ui->page, b);
+            const MelloContextAction *a = ui_action(ui, b);
             if (a && a->verb == MELLO_CTX_RANDOM_CLEAR) k = bit_u32(BLACK_KEY_NOTES[b]);
         }
         if (!(ui->held_notes & k))
@@ -5048,7 +5067,7 @@ static void draw_roll_menu(MelloUi *ui, const MelloUiDrawOps *o)
                 locked ? UI_DIM : UI_BRIGHT, 1);
         if (locked) o->text(o->ctx, x, (int16_t)(y + 15), 56, 0, "LOCK", UI_GOLD, 1);
     }
-    o->text(o->ctx, 6, 112, 228, 0, "B0-B5: LOCK A PART", UI_DIM, 0);
+    o->text(o->ctx, 6, 112, 228, 0, "B0-B5: LOCK OR UNLOCK", UI_DIM, 0);
     o->text(o->ctx, 6, 128, 228, 0, "SAVE: KEEP IN A SLOT", UI_DIM, 0);
     o->text(o->ctx, 6, 144, 228, 0, "NO KEY, LET GO: RANDOM",
             ui->rndmzr_ready && !ui->rndmzr_part ? UI_GOLD : UI_DIM, 0); /* lit once letting go opens it */
@@ -6025,6 +6044,7 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_DOT_TOGGLE: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].off ? 0 : 1;
     case MELLO_CTX_BASS_SEQ: return e->bass.on ? 1 : 0;
     case MELLO_CTX_HOME_RANDOM: return e->roll_wait ? 1 : 0; /* a roll waiting for the one */
+    case MELLO_CTX_UNLOCK: return e->roll_lock ? 1 : 0;      /* (there only while a part is locked: lit) */
     case MELLO_CTX_DOT_FOLLOW: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].follow ? 1 : 0;
     case MELLO_CTX_DOT_RESET: return e->dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT].reset ? 1 : 0;
     case MELLO_CTX_DOT_REVERSE:
@@ -6100,6 +6120,7 @@ static uint16_t strip_colour(const MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_RANDOM_CLEAR: return ui->reset_armed ? UI_RED : ui_mix(UI_RED, UI_PANEL2, 110);
     case MELLO_CTX_MUTATE:
     case MELLO_CTX_UNDO: return UI_ACC;
+    case MELLO_CTX_UNLOCK: return UI_GOLD; /* as LOCK on RNDMZR's parts */
     default: return UI_MID;
     }
 }
@@ -6221,7 +6242,7 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
         uint8_t labelled = 0u;
         bool compact = false;
         for (i = 0u; i < 11u; ++i) {
-            const MelloContextAction *a = context_action(ui->page, i);
+            const MelloContextAction *a = ui_action(ui, i);
             lab[i] = a && a->verb != MELLO_CTX_NONE ? a->label : 0;
             if (lab[i] && a->verb == MELLO_CTX_UNDO && eng(ui) &&
                 mello_engine_undo_state(eng(ui)) == MELLO_UNDO_REDO)
@@ -6244,13 +6265,22 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
                 w[i] = lab[i] ? (int16_t)(ui_text_len(lab[i]) * 8u) : 2;
                 need = (int16_t)(need + w[i]);
             }
+            if (lab[UNLOCK_KEY] == UNLOCK_ACTION.label) { /* UNLOCK as short as the room asks: UNL, then U */
+                static const char *const shorter[2] = {"UNL", "U"};
+                uint8_t s;
+                for (s = 0u; s < 2u && need + 4 * gap_group > 236; ++s) {
+                    lab[UNLOCK_KEY] = shorter[s];
+                    need = (int16_t)(need - w[UNLOCK_KEY] + (int16_t)(ui_text_len(shorter[s]) * 8u));
+                    w[UNLOCK_KEY] = (int16_t)(ui_text_len(shorter[s]) * 8u);
+                }
+            }
         }
         extra = (int16_t)(236 - need - 6 * gap_in - 4 * gap_group);
         if (extra < 0) extra = 0;
         rem = labelled ? (int16_t)(extra % labelled) : 0;
         x = 2;
         for (i = 0u; i < 11u; ++i) {
-            const MelloContextAction *a = context_action(ui->page, i);
+            const MelloContextAction *a = ui_action(ui, i);
             int16_t cw = w[i];
             if (i && i == group_end[g]) {
                 x = (int16_t)(x + gap_group); /* between the keyboard's groups */
@@ -7987,6 +8017,19 @@ static void draw_readout(MelloUi *ui, const MelloUiDrawOps *o)
     } else if (ui->readout == MELLO_UI_READOUT_INIT) {
         label = "INIT";
         (void)copy_s(val, "CLEAN SLATE");
+    } else if (ui->readout == MELLO_UI_READOUT_UNLOCK) { /* the parts UNLOCK let go, or how many */
+        uint8_t w, n = 0u;
+        label = "UNLOCKED";
+        for (w = 0u; w < ROLL_PARTS; ++w)
+            if (ui->unlocked & ROLL_PART_BITS[w]) ++n;
+        if (n > 2u)
+            (void)copy_s(put_u32(val, n), " PARTS");
+        else
+            for (q = val, w = 0u; w < ROLL_PARTS; ++w)
+                if (ui->unlocked & ROLL_PART_BITS[w]) {
+                    if (q != val) q = copy_s(q, " ");
+                    q = copy_s(q, ROLL_PART_NAMES[w]);
+                }
     } else if (ui->readout == MELLO_UI_READOUT_TAKE) {
         label = "TAKE";
         (void)copy_s(val, ui->take_fit ? "LOCKED, FIT" : "LOCKED");
@@ -8305,7 +8348,7 @@ static void calc_key_levels(MelloUi *ui, uint32_t *lit_out, uint32_t *glow_out)
 #undef WK
     if (!notes_are_keys) /* the black keys: one with a function glows; on (a switch that is on, PERF open) or held, lit */
         for (i = 0u; i < 11u; ++i) {
-            const MelloContextAction *a = context_action(ui->page, i);
+            const MelloContextAction *a = ui_action(ui, i);
             uint32_t k = bit_u32(BLACK_KEY_NOTES[i]);
             if (!a || a->verb == MELLO_CTX_NONE) continue;
             glow |= k;

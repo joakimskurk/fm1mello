@@ -32,6 +32,8 @@ ENC_SELECT = 0
 B9 = 1 << 22  # RNDMZR, the black key before PERF (2026-11-04): key 22 of the 27 the UI counts (16 white, 11 black)
 B10 = 1 << 25  # PERF: the last black key (2026-11-04)
 WHITE3 = 1 << 4  # the third white key (E)
+B2 = 1 << 5  # the third black key: with RNDMZR held, the DRUMS lock
+B7 = 1 << 17  # free on every page; UNLOCK while a part is locked
 
 GAP = 80  # ms between two inputs
 SETTLE = 1400  # ms from the last input to the shot: the layer readout stays 1200 ms after a SELECT detent
@@ -218,6 +220,11 @@ def the_tour():
     t.wait(1500)
     t.shot("dot-playing", None, None, "LFO > DOT while playing: the cells on glow, the read position framed, its trail", settle=0)
     t.btn(HOME)
+    t.keys_down(B9)  # RNDMZR held, B2: the drums locked
+    t.wait(300)
+    t.keys(B9 | B2, 120)
+    t.shot("home-locked", None, None, "A part locked: B7 is UNLOCK, in gold, its key lit", settle=300)
+    t.keys(B7, 120)  # UNLOCK: as it was
     t.btn(PLAY)
     t.end()
     return t

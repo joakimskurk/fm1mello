@@ -2099,6 +2099,23 @@ tap with INT on MUSICAL or GROOVE rolled the band besides, ANY in a new style ea
   named it, the band still playing the old one, and set the new style's TRIM. Now that is a roll of the lead in the
   style that plays, as BAND off. Test: mask_band.
 
+## UNLOCK (2026-11-10)
+
+The product owner, after a drum take had locked the drums: the lock is fine, "but how do I unlock it again? It is not
+intuitive; it must say so somewhere, and an unlock button or the like". A lock was shown only with RNDMZR held (LOCK
+under the part) and undone only there, with B0-B5; a take's lock said TAKE LOCKED for a second and was then out of
+sight.
+
+- **B7 is UNLOCK while a part is locked**, a take's lock or one set with RNDMZR held and B0-B5. B7 is free on every
+  page, so UNLOCK is in the same place on every page: in gold in the black keys' strip (as LOCK on RNDMZR's parts),
+  its key lit. Where the strip is full it is UNL (RANDOM, BASS, CHORD, FX, DRUMS), and on DOT, fuller still, U (as
+  MUT's M and PERF's P).
+- **A tap unlocks every part**, and the readout says UNLOCKED and which (LEAD DRUMS; three or more, 3 PARTS). One part
+  alone is still RNDMZR held and its key; RNDMZR held now says B0-B5: LOCK OR UNLOCK.
+- With nothing locked B7 is free again: no label, no light, a tap does nothing. The locks are still not saved.
+- Not here: in KEYS every key is the keyboard and the strip shows the keyboard, so UNLOCK is reached after EDIT (a
+  take on HOME, REC round to off, still leaves KEYS on). Test: unlock_key; screens home-locked and rndmzr-held.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.
