@@ -6071,7 +6071,9 @@ static int8_t ctx_lit(MelloUi *ui, MelloContextVerb v)
     case MELLO_CTX_MIX_SUB:
     case MELLO_CTX_MIX_CHORD:
     case MELLO_CTX_MIX_PERC: return (e->perf.mix_mute >> (v - MELLO_CTX_MIX_LEAD)) & 1u ? 0 : 1;
+    case MELLO_CTX_SAMPLE_TOGGLE: return e->sample.on ? 1 : 0;
 #if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_CTX_CHORD_TOGGLE: return e->chord.on ? 1 : 0;
     case MELLO_CTX_CHORD_SUB_ROOT: return e->chord.sub_root ? 1 : 0;
     case MELLO_CTX_CHORD_POLY: return e->chord.poly ? 1 : 0;
 #endif
