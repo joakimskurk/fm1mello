@@ -174,6 +174,8 @@ typedef struct {
     uint32_t edit_down_ms;
     bool step_pitch_mode; /* STEP's EDIT: the white keys set the picked step's pitch (R6) */
     bool keys_rec;
+    bool
+        rec_keys; /* the take on HOME was started by REC from outside KEYS: REC round to off leaves KEYS again */
     /* REC on a page with a sequence (G3, ROADMAP F5): STEP, BASS, CHORD or DRUMS, the page it records (0: none);
      * keys_rec and keys_rec_target then say what, as HOME's KEYS > REC does */
     uint8_t page_rec;

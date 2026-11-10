@@ -1321,8 +1321,8 @@ static void page_rec_stop(MelloUi *ui)
 
 /* REC's gestures (DECISIONS "Record it yourself, easily"). A tap: on a page with a part (STEP, BASS, CHORD, DRUMS)
  * that part's take on or off; on HOME straight into KEYS recording the sequence (no EDIT first), and in KEYS on to
- * the next target, SEQ, BASS, CHORD, DRUMS, then off. Held, white keys 1-4 pick the target (on HOME), B0 the click;
- * held half a second and let go with neither, the take from empty. */
+ * the next target, SEQ, BASS, CHORD, DRUMS, then off (and out of KEYS, if REC brought it there). Held, white keys
+ * 1-4 pick the target (on HOME), B0 the click; held half a second and let go with neither, the take from empty. */
 static uint8_t rec_last_target(void)
 {
     return MELLO_UI_REC_DRUMS;
@@ -1330,6 +1330,7 @@ static uint8_t rec_last_target(void)
 static void rec_pick(MelloUi *ui, uint8_t target)
 {
     if (ui->page != MELLO_UI_HOME) mello_ui_set_page(ui, MELLO_UI_HOME);
+    if (!ui->keys_rec) ui->rec_keys = !ui->keys_mode; /* a new take: REC brought it into KEYS, or EDIT did */
     ui->keys_mode = true;
     take_start(ui, target);
     ui->keys_rec_pos = 0u;
@@ -1359,6 +1360,7 @@ static void rec_tap(MelloUi *ui)
         if (next == MELLO_UI_REC_CHORD) next++;
 #endif
         if (!ui->keys_mode || !ui->keys_rec) {
+            ui->rec_keys = !ui->keys_mode;
             ui->keys_mode = true;
             take_start(ui, MELLO_UI_REC_SEQ);
         } else if (ui->keys_rec_target < rec_last_target())
@@ -1366,6 +1368,9 @@ static void rec_tap(MelloUi *ui)
         else {
             take_end(ui);
             ui->keys_rec = false;
+            if (ui->rec_keys)
+                ui->keys_mode = false; /* back where REC found it: the black keys their own again */
+            ui->rec_keys = false;
         }
         ui->keys_rec_pos = 0u; /* from step 1 */
     } else

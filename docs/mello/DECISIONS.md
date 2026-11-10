@@ -1762,7 +1762,8 @@ it. Now:
 
 - **REC is a tap or a hold**, decided when it is let go. A tap on HOME goes straight into KEYS recording the
   sequence; in KEYS on to BASS, CHORD, DRUMS (new: the keys' first four white keys play the kit, as REC on DRUMS),
-  then off; on STEP, BASS, CHORD, DRUMS it records that page's part, as before.
+  then off (and, since 2026-11-10, out of KEYS again when REC's tap brought it there: rec_off_keys); on STEP, BASS,
+  CHORD, DRUMS it records that page's part, as before.
 - **REC held** a quarter of a second shows RECORD: white keys 1-4 pick the target (on HOME, the take going on: one
   UNDO), B0 turns the click on or off; held half a second and let go with neither, the take from empty: the
   sequence's steps rests, the bass line off (BASS SEQ and the sub on), the chords off until a key writes one, the
@@ -2113,8 +2114,9 @@ sight.
 - **A tap unlocks every part**, and the readout says UNLOCKED and which (LEAD DRUMS; three or more, 3 PARTS). One part
   alone is still RNDMZR held and its key; RNDMZR held now says B0-B5: LOCK OR UNLOCK.
 - With nothing locked B7 is free again: no label, no light, a tap does nothing. The locks are still not saved.
-- Not here: in KEYS every key is the keyboard and the strip shows the keyboard, so UNLOCK is reached after EDIT (a
-  take on HOME, REC round to off, still leaves KEYS on). Test: unlock_key; screens home-locked and rndmzr-held.
+- Not here: in KEYS every key is the keyboard and the strip shows the keyboard, so UNLOCK is reached after EDIT. A
+  take on HOME that REC started leaves KEYS at REC round to off (the same day: before, KEYS stayed on, and RNDMZR
+  played a note and rolled nothing). Test: unlock_key, rec_off_keys; screens home-locked and rndmzr-held.
 
 ## Engineering process decisions
 
