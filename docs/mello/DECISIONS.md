@@ -2135,6 +2135,36 @@ say) the rests stayed rests through every roll after, the pitches rolled under t
   locked lead is not rolled at all.
 - Test: lead_from_silence.
 
+## The second core (2026-11-10)
+
+The product owner, 2026-11-10: now that the FM-1's second core can be used, can we let go where we throttled? The
+plan (ROADMAP H) was agreed the same evening; this is its ground.
+
+- **What is known.** The AC791N has two pi32v2 cores. Melodee found how to start the second; X0X has rendered its
+  drums there since 1.0 and hardened the HAL; SLOOP 2.8.3 carries X0X's files and runs on FM-1s with them (all
+  GPL-3.0-only). On some FM-1s core 1 reads RAM wrong now and then, more under load (bit 21, 0x00200000:
+  fm1-x0x#10 and #21, measured by Jangada); with the boot loader's supplies and both cores running, some units read
+  the flash and the SRAM wrong, and M-VAVE's own firmware raises VDC14 and SYSVDD as it starts. Core 1 must start at
+  power-on: started later, from the main loop, it never reaches its entry.
+- **The HAL (0.5-f107)** is X0X's as SLOOP has it: one job at a time, handed over through a mailbox with a check
+  word on each; the waiting loop in RAM (.c1_text), so an idle core 1 never fetches from the flash, and a job only
+  inside the audio interrupt, which waits for it (the flash is turned off only with interrupts off); core 1 held at
+  boot, before a reboot and before an update; a fault on core 1 stops it alone.
+- **2ND CORE, OFF by default (0.5-f108).** The switch lives in the platform's settings sector (the 4 KiB one
+  Dinghy's platform had and SkurkyMello did not use, with a magic of its own, SKM1, so another firmware's settings
+  there read as none). OFF: the boot is as before. ON: at power-on, with the flash up and before the audio and the
+  timers, the supplies go to M-VAVE's (VDC14 1.60 V, SYSVDD 1.38 V), core 1 starts, and a self-test job runs on it
+  from the flash. No reply within 20 ms, a wrong answer, a job read wrong or one 8 ms late: one core, and after a
+  wrong or late one until power-off. OFF until it has run on a real FM-1: none of it has (no FM-1 here).
+  `MELLO_CFLAGS=-DMELLO_CPU1_DEFAULT=1` builds a package that is ON while the sector holds no settings.
+- **fm1-emu 0.3.0**: ON, core 1 starts, the self-test comes back right (job 1 done, nothing refused) and core 1
+  waits in its RAM loop; OFF, it is never released; with `--flaky-core1 0.01` core 1 reads the job word wrong while
+  it waits (0x00200001) and counts it, so the first job would hold it. 0.3.0's hardware lock between the cores does
+  nothing and its core 1 does not sleep; neither is used here. fm1-emu 0.4.0 (measured cycles with FM1_STRICT, core
+  1's idle) is not downloaded.
+- **No work on it yet**: the render runs on core 0 as before. The split (the chords, then the drums, the same
+  output bit for bit with one core or two) is ROADMAP H2-H3.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

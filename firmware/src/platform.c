@@ -10,6 +10,7 @@
  *   keys, knobs, LEDs   fm1_in.notes / buttons, fm1_input_edges, fm1_enc_take, fm1_led_key (hal/fm1_input.h)
  *   screen              240 x 240, lcd_fill, draw_text_box with FONT_S (16 px) / FONT_L (32 px) (gfx.c)
  *   settings            one 4 KiB flash sector with a CRC (settings_load / settings_save)
+ *   second core         2ND CORE ON: started at power-on, proved by a self-test (cpu1_boot); cpu1_run / cpu1_wait
  *   crash screen        the PC of a fault, then a reboot
  *
  * The app (dinghy.c) includes this file first and supplies:
@@ -204,6 +205,76 @@ static int settings_save(const void *p, uint32_t n)   /* p in RAM, n <= 256 */
     return fl_write(SETTINGS_AT, (const uint8_t *)h, sizeof h);   /* the header last: a cut save stays invalid */
 }
 
+/* ---- the second core (2ND CORE). After SLOOP's cpu1.c (Copyright (C) 2026 Andre Rezemini, GPL-3.0-only: the SLOOP
+ * dualcore branch, github.com/andrerezemini/sloop-lab) over X0X's HAL (hal/fm1_cpu1.h). Started at power-on, before
+ * the audio and the timers (X0X: started later, core 1 never reached its entry), and only when the platform's
+ * settings say 2ND CORE ON: OFF (the default) holds it, and the boot is as before. Proved by a self-test job that
+ * runs from the flash, as the app's will; one that does not report in, answers wrong or comes back late leaves the
+ * FM-1 on one core (fm1_cpu1_wait: then until power-off). The app hands it work through cpu1_run / cpu1_wait. */
+enum { CPU1_OFF, CPU1_NOSTART, CPU1_FAILED, CPU1_OK }; /* switched off / did not report in / wrong, late, barred / on */
+typedef void (*cpu1_job_t)(uint32_t);
+#ifndef MELLO_CPU1_DEFAULT
+#define MELLO_CPU1_DEFAULT 0 /* 2ND CORE while the sector holds no settings (MELLO_CFLAGS=-DMELLO_CPU1_DEFAULT=1: ON) */
+#endif
+#define PLAT_SETTINGS_MAGIC 0x534B4D31u /* "SKM1": the platform's own settings, in the sector above */
+static struct {
+    uint32_t magic;
+    uint8_t second_core, spare[3];
+} plat_settings;
+static uint8_t cpu1_state = CPU1_OFF;
+static uint32_t cpu1_timeouts;                 /* jobs core 1 did not finish in time, or read wrong */
+static volatile uint32_t cpu1_test_out;
+
+static int cpu1_on(void) { return cpu1_state == CPU1_OK && fm1_c1_on; }
+/* hand core 1 a job: 1 = it took it (cpu1_wait before touching what it works on); 0 = run it yourself */
+static int cpu1_run(cpu1_job_t fn, uint32_t arg) { return cpu1_state == CPU1_OK ? fm1_cpu1_run(fn, arg) : 0; }
+/* 0 = done; -1 = read wrong or late: core 1 is held until power-off, and the caller does the job itself */
+static int cpu1_wait(void)
+{
+    if (fm1_cpu1_wait() == 0)
+        return 0;
+    cpu1_timeouts++;
+    cpu1_state = CPU1_FAILED;
+    return -1;
+}
+
+static uint32_t cpu1_lcg(uint32_t x)           /* 64 steps of an LCG: the self-test's work */
+{
+    uint32_t i;
+    for (i = 0; i < 64u; i++)
+        x = x * 1664525u + 1013904223u;
+    return x;
+}
+static void cpu1_selftest(uint32_t arg) { cpu1_test_out = cpu1_lcg(arg); }   /* on core 1, from the flash */
+
+/* at power-on, with the flash up (the settings) and before the audio, the timers and fm1_guard_lock_top (the entry
+ * word is in the reserved top of RAM). The PC limits are open while it starts (it boots through the chip's ROM) */
+static void cpu1_boot(void)
+{
+    if (settings_load(&plat_settings, sizeof plat_settings) || plat_settings.magic != PLAT_SETTINGS_MAGIC) {
+        memset(&plat_settings, 0, sizeof plat_settings);
+        plat_settings.magic = PLAT_SETTINGS_MAGIC;
+        plat_settings.second_core = MELLO_CPU1_DEFAULT;
+    }
+    if (!plat_settings.second_core)
+        return;
+    fm1_supplies_stock();                       /* VDC14 1.60 V, SYSVDD 1.38 V, as M-VAVE's own (fm1_sys.h) */
+    fm1_guard_pc_open();
+    if (fm1_cpu1_start() != 0) {
+        fm1_guard_enable(FM1_GUARD_PC);
+        cpu1_state = fm1_c1_gave_up == 3u ? CPU1_FAILED : CPU1_NOSTART;   /* (3: given up since power-on) */
+        return;
+    }
+    fm1_guard_enable(FM1_GUARD_PC);
+    cpu1_test_out = 0;
+    if (!fm1_cpu1_run(cpu1_selftest, 20261110u) || fm1_cpu1_wait() != 0 || cpu1_test_out != cpu1_lcg(20261110u)) {
+        fm1_cpu1_hold();                        /* answered, but wrong or late: one core from here on */
+        cpu1_state = CPU1_FAILED;
+        return;
+    }
+    cpu1_state = CPU1_OK;
+}
+
 /* ---- MIDI: USB and the TRS jack share one ring of 4-byte USB-MIDI packets (USB cable 0, the jack cable 1) */
 static int midi_get(uint8_t *st, uint8_t *d1, uint8_t *d2)   /* 1 (USB) or 2 (TRS): a message; 0: none */
 {
@@ -385,6 +456,7 @@ void fm1_cstart(void)
     lcd_fill(0, 0, 240, 240, C_BLACK);
     fm1_input_init();
     fm1_adc_init();
+    cpu1_boot();                                /* 2ND CORE ON: the second core, before the audio and the timers */
     fm1_audio_init(abuf, HALF_WORDS, isr_alnk0, 3);   /* (abuf is zero: .bss) */
     usb_start();
 #if FELUCCA_UART
