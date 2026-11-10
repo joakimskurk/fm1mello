@@ -3069,15 +3069,29 @@ static void roll_progression(MelloEngine *e, uint8_t n, uint16_t colour_min)
 }
 #endif
 
+/* Whether the lead has nothing to play in its length: every step a rest (CLEAR's, a take from empty's) or skipped */
+static bool lead_silent(const MelloEngine *e)
+{
+    uint8_t len = e->project.seq_len ? e->project.seq_len : 16u, i;
+    if (len > MELLO_MAX_STEPS) len = MELLO_MAX_STEPS;
+    for (i = 0u; i < len; ++i)
+        if (e->project.steps[i].gate != MELLO_GATE_REST && !e->project.steps[i].skip) return false;
+    return true;
+}
+/* What a roll changes on each lead step: the mask, less what the amounts leave out. A silent lead gets its notes
+ * from the roll whatever the mask says (DECISIONS "A silent lead rolls notes"): GATE and SKIP on every step, or a
+ * mask without GATE keeps it silent for good, its other fields rolled under rests. */
 static void randomize_step_masks(MelloEngine *e, uint16_t mask, uint16_t out[MELLO_MAX_STEPS])
 {
     uint8_t i, b;
+    bool silent = mask && lead_silent(e);
     for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
         uint16_t m = mask;
         for (b = 0u; b < MELLO_RAND_TARGETS; ++b)
             if ((m & (1u << b)) && e->modr.rnd_amount[b] < 100u &&
                 !chance_permille(&e->gen_rng, (uint16_t)(e->modr.rnd_amount[b] * 10u)))
                 m &= (uint16_t)~(1u << b);
+        if (silent) m |= MELLO_RAND_GATE | MELLO_RAND_SKIP;
         out[i] = m;
     }
 }
@@ -3240,11 +3254,13 @@ static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity int
     uint16_t mask, smask[MELLO_MAX_STEPS];
     const ScaleDef *sd;
     uint8_t pmax;
-    bool high = intensity == MELLO_RANDOMIZE_HIGH;
+    bool high = intensity == MELLO_RANDOMIZE_HIGH, silent;
     if (!e) return;
     mask = (uint16_t)(e->randomize.mask & MELLO_RAND_ALL);
     sd = &SCALES[e->project.scale < MELLO_SCALE_COUNT ? e->project.scale : MELLO_SCALE_MINOR];
     pmax = (uint8_t)(sd->n * e->project.pitch_span_oct - 1u);
+    silent =
+        mask && lead_silent(e); /* (LOW's nudge of nothing would be nearly nothing: its gates as HIGH's) */
     randomize_step_masks(e, mask, smask);
     for (i = 0u; i < MELLO_MAX_STEPS; ++i) {
         MelloStep *st = &e->project.steps[i];
@@ -3272,7 +3288,7 @@ static void randomize_steps_low_high(MelloEngine *e, MelloRandomizeIntensity int
                 st->ratchet = clamp_u8_random((int32_t)st->ratchet + random_delta(&e->gen_rng, 1), 1u, 8u);
         }
         if (smask[i] & MELLO_RAND_GATE) {
-            if (high) {
+            if (high || silent) {
                 uint32_t r = rng_bounded(&e->gen_rng, 1000u);
                 st->gate = r < 120u ? MELLO_GATE_REST
                                     : (r < 300u ? MELLO_GATE_HOLD

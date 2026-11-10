@@ -2118,6 +2118,19 @@ sight.
   take on HOME that REC started leaves KEYS at REC round to off (the same day: before, KEYS stayed on, and RNDMZR
   played a note and rolled nothing). Test: unlock_key, rec_off_keys; screens home-locked and rndmzr-held.
 
+## A silent lead rolls notes (2026-11-10)
+
+The product owner: "when I clear, everything goes quiet, and though the lead shows as on I no longer hear anything".
+CLR makes every step a rest, and a roll changes only what RANDOM's mask lets it: with GATE masked away (PITCH alone,
+say) the rests stayed rests through every roll after, the pitches rolled under them.
+
+- **A lead with nothing to play gets its notes from the roll, whatever the mask**: when no step in the sequence's
+  length plays (rests or skips), the roll changes GATE and SKIP on every step too, at every intensity and in every
+  style. LOW, which nudges a few gates, rolls them as HIGH does, or a nudge of nothing would be nearly nothing.
+- A lead that plays keeps the mask as before, and a mask of nothing still changes nothing (the lead stays silent). A
+  locked lead is not rolled at all.
+- Test: lead_from_silence.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.
