@@ -276,9 +276,6 @@ void mello_ui_init(MelloUi *ui, MelloTransport *transport, MelloStorage *storage
     ui->seen_running = 2u;
     ui->home_old_step = 0xFFu;
     ui->home_new_step = 0xFFu;
-    ui->last_key_led_mask = 0xFFFFFFFFu;
-    ui->last_key_glow_mask = 0xFFFFFFFFu; /* (sent whole at the start, as the lit ones) */
-    ui->last_button_led_mask = 0xFFFFFFFFu;
     ui->dirty = MELLO_UI_DIRTY_ALL;
 }
 
@@ -8348,29 +8345,32 @@ static uint32_t calc_button_leds(MelloUi *ui)
 
 void mello_ui_sync_leds(MelloUi *ui, const MelloUiDrawOps *ops)
 {
-    uint32_t km, gm, bm, ch;
+    uint32_t km, gm, bm, ch, all;
     uint8_t i;
     if (!ui || !ops) return;
+    all = ui->leds_sent ? 0u
+                        : 0xFFFFFFFFu; /* the first sync after init (boot, RESET ALL): every LED, on or off */
     calc_key_levels(ui, &km, &gm);
     bm = calc_button_leds(ui);
     if (ops->key_led) {
-        ch = km ^ ui->last_key_led_mask;
+        ch = (km ^ ui->last_key_led_mask) | all;
         for (i = 0u; i < 27u; ++i)
             if (ch & bit_u32(i)) ops->key_led(ops->ctx, i, (km & bit_u32(i)) != 0u);
     }
     if (ops->key_glow) { /* G5's middle level */
-        ch = gm ^ ui->last_key_glow_mask;
+        ch = (gm ^ ui->last_key_glow_mask) | all;
         for (i = 0u; i < 27u; ++i)
             if (ch & bit_u32(i)) ops->key_glow(ops->ctx, i, (gm & bit_u32(i)) != 0u);
     }
     ui->last_key_glow_mask = gm;
     if (ops->button_led) {
-        ch = bm ^ ui->last_button_led_mask;
+        ch = (bm ^ ui->last_button_led_mask) | all;
         for (i = 0u; i < MELLO_UI_BUTTON_COUNT; ++i)
             if (ch & bit_u32(i)) ops->button_led(ops->ctx, i, (bm & bit_u32(i)) != 0u);
     }
     ui->last_key_led_mask = km;
     ui->last_button_led_mask = bm;
+    ui->leds_sent = true;
     ui->dirty &= (uint16_t)~MELLO_UI_DIRTY_LEDS;
 }
 

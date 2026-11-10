@@ -261,6 +261,9 @@ typedef struct {
     uint32_t last_key_led_mask;
     uint32_t last_key_glow_mask; /* G5: the keys that glow (fm1_led_dim) */
     uint32_t last_button_led_mask;
+    bool
+        leds_sent; /* the LEDs were synced since init: until then the masks above say nothing, and the first sync
+                     * sends every LED, as the panel may show anything (all off at boot, the old page after RESET ALL) */
 
     uint8_t seen_step;
     uint8_t seen_pulse;

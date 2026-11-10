@@ -173,7 +173,6 @@ int main(void)
     tap(band_key);
     CHECK(t.engine.randomize.mask == (MELLO_RAND_PITCH | MELLO_RAND_BAND_OFF),
           "BAND's key made the mask %04x", t.engine.randomize.mask);
-    u.last_key_led_mask = u.last_key_glow_mask = 0u; /* (every LED that is on sent) */
     mello_ui_sync_leds(&u, &o);
     CHECK(key_lit & (1u << white_note(0u)), "PIT, on, is not lit");
     CHECK(!(key_lit & (1u << band_key)) && (key_glow & (1u << band_key)), "BAND off: its key lit %d, glow %d",

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 joakimskurk
 // The page's player (web/app/): the firmware as WebAssembly, run here as the page's audio thread runs it. It boots
-// (the splash, then HOME), is silent until PLAY, plays and stops, a step key picks its step and plays it (a press and
-// release in one quantum still count), a section button turns the page and lights, SELECT turns the tempo, RNDMZR
-// rolls, SAVE writes the flash, and the project comes back after a restart with that flash put back. Writes the screens it saw
-// as PPM (OUT-*.ppm) to look at. After Star Distroyer's tests/web_test.mjs.
+// (the splash, then HOME, its button lit and its steps glowing), is silent until PLAY, plays and stops, a step key
+// picks its step and plays it (a press and release in one quantum still count), a section button turns the page and
+// lights, SELECT turns the tempo, RNDMZR rolls, SAVE writes the flash, and the project comes back after a restart with
+// that flash put back. Writes the screens it saw as PPM (OUT-*.ppm) to look at. After Star Distroyer's
+// tests/web_test.mjs.
 //   node tests/web_test.mjs build/web/skurkymello.wasm [OUT]
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -59,6 +60,7 @@ const home = lcd(x);
 ppm(x, 'home');
 check(differ(splash, home) > 5000, `after the splash, HOME (${differ(splash, home)} pixels changed)`);
 check(quiet.peak < 200, `silent before PLAY (peak ${quiet.peak})`);
+check(led(x, BTN.HOME) === 1 && (x.web_glow(0) | x.web_glow(1)) !== 0, 'HOME lit and its steps glowing from the start');
 
 tap(x, BTN.PLAY);
 let lit = 0;

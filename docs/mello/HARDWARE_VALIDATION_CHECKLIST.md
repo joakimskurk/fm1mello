@@ -26,4 +26,6 @@ All boxes are mandatory before a public release.
       waits, WRITING with its bar and percent during an install, UPDATE FAILED after a cut one; the install still
       finishes (the loader draws before it starts USB).
 - [ ] OCT− rescue verified: held at power-on it opens the USB rescue (the boot scan settles 100 us since 0.5-f98).
+- [ ] The lights from the start (since 0.5-f101): after the splash HOME's button lit and the steps glowing; after
+      RESET ALL, HOME's lights and none left from the page before.
 - [ ] Back-to-official V15 verified.
