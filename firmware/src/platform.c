@@ -42,6 +42,7 @@ enum { ENC_SELECT = 0, ENC_ALGORITHM = 1, ENC_KNOB1 = 2, ENC_KNOB2 = 3, ENC_KNOB
 #include "fm1_sys.h"
 #include "fm1_irq.h"
 #include "fm1_guard.h"
+#include "fm1_cpu1.h"                             /* the second core (X0X, as SLOOP 2.8.3 has it) */
 #define FM1_SETTLE_US 100u /* the boot scan (OCT- for the rescue): 10 us read no key on an FM-1 (Dinghy 0.4) */
 #include "fm1_input.h"
 static void fm1_led_key_glow(uint32_t id, int on)   /* as fm1_led_key, the dim layer (~1/24): "there is something here" */
@@ -334,6 +335,8 @@ static void fm1_fault(const fm1_crash_t *c)
 {
     char b[12];
     uint32_t i, t0, v[3] = {c->vec, c->pc, c->rets};
+    if (fm1_c1_on)      /* a crash beside the second core: one core until power-off (SLOOP 2.8.3, X0X ed35a45) */
+        fm1_cpu1_bar();
     fm1_audio_stop();
     lcd_fill(0, 0, 240, 240, RGB(160, 0, 0));
     draw_text_box(0, 20, 240, &FONT_S, APP_NAME " CRASH", C_WHITE, 1);
@@ -352,8 +355,9 @@ static void fm1_fault(const fm1_crash_t *c)
 void fm1_cstart(void)
 {
     extern uint32_t _data_start[], _data_end[], _data_load[], _bss_start[], _bss_end[];
-    extern uint32_t _pool_start[], _pool_end[], _rt_start[], _rt_end[], _rt_load[];
+    extern uint32_t _pool_start[], _pool_end[], _rt_start[], _rt_end[], _rt_load[], _c1_start[], _c1_end[], _c1_load[];
     uint32_t *s, *d, p3, boot_mode, jedec;
+    fm1_cpu1_halt(); /* a second core left running by a reset would read the RAM cleared below (SLOOP 2.8.3) */
     fm1_time_init();
     fm1_reset_reason();
     p3 = fm1_boot.p3_rst;
@@ -368,6 +372,7 @@ void fm1_cstart(void)
     for (d = _pool_start; d < _pool_end; d++) *d = 0;
     for (s = _data_load, d = _data_start; d < _data_end; s++, d++) *d = *s;
     for (s = _rt_load, d = _rt_start; d < _rt_end; s++, d++) *d = *s;
+    for (s = _c1_load, d = _c1_start; d < _c1_end; s++, d++) *d = *s; /* the second core's loop (fm1_cpu1.h) */
     fm1_mailbox_clear();
     fm1_guard_enable(FM1_GUARD_STACK | FM1_GUARD_WRITE | FM1_GUARD_BUS | FM1_GUARD_PC);
     fm1_boot.p3_rst = (uint8_t)p3;
