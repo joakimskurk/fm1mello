@@ -215,6 +215,33 @@ typedef struct {
     bool decoded_ready;
 } MelloAudioSampleVoice;
 
+/* The second core, as the platform gives it (ROADMAP H2, DECISIONS "The second core"): dinghy.c hands platform.c's
+ * cpu1_run / cpu1_wait over while the FM-1 runs on two; NULL (the default, the host, one core): everything here. */
+typedef struct {
+    int (*run)(void (*job)(uint32_t),
+               uint32_t arg); /* 1: taken (wait before touching its work); 0: do it here */
+    int (*wait)(
+        void); /* 0: done; -1: given up (late or misread: the core is held), the caller finishes the job */
+    void (*sync)(void); /* a barrier: what one core wrote before it, the other reads after its own */
+} MelloAudioCores;
+
+#if MELLO_FEATURE_CHORD_MACHINE
+#define MELLO_CHORD_CHUNK 256u /* the chords render this many samples at a time (a block on the FM-1) */
+/* The chords' job (chord_block): a chunk of the block rendered from the chord state, the queue's chord events and
+ * the C.CUT routes alone, so it can run beside the rest. Where the queue, the MOD lanes and EVOLVE's value stood at
+ * its start (the render's own move on), and how far it has come. */
+typedef struct {
+    uint32_t t, terr;                        /* the next sample's time, as the render counts it */
+    uint32_t n;                              /* the chunk's length */
+    uint8_t q_head[MELLO_AUDIO_EVENT_LANES]; /* the job's own read positions in the queue */
+    uint32_t next_due;                       /* the first due time at them, while queued is set */
+    bool queued;
+    MelloDotLane dot[MELLO_DOT_MOD_LANES]; /* its copy of the MOD lanes, for C.CUT */
+    int16_t tm_value;                      /* and of EVOLVE's value */
+    bool routed; /* a lane or EVOLVE goes to C.CUT: without, the copies stay unused */
+} MelloChordJob;
+#endif
+
 typedef struct {
     MelloSoundConfig config;
     MelloModRouting modr;
@@ -247,7 +274,14 @@ typedef struct {
     MelloAudioSubVoice sub;
 #if MELLO_FEATURE_CHORD_MACHINE
     MelloAudioChordVoice chord;
+    /* The chunk's chords, as chord_render gives them (before LEVEL): the job writes a sample, then
+     * counts it in chord_done; the render reads a sample once it is counted. Only the job touches chord while it runs. */
+    int32_t chord_out[2][MELLO_CHORD_CHUNK];
+    volatile uint32_t chord_done;
+    MelloChordJob chord_job;
+    bool chord_on_core1; /* this chunk's job is on the second core */
 #endif
+    const MelloAudioCores *cores; /* mello_audio_set_cores; NULL: one core */
     MelloAudioSampleVoice sample_voice[MELLO_SAMPLE_SLOT_COUNT];
     int16_t sample_decode[MELLO_SAMPLE_SLOT_COUNT][MELLO_SAMPLE_BLOCK_SAMPLES];
     uint32_t sample_last_target_step_q16[MELLO_SAMPLE_SLOT_COUNT];
@@ -453,6 +487,8 @@ void mello_audio_event_sink(void *ctx, const MelloEvent *event, uint32_t due_us)
 void mello_audio_render(MelloAudio *a, int32_t *out_stereo, uint32_t frames, uint32_t block_start_us,
                         uint16_t bpm);
 void mello_audio_all_notes_off(MelloAudio *a);
+/* The second core for the render (MelloAudioCores), or NULL for one: the output is the same to the sample either way. */
+void mello_audio_set_cores(MelloAudio *a, const MelloAudioCores *cores);
 bool mello_audio_queue_overflowed(const MelloAudio *a);
 bool mello_audio_is_silent(const MelloAudio *a);
 #if defined(MELLO_REVERB_TEST_HOOK) && MELLO_REVERB_TEST_HOOK

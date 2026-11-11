@@ -1116,8 +1116,9 @@ static void chord_kill(MelloAudio *a)
     v->fenv = 0;
     v->lp = v->bp = v->hp_x1 = v->hp_y1 = 0;
 }
-/* Every 16 samples: the envelopes (each voice's gain then ramps to its new level over the 16) and the filter. */
-static void chord_control(MelloAudio *a)
+/* Every 16 samples: the envelopes (each voice's gain then ramps to its new level over the 16) and the filter. mod_cut:
+ * the routes on C.CUT now, permille (chord_block's, so it can run beside the render). */
+static void chord_control(MelloAudio *a, int32_t mod_cut)
 {
     MelloAudioChordVoice *v = &a->chord;
     const MelloChordConfig *c = &a->chord_config;
@@ -1152,8 +1153,7 @@ static void chord_control(MelloAudio *a)
     q8 = (int32_t)c->cut * 20736 / 1000 +
          (int32_t)(((int64_t)v->fenv * ((int32_t)c->fenv * 12288 / 1000)) >> 24) - 48 * 256;
     if (c->link) q8 += ((int32_t)a->config.filter_cut - 500) * 235 / 10;
-    q8 +=
-        (int32_t)a->chord_mod_cut * 20736 / 1000; /* DOT's MOD and EVOLVE's routes on C.CUT, as CUT's range */
+    q8 += mod_cut * 20736 / 1000; /* DOT's MOD and EVOLVE's routes on C.CUT, as CUT's range */
     if (q8 > 33 * 256) q8 = 33 * 256;
     w = (int32_t)(((int64_t)semi_ratio_q16(q8) * 4482) >> 16); /* 2 pi fc / fs, Q15 */
     w -= (int32_t)((((int64_t)w * w >> 15) * w) >> 15) / 24;   /* 2 sin(w / 2) */
@@ -1162,7 +1162,7 @@ static void chord_control(MelloAudio *a)
         65536 - (int32_t)c->res * 62000 / 1000; /* damping 2 (RES 0) .. 0.1: just short of whistling */
 }
 /* One sample of the chord layer, left and right (before LEVEL). */
-static void chord_render(MelloAudio *a, int32_t *out_l, int32_t *out_r)
+static void chord_render(MelloAudio *a, int32_t mod_cut, int32_t *out_l, int32_t *out_r)
 {
     static const int16_t norm[5] = {0, 32767, 18500, 13200, 10400};
     MelloAudioChordVoice *v = &a->chord;
@@ -1170,7 +1170,7 @@ static void chord_render(MelloAudio *a, int32_t *out_l, int32_t *out_r)
     int32_t x = 0, hp, wet_l, wet_r, m;
     uint8_t i;
     if (!v->k_att) chord_coeffs(a); /* before the first config */
-    if (!(v->ctl++ & 15u)) chord_control(a);
+    if (!(v->ctl++ & 15u)) chord_control(a, mod_cut);
     for (i = 0u; i < MELLO_CHORD_AUDIO_VOICES; ++i) {
         if (!v->vstage[i] && !v->vgain[i]) continue;
         v->vgain[i] += v->vstep[i];
@@ -1250,6 +1250,17 @@ static void dot_lane_attack(MelloAudio *a, MelloDotLane *ln, uint8_t l, int32_t 
     ln->left = n;
     ln->step = (peak - ln->v) / (int32_t)n;
 }
+/* A pulse's cell on a MOD lane. HIT: a lit cell starts an attack (from where the lane is, so hits in a row do not
+ * click) and then the release. GATE: lit cells in a row hold, an unlit one releases. (The HTML's filter dot also
+ * snapped to 0 on every unlit pulse.) */
+static void dot_lane_pulse(MelloAudio *a, MelloDotLane *ln, uint8_t l, uint16_t lv)
+{
+    bool gate = a->modr.dot_gate[l];
+    if (lv && (!gate || ln->stage == 0u || ln->stage == 3u || ln->peak != (int32_t)lv << 16))
+        dot_lane_attack(a, ln, l, (int32_t)lv << 16);
+    else if (!lv && gate && ln->stage && ln->stage != 3u)
+        dot_lane_release(a, ln, l);
+}
 static void dot_lane_tick(MelloAudio *a, MelloDotLane *ln, uint8_t l)
 {
     if (ln->stage == 1u) {
@@ -1283,18 +1294,11 @@ static void apply_event(MelloAudio *a, const MelloEvent *e)
         a->tm_filter_mod_q15 = e->tm_filter_mod_q15;
         a->tm_decay_mod_q15 = e->tm_decay_mod_q15;
         a->tm_value = e->tm_value;
-        for (l = 0u; l < MELLO_DOT_MOD_LANES; ++l) {
-            /* DOT's MOD lanes. HIT: a lit cell starts an attack (from where the lane is, so hits in a row do not
-             * click) and then the release. GATE: lit cells in a row hold, an unlit one releases. (The HTML's filter
-             * dot also snapped to 0 on every unlit pulse.) */
+        for (l = 0u; l < MELLO_DOT_MOD_LANES; ++l) { /* DOT's MOD lanes (dot_lane_pulse) */
             MelloDotLane *ln = &a->dot_lane[l];
             uint16_t lv = e->dot_mod[l];
-            bool gate = a->modr.dot_gate[l];
             if (lv == MELLO_DOT_NOT_READ) continue;
-            if (lv && (!gate || ln->stage == 0u || ln->stage == 3u || ln->peak != (int32_t)lv << 16))
-                dot_lane_attack(a, ln, l, (int32_t)lv << 16);
-            else if (!lv && gate && ln->stage && ln->stage != 3u)
-                dot_lane_release(a, ln, l);
+            dot_lane_pulse(a, ln, l, lv);
             if (a->modr.dot_target[l] == MELLO_DEST_DECAY) dm += lv ? lv : ln->v >> 16;
         }
         for (l = 0u; l < MELLO_DOT_MOD_LANES; ++l)
@@ -1327,11 +1331,9 @@ static void apply_event(MelloAudio *a, const MelloEvent *e)
         if (event_tag(e) == a->sub.on_tag) sub_release(a);
     }
 #if MELLO_FEATURE_CHORD_MACHINE
-    else if (e->type == MELLO_EVENT_CHORD_NOTE_ON) {
-        chord_note_on(a, e->note);
+    else if (e->type == MELLO_EVENT_CHORD_NOTE_ON) { /* the note itself: chord_block, at the same sample */
         if (a->pfx & MELLO_PERF_FX2_PLUCK) a->pluck_up = true;
-    } else if (e->type == MELLO_EVENT_CHORD_NOTE_OFF)
-        chord_note_off(a, e->note);
+    }
 #endif
     else if (e->type == MELLO_EVENT_DRUM_HIT) {
         drum_hit(a, e);
@@ -2647,12 +2649,13 @@ bool mello_audio_push_engine_event(MelloAudio *a, const MelloEvent *e, uint32_t 
     }
     return true;
 }
-static bool audio_pop_due(MelloAudio *a, uint32_t now, MelloAudioQueuedEvent *out)
+static bool queue_pop_due(const MelloAudio *a, volatile uint8_t *heads, uint32_t now,
+                          MelloAudioQueuedEvent *out)
 {
     uint8_t lane, best = 255u;
     uint32_t best_due = 0u;
     for (lane = 0u; lane < MELLO_AUDIO_EVENT_LANES; ++lane) {
-        uint8_t head = a->q_head[lane];
+        uint8_t head = heads[lane];
         uint8_t slot;
         uint32_t due;
         if (head == a->q_tail[lane]) continue;
@@ -2666,12 +2669,142 @@ static bool audio_pop_due(MelloAudio *a, uint32_t now, MelloAudioQueuedEvent *ou
     }
     if (best == 255u) return false;
     {
-        uint8_t head = a->q_head[best];
+        uint8_t head = heads[best];
         uint8_t slot = audio_lane_slot(best, head);
         *out = a->queue[slot];
-        a->q_head[best] = (uint8_t)((head + 1u) % MELLO_AUDIO_EVENT_LANE_CAP);
+        heads[best] = (uint8_t)((head + 1u) % MELLO_AUDIO_EVENT_LANE_CAP);
     }
     return true;
+}
+static bool audio_pop_due(MelloAudio *a, uint32_t now, MelloAudioQueuedEvent *out)
+{
+    return queue_pop_due(a, a->q_head, now, out);
+}
+
+#if MELLO_FEATURE_CHORD_MACHINE
+/* The chords a chunk at a time (ROADMAP H2, DECISIONS "The second core"), on the second core beside the rest of the
+ * render or here before it: the same samples either way, and the same as when they were rendered inline. The job
+ * reads the queue on its own read positions with the render's own times, so its chord notes land on their sample;
+ * it keeps its own copy of the MOD lanes and EVOLVE's value for C.CUT; it writes only the chord state and
+ * chord_out, and counts each sample in chord_done. While it runs the render touches neither. */
+static MelloAudio
+    *chord_job_audio; /* (the job's: a pointer does not fit the platform's 32-bit argument on the host) */
+/* the first due time at the job's read positions: it looks into the queue only once that comes (the render pops at
+ * every sample; nothing is queued while the render runs) */
+static void chord_job_next(const MelloAudio *a, MelloChordJob *j)
+{
+    uint8_t lane;
+    j->queued = false;
+    for (lane = 0u; lane < MELLO_AUDIO_EVENT_LANES; ++lane) {
+        uint32_t due;
+        if (j->q_head[lane] == a->q_tail[lane]) continue;
+        due = a->queue[audio_lane_slot(lane, j->q_head[lane])].due_us;
+        if (!j->queued || audio_due_before(due, j->next_due)) j->next_due = due;
+        j->queued = true;
+    }
+}
+static void chord_block(MelloAudio *a)
+{
+    MelloChordJob *j = &a->chord_job;
+    const MelloAudioCores *c = a->cores;
+    uint32_t s;
+    for (s = a->chord_done; s < j->n; ++s) {
+        MelloAudioQueuedEvent q;
+        int32_t l = 0, r = 0, mod_cut = 0;
+        uint8_t k;
+        while (j->queued && audio_time_due(j->t, j->next_due) && queue_pop_due(a, j->q_head, j->t, &q)) {
+            const MelloEvent *e = &q.event;
+            if (e->type == MELLO_EVENT_CHORD_NOTE_ON)
+                chord_note_on(a, e->note);
+            else if (e->type == MELLO_EVENT_CHORD_NOTE_OFF)
+                chord_note_off(a, e->note);
+            else if (e->type == MELLO_EVENT_PULSE &&
+                     j->routed) { /* as apply_event: EVOLVE's value, the lanes */
+                j->tm_value = e->tm_value;
+                for (k = 0u; k < MELLO_DOT_MOD_LANES; ++k)
+                    if (e->dot_mod[k] != MELLO_DOT_NOT_READ) dot_lane_pulse(a, &j->dot[k], k, e->dot_mod[k]);
+            }
+            chord_job_next(a, j);
+        }
+        if (j->routed && (j->dot[0].stage || j->dot[1].stage || j->tm_value)) /* as dmod, for C.CUT alone */
+            for (k = 0u; k < MELLO_DOT_MOD_LANES; ++k) {
+                dot_lane_tick(a, &j->dot[k], k);
+                if (a->modr.dot_target[k] % MELLO_DEST_COUNT == MELLO_DEST_CHORD_CUT)
+                    mod_cut += j->dot[k].v >> 16;
+                if (a->modr.tm_dest[k] % MELLO_DEST_COUNT == MELLO_DEST_CHORD_CUT)
+                    mod_cut += j->tm_value * a->modr.tm_depth[k] / 32768;
+            }
+        mod_cut = clamp32(mod_cut, -1000, 1000);
+        if (a->chord_config.on && (a->chord.env_stage != MELLO_ENV_OFF || a->chord.active_count) &&
+            a->chord_config.wave != MELLO_WAVE_OFF)
+            chord_render(a, mod_cut, &l, &r);
+        a->chord_out[0][s] = l;
+        a->chord_out[1][s] = r;
+        j->t += AUDIO_US_BASE;
+        j->terr += AUDIO_US_REM;
+        if (j->terr >= MELLO_AUDIO_FS) {
+            j->terr -= MELLO_AUDIO_FS;
+            j->t++;
+        }
+        if (c && c->sync) c->sync(); /* the sample, then its count */
+        a->chord_done = s + 1u;
+    }
+}
+static void chord_job_entry(uint32_t arg)
+{
+    (void)arg;
+    chord_block(chord_job_audio);
+}
+/* the job given up (late, or its core read it wrong and is held): the rest of the chunk here, from its last sample */
+static void chord_take_back(MelloAudio *a)
+{
+    if (a->cores->wait() != 0) chord_block(a);
+    a->chord_on_core1 = false;
+}
+/* a chunk of n samples from the render's sample at time t: on the second core, or here at once */
+static void chord_start(MelloAudio *a, uint32_t t, uint32_t terr, uint32_t n)
+{
+    MelloChordJob *j = &a->chord_job;
+    uint8_t k;
+    j->t = t, j->terr = terr, j->n = n;
+    for (k = 0u; k < MELLO_AUDIO_EVENT_LANES; ++k) j->q_head[k] = a->q_head[k];
+    chord_job_next(a, j);
+    memcpy(j->dot, a->dot_lane, sizeof j->dot);
+    j->tm_value = a->tm_value;
+    j->routed = false;
+    for (k = 0u; k < MELLO_DOT_MOD_LANES; ++k)
+        if (a->modr.dot_target[k] % MELLO_DEST_COUNT == MELLO_DEST_CHORD_CUT ||
+            a->modr.tm_dest[k] % MELLO_DEST_COUNT == MELLO_DEST_CHORD_CUT)
+            j->routed = true;
+    a->chord_done = 0u;
+    chord_job_audio = a;
+    if (a->cores && a->cores->sync) a->cores->sync();
+    a->chord_on_core1 = a->cores && a->cores->run(chord_job_entry, 0u);
+    if (!a->chord_on_core1) chord_block(a);
+}
+/* the render at the chunk's sample s: it waits for it while the second core is behind */
+static void chord_wait_sample(MelloAudio *a, uint32_t s)
+{
+    uint32_t spins = 0u;
+    if (!a->chord_on_core1) return;
+    while (a->chord_done <= s) {
+        a->cores->sync();
+        if (++spins == 1u << 20) { /* far past a sample: wait for the job, or give it up */
+            chord_take_back(a);
+            return;
+        }
+    }
+    a->cores->sync();
+}
+/* the chunk done: the second core free for the next (the job came back, or the rest is rendered here) */
+static void chord_finish(MelloAudio *a)
+{
+    if (a->chord_on_core1) chord_take_back(a);
+}
+#endif
+void mello_audio_set_cores(MelloAudio *a, const MelloAudioCores *cores)
+{
+    if (a) a->cores = cores && cores->run && cores->wait && cores->sync ? cores : 0;
 }
 void mello_audio_event_sink(void *ctx, const MelloEvent *e, uint32_t due)
 {
@@ -2761,6 +2894,10 @@ static void sweep_step(MelloAudio *a, int32_t *l, int32_t *r)
 void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t start_us, uint16_t bpm)
 {
     uint32_t i, t = start_us, terr = 0u;
+#if MELLO_FEATURE_CHORD_MACHINE
+    uint32_t chord_at = 0u; /* the sample the chords' chunk began at */
+    bool chord_on;
+#endif
     if (!a || !out) return;
     a->render_bpm = bpm;
     apply_pending(a);
@@ -2812,12 +2949,22 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         ramp_to(&a->rp_delay, (int32_t)a->delay_samples, 50u, a->rendered_frames == 0u);
         if (a->rp_delay.left) a->ramps_moving = true;
     }
+#if MELLO_FEATURE_CHORD_MACHINE
+    chord_on = false;
+#endif
     for (i = 0u; i < frames; ++i) {
         int32_t lead = 0, sub = 0, sample_mix = 0, mix, mix_l = 0, mix_r = 0, lfo = 0, ampmod = 32767,
                 mod_env, dmod[MELLO_DEST_COUNT];
         bool mods = false;
 #if MELLO_FEATURE_CHORD_MACHINE
         int32_t chord_mix = 0, chord_l = 0, chord_r = 0;
+        if (!(i % MELLO_CHORD_CHUNK)) { /* the chords' next chunk, from here, before this sample's events */
+            chord_finish(a);
+            chord_on = a->chord_config.on;
+            chord_at = i;
+            if (chord_on)
+                chord_start(a, t, terr, frames - i < MELLO_CHORD_CHUNK ? frames - i : MELLO_CHORD_CHUNK);
+        }
 #endif
         int32_t drums = 0, drums_l = 0, drums_r = 0, bass = 0;
         bool rm = a->ramps_moving;
@@ -3157,10 +3304,13 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (a->sub_gain != 32767) sub = q15mul(clamp32(sub, -65535, 65535), a->sub_gain); /* SUB MUTE */
         }
 #if MELLO_FEATURE_CHORD_MACHINE
-        if (a->chord_config.on && (a->chord.env_stage != MELLO_ENV_OFF || a->chord.active_count) &&
-            a->chord_config.wave != MELLO_WAVE_OFF) {
+        if (chord_on) { /* this sample of the chunk (chord_block); silent ones are 0, and all below keeps them 0 */
+            chord_wait_sample(a, i - chord_at);
+            chord_l = a->chord_out[0][i - chord_at];
+            chord_r = a->chord_out[1][i - chord_at];
+        }
+        if (chord_l | chord_r) {
             int32_t duck = 32767 - (((a->lead.env_q24 >> 8) * 3) >> 4);
-            chord_render(a, &chord_l, &chord_r);
             /* Automatic ~19% duck at full lead envelope leaves the melodic transient in front. */
             if (duck < 24500) duck = 24500;
             {
@@ -3371,6 +3521,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         }
         a->rendered_frames++;
     }
+#if MELLO_FEATURE_CHORD_MACHINE
+    chord_finish(a); /* (the chord state is the render's again) */
+#endif
     {
         bool samples_silent = true;
         uint8_t sv;
