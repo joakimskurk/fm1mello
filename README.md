@@ -287,8 +287,9 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   (32N to 1 BAR, triplets and dotted; past 1.49 s the line runs at half rate and reaches 2.97 s, a division past
   even that shows a "~" and plays the longest it can) or free, with feedback and LO CUT (120 Hz on a new project);
   PING (B2) sends the echoes left and right in turn (it reads the line at twice the time, so its reach is half)
-  and HI CUT on its echoes, and a reverb with size, decay, pre-delay and tone. TRIM (REVERB RETURNS, K4) sets
-  the whole output by -6..+6 dB; a STYLE roll sets it so every style plays at about the same level.
+  and HI CUT on its echoes, and a reverb with size, decay (the tail's time to -60 dB, 0.4 to 60 s), pre-delay and
+  tone. TRIM (REVERB RETURNS, K4) sets the whole output by -6..+6 dB; a STYLE roll sets it so every style plays at
+  about the same level.
 - **Chords** (ARP > CHORD). A chain of up to eight chords in the key (degree, shape, inversion, spread, octave);
   a new project starts on one, the tonic. B3 FIT makes the chain from what plays: a chord every half bar on the
   bass line's note there (the lead's with the bass off), so the bass is always in the chord; pressed again over the
@@ -396,7 +397,7 @@ K1-K4 with their default values.
 | AUDIO FX | FX | DISTORTION | `PRE-DIST PING M UNDO RNDMZR P` | AMT 0% · MIX 100% · CHAR 35% · TONE 82% |
 | AUDIO FX | FX | DELAY SEND | `PRE-DIST PING M UNDO RNDMZR P` | WET 12% · FDBK 32% · LO CUT 120HZ · HI CUT 72% |
 | AUDIO FX | FX | DELAY CONFIG | `PRE-DIST PING M UNDO RNDMZR P` | SYNC ON · DIV 8N · TIME 250MS · LEVEL 75% |
-| AUDIO FX | FX | REVERB ROOM | `PRE-DIST PING M UNDO RNDMZR P` | WET 24% · SIZE 70% · DECAY 6.0S · TONE 62% |
+| AUDIO FX | FX | REVERB ROOM | `PRE-DIST PING M UNDO RNDMZR P` | WET 24% · SIZE 70% · DECAY 2.5S · TONE 62% |
 | AUDIO FX | FX | REVERB RETURNS | `PRE-DIST PING M UNDO RNDMZR P` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · TRIM 0 DB |
 | SAMPLE | ENV | MAIN | `ON MUT UNDO RNDMZR PERF` | LEVEL 70% · DIST 0% · TRACK ON · LOOP OFF |
 | SAMPLE | ENV | PITCH | `ON MUT UNDO RNDMZR PERF` | COARSE +0 · FINE +0 · LEVEL 70% · DIST 0% |

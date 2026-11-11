@@ -313,7 +313,7 @@ typedef struct {
     uint16_t delay_level;     /* 0..1500 */
     uint16_t reverb_wet;      /* 0..1000 */
     uint16_t reverb_size;     /* 0..1000 */
-    uint16_t reverb_decay_ms; /* 400..60000 */
+    uint16_t reverb_decay_ms; /* 400..60000: the time to -60 dB */
     uint16_t reverb_pre_ms;   /* 0..120 */
     uint16_t reverb_tone;     /* 0..1000 */
     uint16_t reverb_level;    /* 0..3000 */
@@ -1110,6 +1110,8 @@ void mello_sample_defaults(MelloSampleConfig *config);
 uint32_t mello_delay_div_ms(uint8_t div, uint32_t qms);
 #define MELLO_DELAY_REACH_MS 2970u
 void mello_fx_defaults(MelloFxConfig *config);
+/* A DECAY saved before 0.5-f118 (Tone.Reverb's) as the time to -60 dB it gave: the same sound */
+uint16_t mello_reverb_decay_from_tone(uint16_t ms);
 void mello_stored_project_encode(MelloStoredProject *dst, const MelloProject *src);
 void mello_stored_project_decode(MelloProject *dst, const MelloStoredProject *src);
 void mello_engine_init(MelloEngine *engine, const MelloProject *project, uint32_t seed);

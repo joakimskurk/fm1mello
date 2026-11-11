@@ -190,7 +190,7 @@ static void quiet_tail(void)
     quiet = t60_after(&a, 8, &pk_quiet);
     printf("V3: 60 dB in %.2f s, 18 dB down in %.2f s; the last second's peak %d and %d\n", loud, quiet,
            pk_loud, pk_quiet);
-    assert(loud > 2.0 && loud < 3.2);
+    assert(loud > 5.4 && loud < 6.6); /* DECAY 6 s: 60 dB in 6 s (DECISIONS "DECAY in seconds") */
     assert(quiet > 0.92 * loud && quiet < 1.08 * loud);
     assert(pk_loud == 0 && pk_quiet == 0);
 }

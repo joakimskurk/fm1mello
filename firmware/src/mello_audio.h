@@ -524,6 +524,7 @@ bool mello_audio_is_silent(const MelloAudio *a);
 #if defined(MELLO_REVERB_TEST_HOOK) && MELLO_REVERB_TEST_HOOK
 int32_t mello_audio_reverb_ir_probe(MelloAudio *a, int32_t send);
 void mello_audio_reverb_stereo_probe(MelloAudio *a, int32_t send, int32_t *left, int32_t *right);
+void mello_audio_reverb_choose_probe(MelloAudio *a);
 #endif
 
 #ifdef __cplusplus

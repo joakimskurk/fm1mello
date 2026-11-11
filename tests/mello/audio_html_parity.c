@@ -207,8 +207,9 @@ int main(void)
     assert(sound.master_level == 750u && sound.attack_ms == 5u && sound.decay_ms == 180u);
     assert(fx.delay_wet == 120u && fx.delay_feedback == 320u && fx.delay_tone == 720u &&
            fx.delay_level == 750u);
-    assert(fx.reverb_wet == 240u && fx.reverb_decay_ms == 6000u && fx.reverb_tone == 620u &&
-           fx.reverb_level == 1150u);
+    assert(fx.reverb_wet == 240u && fx.reverb_decay_ms == 2500u && fx.reverb_tone == 620u &&
+           fx.reverb_level ==
+               1150u); /* DECAY: the HTML's 6 s as the 2.5 s it sounds (DECISIONS "DECAY in seconds") */
     assert(sub.cut == 450u && sub.level == 750u &&
            sub.decay_ms == 160u); /* LEVEL: the HTML 420 (DECISIONS "The mix") */
     /* Tone.Distortion at AMT 0 is the HTML's gain staging: y = x/3, flat to the clip at +-1. */
@@ -216,7 +217,7 @@ int main(void)
     assert(a.main_dist_curve[128] >= 5460 && a.main_dist_curve[128] <= 5462);
     assert(a.reverb_send_permille >= 195u && a.reverb_send_permille <= 210u);
     assert(a.reverb_feedback_q15 >
-           29000u); /* six-second RT60 must not collapse like the old 0.56 feedback. */
+           29000u); /* the default's 2.5 s must not collapse like the old 0.56 feedback. */
 
     /* HTML distortion curve is strongly nonlinear: 50% amount / 35% character ~= 12-13% actual drive. */
     fx.dist_amount = 500u;

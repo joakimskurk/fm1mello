@@ -2290,6 +2290,28 @@ the reverb as it is (V3) when the FM-1 has one core (ROADMAP H6). Measured first
   the default), a burst 18 dB down rings as long, and the tail ends in silence (test wp_e3_reverb_v3_smoke; the old
   V3 fails it). It costs V3 16% more time on the host (the products in 64 bits).
 
+## DECAY in seconds (2026-11-11)
+
+The product owner, hearing the A/B takes: "jeg hører på ingen måte 13 sek decay". DECAY was Tone.Reverb's, as the
+HTML has it: Tone's `decay` sets an exponential approach whose time constant is ln(decay + 1) / ln 200, so the time
+to -60 dB is far shorter than the knob says (2.5 s at 6 s, 3.4 s at 13 s, 5.4 s at 60 s). Asked whether DECAY should be
+the real time to -60 dB, for Oliverb and V3, for Oliverb only, or neither, the product owner chose both. So here the
+C engine departs from the HTML on purpose (`make parity`'s reverb numbers no longer match it).
+
+- **0.5-f119**: DECAY (0.4 to 60 s) is the time to -60 dB in both reverbs: reverb_feedback_q15 takes it as it is
+  (Tone.Reverb's table is gone from the audio). Oliverb's loop loses about 0.06 dB a half besides its gain (its
+  low-pass and Hermite reads), made up in its gain; its high-pass in the loop is 10 Hz (Parasites' 51 Hz cut the
+  bass's tail short: 1 dB a half at 100 Hz), enough to keep DC out. A noise burst's energy decay (test
+  reverb_decay): V3 60 dB in 0.43, 1.00, 2.48, 5.96, 12.88 and 29.60 s at DECAY 0.4, 1, 2.5, 6, 13 and 30 s;
+  Oliverb 2.60, 5.99, 13.03 and 30.98 s from 2.5 s. Under 2.5 s Oliverb rings longer than DECAY: its loop's
+  allpasses ring on their own (diffusion 0.625), 1.21 s at 1 s and 0.68 s at 0.4 s. That is Parasites' character, and
+  the short end is where the room matters least.
+- **Nothing that was saved sounds different**: the FX section is version 7. A project saved before carries
+  Tone.Reverb's DECAY and loads as the time it gave (mello_reverb_decay_from_tone, the old table, rounded to DECAY's
+  0.1 s steps: 6 s loads as 2.5 s). A new project's DECAY is 2.5 s (it was 6 s, which sounded 2.5). The styles' DECAYs
+  are written as the times they gave (AMBIENT 9 s is 3.0 s, DRONE 12 s 3.3 s, DUB 4 s 2.1 s, TECHNO 2 s 1.4 s, ...), so
+  a STYLE roll sounds as it did; turning DECAY up now goes where the knob says.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

@@ -14,7 +14,7 @@ SRC="firmware/src/mello_engine.c firmware/src/mello_transport.c firmware/src/mel
 
 defines() {
     case "$1" in
-    audio_html_parity | wp_e3_reverb_v3_smoke) echo -DMELLO_REVERB_TEST_HOOK=1 ;;
+    audio_html_parity | wp_e3_reverb_v3_smoke | reverb_decay) echo -DMELLO_REVERB_TEST_HOOK=1 ;;
     live_edit_audio_stress) echo -DMELLO_LIVE_EDIT_TEST_HOOK=1 ;;
     cpu1_split) echo -pthread ;; # a thread is its second core
     drive_makeup | delay_pingpong | perform_keys) echo -DMELLO_OUTPUT_GAIN_Q12=4096 ;;

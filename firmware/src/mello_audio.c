@@ -1632,53 +1632,11 @@ static void drives_makeup(MelloAudio *a)
                           : 4096);
 }
 
-/* Tone.Reverb's RT60 in ms for DECAY = i * 100 ms: its noise IR fades with exponentialApproachValueAtTime, tau =
- * ln(decay+1)/ln 200, so RT60 = 6.908 tau. 2.54 s at DECAY 6 s. */
-static const uint16_t TONE_REVERB_RT60_MS[601] = {
-    0,    124,  238,  342,  439,  529,  613,  692,  766,  837,  904,  967,  1028, 1086, 1141, 1195, 1246,
-    1295, 1342, 1388, 1432, 1475, 1516, 1557, 1596, 1633, 1670, 1706, 1741, 1774, 1807, 1840, 1871, 1902,
-    1932, 1961, 1990, 2018, 2045, 2072, 2098, 2124, 2149, 2174, 2199, 2223, 2246, 2269, 2292, 2314, 2336,
-    2358, 2379, 2400, 2420, 2440, 2460, 2480, 2499, 2518, 2537, 2556, 2574, 2592, 2609, 2627, 2644, 2661,
-    2678, 2695, 2711, 2727, 2743, 2759, 2775, 2790, 2805, 2820, 2835, 2850, 2865, 2879, 2893, 2907, 2921,
-    2935, 2949, 2962, 2976, 2989, 3002, 3015, 3028, 3041, 3053, 3066, 3078, 3090, 3102, 3114, 3126, 3138,
-    3150, 3161, 3173, 3184, 3196, 3207, 3218, 3229, 3240, 3251, 3261, 3272, 3282, 3293, 3303, 3314, 3324,
-    3334, 3344, 3354, 3364, 3374, 3384, 3393, 3403, 3412, 3422, 3431, 3441, 3450, 3459, 3468, 3477, 3486,
-    3495, 3504, 3513, 3522, 3531, 3539, 3548, 3556, 3565, 3573, 3582, 3590, 3598, 3607, 3615, 3623, 3631,
-    3639, 3647, 3655, 3663, 3671, 3678, 3686, 3694, 3701, 3709, 3717, 3724, 3732, 3739, 3746, 3754, 3761,
-    3768, 3776, 3783, 3790, 3797, 3804, 3811, 3818, 3825, 3832, 3839, 3846, 3853, 3859, 3866, 3873, 3879,
-    3886, 3893, 3899, 3906, 3912, 3919, 3925, 3932, 3938, 3944, 3951, 3957, 3963, 3969, 3976, 3982, 3988,
-    3994, 4000, 4006, 4012, 4018, 4024, 4030, 4036, 4042, 4048, 4053, 4059, 4065, 4071, 4077, 4082, 4088,
-    4094, 4099, 4105, 4110, 4116, 4122, 4127, 4133, 4138, 4143, 4149, 4154, 4160, 4165, 4170, 4176, 4181,
-    4186, 4191, 4197, 4202, 4207, 4212, 4217, 4222, 4228, 4233, 4238, 4243, 4248, 4253, 4258, 4263, 4268,
-    4273, 4278, 4282, 4287, 4292, 4297, 4302, 4307, 4311, 4316, 4321, 4326, 4330, 4335, 4340, 4344, 4349,
-    4354, 4358, 4363, 4367, 4372, 4377, 4381, 4386, 4390, 4395, 4399, 4404, 4408, 4412, 4417, 4421, 4426,
-    4430, 4434, 4439, 4443, 4447, 4452, 4456, 4460, 4464, 4469, 4473, 4477, 4481, 4485, 4490, 4494, 4498,
-    4502, 4506, 4510, 4514, 4519, 4523, 4527, 4531, 4535, 4539, 4543, 4547, 4551, 4555, 4559, 4563, 4566,
-    4570, 4574, 4578, 4582, 4586, 4590, 4594, 4598, 4601, 4605, 4609, 4613, 4617, 4620, 4624, 4628, 4632,
-    4635, 4639, 4643, 4646, 4650, 4654, 4657, 4661, 4665, 4668, 4672, 4676, 4679, 4683, 4686, 4690, 4694,
-    4697, 4701, 4704, 4708, 4711, 4715, 4718, 4722, 4725, 4729, 4732, 4736, 4739, 4743, 4746, 4749, 4753,
-    4756, 4760, 4763, 4766, 4770, 4773, 4776, 4780, 4783, 4786, 4790, 4793, 4796, 4800, 4803, 4806, 4809,
-    4813, 4816, 4819, 4822, 4826, 4829, 4832, 4835, 4838, 4842, 4845, 4848, 4851, 4854, 4857, 4861, 4864,
-    4867, 4870, 4873, 4876, 4879, 4882, 4885, 4888, 4892, 4895, 4898, 4901, 4904, 4907, 4910, 4913, 4916,
-    4919, 4922, 4925, 4928, 4931, 4934, 4937, 4940, 4943, 4945, 4948, 4951, 4954, 4957, 4960, 4963, 4966,
-    4969, 4972, 4975, 4977, 4980, 4983, 4986, 4989, 4992, 4994, 4997, 5000, 5003, 5006, 5009, 5011, 5014,
-    5017, 5020, 5022, 5025, 5028, 5031, 5033, 5036, 5039, 5042, 5044, 5047, 5050, 5053, 5055, 5058, 5061,
-    5063, 5066, 5069, 5071, 5074, 5077, 5079, 5082, 5085, 5087, 5090, 5093, 5095, 5098, 5100, 5103, 5106,
-    5108, 5111, 5113, 5116, 5118, 5121, 5124, 5126, 5129, 5131, 5134, 5136, 5139, 5141, 5144, 5146, 5149,
-    5151, 5154, 5156, 5159, 5161, 5164, 5166, 5169, 5171, 5174, 5176, 5179, 5181, 5184, 5186, 5189, 5191,
-    5193, 5196, 5198, 5201, 5203, 5206, 5208, 5210, 5213, 5215, 5217, 5220, 5222, 5225, 5227, 5229, 5232,
-    5234, 5236, 5239, 5241, 5243, 5246, 5248, 5250, 5253, 5255, 5257, 5260, 5262, 5264, 5267, 5269, 5271,
-    5273, 5276, 5278, 5280, 5283, 5285, 5287, 5289, 5292, 5294, 5296, 5298, 5301, 5303, 5305, 5307, 5309,
-    5312, 5314, 5316, 5318, 5321, 5323, 5325, 5327, 5329, 5332, 5334, 5336, 5338, 5340, 5342, 5345, 5347,
-    5349, 5351, 5353, 5355, 5357, 5360,
-};
-/* Per-line gain for a 60 dB decay in Tone.Reverb's RT60: g = exp(-6.908 L / (fs RT60)), as a Pade approximant. */
+/* A loop's gain for a 60 dB decay in DECAY's time, g = exp(-6.908 L / (fs DECAY)), as a Pade approximant. DECAY is the
+ * time to -60 dB (DECISIONS "DECAY in seconds"): Tone.Reverb's (the HTML's) was far shorter than its value. */
 static uint16_t reverb_feedback_q15(uint32_t loop_samples, uint16_t decay_ms)
 {
-    uint32_t raw = decay_ms < 400u ? 400u : decay_ms > 60000u ? 60000u : decay_ms;
-    uint32_t i = raw / 100u, f = raw % 100u;
-    uint32_t d = TONE_REVERB_RT60_MS[i] +
-                 (i < 600u ? ((TONE_REVERB_RT60_MS[i + 1u] - TONE_REVERB_RT60_MS[i]) * f) / 100u : 0u);
+    uint32_t d = decay_ms < 400u ? 400u : decay_ms > 60000u ? 60000u : decay_ms;
     uint32_t x = (uint32_t)(((uint64_t)5133u * loop_samples + d / 2u) / d);
     uint32_t x2 = (uint32_t)(((uint64_t)x * x + 32768u) / (2u * 32768u));
     uint32_t den = 32768u + x + x2;
@@ -1839,21 +1797,23 @@ static void reverb_configure(MelloAudio *a)
 #define OLIVERB_KAP 20480 /* diffusion 0.625 (Parasites' Init) */
 #define OLIVERB_IN_GAIN                                                                                      \
     8118 /* the input's gain: Parasites' 0.5, -6.1 dB to V3's level at the default project's */
-#define OLIVERB_LP      32077   /* lp 0.93 at 32 kHz, the same corner here (1 - 0.07^(32000 / 22050)) */
-#define OLIVERB_HP      474     /* hp 0.01, the same */
+#define OLIVERB_LP      32077 /* lp 0.93 at 32 kHz, the same corner here (1 - 0.07^(32000 / 22050)) */
+#define OLIVERB_HP      93    /* 10 Hz, to keep DC out (Parasites' 0.01, 51 Hz, cut the bass's tail short) */
 #define OLIVERB_MOD_Q16 1354752 /* the swing: 30 samples at 32 kHz (REVERB at 0.1), 20.7 here */
 #define OLIVERB_SLOPE   1902u   /* the LFOs' rate (FEEDBACK at 0.5): 0.5^6 / 200 x 32000 / 22050, Q24 */
 #define OLIVERB_HALF                                                                                         \
     4844u /* a half of the loop at SIZE 1, network samples: (863+1198+2350+1043+939+3295) / 2 */
+#define OLIVERB_MAKEUP 32995u /* 10^(0.06 / 20), Q15 */
 static void oliverb_settings(MelloAudio *a)
 {
-    uint32_t size = a->fx.reverb_size > 1000u ? 1000u : a->fx.reverb_size, size_q16, half;
+    uint32_t size = a->fx.reverb_size > 1000u ? 1000u : a->fx.reverb_size, size_q16, half, g;
     if (!a->oliverb_on) return;
     size_q16 = 3277u + size * 61604u / 1000u;
     half = (OLIVERB_HALF * size_q16) >> 16;
-    mello_oliverb_set(&a->oliverb, (int32_t)size_q16, OLIVERB_KAP,
-                      reverb_feedback_q15(half * RV3_RATE_DIV, a->fx.reverb_decay_ms), OLIVERB_IN_GAIN,
-                      OLIVERB_LP, OLIVERB_HP, OLIVERB_MOD_Q16, OLIVERB_SLOPE, 65536u, 0);
+    /* the loop loses about 0.06 dB a half besides its gain (the low-pass, the Hermite reads): made up, under 1.0 */
+    g = (reverb_feedback_q15(half * RV3_RATE_DIV, a->fx.reverb_decay_ms) * OLIVERB_MAKEUP) >> 15;
+    mello_oliverb_set(&a->oliverb, (int32_t)size_q16, OLIVERB_KAP, (int32_t)(g > 32740u ? 32740u : g),
+                      OLIVERB_IN_GAIN, OLIVERB_LP, OLIVERB_HP, OLIVERB_MOD_Q16, OLIVERB_SLOPE, 65536u, 0);
 }
 /* Which reverb (at a chunk's start): Oliverb while the second core takes the parts' jobs, V3 with one core, once the
  * second is lost, or with Oliverb off. They share the memory after the pre-delay line, so a change empties it: the
@@ -2195,6 +2155,11 @@ int32_t mello_audio_reverb_ir_probe(MelloAudio *a, int32_t send)
 void mello_audio_reverb_stereo_probe(MelloAudio *a, int32_t send, int32_t *left, int32_t *right)
 {
     reverb_step(a, send, left, right);
+}
+/* the reverb chosen now, as the render does at each chunk (Oliverb with the cores set) */
+void mello_audio_reverb_choose_probe(MelloAudio *a)
+{
+    reverb_choose(a);
 }
 #endif
 

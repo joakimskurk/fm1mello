@@ -22,7 +22,8 @@ enum {
     SECVER_WORKING = 1,
     SECVER_SLOTS = 1,
     SECVER_SLOT_SEQ = 1,
-    SECVER_FX = 6, /* 2: the delay's LO CUT; 3: PRE DIST; 4: the sends per part; 5: PING; 6: TRIM */
+    SECVER_FX = 7, /* 2: the delay's LO CUT; 3: PRE DIST; 4: the sends per part; 5: PING; 6: TRIM; 7: DECAY in
+                    * seconds (before, Tone.Reverb's: mello_reverb_decay_from_tone) */
     SECVER_CHORD =
         5,           /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading); 3: CHAIN,
                          SUB ROOT; 4: HARMONY (FOLLOW, DRIFT, DEPTH); 5: POLY */
@@ -1118,6 +1119,8 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
                                     : FX_WIRE_SIZE) ||
                 !decode_fx(&r, &fx, ver))
                 return false;
+            if (ver < 7u)
+                fx.reverb_decay_ms = mello_reverb_decay_from_tone(fx.reverb_decay_ms); /* as it sounded */
             sends_seen = ver >= 4u;
             if (apply && e) mello_engine_fx_set_config(e, &fx);
 #if MELLO_FEATURE_CHORD_MACHINE
