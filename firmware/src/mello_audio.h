@@ -225,22 +225,30 @@ typedef struct {
     void (*sync)(void); /* a barrier: what one core wrote before it, the other reads after its own */
 } MelloAudioCores;
 
-#if MELLO_FEATURE_CHORD_MACHINE
-#define MELLO_CHORD_CHUNK 256u /* the chords render this many samples at a time (a block on the FM-1) */
-/* The chords' job (chord_block): a chunk of the block rendered from the chord state, the queue's chord events and
- * the C.CUT routes alone, so it can run beside the rest. Where the queue, the MOD lanes and EVOLVE's value stood at
- * its start (the render's own move on), and how far it has come. */
+#define MELLO_PARTS_CHUNK                                                                                    \
+    256u /* the chords and the drums go this many samples at a time (a block on the FM-1) */
+/* The parts' job (parts_step): the chords and the drums for a chunk of the block, from their own state, the queue's
+ * chord notes and drum hits, and the routes on C.CUT and the drums, so it can run beside the rest. Where the queue,
+ * the MOD lanes, EVOLVE's value, the LFO, the sample count and STUTTER's memory stood at its start (the render's
+ * own move on). */
 typedef struct {
     uint32_t t, terr;                        /* the next sample's time, as the render counts it */
     uint32_t n;                              /* the chunk's length */
     uint8_t q_head[MELLO_AUDIO_EVENT_LANES]; /* the job's own read positions in the queue */
     uint32_t next_due;                       /* the first due time at them, while queued is set */
     bool queued;
-    MelloDotLane dot[MELLO_DOT_MOD_LANES]; /* its copy of the MOD lanes, for C.CUT */
+    MelloDotLane dot[MELLO_DOT_MOD_LANES]; /* its copy of the MOD lanes, for C.CUT and the drums */
     int16_t tm_value;                      /* and of EVOLVE's value */
-    bool routed; /* a lane or EVOLVE goes to C.CUT: without, the copies stay unused */
-} MelloChordJob;
-#endif
+    bool routed;    /* a lane or EVOLVE goes to C.CUT or a drum: without, the copies stay unused */
+    bool lfo_drums; /* the LFO goes to a drum: its control steps worked out here as well */
+    uint8_t ctl_phase;
+    uint32_t lfo_phase;
+    int32_t c_lfo;
+    uint32_t rendered; /* the render's sample count (the drums' share is read every 16) */
+    uint16_t buf_pos,
+        buf_pos0;       /* STUTTER's memory: where this sample goes, and where the chunk's first went */
+    bool chords, drums; /* what the chunk has */
+} MelloPartsJob;
 
 typedef struct {
     MelloSoundConfig config;
@@ -274,13 +282,17 @@ typedef struct {
     MelloAudioSubVoice sub;
 #if MELLO_FEATURE_CHORD_MACHINE
     MelloAudioChordVoice chord;
-    /* The chunk's chords, as chord_render gives them (before LEVEL): the job writes a sample, then
-     * counts it in chord_done; the render reads a sample once it is counted. Only the job touches chord while it runs. */
-    int32_t chord_out[2][MELLO_CHORD_CHUNK];
-    volatile uint32_t chord_done;
-    MelloChordJob chord_job;
-    bool chord_on_core1; /* this chunk's job is on the second core */
+    int32_t chord_out[2]
+                     [MELLO_PARTS_CHUNK]; /* the chunk's chords, as chord_render gives them (before LEVEL) */
 #endif
+    /* The chunk's drums (drum_voices: before LEVEL), left, right, and their share of STUTTER's memory, which the
+     * render adds the music to and writes. The job does a sample, then counts it in parts_done; the render reads a
+     * sample once it is counted, and counts its memory written in heard_done. While the job runs only it touches the
+     * chord and drum state (drum, drum_noise, drum_mod), the render only the memory (drum_buf, drum_buf_pos). */
+    int32_t drum_out[3][MELLO_PARTS_CHUNK];
+    volatile uint32_t parts_done, heard_done;
+    MelloPartsJob parts_job;
+    bool parts_on_core1;          /* this chunk's job is on the second core */
     const MelloAudioCores *cores; /* mello_audio_set_cores; NULL: one core */
     MelloAudioSampleVoice sample_voice[MELLO_SAMPLE_SLOT_COUNT];
     int16_t sample_decode[MELLO_SAMPLE_SLOT_COUNT][MELLO_SAMPLE_BLOCK_SAMPLES];

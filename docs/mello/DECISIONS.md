@@ -2189,7 +2189,23 @@ plan (ROADMAP H) was agreed the same evening; this is its ground.
   main loop's work, and with it the interrupt's start, lands elsewhere, so an event may fall a sample later; two
   packages that differ only in how they boot drift the same way. `MELLO_CFLAGS=-DMELLO_CPU1_RENDER=0` starts core
   1 as switched but keeps the chords on core 0, the A/B for such runs.
-- **Still over the rule**: docs/RULES.md asks for under 2.9 ms in the worst case; the drums (ROADMAP H3) are next.
+- **The drums with them (0.5-f112).** The job is the parts' now: parts_step does a sample of the chords and of the
+  drums (their hits from its own read of the queue; their share of the routes, every 16 samples, from its own copy
+  of the MOD lanes, EVOLVE's value and the LFO's control steps). Two things stay the render's: DUCK (a kick's hit
+  sets it there, at its sample) and STUTTER's memory, which takes the music as it is at each sample. The job gives
+  the drums' share of it with each sample; the render adds the music, writes it and counts it in heard_done; a
+  STUTTER reading what this chunk wrote before its sample waits for the render to have written it (the render, at
+  that sample, needs nothing more from the job). With one core the parts go a sample at a time where the render
+  needs them, so the memory is always written. Nine scenes in blocks of 256, 100 and 1000 (now the drums routed
+  from lanes, EVOLVE and the LFO; STUTTER pitched up, short loops, with DUCK, DRIVE and FOLD; GLITCH's kind changed
+  every quarter second; the default project's drums): the same to the sample as before. cpu1_split runs them all on
+  the double; its "done at once" core is gone, as STUTTER would wait for ever on a core that finishes before the
+  render starts (the FM-1's hands the job over and returns). fm1-emu 0.3.0, the worst case: one core 87.7% (the job
+  costs it 1.2 points), two cores 65.3% (3.8 ms of 5.8), core 0's interrupt 63.9% -> 49.2% of the chip; a check
+  build's 1009 chunks the same, STUTTER's memory included. RAM 3 KB more (the drums' chunk): 6.9 KB free.
+- **Still over the rule**: docs/RULES.md asks for under 2.9 ms in the worst case; the lead (unison, OSC 2) and the
+  reverb are what is left that is heavy, and each would take more than this (the lead's modulation is the render's;
+  a reverb a block late would change the sound).
 
 ## Engineering process decisions
 

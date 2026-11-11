@@ -19,7 +19,8 @@ evening, in this order:
       the level, the mutes and the sends after (0.5-f110, 0.5-f111). The same output bit for bit with one core or
       two (cpu1_split's double of core 1; on fm1-emu a check build's 1009 chunks). The heaviest block in the worst
       case 86.5% -> 79.8% (fm1-emu 0.3.0).
-- [ ] H3. The drums too (STUTTER's memory of the music moved to core 0). Aim: the worst case under 2.9 ms.
+- [x] H3. The drums too (0.5-f112: STUTTER's memory of the music written by core 0, the drums waiting for it where
+      a short loop reads this chunk's). The worst case 87.7% on one core, 65.3% on two (3.8 ms): still over 2.9.
 - [ ] H4. Letting go, each with the product owner's yes and only what one core still carries: POLY as a new
       project's chords; per sample where an A/B shows a difference (the 4-sample control step, the 16-sample
       coefficients); -Os as the fallback build should USB-MIDI babble with -O2.

@@ -1,13 +1,17 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (C) 2026 joakimskurk */
-/* The chords on the second core (ROADMAP H2, DECISIONS "The second core"): the output is the same to the sample
- * whether the chords render here before the rest (one core), on a core that has done them before the rest starts,
- * on a real thread beside it, on a slow and erratic one, or on one that takes the job and loses it (then given up
- * and the chunk rendered here). A double of the platform's cpu1_run / cpu1_wait, as SLOOP's tests/cpu1_host.c:
- * the render cannot tell it from the FM-1's. Five scenes: the default project with chords, the worst case (POLY and
- * its chorus), the worst case as SUB MELLO, C.CUT routed from a MOD lane and EVOLVE with LINK, and one with all
- * notes off, OCT- held, the chords switched off and on again while it plays. Block sizes 256 (the FM-1's), 100
- * and 1000 (chunks that do not fill a block, and more than one a block). */
+/* The chords and the drums on the second core (ROADMAP H2-H3, DECISIONS "The second core"): the output is the same
+ * to the sample whether they render here a sample at a time (one core), on a real thread beside it, on a slow and
+ * erratic one, on one that takes the job and loses it (then given up and the chunk rendered here), or on one that
+ * refuses it. (Not on one that does the whole chunk before the render goes on, as a double could: the drums' STUTTER
+ * reads the memory the render writes beside it, and would wait for it for ever; the FM-1's fm1_cpu1_run hands the
+ * job over and returns.) A double of the platform's cpu1_run / cpu1_wait, as SLOOP's tests/cpu1_host.c:
+ * the render cannot tell it from the FM-1's. Nine scenes: the default project with chords, the worst case (POLY and
+ * its chorus), the worst case as SUB MELLO, C.CUT routed from a MOD lane and EVOLVE with LINK, one with all notes off,
+ * OCT- held, the chords switched off and on again while it plays; the drums routed (lanes, EVOLVE and the LFO on
+ * TUNE, DECAY, CRUSH, DRIVE), STUTTER pitched up (short loops: the drums wait for the memory the render writes) with
+ * DUCK, DRIVE and FOLD, GLITCH's kind changed every quarter second, and the default project's drums. Block sizes
+ * 256 (the FM-1's), 100 and 1000 (chunks that do not fill a block, and more than one a block). */
 #define _POSIX_C_SOURCE 200809L
 #include <pthread.h>
 #include <stdio.h>
@@ -29,9 +33,9 @@ static int fails;
     } while (0)
 
 /* ---- the double of the second core */
-enum { ONE_CORE, AT_ONCE, THREAD, CHAOS, LOST, REFUSED, MODES };
-static const char *const MODE_NAME[MODES] = {"one core",      "done at once", "a thread",
-                                             "a slow thread", "a lost job",   "refused"};
+enum { ONE_CORE, THREAD, CHAOS, LOST, REFUSED, MODES };
+static const char *const MODE_NAME[MODES] = {"one core", "a thread", "a slow thread", "a lost job",
+                                             "refused"};
 static int mode;
 static pthread_t worker;
 static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER;
@@ -72,10 +76,6 @@ static int run(void (*fn)(uint32_t), uint32_t arg)
     if (held || mode == REFUSED) return 0;
     ++jobs;
     if (mode == LOST && jobs == lost_at) return 1; /* taken, and never run */
-    if (mode == AT_ONCE) {
-        fn(arg);
-        return 1;
-    }
     pthread_mutex_lock(&mu);
     job_fn = fn, job_arg = arg, job_pending = 1;
     pthread_cond_broadcast(&cv);
@@ -88,7 +88,6 @@ static int wait_job(void)
         held = 1; /* as fm1_cpu1_wait: late, so the core is held from now on */
         return -1;
     }
-    if (mode == AT_ONCE) return 0;
     pthread_mutex_lock(&mu);
     while (job_pending || job_running) pthread_cond_wait(&cv, &mu);
     pthread_mutex_unlock(&mu);
@@ -126,11 +125,32 @@ static uint32_t scene(int which, uint32_t blk)
     uint32_t now = 0u, b, h = 2166136261u, blocks = 3u * MELLO_AUDIO_FS / blk;
     mello_project_defaults(&p);
     mello_transport_init(&t, &p, 0x4D454C4Cu, 0, 0);
-    if (which >= 1) mello_engine_stress(&t.engine);
+    if (which >= 1 && which <= 7) mello_engine_stress(&t.engine);
     if (which == 3 || which == 4) {
         t.engine.modr.dot_target[0] = MELLO_DEST_CHORD_CUT;
         t.engine.modr.tm_dest[1] = MELLO_DEST_CHORD_CUT;
         t.engine.modr.tm_depth[1] = 700;
+    }
+    if (which == 5) { /* the drums routed: lanes, EVOLVE and the LFO on TUNE, DECAY, CRUSH, DRIVE */
+        t.engine.modr.dot_target[0] = MELLO_DEST_DRUM_TUNE;
+        t.engine.modr.dot_target[1] = MELLO_DEST_DRUM_DECAY;
+        t.engine.modr.tm_dest[0] = MELLO_DEST_DRUM_DRIVE, t.engine.modr.tm_depth[0] = 900;
+        t.engine.modr.tm_dest[1] = MELLO_DEST_DRUM_CRUSH, t.engine.modr.tm_depth[1] = -800;
+        t.engine.sound.lfo_on = true, t.engine.sound.lfo_target = MELLO_LFO_DRUM_DRIVE,
+        t.engine.sound.lfo_depth = 900;
+    }
+    if (which == 6 || which == 7) { /* STUTTER pitched up (short loops), DUCK, DRIVE and FOLD */
+        MelloDrumConfig d = t.engine.drums;
+        d.voice[MELLO_DRUM_GLITCH].tone = 900u, d.voice[MELLO_DRUM_GLITCH].tune = 0u;
+        d.voice[MELLO_DRUM_GLITCH].decay = 1000u, d.voice[MELLO_DRUM_GLITCH].chance = 1000u;
+        d.duck = 800u, d.drive = 700u, d.fold = 500u;
+        mello_engine_drums_set_config(&t.engine, &d);
+        t.engine.modr.dot_target[0] = MELLO_DEST_DRUM_TUNE;
+    }
+    if (which == 8) {
+        MelloDrumConfig d = t.engine.drums;
+        d.on = true;
+        mello_engine_drums_set_config(&t.engine, &d);
     }
     mello_audio_init(&a, delay_pool, MELLO_AUDIO_DELAY_SAMPLES, reverb_pool, MELLO_AUDIO_REVERB_SAMPLES);
     mello_audio_set_config(&a, &t.engine.sound, &t.engine.fx, &t.engine.sub, &t.engine.sample);
@@ -154,6 +174,13 @@ static uint32_t scene(int which, uint32_t blk)
             default: break;
             }
         }
+        if (which == 7 && b % (11025u / blk + 1u) == 0u) { /* GLITCH's kind every quarter second */
+            static const uint16_t kinds[5] = {100u, 350u, 600u, 900u, 1000u};
+            MelloDrumConfig d = t.engine.drums;
+            d.voice[MELLO_DRUM_GLITCH].tone = kinds[(b / (11025u / blk + 1u)) % 5u];
+            mello_engine_drums_set_config(&t.engine, &d);
+            mello_audio_set_drum_config(&a, &t.engine.drums);
+        }
         mello_transport_poll_ahead(&t, now, MELLO_TRANSPORT_LOOKAHEAD_US);
         memset(out, 0, 2u * blk * sizeof out[0]);
         mello_audio_render(&a, out, blk, now, mello_transport_effective_bpm(&t));
@@ -171,12 +198,12 @@ int main(void)
     uint32_t sum = 0u;
     pthread_create(&worker, 0, work, 0);
     for (k = 0u; k < 3u; ++k)
-        for (s = 0; s < 5; ++s) {
+        for (s = 0; s < 9; ++s) {
             uint32_t ref;
             mode = ONE_CORE;
             ref = scene(s, blks[k]);
             sum ^= ref;
-            for (m = AT_ONCE; m < MODES; ++m) {
+            for (m = THREAD; m < MODES; ++m) {
                 uint32_t h;
                 mode = m, jobs = 0u, held = 0,
                 lost_at = 3u + (unsigned)s; /* LOST: the scene's third job on */
@@ -194,6 +221,6 @@ int main(void)
     pthread_mutex_unlock(&mu);
     pthread_join(worker, 0);
     if (fails) return 1;
-    printf("PASS: cpu1_split (5 scenes x 3 block sizes x %d ways, %08x)\n", MODES, sum);
+    printf("PASS: cpu1_split (9 scenes x 3 block sizes x %d ways, %08x)\n", MODES, sum);
     return 0;
 }
