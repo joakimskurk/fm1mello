@@ -327,7 +327,7 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   the note length; the groove's swing. CLOCK shows the chip's measured audio load as CPU nn%. SYSTEM: CORE 2
   (OFF on a new FM-1; the next power-on uses what it is set to) and what runs, 1 CORE or 2 CORES. With two the
   chords, the drums and the reverb (with PRE at 6 ms or more) render on the second, the sound the same to the
-  sample; it has not run on a real FM-1.
+  sample, and CPU 2 says how busy it is; it has not run on a real FM-1.
 - **KEY** (SEL). Root, scale, global octave, pitch span.
 - **RANDOM** (hold RNDMZR). Which targets a roll touches (MASK), which follow or mirror the pitch (LINKS), how much
   each moves (AMOUNTS); the intensity on K1. MUSICAL rolls a phrase, not noise; GROOVE the same phrase with rolls, ties, ghost
@@ -382,7 +382,7 @@ K1-K4 with their default values.
 | GLOBAL | GLO | CLOCK | `TAP RST2 MUT UNDO RNDMZR PERF` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | GLOBAL | GLO | MIDI | `TAP RST2 MUT UNDO RNDMZR PERF` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | GLOBAL | GLO | GROOVE | `TAP RST2 MUT UNDO RNDMZR PERF` | SWING 0% · LEAD GLOBAL · BASS GLOBAL · DRUMS GLOBAL |
-| GLOBAL | GLO | SYSTEM | `TAP RST2 MUT UNDO RNDMZR PERF` | CORE 2 OFF · NOW 1 CORE · CPU nn% |
+| GLOBAL | GLO | SYSTEM | `TAP RST2 MUT UNDO RNDMZR PERF` | CORE 2 OFF · NOW 1 CORE · CPU nn% · CPU 2 nn% |
 | SOUND | ENV | FILTER | `INIT MUT UNDO RNDMZR PERF` | CUT 3264HZ · RES 20% · DECAY 180MS · LEVEL 100% |
 | SOUND | ENV | OSC | `INIT MUT UNDO RNDMZR PERF` | WAVE SAW · PWM 50% · SLIDE 50MS · MASTER 75% |
 | SOUND | ENV | AMP ENV | `INIT MUT UNDO RNDMZR PERF` | ATTACK 5MS · DECAY 180MS · SUSTAIN 40% · RELEASE 120MS |

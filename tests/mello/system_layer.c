@@ -2,8 +2,8 @@
 /* Copyright (C) 2026 joakimskurk */
 /* GLOBAL > SYSTEM (DECISIONS "The second core"): the fourth layer of GLOBAL. K1 is CORE 2, the switch the platform
  * saves for the next power-on (OFF on a new FM-1); NOW says what runs (1 CORE, 2 CORES, or why one: NO REPLY,
- * GAVE UP); the picture has the two cores, core 1 lit while it runs, and in gold what the next power-on will do when
- * the switch differs from now. The switch is the FM-1's, not the project's: K2-K4 leave it, and the host shows one
+ * GAVE UP); CPU is the render's load and CPU 2 the second core's jobs'. The picture has the two cores, CORE 2 lit
+ * while it runs, and in gold what the next power-on will do when the switch differs from now. The switch is the FM-1's, not the project's: K2-K4 leave it, and the host shows one
  * core, off. */
 #include <stdio.h>
 #include <string.h>
@@ -94,10 +94,13 @@ int main(void)
     CHECK(has("CORE 2") && has("OFF") && has("NOW") && has("1 CORE"), "SYSTEM on the host said %s", said);
     CHECK(!strstr(said, "POWER-ON"), "nothing pending, yet: %s", said);
 
-    /* the FM-1 with both cores running, switched on */
+    /* the FM-1 with both cores running, switched on: CPU for the render, CPU 2 for the second core's jobs */
     mello_ui_set_cores(&u, MELLO_UI_CORE_ON, true);
+    mello_ui_set_audio_load(&u, 537u);
+    mello_ui_set_audio_load2(&u, 412u);
     render();
     CHECK(has("ON") && has("2 CORES") && has("CORE 1") && has("CORE 2"), "two cores: %s", said);
+    CHECK(has("CPU") && has("54%") && has("CPU 2") && has("41%"), "the two loads: %s", said);
     CHECK(!strstr(said, "POWER-ON"), "two cores, on: something pending: %s", said);
 
     /* K1 down: off at the next power-on; K2-K4 leave the switch; K1 up again: nothing pending */

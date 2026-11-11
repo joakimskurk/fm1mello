@@ -222,7 +222,8 @@ typedef struct {
                uint32_t arg); /* 1: taken (wait before touching its work); 0: do it here */
     int (*wait)(
         void); /* 0: done; -1: given up (late or misread: the core is held), the caller finishes the job */
-    void (*sync)(void); /* a barrier: what one core wrote before it, the other reads after its own */
+    void (*sync)(void);       /* a barrier: what one core wrote before it, the other reads after its own */
+    uint32_t (*micros)(void); /* a clock both cores read, for parts_busy (NULL: not timed) */
 } MelloAudioCores;
 
 #define MELLO_PARTS_CHUNK                                                                                    \
@@ -295,6 +296,7 @@ typedef struct {
         rev_out[2]
                [MELLO_PARTS_CHUNK]; /* the chunk's reverb (reverb_out, revTone, the DC blocker): before WET */
     volatile uint32_t parts_done, heard_done;
+    volatile uint32_t parts_busy; /* us the second core spent on the parts' jobs since dinghy.c took them */
     MelloPartsJob parts_job;
     bool parts_on_core1;          /* this chunk's job is on the second core */
     const MelloAudioCores *cores; /* mello_audio_set_cores; NULL: one core */

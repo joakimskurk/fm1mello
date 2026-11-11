@@ -97,7 +97,7 @@ static void sync_cores(void)
 {
     __atomic_thread_fence(__ATOMIC_SEQ_CST);
 }
-static const MelloAudioCores CORES = {run, wait_job, sync_cores};
+static const MelloAudioCores CORES = {run, wait_job, sync_cores, 0}; /* (not timed) */
 
 /* ---- the scenes */
 static int16_t delay_pool[MELLO_AUDIO_DELAY_SAMPLES];

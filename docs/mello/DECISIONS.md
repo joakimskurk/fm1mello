@@ -2222,6 +2222,11 @@ plan (ROADMAP H) was agreed the same evening; this is its ground.
   RAM 2 KB more (the reverb's chunk): 93460 B, 4.8 KB free.
 - **Still over the rule**, just: docs/RULES.md asks for under 2.9 ms in the worst case; the lead (unison, OSC 2,
   its modulation the render's) is what is left that is heavy.
+- **CPU 2 (0.5-f114).** The second core's load, as the render's is measured: the job times itself on TIMER4 (the
+  platform's micros, which both cores read) into parts_busy, and dinghy.c takes the worst block of each second,
+  permille; GLOBAL > SYSTEM shows it on K4 as CPU 2 beside the render's CPU. fm1-emu 0.3.0: the worst case CPU 54%,
+  CPU 2 52%, the two cores about as busy (what the second core is given more raises the worst case); the default
+  project CPU 27%, CPU 2 14%. (CPU's clock was also read from the counted time with MELLO_FIXED_CLOCK: no more.)
 
 ## Engineering process decisions
 

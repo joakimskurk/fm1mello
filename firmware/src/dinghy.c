@@ -80,11 +80,12 @@ static void sample_idle_cb(void *ctx)
 
 /* The chip's audio load (ROADMAP B1): the render's share of each block's time, the worst block of every ~1 s
  * (172 blocks), in permille. The one number the emulator cannot give: it counts instructions, the chip cycles. */
-static volatile uint16_t audio_load;
+static volatile uint16_t audio_load,
+    audio_load2; /* (audio_load2: the second core's jobs, as the same share) */
 static void app_audio(int32_t *out, uint32_t n)
 {
-    static uint16_t worst, blocks;
-    uint32_t t0 = fm1_micros(), took, share;
+    static uint16_t worst, worst2, blocks;
+    uint32_t start = fm1_micros(), t0 = start, took, share;
     if (!audio_ready) return;
 #ifdef MELLO_FIXED_CLOCK
     { /* fm1-emu's A/B (DECISIONS "The second core"): the render's time counted in samples from its first block, not
@@ -99,12 +100,15 @@ static void app_audio(int32_t *out, uint32_t n)
     }
 #endif
     mello_audio_render(&audio, out, n, t0, mello_transport_effective_bpm(&mt));
-    took = fm1_micros() - t0;        /* us; the block is n / 44.1 us long */
+    took = fm1_micros() - start;     /* us; the block is n / 44.1 us long */
     share = took * 441u / (n * 10u); /* permille */
     if (share > worst) worst = (uint16_t)(share > 9999u ? 9999u : share);
+    share = audio.parts_busy * 441u / (n * 10u); /* the second core's, this block (0 on one core) */
+    audio.parts_busy = 0u;
+    if (share > worst2) worst2 = (uint16_t)(share > 9999u ? 9999u : share);
     if (++blocks >= 172u) {
-        audio_load = worst;
-        worst = 0u, blocks = 0u;
+        audio_load = worst, audio_load2 = worst2;
+        worst = worst2 = 0u, blocks = 0u;
     }
 }
 
@@ -306,7 +310,7 @@ static void app_main(void)
 #define MELLO_CPU1_RENDER 1 /* 0: the second core started as switched, the chords kept here (fm1-emu's A/B) */
 #endif
     if (MELLO_CPU1_RENDER && cpu1_on()) { /* CORE 2 ON and running: the chords render there (ROADMAP H2) */
-        static const MelloAudioCores two_cores = {cpu1_run, cpu1_wait, cpu1_sync};
+        static const MelloAudioCores two_cores = {cpu1_run, cpu1_wait, cpu1_sync, cpu1_micros};
         mello_audio_set_cores(&audio, &two_cores);
     }
 #endif
@@ -388,6 +392,7 @@ pass: /* the loop's body, once a call */
         mello_ui_set_held_notes(&ui, fm1_in.notes);
 #ifndef DINGHY_HOST
         mello_ui_set_audio_load(&ui, audio_load); /* (the host's clock has milliseconds: nothing to show) */
+        mello_ui_set_audio_load2(&ui, audio_load2);
         if (ui.cores != cpu1_state)
             mello_ui_set_cores(&ui, cpu1_state, ui.second_core);   /* (given up: GAVE UP) */
         if (ui.second_core != (plat_settings.second_core != 0u)) { /* CORE 2 turned: for the next power-on */

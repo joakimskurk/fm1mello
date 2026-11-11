@@ -141,8 +141,9 @@ typedef struct {
     uint32_t readout_until_ms;
     uint8_t unlocked; /* the parts UNLOCK unlocked last (MELLO_PART_*), for its readout */
     /* HOME: a white key held down holds its step (K1-K4 edit it); released without a turn, it toggles the step. */
-    uint32_t held_notes; /* mello_ui_set_held_notes: the note keys held now */
-    uint16_t audio_load; /* mello_ui_set_audio_load: the chip's audio load, permille (GLOBAL shows it) */
+    uint32_t held_notes;  /* mello_ui_set_held_notes: the note keys held now */
+    uint16_t audio_load;  /* mello_ui_set_audio_load: the chip's audio load, permille (GLOBAL shows it) */
+    uint16_t audio_load2; /* mello_ui_set_audio_load2: the second core's, its jobs' share (SYSTEM's CPU 2) */
     uint8_t cores; /* mello_ui_set_cores: the second core now (MELLO_UI_CORE_*; GLOBAL > SYSTEM shows it) */
     bool
         second_core; /* GLOBAL > SYSTEM's CORE 2: the switch; the platform saves it, the next power-on uses it */
@@ -311,6 +312,8 @@ void mello_ui_set_held_notes(MelloUi *ui, uint32_t notes);
 /* The chip's audio load, permille of real time the audio interrupt takes (dinghy.c measures it; ROADMAP B1): the
  * GLOBAL page shows it as CPU. 0 = unknown (the host). */
 void mello_ui_set_audio_load(MelloUi *ui, uint16_t permille);
+/* The second core's share, as the render's: the worst block of each second its jobs took, permille (0: none). */
+void mello_ui_set_audio_load2(MelloUi *ui, uint16_t permille);
 /* The second core (dinghy.c from the platform's cpu1_state, DECISIONS "The second core"): what runs now, and the
  * CORE 2 switch as saved. GLOBAL > SYSTEM shows both; K1 turns the switch (ui->second_core), which dinghy.c saves
  * for the next power-on. The host keeps OFF, one core. */

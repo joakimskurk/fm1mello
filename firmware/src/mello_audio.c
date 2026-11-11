@@ -2858,8 +2858,10 @@ static void parts_step(MelloAudio *a)
 static void parts_job_entry(uint32_t arg)
 {
     MelloAudio *a = parts_job_audio;
+    uint32_t (*micros)(void) = a->cores->micros, t0 = micros ? micros() : 0u;
     (void)arg;
     while (a->parts_done < a->parts_job.n) parts_step(a);
+    if (micros) a->parts_busy += micros() - t0; /* (the render reads it once the job is back) */
 }
 /* The reverb's network and return go with the chunk on two cores when nothing in them needs this chunk's input: WET
  * up (the reverb runs every sample, whatever its tail), PRE at least a chunk (the network reads what the render wrote

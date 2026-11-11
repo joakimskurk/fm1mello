@@ -45,7 +45,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/global-clock.png" width="96" alt="GLOBAL CLOCK"> | GLOBAL | GLO | CLOCK | `TAP RST2 MUT UNDO RNDMZR PERF` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | <img src="../screens/global-midi.png" width="96" alt="GLOBAL MIDI"> | GLOBAL | GLO | MIDI | `TAP RST2 MUT UNDO RNDMZR PERF` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | <img src="../screens/global-groove.png" width="96" alt="GLOBAL GROOVE"> | GLOBAL | GLO | GROOVE | `TAP RST2 MUT UNDO RNDMZR PERF` | SWING 0% · LEAD GLOBAL · BASS GLOBAL · DRUMS GLOBAL |
-| <img src="../screens/global-system.png" width="96" alt="GLOBAL SYSTEM"> | GLOBAL | GLO | SYSTEM | `TAP RST2 MUT UNDO RNDMZR PERF` | CORE 2 OFF · NOW 1 CORE · CPU nn% |
+| <img src="../screens/global-system.png" width="96" alt="GLOBAL SYSTEM"> | GLOBAL | GLO | SYSTEM | `TAP RST2 MUT UNDO RNDMZR PERF` | CORE 2 OFF · NOW 1 CORE · CPU nn% · CPU 2 nn% |
 | <img src="../screens/sound-filter.png" width="96" alt="SOUND FILTER"> | SOUND | ENV | FILTER | `INIT MUT UNDO RNDMZR PERF` | CUT 3264HZ · RES 20% · DECAY 180MS · LEVEL 100% |
 | <img src="../screens/sound-osc.png" width="96" alt="SOUND OSC"> | SOUND | ENV | OSC | `INIT MUT UNDO RNDMZR PERF` | WAVE SAW · PWM 50% · SLIDE 50MS · MASTER 75% |
 | <img src="../screens/sound-amp-env.png" width="96" alt="SOUND AMP ENV"> | SOUND | ENV | AMP ENV | `INIT MUT UNDO RNDMZR PERF` | ATTACK 5MS · DECAY 180MS · SUSTAIN 40% · RELEASE 120MS |

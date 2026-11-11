@@ -4216,6 +4216,12 @@ void mello_ui_set_audio_load(MelloUi *ui, uint16_t permille)
     ui->audio_load = permille;
     if (ui->page == MELLO_UI_GLOBAL) ui->dirty |= MELLO_UI_DIRTY_BODY;
 }
+void mello_ui_set_audio_load2(MelloUi *ui, uint16_t permille)
+{
+    if (!ui || ui->audio_load2 == permille) return;
+    ui->audio_load2 = permille;
+    if (ui->page == MELLO_UI_GLOBAL) ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_FOOTER;
+}
 void mello_ui_set_cores(MelloUi *ui, uint8_t cores, bool second_core)
 {
     if (!ui) return;
@@ -7137,6 +7143,11 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
                 value_pct(v[2], ui->audio_load);
             else
                 copy_s(v[2], "-");
+            l[3] = "CPU 2"; /* the second core's jobs (the chords, drums, reverb), the same share */
+            if (ui->audio_load2)
+                value_pct(v[3], ui->audio_load2);
+            else
+                copy_s(v[3], "-");
         } else if (ui->global_subpage == 2u) {
             static const char *part[3] = {"LEAD", "BASS", "DRUMS"};
             uint8_t pk;
