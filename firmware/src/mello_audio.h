@@ -20,6 +20,10 @@ extern "C" {
 #define MELLO_AUDIO_EVENT_LANE_CAP (MELLO_AUDIO_EVENT_CAP / MELLO_AUDIO_EVENT_LANES)
 #define MELLO_AUDIO_DELAY_SAMPLES  65536u
 #define MELLO_AUDIO_REVERB_SAMPLES 24576u
+/* The delay's diffuser and pitch shifter at the end of the reverb's memory: V3 uses 18404 of it, Oliverb 18192
+ * (test delay_loop_fx) */
+#define MELLO_AUDIO_DLYFX_WORDS 3456u
+#define MELLO_AUDIO_DLYFX_AT    (MELLO_AUDIO_REVERB_SAMPLES - MELLO_AUDIO_DLYFX_WORDS)
 
 #define MELLO_PERF_BUF 6144u /* PERFORM's record of the mix: frames at half the rate, ~0.28 s (24 KB) */
 #define MELLO_LA_N     64u   /* the output limiter's look-ahead: 1.45 ms */
@@ -370,6 +374,16 @@ typedef struct {
      * under a unit (dly_glide_rem, Q24), so a 3 s glide reaches its time; dly_glide_k its step, Q24 (0: the ramp) */
     int32_t dly_glide_q8;
     uint32_t dly_glide_rem, dly_glide_k;
+    /* DIFFUSE and PITCH (DECISIONS "The looping delay"): Clouds' diffuser (four allpasses) and pitch shifter (two
+     * grains over a line) on the tap that feeds back, in the reverb's memory after what either reverb uses
+     * (MELLO_AUDIO_DLYFX_AT; none with a smaller reverb memory) */
+    int16_t *dlyfx;
+    uint32_t
+        reverb_room; /* what of the reverb's memory a reverb may use: all of it, or up to MELLO_AUDIO_DLYFX_AT */
+    bool dlyfx_diffuse, dlyfx_shift;
+    uint16_t dfx_ap_pos[4], ps_wp;
+    int32_t dfx_amount_q15, ps_step;
+    uint32_t ps_phase;
     /* Knob changes ramp as the HTML's rampTo calls do (lines 989-1077); the delay time too (read between samples). */
     /* The output stage (DECISIONS "The level, all of it"): the bus compressor's high-pass and follower (Q4) and its
      * gain (Q15, ramped over a block), then the look-ahead limiter's line, its gains' window and their sum */
@@ -529,6 +543,7 @@ bool mello_audio_is_silent(const MelloAudio *a);
 int32_t mello_audio_reverb_ir_probe(MelloAudio *a, int32_t send);
 void mello_audio_reverb_stereo_probe(MelloAudio *a, int32_t send, int32_t *left, int32_t *right);
 void mello_audio_reverb_choose_probe(MelloAudio *a);
+int32_t mello_audio_delay_probe(MelloAudio *a, int32_t send, int32_t fb_q12, int32_t *right);
 #endif
 
 #ifdef __cplusplus

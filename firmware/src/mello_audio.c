@@ -1754,7 +1754,7 @@ static void reverb_configure(MelloAudio *a)
         a->reverb_line_offset[i] = (uint16_t)off;
         off += a->reverb_line_cap[i];
     }
-    if (off + (off + 1u) / 2u > a->reverb_capacity) { /* (and the 8 bits under each sample: reverb_lo) */
+    if (off + (off + 1u) / 2u > a->reverb_room) { /* (and the 8 bits under each sample: reverb_lo) */
         a->reverb_pre_cap = 0u;
         return;
     }
@@ -1836,15 +1836,15 @@ static void reverb_choose(MelloAudio *a)
 {
     bool on = a->cores && !a->oliverb_off && a->reverb_buffer && a->reverb_capacity > 1024u &&
               a->reverb_pre_cap > OLIVERB_PRE_MIN &&
-              a->reverb_pre_cap + MELLO_OLIVERB_WORDS <= a->reverb_capacity;
+              a->reverb_pre_cap + MELLO_OLIVERB_WORDS <= a->reverb_room;
     uint8_t k;
     if (on == a->oliverb_on) return;
     a->oliverb_on = on;
     if (on)
         mello_oliverb_init(&a->oliverb, a->reverb_buffer + a->reverb_pre_cap, 0u);
-    else if (a->reverb_buffer && a->reverb_capacity > a->reverb_pre_cap) {
+    else if (a->reverb_buffer && a->reverb_room > a->reverb_pre_cap) {
         memset(a->reverb_buffer + a->reverb_pre_cap, 0,
-               (a->reverb_capacity - a->reverb_pre_cap) * sizeof a->reverb_buffer[0]);
+               (a->reverb_room - a->reverb_pre_cap) * sizeof a->reverb_buffer[0]); /* (not the delay's) */
         memset(a->reverb_mod_y, 0, sizeof a->reverb_mod_y);
         for (k = 0u; k < 8u; ++k) a->reverb_line_dq8[k] = (uint32_t)a->reverb_line_delay[k] << 8;
         for (k = 0u; k < 3u; ++k) a->reverb_ap_now[k] = a->reverb_ap_delay[k];
@@ -2072,6 +2072,89 @@ static int32_t delay_read(MelloAudio *a, int32_t delay_q8, int32_t lc[2])
     }
     return d;
 }
+/* DIFFUSE and PITCH (DECISIONS "The looping delay"): Clouds' looping delay puts its diffuser and its pitch shifter
+ * on what it plays and feeds back, so each repeat is smeared and shifted further than the last. In the delay's
+ * memory (dlyfx): the shifter's line, then the diffuser's four. The diffuser is Clouds' left one (126, 180, 269 and
+ * 444 samples at 32 kHz, here x 44.1 / 32), allpasses of 0.625; the shifter Clouds' (two grains over its line, a
+ * raised cosine between them), its window fixed at 45 ms (Clouds' takes it from SIZE: at 32 kHz 4 .. 64 ms). Each
+ * output worked out whole and then cut towards zero once, so it is never larger than the exact one: an allpass's
+ * y - g v with g v cut alone, or the grains' sum cut a grain at a time, came out larger, and a quiet repeat went round
+ * for ever (PITCH -12 with DIFFUSE: 4 samples 39 s on). */
+static inline int32_t tz15_64(int64_t p) /* p / 2^15 towards zero */
+{
+    return (int32_t)((p + ((p >> 63) & 32767)) >> 15);
+}
+#define DLYFX_PS_LEN 2048u /* the shifter's line, a power of two */
+#define DLYFX_PS_WIN 2000  /* its window, samples */
+static const uint16_t DLYFX_AP_LEN[4] = {174u, 248u, 371u, 612u};
+#define DLYFX_KAP 20480 /* 0.625 */
+static inline int32_t dlyfx_diffuse(MelloAudio *a, int32_t x)
+{
+    int16_t *m = a->dlyfx + DLYFX_PS_LEN;
+    int32_t acc = x;
+    uint8_t k;
+    for (k = 0u; k < 4u; ++k) {
+        uint16_t p = a->dfx_ap_pos[k];
+        int32_t y = m[p], v = acc + q15mul_tz(y, DLYFX_KAP); /* (the line's oldest: its length back) */
+        m[p] = sat16(v);
+        acc = tz15_64((int64_t)y * 32768 - (int64_t)v * DLYFX_KAP);
+        a->dfx_ap_pos[k] = (uint16_t)(p + 1u >= DLYFX_AP_LEN[k] ? 0u : p + 1u);
+        m += DLYFX_AP_LEN[k];
+    }
+    return tz15_64((int64_t)x * (32768 - a->dfx_amount_q15) + (int64_t)acc * a->dfx_amount_q15);
+}
+/* the shifter's line at offset off (Q16 samples back), Hermite's four points as Clouds reads them */
+static inline int32_t dlyfx_hermite(const MelloAudio *a, int32_t off_q16)
+{
+    const int16_t *r = a->dlyfx;
+    uint32_t n = (uint32_t)(off_q16 >> 16), w = a->ps_wp, m = DLYFX_PS_LEN - 1u;
+    int32_t t = (off_q16 & 0xFFFF) >> 1; /* Q15 */
+    int32_t xm1 = r[(w + n - 1u) & m], x0 = r[(w + n) & m], x1 = r[(w + n + 1u) & m],
+            x2 = r[(w + n + 2u) & m];
+    int32_t c = shr_tz(x1 - xm1, 1u), v = x0 - x1, wv = c + v, aa = wv + v + shr_tz(x2 - x0, 1u),
+            b_neg = wv + aa;
+    int32_t y = q15mul_tz64(aa, t);
+    y = q15mul_tz64(y - b_neg, t);
+    y = q15mul_tz64(y + c, t);
+    return y + x0;
+}
+static inline int32_t dlyfx_shift(MelloAudio *a, int32_t x)
+{
+    uint32_t ph, w = a->ps_wp = (uint16_t)((a->ps_wp - 1u) & (DLYFX_PS_LEN - 1u));
+    int32_t tri, phase, half;
+    a->dlyfx[w] = sat16(x);
+    ph = a->ps_phase = (a->ps_phase + (uint32_t)a->ps_step) & 0xFFFFFFu; /* Q24 of the window */
+    tri = olv_raised_cos((int32_t)((ph >= (1u << 23) ? (1u << 24) - ph : ph) >> 7), SINE_Q15);
+    phase = (int32_t)(((uint64_t)ph * (uint32_t)DLYFX_PS_WIN) >> 8); /* Q16 samples */
+    half = phase + (DLYFX_PS_WIN << 15);
+    if (half >= DLYFX_PS_WIN << 16) half -= DLYFX_PS_WIN << 16;
+    return tz15_64((int64_t)dlyfx_hermite(a, phase) * tri + (int64_t)dlyfx_hermite(a, half) * (32768 - tri));
+}
+static inline int32_t delay_loop_fx(MelloAudio *a, int32_t d)
+{
+    if (a->dlyfx_diffuse) d = dlyfx_diffuse(a, d);
+    if (a->dlyfx_shift) d = dlyfx_shift(a, d);
+    return d;
+}
+/* DIFFUSE or PITCH turned: the amount and the shifter's step (1 - ratio) / window, Q24 (a divide only here); either
+ * turned on starts from an empty line */
+static void dlyfx_set(MelloAudio *a)
+{
+    int32_t st = a->fx.delay_pitch < -24 ? -24 : a->fx.delay_pitch > 24 ? 24 : a->fx.delay_pitch;
+    uint32_t dif = a->fx.delay_diffuse > 1000u ? 1000u : a->fx.delay_diffuse;
+    bool diffuse = a->dlyfx && dif, shift = a->dlyfx && st;
+    if (diffuse && !a->dlyfx_diffuse) {
+        memset(a->dlyfx + DLYFX_PS_LEN, 0, (MELLO_AUDIO_DLYFX_WORDS - DLYFX_PS_LEN) * sizeof a->dlyfx[0]);
+        memset(a->dfx_ap_pos, 0, sizeof a->dfx_ap_pos);
+    }
+    if (shift && !a->dlyfx_shift) {
+        memset(a->dlyfx, 0, DLYFX_PS_LEN * sizeof a->dlyfx[0]);
+        a->ps_wp = 0u, a->ps_phase = 0u;
+    }
+    a->dfx_amount_q15 = (int32_t)(dif * 32768u / 1000u);
+    a->ps_step = shift ? (65536 - (int32_t)semi_ratio_q16(st * 256)) * 256 / DLYFX_PS_WIN : 0;
+    a->dlyfx_diffuse = diffuse, a->dlyfx_shift = shift;
+}
 /* PING (ROADMAP F25): the line is read at the time (left) and at twice it (right, at FDBK), and fed back from the
  * second at FDBK squared, so the echoes come left, right, left ... at 1, FDBK, FDBK^2 ...: the same series as without,
  * taking turns. Without PING the right is the left. */
@@ -2081,9 +2164,12 @@ static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t d
     *right = 0;
     if (!a->delay_buffer || a->delay_capacity <= 2u || !a->delay_samples) return 0;
     d = delay_read(a, delay_q8, a->delay_lc);
+    if (!a->fx.delay_pingpong && (a->dlyfx_diffuse | a->dlyfx_shift)) d = delay_loop_fx(a, d);
     dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
     if (a->fx.delay_pingpong) {
         int32_t d2 = delay_read(a, delay_q8 * 2, a->delay_lc_r);
+        if (a->dlyfx_diffuse | a->dlyfx_shift)
+            d2 = delay_loop_fx(a, d2); /* (PING: the tap that feeds back) */
         fb_in = mul_q12_fb(d2, mul_q12(dly_fb, dly_fb));
         *right =
             mul_q12(tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_r_s, d2), dly_fb);
@@ -2197,6 +2283,11 @@ void mello_audio_reverb_stereo_probe(MelloAudio *a, int32_t send, int32_t *left,
 void mello_audio_reverb_choose_probe(MelloAudio *a)
 {
     reverb_choose(a);
+}
+/* one sample of the delay alone, at its time and FDBK (Q12) as given, as the render calls it */
+int32_t mello_audio_delay_probe(MelloAudio *a, int32_t send, int32_t fb_q12, int32_t *right)
+{
+    return delay_tick(a, send, fb_q12, (int32_t)a->delay_samples << 8, right);
 }
 #endif
 
@@ -2329,7 +2420,7 @@ static void apply_pending(MelloAudio *a)
     uint32_t g;
     uint16_t old_decay;
     bool sub_drive_changed, lfo_rate_changed, delay_changed, reverb_changed, dist_changed, reverb_wet_changed,
-        oliverb_changed, glide_changed;
+        oliverb_changed, glide_changed, dlyfx_changed;
     if (!a) return;
     g = a->config_generation;
     /* Odd means main-loop publication is in progress. Keep the last complete
@@ -2342,6 +2433,8 @@ static void apply_pending(MelloAudio *a)
         a->fx.delay_time_ms != a->pending_fx.delay_time_ms || a->fx.delay_sync != a->pending_fx.delay_sync ||
         a->fx.delay_pingpong != a->pending_fx.delay_pingpong; /* PING: the line holds twice the time */
     glide_changed = a->fx.delay_glide != a->pending_fx.delay_glide;
+    dlyfx_changed =
+        a->fx.delay_diffuse != a->pending_fx.delay_diffuse || a->fx.delay_pitch != a->pending_fx.delay_pitch;
     reverb_changed = a->fx.reverb_pre_ms != a->pending_fx.reverb_pre_ms ||
                      a->fx.reverb_size != a->pending_fx.reverb_size ||
                      a->fx.reverb_decay_ms != a->pending_fx.reverb_decay_ms;
@@ -2423,6 +2516,7 @@ static void apply_pending(MelloAudio *a)
         if (j) a->dly_glide_q8 = a->rp_delay.cur, a->dly_glide_rem = 0u; /* (a jump: the glide too) */
     }
     if (glide_changed || a->applied_generation == 0u) delay_glide_set(a);
+    if (dlyfx_changed || a->applied_generation == 0u) dlyfx_set(a);
     {
         /* the rest the per-sample path reads ready-made (mello_audio.h: "no divide") */
         const MelloSoundConfig *s = &a->config;
@@ -2501,6 +2595,9 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
     a->delay_capacity = dc;
     a->reverb_buffer = rb;
     a->reverb_capacity = rc;
+    /* the delay's diffuser and pitch shifter after what either reverb uses, in a reverb memory of the FM-1's size */
+    a->dlyfx = rb && rc == MELLO_AUDIO_REVERB_SAMPLES ? rb + MELLO_AUDIO_DLYFX_AT : 0;
+    a->reverb_room = a->dlyfx ? MELLO_AUDIO_DLYFX_AT : rc;
     a->silent = true;
     a->config_generation = 2u;
     apply_pending(a);

@@ -315,6 +315,10 @@ typedef struct {
      * reached as a tape's would be, a glide that bends the echoes' pitch. 0..1000: 0 the 50 ms ramp (the HTML's
      * rampTo), else a glide's time constant of 30 ms .. 3 s (mello_delay_glide_ms). */
     uint16_t delay_glide;
+    /* DIFFUSE 0..1000 and PITCH -24..+24 semitones (0: off), FX > DELAY LOOP: Clouds' diffuser and pitch shifter on
+     * the repeats, in the delay's loop, so each repeat is smeared or shifted further than the last */
+    uint16_t delay_diffuse;
+    int8_t delay_pitch;
     uint16_t reverb_wet;      /* 0..1000 */
     uint16_t reverb_size;     /* 0..1000 */
     uint16_t reverb_decay_ms; /* 400..60000: the time to -60 dB */

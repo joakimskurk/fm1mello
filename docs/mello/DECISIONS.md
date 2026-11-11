@@ -2375,6 +2375,20 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   rounded, it stopped about 520 samples short); turned off mid-glide, the ramp takes the time from where it is. In silence
   (the render skips its samples) a new time is there at once, so a tempo or DIV changed while stopped does not glide
   at the next PLAY. Test delay_glide. With GLIDE 0 the output is the same to the bit (the worst case's hash).
+- **DIFFUSE and PITCH (0.5-f124)**: Clouds' looping delay puts its diffuser and its pitch shifter on what it plays
+  and feeds back, so each repeat is smeared, or shifted, further than the last (PITCH +12: the first echo an octave
+  up, the second two). Here on the tap that feeds back (without PING the one heard; with PING the second, so the
+  left's echoes after the first carry it too). DIFFUSE 0..100%: Clouds' left diffuser (four allpasses of 0.625, its
+  126, 180, 269 and 444 samples at 32 kHz scaled to 44.1), mixed in by the amount; a click's echo at 100% is spread
+  over 57 ms at the same energy, its peak 0.15. PITCH -24..+24 semitones, 0 off: Clouds' shifter, two grains over
+  a 2048-sample line with a raised cosine between them, the window fixed at 45 ms (Clouds' follows its SIZE knob,
+  which the delay does not have), whole from a semitone as in Clouds. Their memory (3456 words) is the end of the
+  reverb's: V3 uses 18404 of its 24576, Oliverb 18192 at any PRE, so both end before it (the reverbs now stop at
+  MELLO_AUDIO_DLYFX_AT, and a switch between them clears only their own). With a smaller reverb memory (some tests)
+  there is none and the delay is as it was. Turned on, each starts from an empty line. In the loop each output is
+  worked out whole and cut towards zero once: an allpass's y - g v with g v cut alone came out larger than the
+  exact one, and with PITCH -12 and DIFFUSE a quiet repeat went round for ever (4 samples 39 s on). Test
+  delay_loop_fx (FDBK 95%, every one up: bounded, nothing 39 s on). Off, the output is the same to the bit.
 
 ## Engineering process decisions
 
