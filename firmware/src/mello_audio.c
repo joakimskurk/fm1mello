@@ -2019,6 +2019,29 @@ static void delay_fit(MelloAudio *a)
     if (a->delay_samples * k > 2u * lim - 2u) a->delay_samples = (2u * lim - 2u) / k;
     if (hr != a->delay_hr) a->delay_hr = hr, a->delay_hr_phase = 0u;
 }
+/* GLIDE (DECISIONS "The looping delay"): the time this sample, gliding to the ramp's target as Clouds' looping delay
+ * does (its 0.0005 a sample at 32 kHz is GLIDE 16%), the step's remainder kept. */
+static inline int32_t delay_glide(MelloAudio *a)
+{
+    int64_t p = (int64_t)(a->rp_delay.target - a->dly_glide_q8) * a->dly_glide_k + a->dly_glide_rem;
+    a->dly_glide_q8 += (int32_t)(p >> 24);
+    a->dly_glide_rem = (uint32_t)(p & 0xFFFFFF);
+    return a->dly_glide_q8;
+}
+/* GLIDE turned: its step (2^24 / (its time constant in samples), a divide only here); turned on, it starts where the
+ * ramp is; turned off, the ramp takes it from where the glide is, the rest in 50 ms */
+static void delay_glide_set(MelloAudio *a)
+{
+    uint32_t ms = mello_delay_glide_ms(a->fx.delay_glide), k = ms ? 167772160u / (ms * 441u) : 0u;
+    if (k && !a->dly_glide_k) a->dly_glide_q8 = a->rp_delay.cur, a->dly_glide_rem = 0u;
+    if (!k && a->dly_glide_k) {
+        int32_t t = a->rp_delay.target;
+        a->rp_delay.cur = a->dly_glide_q8, a->rp_delay.target = t + 1; /* (so ramp_to moves it) */
+        ramp_to(&a->rp_delay, t >> 8, 50u, false);
+        a->ramps_moving = true;
+    }
+    a->dly_glide_k = k;
+}
 /* The line at delay_q8 (a time in samples, Q8), between two slots, through LO CUT (states lc). */
 static int32_t delay_read(MelloAudio *a, int32_t delay_q8, int32_t lc[2])
 {
@@ -2306,7 +2329,7 @@ static void apply_pending(MelloAudio *a)
     uint32_t g;
     uint16_t old_decay;
     bool sub_drive_changed, lfo_rate_changed, delay_changed, reverb_changed, dist_changed, reverb_wet_changed,
-        oliverb_changed;
+        oliverb_changed, glide_changed;
     if (!a) return;
     g = a->config_generation;
     /* Odd means main-loop publication is in progress. Keep the last complete
@@ -2318,6 +2341,7 @@ static void apply_pending(MelloAudio *a)
     delay_changed =
         a->fx.delay_time_ms != a->pending_fx.delay_time_ms || a->fx.delay_sync != a->pending_fx.delay_sync ||
         a->fx.delay_pingpong != a->pending_fx.delay_pingpong; /* PING: the line holds twice the time */
+    glide_changed = a->fx.delay_glide != a->pending_fx.delay_glide;
     reverb_changed = a->fx.reverb_pre_ms != a->pending_fx.reverb_pre_ms ||
                      a->fx.reverb_size != a->pending_fx.reverb_size ||
                      a->fx.reverb_decay_ms != a->pending_fx.reverb_decay_ms;
@@ -2396,7 +2420,9 @@ static void apply_pending(MelloAudio *a)
                 permille_q12(a->config.follower_sub_on ? a->config.follower_sub_level : 0u), 50u, j);
         ramp_to(&a->rp_delay, (int32_t)a->delay_samples, 50u, j);
         a->ramps_moving = true;
+        if (j) a->dly_glide_q8 = a->rp_delay.cur, a->dly_glide_rem = 0u; /* (a jump: the glide too) */
     }
+    if (glide_changed || a->applied_generation == 0u) delay_glide_set(a);
     {
         /* the rest the per-sample path reads ready-made (mello_audio.h: "no divide") */
         const MelloSoundConfig *s = &a->config;
@@ -3147,6 +3173,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             for (m = 0u; m < 4u; ++m)
                 a->mix_gain[m] =
                     clamp32(a->mix_gain[m] + (((a->mix_mute >> m) & 1u) ? -step : step), 0, 32767);
+            /* GLIDE: nothing is heard, so a new time is there at once (not a glide at the next PLAY) */
+            a->dly_glide_q8 = a->rp_delay.target, a->dly_glide_rem = 0u;
             a->rendered_frames += frames;
             return;
         }
@@ -3175,6 +3203,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         delay_fit(a);
         ramp_to(&a->rp_delay, (int32_t)a->delay_samples, 50u, a->rendered_frames == 0u);
         if (a->rp_delay.left) a->ramps_moving = true;
+        if (a->rendered_frames == 0u) a->dly_glide_q8 = a->rp_delay.cur, a->dly_glide_rem = 0u;
     }
     /* The routes' sums per destination, zeroed once a block: a sample clears only the entries the routes write (the
      * block's routes, apply_pending above), as zeroing all of it each sample costs this chip a 72-byte loop. */
@@ -3216,6 +3245,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                     a->rp_dist_level.left | a->rp_sub_level.left | a->rp_fsub_level.left | a->rp_delay.left |
                     a->rp_lead_level.left))
             a->ramps_moving = false; /* all arrived: the ramps are read as they stand until the next change */
+        if (a->dly_glide_k)
+            delay_q8 = delay_glide(a); /* GLIDE: the time a tape's way (the ramp runs on under it) */
         while (1) {
             MelloAudioQueuedEvent q;
             if (!audio_pop_due(a, t, &q)) break;

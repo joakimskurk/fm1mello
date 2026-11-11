@@ -390,6 +390,7 @@ static MelloFxConfig sanitize_fx_config(MelloFxConfig c)
     c.delay_tone = clamp_amount(c.delay_tone);
     c.delay_lowcut = clamp_amount(c.delay_lowcut);
     c.delay_level = clamp_u16_range(c.delay_level, 0u, 1500u);
+    c.delay_glide = clamp_amount(c.delay_glide);
     c.reverb_wet = clamp_amount(c.reverb_wet);
     c.reverb_size = clamp_amount(c.reverb_size);
     c.reverb_decay_ms = clamp_u16_range(c.reverb_decay_ms, 400u, 60000u);
@@ -1361,6 +1362,18 @@ uint32_t mello_delay_div_ms(uint8_t div, uint32_t qms)
     case 13: return qms * 4u;      /* 1 BAR */
     default: return qms / 2u;      /* 8N */
     }
+}
+/* GLIDE's time constants, a step of 1 percent each: 30 ms x 100^(i / 100) */
+static const uint16_t DELAY_GLIDE_MS[101] = {
+    0,    31,   33,   34,   36,   38,   40,   41,   43,   45,   48,   50,   52,   55,   57,   60,   63,
+    66,   69,   72,   75,   79,   83,   87,   91,   95,   99,   104,  109,  114,  119,  125,  131,  137,
+    144,  150,  157,  165,  173,  181,  189,  198,  208,  217,  228,  238,  250,  261,  274,  286,  300,
+    314,  329,  344,  361,  378,  395,  414,  434,  454,  475,  498,  521,  546,  572,  599,  627,  656,
+    687,  720,  754,  789,  826,  865,  906,  949,  993,  1040, 1089, 1141, 1194, 1251, 1310, 1371, 1436,
+    1504, 1574, 1649, 1726, 1808, 1893, 1982, 2075, 2173, 2276, 2383, 2495, 2613, 2736, 2865, 3000};
+uint16_t mello_delay_glide_ms(uint16_t glide)
+{
+    return DELAY_GLIDE_MS[(glide > 1000u ? 1000u : glide) / 10u];
 }
 /* DECAY before 0.5-f118 was Tone.Reverb's (the HTML's): its time to -60 dB in ms for DECAY = i * 100 ms. Its noise IR
  * fades with exponentialApproachValueAtTime, tau = ln(decay+1)/ln 200, so RT60 = 6.908 tau: 2.54 s at DECAY 6 s. */

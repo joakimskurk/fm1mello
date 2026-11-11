@@ -310,7 +310,11 @@ typedef struct {
         delay_pre_dist; /* the delay before the distortion: its filtered echoes are driven too (HTML: after) */
     bool
         delay_pingpong; /* PING: the echoes left and right in turn (ROADMAP F25); with PRE DIST, in the middle */
-    uint16_t delay_level;     /* 0..1500 */
+    uint16_t delay_level; /* 0..1500 */
+    /* GLIDE (FX > DELAY LOOP, ROADMAP H7, DECISIONS "The looping delay"), as Clouds' looping delay: a new time is
+     * reached as a tape's would be, a glide that bends the echoes' pitch. 0..1000: 0 the 50 ms ramp (the HTML's
+     * rampTo), else a glide's time constant of 30 ms .. 3 s (mello_delay_glide_ms). */
+    uint16_t delay_glide;
     uint16_t reverb_wet;      /* 0..1000 */
     uint16_t reverb_size;     /* 0..1000 */
     uint16_t reverb_decay_ms; /* 400..60000: the time to -60 dB */
@@ -1117,6 +1121,8 @@ void mello_sample_defaults(MelloSampleConfig *config);
 /* A delay division's time (ms) from a beat's; the line reaches MELLO_DELAY_REACH_MS (at half rate past 1.49 s). */
 uint32_t mello_delay_div_ms(uint8_t div, uint32_t qms);
 #define MELLO_DELAY_REACH_MS 2970u
+/* GLIDE's time constant in ms: 0 at 0 (the ramp), then 30 ms x 100^(GLIDE / 1000), 3 s at 1000 */
+uint16_t mello_delay_glide_ms(uint16_t glide);
 void mello_fx_defaults(MelloFxConfig *config);
 /* A DECAY saved before 0.5-f118 (Tone.Reverb's) as the time to -60 dB it gave: the same sound */
 uint16_t mello_reverb_decay_from_tone(uint16_t ms);

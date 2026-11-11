@@ -2356,6 +2356,25 @@ engine's own: the HTML has no Oliverb.
   into the limiter: at +1 from DECAY 5 s, at +24 from 5 or 10 s (the shifter loses little near unison). So it is left as Parasites' at our gains, which are
   always under 1: it cannot run away. Test oliverb_knobs: every knob up and SHIMMER +24 at the default DECAY, the
   twelfth second 60 dB or more under the first and nothing at full scale.
+- **Kept as Parasites' (the product owner, 2026-11-11)**: asked, with the takes, whether SHIMMER should instead be
+  mixed into the tail (the shifted feedback added at an amount, the tail keeping DECAY's time, one knob more) or
+  stay as Parasites has it, the product owner chose to keep it and go on to H7.
+
+## The looping delay (2026-11-11)
+
+ROADMAP H7, the product owner (2026-11-11): Clouds' looping delay, "men modifisert så den kan times på samme måte som
+den vi har i dag". So the delay stays as it is (DIV and TIME, FDBK, LO CUT, HI CUT, PING, PRE DIST: the HTML's), and
+what makes Parasites' LOOPING DELAY mode what it is comes on top, each off on a new project and on every project saved
+before (so nothing sounds different until it is turned): the time's glide, a diffuser and a pitch shifter on the
+repeats, and FREEZE. The C engine's own: the HTML has none of it.
+
+- **GLIDE (0.5-f123)**: Clouds' looper reaches a new time as a tape would, a one-pole glide (0.0005 a sample at 32
+  kHz: 62 ms), so turning the time bends the echoes' pitch. Here GLIDE 0 is the delay as it was (the time ramps in 50
+  ms, the HTML's rampTo); turned up it glides with a time constant of 30 ms x 100^GLIDE (Clouds' at about 16%, 3 s at
+  the top). Its step keeps what it leaves under a unit, so even a 3 s glide arrives at the time to the sample (Q8,
+  rounded, it stopped about 520 samples short); turned off mid-glide, the ramp takes the time from where it is. In silence
+  (the render skips its samples) a new time is there at once, so a tempo or DIV changed while stopped does not glide
+  at the next PLAY. Test delay_glide. With GLIDE 0 the output is the same to the bit (the worst case's hash).
 
 ## Engineering process decisions
 

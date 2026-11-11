@@ -366,6 +366,10 @@ typedef struct {
     uint8_t delay_hr, delay_hr_phase;
     int32_t delay_hr_acc;
     uint32_t delay_samples;
+    /* GLIDE: the time a tape's way, a one-pole to rp_delay's target (Q8 samples) that keeps what each step leaves
+     * under a unit (dly_glide_rem, Q24), so a 3 s glide reaches its time; dly_glide_k its step, Q24 (0: the ramp) */
+    int32_t dly_glide_q8;
+    uint32_t dly_glide_rem, dly_glide_k;
     /* Knob changes ramp as the HTML's rampTo calls do (lines 989-1077); the delay time too (read between samples). */
     /* The output stage (DECISIONS "The level, all of it"): the bus compressor's high-pass and follower (Q4) and its
      * gain (Q15, ramped over a block), then the look-ahead limiter's line, its gains' window and their sum */
