@@ -23,6 +23,12 @@ evening, in this order:
       a short loop reads this chunk's). The worst case 87.7% on one core, 65.3% on two (3.8 ms). Then the reverb's
       network (0.5-f113: split at its pre-delay line, with PRE at least a chunk; the same to the sample): 53.7% on
       two (3.1 ms), just over 2.9.
+- [ ] H6. Oliverb (the product owner, 2026-11-11: preferred, as long as there is room; on the second core, and the
+      reverb as it is when the FM-1 has one): Parasites' Oliverb in fixed point at the network's 22.05 kHz, in the
+      reverb's own memory (0.5-f115, not yet wired); then on the second core, V3 on one and when it is given up; its
+      own knobs (diffusion, swing, shimmer) on FX > ROOM; A/B renders for the product owner to hear; fm1-emu's CPU 2.
+- [ ] H7. Clouds' looping delay, timed as the delay is now (DIV): the tape-like glide, the pitch shifter and the
+      diffuser on its repeats, FREEZE (and REVERSE); A/B renders and the load.
 - [ ] H4. Letting go, each with the product owner's yes and only what one core still carries: POLY as a new
       project's chords; per sample where an A/B shows a difference (the 4-sample control step, the 16-sample
       coefficients); -Os as the fallback build should USB-MIDI babble with -O2.

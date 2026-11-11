@@ -2228,6 +2228,32 @@ plan (ROADMAP H) was agreed the same evening; this is its ground.
   CPU 2 52%, the two cores about as busy (what the second core is given more raises the worst case); the default
   project CPU 27%, CPU 2 14%. (CPU's clock was also read from the counted time with MELLO_FIXED_CLOCK: no more.)
 
+## Oliverb (2026-11-11)
+
+The product owner: can we take Oliverb (and the delay) from Mutable Instruments Clouds' Parasites, as Star Distroyer
+does, as long as it is open source? Star Distroyer does not (its SPACE is its own: a delay into four Schroeder
+allpasses and a four-line FDN); no FM-1 firmware found on GitHub does. Parasites' `clouds/dsp/fx/oliverb.h` and the
+Clouds code under it are MIT (Copyright 2014 Emilie Gillet; Oliverb is Matthias Puech's), which a GPL-3.0-only
+firmware may carry with its notice. Then: Oliverb is preferred if there is room for it, run on the second core, and
+the reverb as it is (V3) when the FM-1 has one core (ROADMAP H6). Measured first: the second core's load (CPU 2,
+0.5-f114) leaves room in a usual pattern (14%), little in the worst case (52%).
+
+- **The port (0.5-f115)**, `firmware/src/mello_oliverb.h`, MIT as its source: Parasites' network step for step (the
+  smear in AP1, four swung diffusers, the loop's two halves with their delays swung, the pitch-shifted feedback in a
+  window of two grains, a one-pole low-pass and high-pass and SoftLimit in each half, nine random LFOs gliding on a
+  raised cosine), in fixed point: no floating point in the firmware, and the host tests stay bit for bit the chip's.
+  At the network's rate, 22.05 kHz, as V3's, so it can take V3's way in and out (the half-band filters, the
+  pre-delay line, the split to the second core); every delay scaled from Parasites' 32 kHz to the same time (10329 of
+  a 16384-sample ring, inside the reverb's 24576), its LFOs and the size's glide to the same rate. Every product
+  rounds towards zero, so no error in the loop holds itself up (a floor held a DC and an 8 LSB tail for ever); the
+  accumulator carries 8 bits under a sample, as Parasites' floats carry theirs (with Q0 sums the tail fell 9 dB short
+  of the floating point's by -60 dB); SoftLimit from a 257-point table in the flash; the SIZE glide in Q24 (in Q16 it
+  stopped short and every line was a fraction of a sample off); the divides only where a glide starts or every 16
+  steps for the shimmer. Test: oliverb (against Parasites' network in floating point on the same memory and random
+  numbers: -39, -35 and -29 dB sample by sample, the energy of each tenth of a second within 0.5, 0.05 and 0.7 dB;
+  the tail gone with no DC; bounded at decay 1.3; the shimmer at +12 puts 47 dB more on the octave, +7 on the fifth;
+  the same seed, the same samples). Not yet in the render.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

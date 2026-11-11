@@ -569,7 +569,12 @@ SkurkyMello stands on other people's work. Thank you all:
   installer's updates and the update loader's screen (from OberVave and from Skiff by illuminus5).
 - **[Felucca](https://github.com/hugelton/Felucca)** by Leo Kuroshita (@kurogedelic), Hügelton Instruments: the
   platform under Dinghy (HAL, loader, USB, the build tools).
-- **[SLOOP](https://github.com/isod89/sloop-fm1)** by isod89: its changes to that platform.
+- **[SLOOP](https://github.com/isod89/sloop-fm1)** by isod89: its changes to that platform; its dualcore branch by
+  Andre Rezemini, the way the render shares the second core.
+- **[X0X](https://github.com/charlesvestal/fm1-x0x)** by Charles Vestal, after **[Melodee](https://github.com/keremimo/melodee)**
+  by Kerem Kilic: the second core's start, mailbox and guards.
+- **[Clouds](https://github.com/pichenettes/eurorack)** by Emilie Gillet (Mutable Instruments) and Oliverb from
+  **[Parasites](https://github.com/mqtthiqs/parasites)** by Matthias Puech: the reverb in `mello_oliverb.h` (MIT).
 - **[FM-1 Mirror](https://github.com/pfkellogg/fm1-mirror)** by Patrick F. Kellogg: the Big screen protocol and its
   encoder (MIT).
 - **[fm1-emu](https://github.com/joakimeriksson/fm1-emu)** by Joakim Eriksson: the emulator every package is tested in.
