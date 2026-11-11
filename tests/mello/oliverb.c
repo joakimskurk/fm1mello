@@ -2,12 +2,13 @@
 /* Copyright (C) 2026 joakimskurk */
 /* Oliverb in fixed point (firmware/src/mello_oliverb.h, after Parasites' clouds/dsp/fx/oliverb.h) against the same
  * network in floating point, written here as Parasites has it (its Context's reads, writes and allpasses, its random
- * LFOs, its shimmer: MIT, Copyright 2014 Emilie Gillet; the notice in mello_oliverb-LICENSE.txt), on the same 16-bit
- * memory, the same scaled lengths and the same random numbers: within -25 dB of each other sample by sample, and
- * their energy within 1 dB. Then what a reverb must do: its tail dies away (under 2 LSB and no DC held, long after
- * the input stops), it stays bounded at a decay past 1 (Parasites' freeze: the soft limit's job), the shimmer moves
- * the tail up (+12 to the octave, +7 to the fifth), and the same seed gives the same samples. At the network's rate,
- * 22.05 kHz. */
+ * LFOs, its shimmer: MIT, Copyright 2014 Emilie Gillet; the notice in mello_oliverb-LICENSE.txt), on exact memory
+ * (Clouds' is 16-bit, cut towards zero: the port keeps 8 bits more), the same scaled lengths and the same random
+ * numbers: within -25 dB of each other sample by sample, and their energy within 1 dB. Then what a reverb must do:
+ * its tail dies away (under 2 LSB and no DC held, long after the input stops), as long at any level as the floating
+ * point's (with Clouds' memory a burst 36 dB down rang a third as long), it stays bounded at a decay past 1 (Parasites'
+ * freeze: the soft limit's job), the shimmer moves the tail up (+12 to the octave, +7 to the fifth), and the same seed
+ * gives the same samples. At the network's rate, 22.05 kHz. */
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -26,7 +27,8 @@ static int fails;
 
 #define FS 22050
 static int16_t SINE[256];
-static int16_t ring_a[MELLO_OLIVERB_RING], ring_b[MELLO_OLIVERB_RING], ring_f[MELLO_OLIVERB_RING];
+static int16_t ring_a[MELLO_OLIVERB_WORDS], ring_b[MELLO_OLIVERB_WORDS];
+static float ring_f[MELLO_OLIVERB_LEN];
 
 /* ---- the floating-point reference: Parasites' Oliverb, step for step */
 typedef struct {
@@ -34,7 +36,7 @@ typedef struct {
     int up;
 } FLfo;
 typedef struct {
-    int16_t *ring;
+    float *ring;
     unsigned base[OLV_LINES], wp;
     float acc, prev, lp1, lp2, hp1, hp2, smooth, ps_phase, ps_step;
     unsigned tick;
@@ -70,15 +72,19 @@ static float f_lfo_next(FOliverb *o, FLfo *l)
     }
     return l->value + (l->next - l->value) * f_raised_cos(l->phase);
 }
-#define F_AT(o, line, k) (o)->ring[((o)->wp + (o)->base[line] + (unsigned)(k)) & (MELLO_OLIVERB_RING - 1u)]
+static float *f_at(FOliverb *o, int line, int k)
+{
+    unsigned i = o->wp + o->base[line] + (unsigned)k;
+    return &o->ring[i >= MELLO_OLIVERB_LEN ? i - MELLO_OLIVERB_LEN : i];
+}
 static float f_get(FOliverb *o, int line, int k)
 {
-    return (float)F_AT(o, line, k) / 32768.0f;
+    return *f_at(o, line, k);
 }
-static void f_put(FOliverb *o, int line, int k, float v)
+static void f_put(FOliverb *o, int line, int k,
+                  float v) /* (saturated as the port's: 16 bits and 8 under them) */
 {
-    long x = (long)(v * 32768.0f);
-    F_AT(o, line, k) = (int16_t)(x > 32767 ? 32767 : x < -32768 ? -32768 : x);
+    *f_at(o, line, k) = v > 8388607.0f / 8388608.0f ? 8388607.0f / 8388608.0f : v < -1.0f ? -1.0f : v;
 }
 static float f_hermite(FOliverb *o, int line, float off)
 {
@@ -93,7 +99,7 @@ static float f_off(FOliverb *o, int line, float lfo)
     float off = (float)(OLV_LEN[line] - 1u) * o->smooth + lfo * o->mod;
     return off<1.0f ? 1.0f : off>(float)(OLV_LEN[line] - 1u) ? (float)(OLV_LEN[line] - 1u) : off;
 }
-static void f_init(FOliverb *o, int16_t *ring, uint32_t seed)
+static void f_init(FOliverb *o, float *ring, uint32_t seed)
 {
     unsigned i, b = 0;
     memset(o, 0, sizeof *o);
@@ -110,7 +116,7 @@ static void f_init(FOliverb *o, int16_t *ring, uint32_t seed)
 static void f_step(FOliverb *o, float in, float *l, float *r)
 {
     float acc, apout, tri, ps_size, phase, half, g_main, g_ps;
-    o->wp = (o->wp - 1u) & (MELLO_OLIVERB_RING - 1u);
+    o->wp = o->wp ? o->wp - 1u : MELLO_OLIVERB_LEN - 1u;
     o->smooth += (o->size - o->smooth) * (475.0f / 32768.0f);
     ps_size = 88.0f + (2350.0f - 88.0f) * o->smooth;
     if (!(o->tick++ & 15u)) o->ps_step = (1.0f - o->ratio) / ps_size;
@@ -203,6 +209,20 @@ static int32_t burst(int n) /* white noise for the first 0.15 s, then nothing */
     return ((int32_t)(noise >> 16) - 32768) >> 2;
 }
 
+/* the time the energy left (Schroeder's backward sum, from the burst's end) takes from -5 to -25 dB */
+static double t20(double *e, int len)
+{
+    double sum = 0.0;
+    int n, t5 = 0, t25 = 0;
+    for (n = len - 1; n >= 0; --n) sum += e[n], e[n] = sum;
+    for (n = FS * 15 / 100; n < len && !t25; ++n) {
+        double d = 10.0 * log10(e[n] / e[FS * 15 / 100] + 1e-30);
+        if (!t5 && d < -5.0) t5 = n;
+        if (d < -25.0) t25 = n;
+    }
+    return (double)(t25 - t5) / FS;
+}
+
 int main(void)
 {
     static const Settings S[3] = {
@@ -271,6 +291,39 @@ int main(void)
         }
         CHECK(peak <= 2, "13 s after the burst the tail is still %d", peak);
         CHECK(dc > -2 * FS && dc < 2 * FS, "a DC held in the tail: %ld over a second", dc);
+    }
+
+    /* as long at any level: at full level, 18 and 36 dB down, the tail falls from -5 to -25 dB (the energy left,
+     * Schroeder's) in the floating point's time, within 3% (its output cut to samples as the port's: below a few
+     * samples that cut shortens both alike), at a decay of 0.9 a half. Clouds' 16-bit memory: 9, 33 and 68% short. */
+    {
+        static const int down[3] = {1, 8, 64};
+        static double e1[8 * FS], e2[8 * FS];
+        Settings lg = S[0];
+        unsigned q;
+        lg.decay = 0.9f;
+        for (q = 0u; q < 3u; ++q) {
+            double t1, t2;
+            mello_oliverb_init(&a, ring_a, 5u);
+            f_init(&f, ring_f, 5u);
+            set_both(&a, &f, &lg);
+            noise = 12345u;
+            for (n = 0; n < 8 * FS; ++n) {
+                int32_t in = burst(n) / down[q], l, r;
+                float fl, fr;
+                double ql, qr;
+                mello_oliverb_step(&a, in, &l, &r, SINE);
+                f_step(&f, (float)in / 32768.0f, &fl, &fr);
+                ql = (double)(long)(fl * 32768.0f), qr = (double)(long)(fr * 32768.0f);
+                e1[n] = (double)l * l + (double)r * r, e2[n] = ql * ql + qr * qr;
+            }
+            t1 = t20(e1, 8 * FS), t2 = t20(e2, 8 * FS);
+            CHECK(t2 > 0.3 && t1 > 0.97 * t2 && t1 < 1.03 * t2,
+                  "%d dB down the tail falls 20 dB in %.2f s, the floating point's in %.2f s", 6 * (int)q * 3,
+                  t1, t2);
+            printf("%2d dB down: the tail's 20 dB in %.2f s (the floating point's %.2f s)\n", 6 * (int)q * 3,
+                   t1, t2);
+        }
     }
 
     /* bounded at a decay past 1 (1.3: Parasites' freeze), noise all the way */

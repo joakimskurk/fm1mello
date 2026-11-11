@@ -1845,7 +1845,7 @@ static void reverb_choose(MelloAudio *a)
 {
     bool on = a->cores && !a->oliverb_off && a->reverb_buffer && a->reverb_capacity > 1024u &&
               a->reverb_pre_cap > OLIVERB_PRE_MIN &&
-              a->reverb_pre_cap + MELLO_OLIVERB_RING <= a->reverb_capacity;
+              a->reverb_pre_cap + MELLO_OLIVERB_WORDS <= a->reverb_capacity;
     uint8_t k;
     if (on == a->oliverb_on) return;
     a->oliverb_on = on;

@@ -31,13 +31,19 @@
 // pitch shifter in the loop's feedback (the shimmer). As Parasites' at 32 kHz, here at the reverb network's 22.05
 // kHz (the render's half rate): every delay scaled to the same time, the LFOs to the same rate. The arithmetic:
 // samples as the render's (32768 = 1.0), gains Q15 (above 1.0 allowed: decay goes to 1.3), every product towards
-// zero (so no error in the loop holds itself up), the accumulator and the one-poles with 8 bits under a sample (so a
-// quiet tail is not cut short, nor stopped in a dead band), SoftLimit from a table, the Hermite reads in 64 bits.
+// zero (so no error in the loop holds itself up), the accumulator, the one-poles and the memory with 8 bits under a
+// sample (so a quiet tail is not cut short, nor stopped in a dead band), SoftLimit from a table, the Hermite reads in
+// 64 bits.
 #ifndef MELLO_OLIVERB_H
 #define MELLO_OLIVERB_H
 #include <stdint.h>
 
-#define MELLO_OLIVERB_RING 16384u /* its delay memory, samples (a power of two): 10329 used */
+/* Its memory: a ring of this many samples (10329 used; not a power of two, so a compare at each read), each 16 bits
+ * and 8 more under them. Clouds' 16 bits, cut towards zero at every write, lost up to a sample each: a quiet tail
+ * died long before its time (a send 42 dB down rang a third as long as a loud one); with the accumulator's 8 bits
+ * kept, a write loses nothing. In the reverb's int16 memory: MELLO_OLIVERB_WORDS of it. */
+#define MELLO_OLIVERB_LEN   10336u
+#define MELLO_OLIVERB_WORDS (MELLO_OLIVERB_LEN + MELLO_OLIVERB_LEN / 2u)
 
 /* the lines, Parasites' lengths x 22050 / 32000: ap1..ap4, dap1a, dap1b, del1, dap2a, dap2b, del2 */
 enum {
@@ -62,7 +68,8 @@ typedef struct {         /* Parasites' RandomOscillator: a raised-cosine glide t
 } MelloOliverbLfo;
 
 typedef struct {
-    int16_t *ring;
+    int16_t *hi; /* the memory: each sample's 16 bits */
+    uint8_t *lo; /* and the 8 under them */
     uint16_t base[OLV_LINES];
     uint32_t wp; /* the write pointer: one down each step, so offset k of a line is k steps back */
     int32_t lp1, lp2, hp1, hp2; /* the accumulator's units */
@@ -164,12 +171,31 @@ static inline int32_t olv_soft_limit(int32_t x) /* the accumulator's units in an
     return x < 0 ? -y : y; /* (Q13 x 1024: the accumulator's) */
 }
 
-#define OLV_AT(o, line, k) (o)->ring[((o)->wp + (o)->base[line] + (uint32_t)(k)) & (MELLO_OLIVERB_RING - 1u)]
-/* The accumulator carries 8 bits under a sample (OLV_ONE = 1.0 = 32768 x 256), as Parasites' floats carry theirs, so
- * a quiet tail is not cut short at every product: only the memory is 16-bit, as Clouds'. */
-#define OLV_ONE               (32768 * 256)
-#define OLV_RD(o, line, k)    ((int32_t)OLV_AT(o, line, k) * 256)
-#define OLV_WR(o, line, k, v) (OLV_AT(o, line, k) = olv_sat16(olv_shr0((v), 8u)))
+/* The accumulator carries 8 bits under a sample (OLV_ONE = 1.0 = 32768 x 256), as Parasites' floats carry theirs, and
+ * so does the memory: a quiet tail is not cut short at a product or a write. */
+#define OLV_ONE (32768 * 256)
+/* offset k of a line (from 0 to its length + 1; -1 for the shimmer's reads of DEL1 and DEL2, whose base is above 0):
+ * wp + base + k is under twice the ring (wp < 10336, base + k <= 10329) */
+static inline uint32_t olv_at(const MelloOliverb *o, uint8_t line, uint32_t k)
+{
+    uint32_t i = o->wp + o->base[line] + k;
+    return i >= MELLO_OLIVERB_LEN ? i - MELLO_OLIVERB_LEN : i;
+}
+static inline int32_t olv_rd(const MelloOliverb *o, uint8_t line, uint32_t k)
+{
+    uint32_t i = olv_at(o, line, k);
+    return (int32_t)o->hi[i] * 256 + o->lo[i];
+}
+static inline void olv_wr(MelloOliverb *o, uint8_t line, uint32_t k, int32_t v)
+{
+    uint32_t i = olv_at(o, line, k);
+    int32_t h;
+    v = v > 32767 * 256 + 255 ? 32767 * 256 + 255 : v < -32768 * 256 ? -32768 * 256 : v;
+    h = v >> 8; /* (floor: hi x 256 + lo is v) */
+    o->hi[i] = (int16_t)h, o->lo[i] = (uint8_t)(v - h * 256);
+}
+#define OLV_RD(o, line, k)    olv_rd(o, line, (uint32_t)(k))
+#define OLV_WR(o, line, k, v) olv_wr(o, line, (uint32_t)(k), v)
 /* Hermite between the line's samples at an offset of Q16 samples (it reads one before and two after, as Clouds') */
 static inline int32_t olv_hermite(const MelloOliverb *o, uint8_t line, int32_t off_q16)
 {
@@ -201,10 +227,6 @@ static inline uint32_t olv_div_shl(uint32_t n, uint32_t den, uint32_t shift)
     }
     return q;
 }
-static inline int16_t olv_sat16(int32_t x)
-{
-    return (int16_t)(x > 32767 ? 32767 : x < -32768 ? -32768 : x);
-}
 /* a line's swung offset: (length - 1) x SIZE + lfo x the swing, within 1 .. length - 1 */
 static inline int32_t olv_offset(const MelloOliverb *o, uint8_t line, int32_t lfo)
 {
@@ -214,16 +236,18 @@ static inline int32_t olv_offset(const MelloOliverb *o, uint8_t line, int32_t lf
     return off < (1 << 16) ? (1 << 16) : off > hi ? hi : off;
 }
 
-/* ring: MELLO_OLIVERB_RING samples. The settings after: mello_oliverb_set. */
-static inline void mello_oliverb_init(MelloOliverb *o, int16_t *ring, uint32_t seed)
+/* mem: MELLO_OLIVERB_WORDS of int16 (the 16 bits, then the 8 under them as bytes). The settings after:
+ * mello_oliverb_set. */
+static inline void mello_oliverb_init(MelloOliverb *o, int16_t *mem, uint32_t seed)
 {
     uint8_t i;
     uint16_t b = 0u;
     for (i = 0u; i < OLV_LINES; ++i) o->base[i] = b, b = (uint16_t)(b + OLV_LEN[i] + 1u);
-    o->ring = ring;
+    o->hi = mem;
+    o->lo = (uint8_t *)(mem + MELLO_OLIVERB_LEN);
     {
         uint32_t k;
-        for (k = 0u; k < MELLO_OLIVERB_RING; ++k) ring[k] = 0;
+        for (k = 0u; k < MELLO_OLIVERB_LEN; ++k) o->hi[k] = 0, o->lo[k] = 0u;
     }
     o->wp = 0u;
     o->lp1 = o->lp2 = o->hp1 = o->hp2 = 0;
@@ -262,7 +286,7 @@ static inline void mello_oliverb_step(MelloOliverb *o, int32_t in, int32_t *l, i
 {
     int32_t acc, prev, apout, tri, ps_size, phase, half, g_main, g_ps;
     const int32_t kap = o->kap;
-    o->wp = (o->wp - 1u) & (MELLO_OLIVERB_RING - 1u);
+    o->wp = o->wp ? o->wp - 1u : MELLO_OLIVERB_LEN - 1u;
     o->smooth +=
         (int32_t)(((int64_t)(o->size_q16 * 256 - o->smooth) * 475) >> 15); /* 0.01 at 32 kHz: 0.0145 */
 

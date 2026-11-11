@@ -2271,6 +2271,16 @@ the reverb as it is (V3) when the FM-1 has one core (ROADMAP H6). Measured first
   every way; Oliverb is the same on a thread and on a slow one; refused, it is one core's from the first sample;
   lost, a thread's until the lost job, then V3; with the job lost before WET goes up, the whole scene is one
   core's.
+- **Its memory, 24 bits (0.5-f117)**: the product owner heard no 13 s decay. Part of it: a quiet tail died long
+  before its time. Clouds' memory is 16-bit and each write cuts towards zero (up to a sample lost), so a send 42 dB
+  down rang a third as long as a full one. Carrying the cut into the next write (error feedback) kept the time but
+  left a noise of 4 to 8 samples while the network runs, as loud as V3's floor. Now each sample keeps the
+  accumulator's 8 bits under it: 16 bits, then a byte, 31 KB of the reverb's 48 KB, in a ring 10336 long (a compare
+  at each read). The tail rings as long at any level as the floating point's (test oliverb: 0, 18 and 36 dB down,
+  within 3%; Clouds' memory is 9, 33 and 68% short), and ends in silence. The floating-point reference is on exact
+  memory now. At the default project's settings Oliverb falls 60 dB in 2.57 s, V3 in 2.58 s, at the same level. The
+  rest of the missing decay is DECAY itself: as Tone.Reverb's (the HTML's), its time to -60 dB is far shorter than its
+  value (3.4 s at 13 s, 5.4 s at 60 s).
 
 ## Engineering process decisions
 
