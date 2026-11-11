@@ -410,6 +410,7 @@ typedef struct {
     int32_t pluck_mk, pluck_mk_now, chop_mk, stut_q12; /* their levels made up (Q12 over 1; STUT's a gain) */
     bool pluck_up;
     int16_t *reverb_buffer;
+    uint8_t *reverb_lo; /* V3's lines: the 8 bits under each sample, after its layout (reverb_configure) */
     uint32_t reverb_capacity;
     uint32_t reverb_pos;     /* the pre-delay line's write (reverb_in: the render's) */
     uint32_t reverb_out_pos; /* and its read, PRE behind (reverb_out: the parts' job's when split) */

@@ -279,6 +279,22 @@ static int32_t q15mul(int32_t a, int32_t b)
 {
     return (a * b) >> 15;
 }
+/* The reverb's loops: a x b in Q15 towards zero, so no error holds a tail up (a floor's -1 LSB, kept by a gain near 1,
+ * was V3's floor). For a and b under 2^15, and for any a (in 64 bits). Shifts, no divide. */
+static inline int32_t q15mul_tz(int32_t a, int32_t b)
+{
+    int32_t p = a * b;
+    return (p + ((p >> 31) & 32767)) >> 15;
+}
+static inline int32_t q15mul_tz64(int32_t a, int32_t b)
+{
+    int64_t p = (int64_t)a * b;
+    return (int32_t)((p + ((p >> 63) & 32767)) >> 15);
+}
+static inline int32_t shr_tz(int32_t x, uint32_t k) /* x / 2^k towards zero, as C's divide */
+{
+    return (x + ((x >> 31) & (int32_t)((1u << k) - 1u))) >> k;
+}
 /* x by a gain in Q12 (4096 = 1) or Q15, through the chip's widening multiply: any x, any gain, no divide. */
 static inline int32_t mul_q12(int32_t x, int32_t g)
 {
@@ -1780,10 +1796,11 @@ static void reverb_configure(MelloAudio *a)
         a->reverb_line_offset[i] = (uint16_t)off;
         off += a->reverb_line_cap[i];
     }
-    if (off > a->reverb_capacity) {
+    if (off + (off + 1u) / 2u > a->reverb_capacity) { /* (and the 8 bits under each sample: reverb_lo) */
         a->reverb_pre_cap = 0u;
         return;
     }
+    a->reverb_lo = (uint8_t *)(a->reverb_buffer + off);
 
     pre = ms_samples(a->fx.reverb_pre_ms) / RV3_RATE_DIV;
     if (a->oliverb_on && pre < OLIVERB_PRE_MIN)
@@ -1861,6 +1878,20 @@ static void reverb_choose(MelloAudio *a)
     reverb_configure(a); /* (PRE: Oliverb's at least a chunk) */
     oliverb_settings(a);
 }
+/* V3's eight lines carry 8 bits under each sample (reverb_lo), as their arithmetic does (Q8, RV3_Q8_MAX): in 16 bits
+ * a quiet tail went round on its rounding, a floor of 6 samples at a 2.5 s decay and more as the gain nears 1. */
+#define RV3_Q8_MAX (32767 * 256)
+static inline int32_t rv3_rd(const MelloAudio *a, uint32_t i)
+{
+    return (int32_t)a->reverb_buffer[i] * 256 + a->reverb_lo[i];
+}
+static inline void rv3_wr(MelloAudio *a, uint32_t i, int32_t v)
+{
+    int32_t h;
+    v = clamp32(v, -32768 * 256, RV3_Q8_MAX + 255);
+    h = v >> 8; /* (floor: hi x 256 + lo is v) */
+    a->reverb_buffer[i] = (int16_t)h, a->reverb_lo[i] = (uint8_t)(v - h * 256);
+}
 static int32_t rv3_allpass(MelloAudio *a, uint16_t which, int32_t x, uint16_t g)
 {
     uint16_t cap, delay, pos, rp, off;
@@ -1872,9 +1903,9 @@ static int32_t rv3_allpass(MelloAudio *a, uint16_t which, int32_t x, uint16_t g)
     if (cap < 4u || delay < 1u) return x;
     rp = pos >= delay ? (uint16_t)(pos - delay) : (uint16_t)(pos + cap - delay);
     z = a->reverb_buffer[(uint32_t)off + rp];
-    y = z - q15mul(x, g);
+    y = z - q15mul_tz(x, g); /* (towards zero: a floor kept a sample going round) */
     y = clamp32(y, -32767, 32767);
-    w = x + q15mul(y, g);
+    w = x + q15mul_tz(y, g);
     a->reverb_buffer[(uint32_t)off + pos] = sat16(w);
     pos++;
     if (pos >= cap) pos = 0u;
@@ -1967,11 +1998,12 @@ static void reverb_network(MelloAudio *a, int32_t send, int32_t *left, int32_t *
         off = a->reverb_line_offset[i];
         rp = pos >= di ? (uint16_t)(pos - di) : (uint16_t)(pos + cap - di);
         rp1 = rp ? (uint16_t)(rp - 1u) : (uint16_t)(cap - 1u);
-        y0 = a->reverb_buffer[(uint32_t)off + rp];
-        y1 = a->reverb_buffer[(uint32_t)off + rp1];
+        y0 = rv3_rd(a, (uint32_t)off + rp);
+        y1 = rv3_rd(a, (uint32_t)off + rp1);
         /* First-order allpass interpolation, (eta + z^-1) / (1 + eta z^-1): flat in level, where linear
          * interpolation would dull the tail. */
-        y[i] = clamp32(q15mul(eta, y0) + y1 - q15mul(eta, a->reverb_mod_y[i]), -32767, 32767);
+        y[i] = clamp32(q15mul_tz64(eta, y0) + y1 - q15mul_tz64(eta, a->reverb_mod_y[i]), -RV3_Q8_MAX,
+                       RV3_Q8_MAX);
         a->reverb_mod_y[i] = y[i];
         d[i] = y[i];
         sum += d[i];
@@ -1979,22 +2011,22 @@ static void reverb_network(MelloAudio *a, int32_t send, int32_t *left, int32_t *
 
     /* 8x8 Householder reflection H = I - 2/N * 11^T.  It is orthogonal but
      * costs one sum and one subtraction per line instead of a dense matrix. */
-    for (i = 0u; i < 8u; ++i) h[i] = clamp32(d[i] - sum / 4, -32767, 32767);
+    for (i = 0u; i < 8u; ++i) h[i] = clamp32(d[i] - shr_tz(sum, 2u), -RV3_Q8_MAX, RV3_Q8_MAX);
 
-    inj = q15mul(x, 11585); /* ~1/sqrt(8): energy-controlled injection. */
+    inj = q15mul_tz64(x * 256, 11585); /* ~1/sqrt(8): energy-controlled injection. */
     for (i = 0u; i < 8u; ++i) {
-        w = (inject_sign[i] > 0 ? inj : -inj) + q15mul(h[i], a->reverb_line_feedback_q15[i]);
+        w = (inject_sign[i] > 0 ? inj : -inj) + q15mul_tz64(h[i], a->reverb_line_feedback_q15[i]);
         pos = a->reverb_line_pos[i];
         off = a->reverb_line_offset[i];
-        a->reverb_buffer[(uint32_t)off + pos] = sat16(w);
+        rv3_wr(a, (uint32_t)off + pos, w);
         pos++;
         if (pos >= a->reverb_line_cap[i]) pos = 0u;
         a->reverb_line_pos[i] = pos;
     }
 
     /* Two orthogonal sign rows expose a real stereo late field from shared FDN state. */
-    rv_l = (y[0] + y[1] + y[2] + y[3] - y[4] - y[5] - y[6] - y[7]) / 4;
-    rv_r = (y[0] - y[1] + y[2] - y[3] + y[4] - y[5] + y[6] - y[7]) / 4;
+    rv_l = shr_tz(y[0] + y[1] + y[2] + y[3] - y[4] - y[5] - y[6] - y[7], 10u); /* (/ 4, and Q8 to samples) */
+    rv_r = shr_tz(y[0] - y[1] + y[2] - y[3] + y[4] - y[5] + y[6] - y[7], 10u);
     if (left) *left = clamp32(rv_l, -32767, 32767);
     if (right) *right = clamp32(rv_r, -32767, 32767);
 }

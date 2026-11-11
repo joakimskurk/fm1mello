@@ -2281,6 +2281,14 @@ the reverb as it is (V3) when the FM-1 has one core (ROADMAP H6). Measured first
   memory now. At the default project's settings Oliverb falls 60 dB in 2.57 s, V3 in 2.58 s, at the same level. The
   rest of the missing decay is DECAY itself: as Tone.Reverb's (the HTML's), its time to -60 dB is far shorter than its
   value (3.4 s at 13 s, 5.4 s at 60 s).
+- **V3's lines too (0.5-f118)**: V3 had the opposite fault. Its loop rounded down (`>> 15` in the Thiran
+  interpolators and the feedback, 16-bit lines), so a quiet tail went round on its rounding. The floor was about 6
+  samples (-76 dBFS) at the default 2.5 s, and grows as the gain nears 1 (about 100 samples at a 30 s decay): a
+  burst 18 dB down "fell" 60 dB in 80 s and nothing went silent. Now the eight lines carry 8 bits under each sample
+  (a byte each after V3's layout, which fills only half the reverb's memory), the loop runs in those units, and its
+  products, the input diffusers' too, round towards zero. Level and decay are as before (2.53 s against 2.58 at
+  the default), a burst 18 dB down rings as long, and the tail ends in silence (test wp_e3_reverb_v3_smoke; the old
+  V3 fails it). It costs V3 16% more time on the host (the products in 64 bits).
 
 ## Engineering process decisions
 

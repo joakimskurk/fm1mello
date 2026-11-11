@@ -2,6 +2,7 @@
 /* Copyright (C) 2026 joakimskurk */
 #include "mello_audio.h"
 #include <assert.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -149,6 +150,51 @@ static void rendered_stereo_contract(void)
     assert(diff > 5000u);
 }
 
+/* A quiet tail rings as long as a loud one and ends in silence (0.5-f118: the lines' 8 bits under each sample, the
+ * loops' products towards zero). Before, the rounding held a floor of about 6 samples at a 2.5 s decay: a burst 18 dB
+ * down then "fell" 60 dB in 80 s, and nothing ever went silent. A second of noise, down by div; the time its energy
+ * left (Schroeder's) takes from -5 to -25 dB, x 3; the last of 24 s's peak. */
+static double t60_after(MelloAudio *a, int32_t div, int32_t *last_peak)
+{
+    static double e[44100u * 24u];
+    uint32_t n, seed = 777u, t5 = 0u, t25 = 0u, len = 44100u * 24u;
+    double sum = 0.0;
+    int32_t l, r;
+    *last_peak = 0;
+    for (n = 0u; n < len; ++n) {
+        int32_t in = 0;
+        if (n < 44100u) seed = seed * 1664525u + 1013904223u, in = ((int32_t)(seed >> 20) - 2048) * 2 / div;
+        mello_audio_reverb_stereo_probe(a, in, &l, &r);
+        e[n] = (double)l * l + (double)r * r;
+        if (n >= len - 44100u) {
+            int32_t m = l < 0 ? -l : l;
+            if (m > *last_peak) *last_peak = m;
+        }
+    }
+    for (n = len; n-- > 44100u;) sum += e[n], e[n] = sum;
+    for (n = 44100u; n < len && !t25; ++n) {
+        double d = 10.0 * log10(e[n] / e[44100u] + 1e-30);
+        if (!t5 && d < -5.0) t5 = n;
+        if (d < -25.0) t25 = n;
+    }
+    return t25 ? 3.0 * (double)(t25 - t5) / 44100.0 : -1.0;
+}
+static void quiet_tail(void)
+{
+    static MelloAudio a;
+    int32_t pk_loud, pk_quiet;
+    double loud, quiet;
+    setup(&a, 6000u, 700u, 620u, 12u);
+    loud = t60_after(&a, 1, &pk_loud);
+    setup(&a, 6000u, 700u, 620u, 12u);
+    quiet = t60_after(&a, 8, &pk_quiet);
+    printf("V3: 60 dB in %.2f s, 18 dB down in %.2f s; the last second's peak %d and %d\n", loud, quiet,
+           pk_loud, pk_quiet);
+    assert(loud > 2.0 && loud < 3.2);
+    assert(quiet > 0.92 * loud && quiet < 1.08 * loud);
+    assert(pk_loud == 0 && pk_quiet == 0);
+}
+
 int main(void)
 {
     double dark, bright;
@@ -159,6 +205,7 @@ int main(void)
     assert(dark > 0.0 && bright > 0.0 && bright < dark * 1.2 && dark < bright * 1.2);
     printf("Reverb feedback tone roughness (flat loop): dark=%.5f bright=%.5f\n", dark, bright);
     rendered_stereo_contract();
+    quiet_tail();
     puts("PASS: WP-E3 Reverb V3 dense 8-line stereo FDN contract");
     return 0;
 }
