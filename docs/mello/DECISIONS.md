@@ -2419,6 +2419,16 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   also Oliverb's, for its LFOs and the shimmer) likewise. Counted in the toolchain's code, the diffuser takes 121
   instructions a sample instead of 167, the shifter 157 instead of 167. The output is the same to the bit (every test
   as it was).
+- **The shifter reads between two points (0.5-f128)**: Clouds' shifter reads its line with Hermite's four points,
+  half the shifter's time on this core; here two, x0 (1 - t) + x1 t (the line is 16-bit, so in 32 bits, cut towards
+  zero once and never past either point), and the grains' sum in 32 bits as well: 90 instructions a sample instead of
+  157. What it changes, the shifter alone against Hermite on the host (any PITCH): 1 kHz the same within 0.02 dB (the
+  difference 54 dB under it), 4 kHz 0.2 dB lower, 8 kHz 0.8, 12 kHz 1.4 (16 dB under); noise 0.9 dB lower. So a
+  repeat that goes round the shifter loses a little more of its top each time (with FDBK high, ten repeats about 8 dB
+  more at 8 kHz than with Hermite), much as HI CUT does. PITCH +12's octave a repeat (42.7 and 35.1 dB, as before)
+  and the bounds hold (delay_loop_fx). fm1-emu 0.3.0, the worst case with CORE 2 ON, core 0's heaviest block a second
+  in steady play: 54.5..55.1% at f126 (55.7% in PLAY's first second), 54.0..54.6% at f127, 52.7..53.3% now (53.8%):
+  3.07 ms, still over docs/RULES.md's 2.9. Core 1's real work 45.7% (as before).
 
 ## Engineering process decisions
 

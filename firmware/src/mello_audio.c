@@ -2072,14 +2072,14 @@ static int32_t delay_read(MelloAudio *a, int32_t delay_q8, int32_t lc[2])
     }
     return d;
 }
-/* DIFFUSE and PITCH (DECISIONS "The looping delay"): Clouds' looping delay puts its diffuser and its pitch shifter
- * on what it plays and feeds back, so each repeat is smeared and shifted further than the last. In the delay's
- * memory (dlyfx): the shifter's line, then the diffuser's four. The diffuser is Clouds' left one (126, 180, 269 and
- * 444 samples at 32 kHz, here x 44.1 / 32), allpasses of 0.625; the shifter Clouds' (two grains over its line, a
- * raised cosine between them), its window fixed at 45 ms (Clouds' takes it from SIZE: at 32 kHz 4 .. 64 ms). Each
- * output worked out whole and then cut towards zero once, so it is never larger than the exact one: an allpass's
- * y - g v with g v cut alone, or the grains' sum cut a grain at a time, came out larger, and a quiet repeat went round
- * for ever (PITCH -12 with DIFFUSE: 4 samples 39 s on). */
+/* DIFFUSE and PITCH (DECISIONS "The looping delay"): Clouds' looping delay puts its diffuser and its pitch shifter on
+ * what it plays and feeds back, so each repeat is smeared and shifted further than the last. In the delay's memory
+ * (dlyfx): the shifter's line, then the diffuser's four. The diffuser is Clouds' left one (126, 180, 269 and 444
+ * samples at 32 kHz, here x 44.1 / 32), allpasses of 0.625; the shifter Clouds' (two grains over its line, a raised
+ * cosine between them; each read between two points, not Clouds' four), its window fixed at 45 ms (Clouds' takes it
+ * from SIZE: at 32 kHz 4 .. 64 ms). Each output worked out whole and then cut towards zero once, so it is never larger
+ * than the exact one: an allpass's y - g v with g v cut alone, or the grains' sum cut a grain at a time, came out
+ * larger, and a quiet repeat went round for ever (PITCH -12 with DIFFUSE: 4 samples 39 s on). */
 static inline int32_t tz15_64(int64_t p) /* p / 2^15 towards zero */
 {
     return (int32_t)((p + ((p >> 63) & 32767)) >> 15);
@@ -2104,20 +2104,16 @@ static inline int32_t dlyfx_diffuse(MelloAudio *a, int32_t x)
     }
     return tz15_64((int64_t)x * (32768 - a->dfx_amount_q15) + (int64_t)acc * a->dfx_amount_q15);
 }
-/* the shifter's line at offset off (Q16 samples back), Hermite's four points as Clouds reads them */
-static inline int32_t dlyfx_hermite(const MelloAudio *a, int32_t off_q16)
+/* the shifter's line at offset off (Q16 samples back), between two points (0.5-f128: Clouds reads four, Hermite's,
+ * which took the core half the shifter's time). The line is 16-bit, so x0 (1 - t) + x1 t is under 2^31 and its cut
+ * one towards zero, never past either point. */
+static inline int32_t dlyfx_linear(const MelloAudio *a, int32_t off_q16)
 {
     const int16_t *r = a->dlyfx;
-    uint32_t n = (uint32_t)(off_q16 >> 16), w = a->ps_wp, m = DLYFX_PS_LEN - 1u;
-    int32_t t = (off_q16 & 0xFFFF) >> 1; /* Q15 */
-    int32_t xm1 = r[(w + n - 1u) & m], x0 = r[(w + n) & m], x1 = r[(w + n + 1u) & m],
-            x2 = r[(w + n + 2u) & m];
-    int32_t c = shr_tz(x1 - xm1, 1u), v = x0 - x1, wv = c + v, aa = wv + v + shr_tz(x2 - x0, 1u),
-            b_neg = wv + aa;
-    int32_t y = q15mul_tz64(aa, t);
-    y = q15mul_tz64(y - b_neg, t);
-    y = q15mul_tz64(y + c, t);
-    return y + x0;
+    uint32_t i = (a->ps_wp + ((uint32_t)off_q16 >> 16)) & (DLYFX_PS_LEN - 1u);
+    int32_t t = (off_q16 & 0xFFFF) >> 1, x0 = r[i], x1 = r[(i + 1u) & (DLYFX_PS_LEN - 1u)]; /* (t Q15) */
+    int32_t p = x0 * (32768 - t) + x1 * t;
+    return (p + ((p >> 31) & 32767)) >> 15;
 }
 static inline int32_t dlyfx_shift(MelloAudio *a, int32_t x)
 {
@@ -2130,7 +2126,10 @@ static inline int32_t dlyfx_shift(MelloAudio *a, int32_t x)
         (int32_t)((ph * (uint32_t)(DLYFX_PS_WIN / 16)) >> 4); /* Q16 samples (ph x 2000 / 2^8, in 32 bits) */
     half = phase + (DLYFX_PS_WIN << 15);
     if (half >= DLYFX_PS_WIN << 16) half -= DLYFX_PS_WIN << 16;
-    return tz15_64((int64_t)dlyfx_hermite(a, phase) * tri + (int64_t)dlyfx_hermite(a, half) * (32768 - tri));
+    { /* (two 16-bit grains by tri and 1 - tri, at most 2^30: 32 bits) */
+        int32_t p = dlyfx_linear(a, phase) * tri + dlyfx_linear(a, half) * (32768 - tri);
+        return (p + ((p >> 31) & 32767)) >> 15;
+    }
 }
 static inline int32_t delay_loop_fx(MelloAudio *a, int32_t d)
 {
