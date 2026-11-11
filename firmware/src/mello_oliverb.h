@@ -113,7 +113,7 @@ static inline int32_t olv_raised_cos(int32_t t_q16, const int16_t sine_q15[256])
     uint32_t p = (uint32_t)t_q16 * 128u + (64u << 16); /* pi t + pi / 2 in 256ths of a turn, Q16 */
     int32_t i = (int32_t)((p >> 16) & 255u), f = (int32_t)(p & 0xFFFFu) >> 1, s0 = sine_q15[i],
             s1 = sine_q15[(i + 1) & 255];
-    int32_t c = s0 + (int32_t)(((int64_t)(s1 - s0) * f) >> 15);
+    int32_t c = s0 + (((s1 - s0) * f) >> 15); /* (a step of the table is under 2^10: 32 bits) */
     return (32768 - c) >> 1;
 }
 /* slope / |next - value| (the divide, 32-bit: a glide's start; slope_q24 is under 2^17) */

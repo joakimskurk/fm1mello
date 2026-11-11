@@ -2411,6 +2411,14 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   (on the host they about double the delay's own time). A new project, with them off, is as before. Not yet
   settled: lighter arithmetic, or the delay's tap and its loop on the second core as the reverb's network went
   (f113).
+- **The arithmetic in 32 bits, the same to the bit (0.5-f127)**: the FM-1's core takes a 64-bit product and its cut
+  towards zero in about twice the instructions of a 32-bit one, and each of the diffuser's allpasses made two. Their
+  0.625 is 5 / 8, so g y and y - g v (Q15, cut towards zero) are 5 y and 8 y - 5 v cut by 2^3, in 32 bits and the
+  same to the bit (20 million random samples past full scale, on the host). The shifter's phase (ph x 2000 / 2^8 as
+  ph x 125 / 2^4) and the raised cosine's step between two of its table's points (under 2^10 by a Q15 fraction; it is
+  also Oliverb's, for its LFOs and the shimmer) likewise. Counted in the toolchain's code, the diffuser takes 121
+  instructions a sample instead of 167, the shifter 157 instead of 167. The output is the same to the bit (every test
+  as it was).
 
 ## Engineering process decisions
 

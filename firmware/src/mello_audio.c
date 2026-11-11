@@ -2087,7 +2087,8 @@ static inline int32_t tz15_64(int64_t p) /* p / 2^15 towards zero */
 #define DLYFX_PS_LEN 2048u /* the shifter's line, a power of two */
 #define DLYFX_PS_WIN 2000  /* its window, samples */
 static const uint16_t DLYFX_AP_LEN[4] = {174u, 248u, 371u, 612u};
-#define DLYFX_KAP 20480 /* 0.625 */
+/* The allpasses' 0.625 is 5 / 8, so y g and y - v g, Q15 and cut towards zero, are 5 y and 8 y - 5 v cut by 2^3: the
+ * same to the bit in 32 bits (0.5-f127; the core's 64-bit products cost it a third more). */
 static inline int32_t dlyfx_diffuse(MelloAudio *a, int32_t x)
 {
     int16_t *m = a->dlyfx + DLYFX_PS_LEN;
@@ -2095,9 +2096,9 @@ static inline int32_t dlyfx_diffuse(MelloAudio *a, int32_t x)
     uint8_t k;
     for (k = 0u; k < 4u; ++k) {
         uint16_t p = a->dfx_ap_pos[k];
-        int32_t y = m[p], v = acc + q15mul_tz(y, DLYFX_KAP); /* (the line's oldest: its length back) */
+        int32_t y = m[p], v = acc + shr_tz(5 * y, 3u); /* (the line's oldest: its length back) */
         m[p] = sat16(v);
-        acc = tz15_64((int64_t)y * 32768 - (int64_t)v * DLYFX_KAP);
+        acc = shr_tz(8 * y - 5 * v, 3u);
         a->dfx_ap_pos[k] = (uint16_t)(p + 1u >= DLYFX_AP_LEN[k] ? 0u : p + 1u);
         m += DLYFX_AP_LEN[k];
     }
@@ -2125,7 +2126,8 @@ static inline int32_t dlyfx_shift(MelloAudio *a, int32_t x)
     a->dlyfx[w] = sat16(x);
     ph = a->ps_phase = (a->ps_phase + (uint32_t)a->ps_step) & 0xFFFFFFu; /* Q24 of the window */
     tri = olv_raised_cos((int32_t)((ph >= (1u << 23) ? (1u << 24) - ph : ph) >> 7), SINE_Q15);
-    phase = (int32_t)(((uint64_t)ph * (uint32_t)DLYFX_PS_WIN) >> 8); /* Q16 samples */
+    phase =
+        (int32_t)((ph * (uint32_t)(DLYFX_PS_WIN / 16)) >> 4); /* Q16 samples (ph x 2000 / 2^8, in 32 bits) */
     half = phase + (DLYFX_PS_WIN << 15);
     if (half >= DLYFX_PS_WIN << 16) half -= DLYFX_PS_WIN << 16;
     return tz15_64((int64_t)dlyfx_hermite(a, phase) * tri + (int64_t)dlyfx_hermite(a, half) * (32768 - tri));
