@@ -275,6 +275,9 @@ static void app_main(void)
 #endif
 
     mello_ui_set_mod_view(&ui, audio.mod_view); /* F14: the second thumbs */
+#ifndef DINGHY_HOST
+    mello_ui_set_cores(&ui, cpu1_state, plat_settings.second_core != 0u); /* GLOBAL > SYSTEM (platform.c) */
+#endif
     mello_audio_init(&audio, audio_delay_pool, MELLO_AUDIO_DELAY_SAMPLES, audio_reverb_pool,
                      MELLO_AUDIO_REVERB_SAMPLES);
     mello_audio_attach_sample_bank(&audio, &sample_bank);
@@ -364,6 +367,10 @@ pass: /* the loop's body, once a call */
         mello_ui_set_held_notes(&ui, fm1_in.notes);
 #ifndef DINGHY_HOST
         mello_ui_set_audio_load(&ui, audio_load); /* (the host's clock has milliseconds: nothing to show) */
+        if (ui.second_core != (plat_settings.second_core != 0u)) { /* CORE 2 turned: for the next power-on */
+            plat_settings.second_core = ui.second_core;
+            settings_save(&plat_settings, sizeof plat_settings); /* (~50 ms: the flash sector's erase) */
+        }
 #endif
         mello_ui_input(&ui, now_us, fm1_ms, pressed, released, fm1_in.buttons, notes, enc);
         mello_transport_poll_ahead(&mt, now_us, MELLO_TRANSPORT_LOOKAHEAD_US);

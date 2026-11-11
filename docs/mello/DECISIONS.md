@@ -2150,9 +2150,9 @@ plan (ROADMAP H) was agreed the same evening; this is its ground.
   word on each; the waiting loop in RAM (.c1_text), so an idle core 1 never fetches from the flash, and a job only
   inside the audio interrupt, which waits for it (the flash is turned off only with interrupts off); core 1 held at
   boot, before a reboot and before an update; a fault on core 1 stops it alone.
-- **2ND CORE, OFF by default (0.5-f108).** The switch lives in the platform's settings sector (the 4 KiB one
-  Dinghy's platform had and SkurkyMello did not use, with a magic of its own, SKM1, so another firmware's settings
-  there read as none). OFF: the boot is as before. ON: at power-on, with the flash up and before the audio and the
+- **CORE 2, OFF by default (0.5-f108).** (Called 2ND CORE in f108; 0.5-f109 named it CORE 2, which fits the
+  footer.) The switch lives in the platform's settings sector (the 4 KiB one Dinghy's platform had and SkurkyMello
+  did not use, with a magic of its own, SKM1, so another firmware's settings there read as none). OFF: the boot is as before. ON: at power-on, with the flash up and before the audio and the
   timers, the supplies go to M-VAVE's (VDC14 1.60 V, SYSVDD 1.38 V), core 1 starts, and a self-test job runs on it
   from the flash. No reply within 20 ms, a wrong answer, a job read wrong or one 8 ms late: one core, and after a
   wrong or late one until power-off. OFF until it has run on a real FM-1: none of it has (no FM-1 here).
@@ -2162,6 +2162,12 @@ plan (ROADMAP H) was agreed the same evening; this is its ground.
   it waits (0x00200001) and counts it, so the first job would hold it. 0.3.0's hardware lock between the cores does
   nothing and its core 1 does not sleep; neither is used here. fm1-emu 0.4.0 (measured cycles with FM1_STRICT, core
   1's idle) is not downloaded.
+- **GLOBAL > SYSTEM (0.5-f109)**, a fourth layer: K1 CORE 2 OFF/ON (saved at once, used at the next power-on,
+  since core 1 can only start then), NOW what runs (1 CORE, 2 CORES, or why one when it was asked for: NO REPLY,
+  GAVE UP), CPU the audio's load. The picture: the two cores as frames, counted as a player does (CORE 1 always
+  lit, CORE 2, the chip's core 1, lit while it runs), and in gold ON or OFF AT NEXT POWER-ON while the switch
+  differs from now. It is the FM-1's setting, in no project or slot. The
+  host and the web player show one core, off. Test: system_layer.
 - **No work on it yet**: the render runs on core 0 as before. The split (the chords, then the drums, the same
   output bit for bit with one core or two) is ROADMAP H2-H3.
 

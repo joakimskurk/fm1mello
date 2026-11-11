@@ -28,4 +28,8 @@ All boxes are mandatory before a public release.
 - [ ] OCT− rescue verified: held at power-on it opens the USB rescue (the boot scan settles 100 us since 0.5-f98).
 - [ ] The lights from the start (since 0.5-f101): after the splash HOME's button lit and the steps glowing; after
       RESET ALL, HOME's lights and none left from the page before.
+- [ ] CORE 2 (since 0.5-f108, OFF by default; DECISIONS "The second core"): OFF, GLOBAL > SYSTEM says 1 CORE
+      and nothing else changes. ON, after a power cycle: 2 CORES (NO REPLY or GAVE UP leave one core, the sound as
+      it was); with it ON, a project save while playing, an install of another firmware and the OCT- rescue; OFF
+      again after a power cycle.
 - [ ] Back-to-official V15 verified.

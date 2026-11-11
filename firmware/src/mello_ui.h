@@ -143,6 +143,9 @@ typedef struct {
     /* HOME: a white key held down holds its step (K1-K4 edit it); released without a turn, it toggles the step. */
     uint32_t held_notes; /* mello_ui_set_held_notes: the note keys held now */
     uint16_t audio_load; /* mello_ui_set_audio_load: the chip's audio load, permille (GLOBAL shows it) */
+    uint8_t cores; /* mello_ui_set_cores: the second core now (MELLO_UI_CORE_*; GLOBAL > SYSTEM shows it) */
+    bool
+        second_core; /* GLOBAL > SYSTEM's CORE 2: the switch; the platform saves it, the next power-on uses it */
     uint16_t held_black; /* HOME: the black keys held now (bit = B0..B10), for the strip's names */
     /* PERFORM (G4, ROADMAP F4): B5 PERF tapped opens it until PERF or a page button (1), held while held (2); the
      * white keys are then 16 performance actions on every part */
@@ -308,6 +311,11 @@ void mello_ui_set_held_notes(MelloUi *ui, uint32_t notes);
 /* The chip's audio load, permille of real time the audio interrupt takes (dinghy.c measures it; ROADMAP B1): the
  * GLOBAL page shows it as CPU. 0 = unknown (the host). */
 void mello_ui_set_audio_load(MelloUi *ui, uint16_t permille);
+/* The second core (dinghy.c from the platform's cpu1_state, DECISIONS "The second core"): what runs now, and the
+ * CORE 2 switch as saved. GLOBAL > SYSTEM shows both; K1 turns the switch (ui->second_core), which dinghy.c saves
+ * for the next power-on. The host keeps OFF, one core. */
+enum { MELLO_UI_CORE_OFF, MELLO_UI_CORE_NO_REPLY, MELLO_UI_CORE_GAVE_UP, MELLO_UI_CORE_ON };
+void mello_ui_set_cores(MelloUi *ui, uint8_t cores, bool second_core);
 /* What modulation does to each MelloModDest now (MelloAudio.mod_view): the value rows' second thumbs (ROADMAP F14). */
 void mello_ui_set_mod_view(MelloUi *ui, const int16_t *view);
 void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pressed_buttons,

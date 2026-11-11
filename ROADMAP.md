@@ -12,9 +12,9 @@ of the 5.8 by instruction count, docs/RULES.md asks under 2.9) and for -Os shoul
 go must still play on one core: some FM-1s cannot run the second (DECISIONS "The second core"). Agreed the same
 evening, in this order:
 
-- [ ] H1. The ground: X0X's HAL as SLOOP 2.8.3 has it (0.5-f107); 2ND CORE, started at power-on with a self-test
-      when ON, one core otherwise, OFF by default (0.5-f108); GLOBAL > SYSTEM, the switch and what runs. Nothing
-      moves to core 1 yet.
+- [x] H1. The ground: X0X's HAL as SLOOP 2.8.3 has it (0.5-f107); CORE 2, started at power-on with a self-test
+      when ON, one core otherwise, OFF by default (0.5-f108); GLOBAL > SYSTEM, the switch and what runs
+      (0.5-f109). Nothing moves to core 1 yet. Checked in fm1-emu 0.3.0 only.
 - [ ] H2. The chords on core 1: rendered dry into a buffer of their own while core 0 renders the rest; the duck,
       the level, the mutes and the sends after the wait. The same output bit for bit with one core or two, proved on
       this computer by a double of core 1 (inline, a thread, a slow one, a lost job) as SLOOP's. Then the heaviest
@@ -23,7 +23,7 @@ evening, in this order:
 - [ ] H4. Letting go, each with the product owner's yes and only what one core still carries: POLY as a new
       project's chords; per sample where an A/B shows a difference (the 4-sample control step, the 16-sample
       coefficients); -Os as the fallback build should USB-MIDI babble with -O2.
-- [ ] H5. On a real FM-1 (docs/mello/HARDWARE_VALIDATION_CHECKLIST.md): the boot with 2ND CORE ON, CPU with it on
+- [ ] H5. On a real FM-1 (docs/mello/HARDWARE_VALIDATION_CHECKLIST.md): the boot with CORE 2 ON, CPU with it on
       and off, a save while playing, an update, the watchdog, a unit that misreads. Then the default.
 
 ## Next: everything open, in one order (2026-11-03)

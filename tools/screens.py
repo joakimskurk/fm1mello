@@ -182,7 +182,7 @@ def the_tour():
     t.sel()
     t.shot("mix-reverb", "MIX", "REVERB")
     t.btn(GLO)
-    layers(t, "global", "GLOBAL", ["CLOCK", "MIDI", "GROOVE"])
+    layers(t, "global", "GLOBAL", ["CLOCK", "MIDI", "GROOVE", "SYSTEM"])
 
     # Playing: the shots for the tour in the README
     t.btn(HOME)

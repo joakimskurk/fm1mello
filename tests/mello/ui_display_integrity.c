@@ -124,7 +124,7 @@ static int subcount(MelloUiPage p)
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD: return 9;
 #endif
-    case MELLO_UI_GLOBAL: return 3;
+    case MELLO_UI_GLOBAL: return 4; /* CLOCK, MIDI, GROOVE, SYSTEM */
     case MELLO_UI_SOUND_RESERVED: return 10;
     case MELLO_UI_AUDIO_FX: return 5;
     case MELLO_UI_SAMPLE_RESERVED: return 4;

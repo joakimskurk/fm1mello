@@ -3046,6 +3046,13 @@ static void adjust_global(MelloUi *ui, uint8_t knob, int16_t delta, uint32_t now
         else if (knob == 3u)
             mello_transport_set_midi_note_out(t, delta > 0);
     } else if (ui->global_subpage ==
+               3u) { /* SYSTEM: CORE 2, the FM-1's (dinghy.c saves it), not the project's */
+        if (knob == 0u && ui->second_core != (delta > 0)) {
+            ui->second_core = delta > 0;
+            ui->dirty |= MELLO_UI_DIRTY_ALL;
+        }
+        return;
+    } else if (ui->global_subpage ==
                2u) { /* GROOVE: SWING, for everything; LEAD, BASS, DRUMS their own or GLOBAL */
         MelloDrumConfig d = t->engine.drums;
         if (knob == 0u)
@@ -3111,7 +3118,7 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
     }
 #endif
     case MELLO_UI_GLOBAL:
-        ui->global_subpage = wrap_u8((int32_t)ui->global_subpage + (delta > 0 ? 1 : -1), 3u);
+        ui->global_subpage = wrap_u8((int32_t)ui->global_subpage + (delta > 0 ? 1 : -1), 4u);
         break;
     case MELLO_UI_MIX: ui->mix_subpage = wrap_u8((int32_t)ui->mix_subpage + (delta > 0 ? 1 : -1), 3u); break;
     case MELLO_UI_DRUMS:
@@ -4208,6 +4215,13 @@ void mello_ui_set_audio_load(MelloUi *ui, uint16_t permille)
     if (!ui || ui->audio_load == permille) return;
     ui->audio_load = permille;
     if (ui->page == MELLO_UI_GLOBAL) ui->dirty |= MELLO_UI_DIRTY_BODY;
+}
+void mello_ui_set_cores(MelloUi *ui, uint8_t cores, bool second_core)
+{
+    if (!ui) return;
+    ui->cores = cores;
+    ui->second_core = second_core;
+    if (ui->page == MELLO_UI_GLOBAL) ui->dirty |= MELLO_UI_DIRTY_ALL;
 }
 void mello_ui_set_held_notes(MelloUi *ui, uint32_t notes)
 {
@@ -7112,6 +7126,17 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[2], sync_name(ui->transport->sync_mode));
             l[3] = "NOTEOUT";
             copy_s(v[3], ui->transport->midi_note_out_enabled ? "ON" : "OFF");
+        } else if (ui->global_subpage == 3u) { /* SYSTEM: the switch, what runs now, the audio's load */
+            static const char *now[4] = {"1 CORE", "NO REPLY", "GAVE UP", "2 CORES"};
+            l[0] = "CORE 2"; /* the second core's switch ("2ND CORE" is 64 px: the footer has 56) */
+            copy_s(v[0], ui->second_core ? "ON" : "OFF");
+            l[1] = "NOW";
+            copy_s(v[1], now[ui->cores & 3u]);
+            l[2] = "CPU";
+            if (ui->audio_load)
+                value_pct(v[2], ui->audio_load);
+            else
+                copy_s(v[2], "-");
         } else if (ui->global_subpage == 2u) {
             static const char *part[3] = {"LEAD", "BASS", "DRUMS"};
             uint8_t pk;
@@ -7609,6 +7634,31 @@ static void pic_ticks(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, 
                 on ? col : dim);
     }
 }
+/* SYSTEM: the two cores side by side as frames, counted as a player does (CORE 1 the chip's core 0, always lit; CORE 2
+ * lit while it runs, dim while off); under them
+ * what the switch will do at the next power-on, when it differs from now */
+static void pic_frame(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c)
+{
+    o->fill(o->ctx, x, y, w, 2, c);
+    o->fill(o->ctx, x, (int16_t)(y + h - 2), w, 2, c);
+    o->fill(o->ctx, x, y, 2, h, c);
+    o->fill(o->ctx, (int16_t)(x + w - 2), y, 2, h, c);
+}
+static void pic_cores(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, bool second_runs,
+                      bool pending_on, bool pending_off, uint16_t col, uint16_t dim)
+{
+    int16_t bw = (int16_t)(w * 3 / 8), bh = (int16_t)(h - 18), x0 = (int16_t)(x + w / 12),
+            x1 = (int16_t)(x + w - w / 12 - bw);
+    uint16_t c1 = second_runs ? col : dim;
+    if (bh < 20) bh = h;
+    pic_frame(o, x0, y, bw, bh, col);
+    pic_frame(o, x1, y, bw, bh, c1);
+    o->text(o->ctx, x0, (int16_t)(y + bh / 2 - 6), bw, 0, "CORE 1", col, 1);
+    o->text(o->ctx, x1, (int16_t)(y + bh / 2 - 6), bw, 0, "CORE 2", c1, 1);
+    if ((pending_on || pending_off) && bh < h)
+        o->text(o->ctx, x, (int16_t)(y + h - 14), w, 0,
+                pending_on ? "ON AT NEXT POWER-ON" : "OFF AT NEXT POWER-ON", UI_GOLD, 1);
+}
 /* grains: dots as dense as amount (0..1000), the same every time (an LCG seeded once) */
 static void pic_grains(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t amount,
                        uint16_t col)
@@ -7732,6 +7782,10 @@ static void draw_layer_picture(MelloUi *ui, const MelloUiDrawOps *o, int16_t x, 
         case 2u:
             pic_ticks(o, x, y, w, h, e->drums.swing, 4u, accent, dim);
             break; /* GROOVE: the odd ones late */
+        case 3u: { /* SYSTEM: the cores; what CORE 2 will do at the next power-on */
+            bool runs = ui->cores == MELLO_UI_CORE_ON, asked = ui->cores != MELLO_UI_CORE_OFF;
+            pic_cores(o, x, y, w, h, runs, ui->second_core && !asked, !ui->second_core && asked, accent, dim);
+        } break;
         default: break;
         }
         break;
@@ -7932,7 +7986,7 @@ static const char *layer_name(const MelloUi *ui)
                       *dot[5] = {"ACCENT", "MOD 1", "RATCHET", "SUB", "MOD 2"},
                       *dsh[2] = {"SHAPE 1", "SHAPE 2"}, *tm[4] = {"MAIN", "ROUTES", "DEPTH", "SOUND"},
                       *sub[6] = {"PLAY", "SEQ", "STEP", "FILTER", "VOICE", "TONE"}, /* G6 (KNOB_MAPS) */
-        *glo[3] = {"CLOCK", "MIDI", "GROOVE"}, *mix[3] = {"LEVEL", "DELAY", "REVERB"},
+        *glo[4] = {"CLOCK", "MIDI", "GROOVE", "SYSTEM"}, *mix[3] = {"LEVEL", "DELAY", "REVERB"},
                       *snd[10] = {"FILTER", "AMP ENV", "LFO",       "FOLLOWER", "OSC",
                                   "GRIT",   "OSC 2",   "CHARACTER", "MOD ENV",  "TRACKING"},
                       *fx[5] = {0, "SEND", "CONFIG", "ROOM", "RETURNS"}, /* within the FX pages */
@@ -7949,7 +8003,7 @@ static const char *layer_name(const MelloUi *ui)
                    : dot[ui->selected_dot_target % MELLO_DOT_MATRIX_COUNT];
     case MELLO_UI_TURING: return tm[ui->tm_subpage % 4u];
     case MELLO_UI_SUB: return sub[ui->sub_subpage % 6u];
-    case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 3u];
+    case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 4u];
     case MELLO_UI_MIX: return mix[ui->mix_subpage % 3u];
     case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 10u];
     case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 5u];

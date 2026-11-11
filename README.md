@@ -247,7 +247,7 @@ Each section is a button. Press it again (or turn ALGORITHM) for its next page; 
 | **FX** | DISTORTION · DELAY · REVERB | DELAY: SEND, CONFIG · REVERB: ROOM, RETURNS |
 | **ARP** | BASS · DRUMS · CHORD | BASS: PLAY, SEQ, STEP, VOICE, TONE, FILTER · DRUMS: VOICE, STEP, VARY, KIT, DIST · CHORD: PLAY, CHORD, VOICING, GRID, PATTERN, TONE, FILTER, MOTION, AMP |
 | **SEL** | KEY / SCALE | |
-| **GLO** | MIX · GLOBAL | GLOBAL: CLOCK, MIDI, GROOVE |
+| **GLO** | MIX · GLOBAL | GLOBAL: CLOCK, MIDI, GROOVE, SYSTEM |
 | hold **SAVE** | SLOTS | LOAD, RENAME |
 | hold **RNDMZR** | RANDOM | MASK, LINKS, AMOUNTS |
 
@@ -324,7 +324,9 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   pages scaling them all. The lead and its samples go through the lead's filter and distortion; the bass, the
   chords and the drums do not.
 - **GLOBAL** (GLO > GLOBAL). Tempo (TAP), division, external sync, note out; the MIDI channels of lead and bass,
-  the note length; the groove's swing. CLOCK shows the chip's measured audio load as CPU nn%.
+  the note length; the groove's swing. CLOCK shows the chip's measured audio load as CPU nn%. SYSTEM: CORE 2
+  (OFF on a new FM-1; the next power-on uses what it is set to) and what runs, 1 CORE or 2 CORES. Nothing is
+  handed to the second core yet, and it has not run on a real FM-1.
 - **KEY** (SEL). Root, scale, global octave, pitch span.
 - **RANDOM** (hold RNDMZR). Which targets a roll touches (MASK), which follow or mirror the pitch (LINKS), how much
   each moves (AMOUNTS); the intensity on K1. MUSICAL rolls a phrase, not noise; GROOVE the same phrase with rolls, ties, ghost
@@ -379,6 +381,7 @@ K1-K4 with their default values.
 | GLOBAL | GLO | CLOCK | `TAP RST2 MUT UNDO RNDMZR PERF` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | GLOBAL | GLO | MIDI | `TAP RST2 MUT UNDO RNDMZR PERF` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | GLOBAL | GLO | GROOVE | `TAP RST2 MUT UNDO RNDMZR PERF` | SWING 0% · LEAD GLOBAL · BASS GLOBAL · DRUMS GLOBAL |
+| GLOBAL | GLO | SYSTEM | `TAP RST2 MUT UNDO RNDMZR PERF` | CORE 2 OFF · NOW 1 CORE · CPU nn% |
 | SOUND | ENV | FILTER | `INIT MUT UNDO RNDMZR PERF` | CUT 3264HZ · RES 20% · DECAY 180MS · LEVEL 100% |
 | SOUND | ENV | OSC | `INIT MUT UNDO RNDMZR PERF` | WAVE SAW · PWM 50% · SLIDE 50MS · MASTER 75% |
 | SOUND | ENV | AMP ENV | `INIT MUT UNDO RNDMZR PERF` | ATTACK 5MS · DECAY 180MS · SUSTAIN 40% · RELEASE 120MS |
@@ -522,7 +525,7 @@ builds every push the same way (`.github/workflows/build.yml`) and attests the p
 
 `tools/emu_cpu.sh PACKAGE.fwsc` runs the package in fm1-emu, in silence and then playing, and reports the audio
 interrupt's share of the chip in instructions per second (the emulator counts instructions, not cycles). The chip's
-own cycles show on GLOBAL > CLOCK as CPU nn%. 0.5-f27: the default pattern 32%, the worst case (everything on at
+own cycles show on GLOBAL > CLOCK (and SYSTEM) as CPU nn%. 0.5-f27: the default pattern 32%, the worst case (everything on at
 once) 71%, silence 2%; 7.4 KB of RAM free, and the build fails under 2 KB. 0.5-f60: the default pattern 35.5%, 10.1
 KB of RAM free. `tools/emu_smoke.sh` plays the package 10 s while it turns the knobs and goes through the pages, and
 fails if the sound dies or the load passes 60%; `tools/emu_stack.sh` reads how deep the two stacks went (0.5-f59:
