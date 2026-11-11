@@ -244,7 +244,7 @@ Each section is a button. Press it again (or turn ALGORITHM) for its next page; 
 | **SEQ** | STEP · SEGMENT · LOOP CYCLE · SLOT SEQ | STEP: TRIG, NOTE, FLAGS, SEQ · LOOP CYCLE: STEP, HARM, LOOP |
 | **ENV** | SOUND · SAMPLE | SOUND: FILTER, OSC, OSC 2, CHARACTER, GRIT, MOD ENV, TRACKING, AMP ENV, FOLLOWER, LFO · SAMPLE: MAIN, PITCH, TRIM, ENVELOPE |
 | **LFO** | LFO · DOT · EVOLVE | DOT: the five matrices ACCENT, MOD 1, MOD 2, RATCHET, SUB · EVOLVE: MAIN, ROUTES, DEPTH, SOUND |
-| **FX** | DISTORTION · DELAY · REVERB | DELAY: SEND, CONFIG · REVERB: ROOM, RETURNS |
+| **FX** | DISTORTION · DELAY · REVERB | DELAY: SEND, CONFIG · REVERB: ROOM, RETURNS, OLIVERB |
 | **ARP** | BASS · DRUMS · CHORD | BASS: PLAY, SEQ, STEP, VOICE, TONE, FILTER · DRUMS: VOICE, STEP, VARY, KIT, DIST · CHORD: PLAY, CHORD, VOICING, GRID, PATTERN, TONE, FILTER, MOTION, AMP |
 | **SEL** | KEY / SCALE | |
 | **GLO** | MIX · GLOBAL | GLOBAL: CLOCK, MIDI, GROOVE, SYSTEM |
@@ -289,7 +289,11 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   PING (B2) sends the echoes left and right in turn (it reads the line at twice the time, so its reach is half)
   and HI CUT on its echoes, and a reverb with size, decay (the tail's time to -60 dB, 0.4 to 60 s), pre-delay and
   tone. TRIM (REVERB RETURNS, K4) sets the whole output by -6..+6 dB; a STYLE roll sets it so every style plays at
-  about the same level.
+  about the same level. With CORE 2 on, the reverb is Oliverb (from Mutable Instruments Clouds' Parasites firmware),
+  and REVERB OLIVERB has its own knobs: DIFFUSE (how smeared the reflections are), SWING and RATE (how far and how
+  fast its delays drift, a chorus in the tail) and SHIMMER (-24..+24 semitones: each pass round the loop shifted by
+  that much, OFF at 0; as in Parasites it shortens the tail, to one or two seconds whatever DECAY says). With one
+  core the reverb is the other one and these knobs wait, kept with the project.
 - **Chords** (ARP > CHORD). A chain of up to eight chords in the key (degree, shape, inversion, spread, octave);
   a new project starts on one, the tonic. B3 FIT makes the chain from what plays: a chord every half bar on the
   bass line's note there (the lead's with the bass off), so the bass is always in the chord; pressed again over the
@@ -327,8 +331,9 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
 - **GLOBAL** (GLO > GLOBAL). Tempo (TAP), division, external sync, note out; the MIDI channels of lead and bass,
   the note length; the groove's swing. CLOCK shows the chip's measured audio load as CPU nn%. SYSTEM: CORE 2
   (OFF on a new FM-1; the next power-on uses what it is set to) and what runs, 1 CORE or 2 CORES. With two the
-  chords, the drums and the reverb (with PRE at 6 ms or more) render on the second, the sound the same to the
-  sample, and CPU 2 says how busy it is; it has not run on a real FM-1.
+  chords and the drums render on the second, the sound the same to the sample; the reverb renders there too and
+  is then Oliverb, a room of its own (PRE at 6 ms or more; FX > REVERB OLIVERB). CPU 2 says how busy it is. It has
+  not run on a real FM-1.
 - **KEY** (SEL). Root, scale, global octave, pitch span.
 - **RANDOM** (hold RNDMZR). Which targets a roll touches (MASK), which follow or mirror the pitch (LINKS), how much
   each moves (AMOUNTS); the intensity on K1. MUSICAL rolls a phrase, not noise; GROOVE the same phrase with rolls, ties, ghost
@@ -399,6 +404,7 @@ K1-K4 with their default values.
 | AUDIO FX | FX | DELAY CONFIG | `PRE-DIST PING M UNDO RNDMZR P` | SYNC ON · DIV 8N · TIME 250MS · LEVEL 75% |
 | AUDIO FX | FX | REVERB ROOM | `PRE-DIST PING M UNDO RNDMZR P` | WET 24% · SIZE 70% · DECAY 2.5S · TONE 62% |
 | AUDIO FX | FX | REVERB RETURNS | `PRE-DIST PING M UNDO RNDMZR P` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · TRIM 0 DB |
+| AUDIO FX | FX | REVERB OLIVERB | `PRE-DIST PING M UNDO RNDMZR P` | DIFFUSE 65% · SWING 10% · RATE 50% · SHIMMER OFF |
 | SAMPLE | ENV | MAIN | `ON MUT UNDO RNDMZR PERF` | LEVEL 70% · DIST 0% · TRACK ON · LOOP OFF |
 | SAMPLE | ENV | PITCH | `ON MUT UNDO RNDMZR PERF` | COARSE +0 · FINE +0 · LEVEL 70% · DIST 0% |
 | SAMPLE | ENV | TRIM | `ON MUT UNDO RNDMZR PERF` | START 0% · END 100% · TRACK ON · LOOP OFF |

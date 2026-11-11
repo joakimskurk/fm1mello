@@ -1791,29 +1791,43 @@ static void reverb_configure(MelloAudio *a)
     for (i = 0u; i < 3u; ++i)
         if (!a->reverb_live || !a->reverb_ap_now[i]) a->reverb_ap_now[i] = a->reverb_ap_delay[i];
 }
-/* Oliverb's settings (DECISIONS "Oliverb"): SIZE as Parasites' (0.05 + 0.94 x SIZE), DECAY as V3's lines (the loop's
- * gain a half for DECAY's time to -60 dB: a half is, on average, its two allpasses and its delay at SIZE), the rest
- * Parasites' at rest (TEXTURE at noon, the swing and its rate low, no shimmer); TONE after it, as V3's. */
-#define OLIVERB_KAP 20480 /* diffusion 0.625 (Parasites' Init) */
+/* Oliverb's settings (DECISIONS "Oliverb", "Oliverb's knobs"): SIZE as Parasites' (0.05 + 0.94 x SIZE), DECAY as V3's
+ * lines (the loop's gain a half for DECAY's time to -60 dB: a half is, on average, its two allpasses and its delay at
+ * SIZE), its own knobs as Parasites' Oliverb mode turns them (DIFFUSE its STEREO SPREAD, SWING its REVERB, RATE its
+ * FEEDBACK, SHIMMER its PITCH), the rest Parasites' at rest (TEXTURE at noon); TONE after it, as V3's. A new project's
+ * knobs give Parasites' Init: diffusion 0.625, the swing 30 samples at 32 kHz, its rate 0.5, no shimmer. */
 #define OLIVERB_IN_GAIN                                                                                      \
     8118 /* the input's gain: Parasites' 0.5, -6.1 dB to V3's level at the default project's */
-#define OLIVERB_LP      32077 /* lp 0.93 at 32 kHz, the same corner here (1 - 0.07^(32000 / 22050)) */
-#define OLIVERB_HP      93    /* 10 Hz, to keep DC out (Parasites' 0.01, 51 Hz, cut the bass's tail short) */
-#define OLIVERB_MOD_Q16 1354752 /* the swing: 30 samples at 32 kHz (REVERB at 0.1), 20.7 here */
-#define OLIVERB_SLOPE   1902u   /* the LFOs' rate (FEEDBACK at 0.5): 0.5^6 / 200 x 32000 / 22050, Q24 */
+#define OLIVERB_LP 32077 /* lp 0.93 at 32 kHz, the same corner here (1 - 0.07^(32000 / 22050)) */
+#define OLIVERB_HP 93    /* 10 Hz, to keep DC out (Parasites' 0.01, 51 Hz, cut the bass's tail short) */
+#define OLIVERB_SWING_Q16                                                                                    \
+    1354752u /* SWING 10%: 30 samples at 32 kHz (REVERB at 0.1), 20.7 here, Q16 (300 at 100%) */
+#define OLIVERB_SLOPE_MAX                                                                                    \
+    121739u /* RATE 100%: the LFOs' step, FEEDBACK^6 / 200 at 32 kHz, x 32000 / 22050 here, Q24 */
 #define OLIVERB_HALF                                                                                         \
     4844u /* a half of the loop at SIZE 1, network samples: (863+1198+2350+1043+939+3295) / 2 */
 #define OLIVERB_MAKEUP 32995u /* 10^(0.06 / 20), Q15 */
 static void oliverb_settings(MelloAudio *a)
 {
-    uint32_t size = a->fx.reverb_size > 1000u ? 1000u : a->fx.reverb_size, size_q16, half, g;
+    const MelloFxConfig *f = &a->fx;
+    uint32_t size = f->reverb_size > 1000u ? 1000u : f->reverb_size, size_q16, half, g,
+             dif = f->olv_diffuse > 1000u ? 1000u : f->olv_diffuse,
+             sw = f->olv_swing > 1000u ? 1000u : f->olv_swing, r = f->olv_rate > 1000u ? 1000u : f->olv_rate,
+             r3, q30, slope;
+    int32_t st = f->olv_shimmer < -24 ? -24 : f->olv_shimmer > 24 ? 24 : f->olv_shimmer;
     if (!a->oliverb_on) return;
     size_q16 = 3277u + size * 61604u / 1000u;
     half = (OLIVERB_HALF * size_q16) >> 16;
     /* the loop loses about 0.06 dB a half besides its gain (the low-pass, the Hermite reads): made up, under 1.0 */
-    g = (reverb_feedback_q15(half * RV3_RATE_DIV, a->fx.reverb_decay_ms) * OLIVERB_MAKEUP) >> 15;
-    mello_oliverb_set(&a->oliverb, (int32_t)size_q16, OLIVERB_KAP, (int32_t)(g > 32740u ? 32740u : g),
-                      OLIVERB_IN_GAIN, OLIVERB_LP, OLIVERB_HP, OLIVERB_MOD_Q16, OLIVERB_SLOPE, 65536u, 0);
+    g = (reverb_feedback_q15(half * RV3_RATE_DIV, f->reverb_decay_ms) * OLIVERB_MAKEUP) >> 15;
+    /* RATE^6 without a 64-bit divide: RATE^3 in Q30 (2^30 / 10^9 = 1125900 / 2^20), squared */
+    r3 = r * r * r;
+    q30 = (uint32_t)(((uint64_t)r3 * 1125900u) >> 20);
+    slope = (uint32_t)(((((uint64_t)q30 * q30) >> 30) * OLIVERB_SLOPE_MAX) >> 30);
+    mello_oliverb_set(&a->oliverb, (int32_t)size_q16, (int32_t)((dif * 16384u + 9830400u) / 1000u),
+                      (int32_t)(g > 32740u ? 32740u : g), OLIVERB_IN_GAIN, OLIVERB_LP, OLIVERB_HP,
+                      (int32_t)(sw * OLIVERB_SWING_Q16 / 100u), slope, st ? semi_ratio_q16(st * 256) : 65536u,
+                      st ? 32768 : 0); /* (Parasites': the shimmer whole from a semitone) */
 }
 /* Which reverb (at a chunk's start): Oliverb while the second core takes the parts' jobs, V3 with one core, once the
  * second is lost, or with Oliverb off. They share the memory after the pre-delay line, so a change empties it: the
@@ -2291,7 +2305,8 @@ static void apply_pending(MelloAudio *a)
 {
     uint32_t g;
     uint16_t old_decay;
-    bool sub_drive_changed, lfo_rate_changed, delay_changed, reverb_changed, dist_changed, reverb_wet_changed;
+    bool sub_drive_changed, lfo_rate_changed, delay_changed, reverb_changed, dist_changed, reverb_wet_changed,
+        oliverb_changed;
     if (!a) return;
     g = a->config_generation;
     /* Odd means main-loop publication is in progress. Keep the last complete
@@ -2309,6 +2324,9 @@ static void apply_pending(MelloAudio *a)
     dist_changed = a->fx.dist_amount != a->pending_fx.dist_amount ||
                    a->fx.dist_character != a->pending_fx.dist_character;
     reverb_wet_changed = a->fx.reverb_wet != a->pending_fx.reverb_wet;
+    oliverb_changed =
+        a->fx.olv_diffuse != a->pending_fx.olv_diffuse || a->fx.olv_swing != a->pending_fx.olv_swing ||
+        a->fx.olv_rate != a->pending_fx.olv_rate || a->fx.olv_shimmer != a->pending_fx.olv_shimmer;
     a->config = a->pending_config;
     a->modr = a->pending_modr;
     a->fx = a->pending_fx;
@@ -2347,7 +2365,8 @@ static void apply_pending(MelloAudio *a)
 #if defined(MELLO_LIVE_EDIT_TEST_HOOK) && MELLO_LIVE_EDIT_TEST_HOOK
         a->test_reverb_reconfigs++;
 #endif
-    }
+    } else if (oliverb_changed)
+        oliverb_settings(a); /* (its knobs: no line moves) */
     if (dist_changed || a->applied_generation == 0u)
         memcpy(a->main_dist_curve, a->pending_main_dist_curve, sizeof a->main_dist_curve);
     if (reverb_wet_changed || a->applied_generation == 0u)

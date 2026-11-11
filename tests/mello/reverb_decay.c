@@ -146,14 +146,16 @@ static void old_project(void)
     mello_engine_init(&e, &p, 1u);
     CHECK(e.fx.reverb_decay_ms == 2500u, "a new project's DECAY is %u", e.fx.reverb_decay_ms);
     f = e.fx;
-    f.reverb_decay_ms = 6000u;
+    f.reverb_decay_ms = 6000u, f.reverb_size = 820u; /* (SIZE: that the record loaded, not a new project) */
     mello_engine_fx_set_config(&e, &f);
     mello_storage_init(&s, &io, NULL);
     mello_storage_request_save(&s, t);
     for (; t <= 30000u && w != MELLO_STORAGE_SAVE_WRITTEN; t += 100u) w = mello_storage_poll(&s, &e, t, true);
     CHECK(w == MELLO_STORAGE_SAVE_WRITTEN, "not saved");
-    CHECK(loaded_decay() == 6000u, "saved now, DECAY 6 s loads as %u", e.fx.reverb_decay_ms);
-    /* the same record, its FX section made version 6 (the bytes are the same but for the version) */
+    CHECK(loaded_decay() == 6000u && e.fx.reverb_size == 820u, "saved now, DECAY 6 s loads as %u (SIZE %u)",
+          e.fx.reverb_decay_ms, e.fx.reverb_size);
+    /* the same record, its FX section made version 6 (the bytes are the same but for the version, and version 8's
+     * Oliverb knobs, its last 7, which go) */
     if (get32(flash + MELLO_STORAGE_BANK0_ADDR) == MELLO_STORAGE_MAGIC) base = MELLO_STORAGE_BANK0_ADDR;
     if (get32(flash + MELLO_STORAGE_BANK1_ADDR) == MELLO_STORAGE_MAGIC) base = MELLO_STORAGE_BANK1_ADDR;
     CHECK(base != 0u, "no record");
@@ -164,9 +166,14 @@ static void old_project(void)
         uint32_t id = pl[pos] | (uint32_t)pl[pos + 1u] << 8, ver = pl[pos + 2u] | (uint32_t)pl[pos + 3u] << 8,
                  len = get32(pl + pos + 4u);
         if (id == 5u) { /* SEC_FX: DECAY at byte 26 (after DIST's five, the delay's seven, WET and SIZE) */
-            CHECK(ver == 7u && (pl[pos + 8u + 26u] | pl[pos + 8u + 27u] << 8) == 6000,
+            CHECK(ver == 8u && (pl[pos + 8u + 26u] | pl[pos + 8u + 27u] << 8) == 6000,
                   "the FX section is version %u, DECAY at byte 26 %u", ver,
                   pl[pos + 8u + 26u] | pl[pos + 8u + 27u] << 8);
+            memmove(pl + pos + 8u + len - 7u, pl + pos + 8u + len, /* (the footer after the payload too) */
+                    size - (pos + 8u + len) + MELLO_STORAGE_FOOTER_SIZE);
+            len -= 7u, size -= 7u;
+            put32(pl + pos + 4u, len);
+            put32(flash + base + 8u, size);
             pl[pos + 2u] = 6u, patched = 1;
         }
         pos += 8u + len;
@@ -174,8 +181,9 @@ static void old_project(void)
     CHECK(patched, "no FX section");
     put32(flash + base + 16u, mello_storage_crc32(pl, size));
     put32(flash + base + 20u, mello_storage_crc32(flash + base, 20u));
-    CHECK(loaded_decay() == 2500u, "saved with Tone.Reverb's DECAY 6 s, it loads as %u (2500: as it sounded)",
-          e.fx.reverb_decay_ms);
+    CHECK(loaded_decay() == 2500u && e.fx.reverb_size == 820u,
+          "saved with Tone.Reverb's DECAY 6 s, it loads as %u (2500: as it sounded; SIZE %u)",
+          e.fx.reverb_decay_ms, e.fx.reverb_size);
 }
 
 int main(void)

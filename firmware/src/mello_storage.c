@@ -22,8 +22,8 @@ enum {
     SECVER_WORKING = 1,
     SECVER_SLOTS = 1,
     SECVER_SLOT_SEQ = 1,
-    SECVER_FX = 7, /* 2: the delay's LO CUT; 3: PRE DIST; 4: the sends per part; 5: PING; 6: TRIM; 7: DECAY in
-                    * seconds (before, Tone.Reverb's: mello_reverb_decay_from_tone) */
+    SECVER_FX = 8, /* 2: the delay's LO CUT; 3: PRE DIST; 4: the sends per part; 5: PING; 6: TRIM; 7: DECAY in
+                    * seconds (before, Tone.Reverb's: mello_reverb_decay_from_tone); 8: Oliverb's knobs */
     SECVER_CHORD =
         5,           /* 2: the voice (filter, envelopes, chorus, space, strum, link, voice leading); 3: CHAIN,
                          SUB ROOT; 4: HARMONY (FOLLOW, DRIFT, DEPTH); 5: POLY */
@@ -43,7 +43,8 @@ enum {
 #define FX_WIRE_SIZE_V3    37u
 #define FX_WIRE_SIZE_V4    (FX_WIRE_SIZE_V3 + 4u * MELLO_SEND_PARTS) /* v4: DLY and REV per part */
 #define FX_WIRE_SIZE_V5    (FX_WIRE_SIZE_V4 + 1u)                    /* v5: PING */
-#define FX_WIRE_SIZE       (FX_WIRE_SIZE_V5 + 1u)                    /* v6: TRIM */
+#define FX_WIRE_SIZE_V6    (FX_WIRE_SIZE_V5 + 1u)                    /* v6: TRIM (v7 the same) */
+#define FX_WIRE_SIZE       (FX_WIRE_SIZE_V6 + 7u)                    /* v8: Oliverb's DIFFUSE .. SHIMMER */
 #define CHORD_WIRE_SIZE_V1 (14u + MELLO_CHORD_MAX_STEPS * 6u + 8u + 1u + MELLO_CHORD_PATTERN_STEPS)
 #define CHORD_WIRE_SIZE_V2 (CHORD_WIRE_SIZE_V1 + 21u)
 #define CHORD_WIRE_SIZE_V3 (CHORD_WIRE_SIZE_V2 + 2u)
@@ -522,7 +523,11 @@ static void encode_fx(Writer *w, const MelloFxConfig *c)
         }
     }
     wr_u8(w, c->delay_pingpong ? 1u : 0u);
-    wr_i8(w, c->trim_db); /* v6 */
+    wr_i8(w, c->trim_db);      /* v6 */
+    wr_u16(w, c->olv_diffuse); /* v8 */
+    wr_u16(w, c->olv_swing);
+    wr_u16(w, c->olv_rate);
+    wr_i8(w, c->olv_shimmer);
 }
 static bool decode_sends(Reader *r, MelloFxConfig *c)
 {
@@ -548,7 +553,9 @@ static bool decode_fx(Reader *r, MelloFxConfig *c, uint8_t ver)
            (ver < 3u || (rd_u8(r, &b) && ((c->delay_pre_dist = b != 0u), true))) &&
            (ver < 4u || decode_sends(r, c)) &&
            (ver < 5u || (rd_u8(r, &b) && ((c->delay_pingpong = b != 0u), true))) &&
-           (ver < 6u || rd_i8(r, &c->trim_db));
+           (ver < 6u || rd_i8(r, &c->trim_db)) &&
+           (ver < 8u || (rd_u16(r, &c->olv_diffuse) && rd_u16(r, &c->olv_swing) && rd_u16(r, &c->olv_rate) &&
+                         rd_i8(r, &c->olv_shimmer)));
 }
 
 /* DRUMS: the kit, then each voice's sound, hits, accents and per-step locks. A reader without this section skips it;
@@ -1116,11 +1123,18 @@ static bool parse_payload(MelloStorage *s, const RecordInfo *rec, MelloEngine *e
                         : ver == 3u ? FX_WIRE_SIZE_V3
                         : ver == 4u ? FX_WIRE_SIZE_V4
                         : ver == 5u ? FX_WIRE_SIZE_V5
+                        : ver <= 7u ? FX_WIRE_SIZE_V6
                                     : FX_WIRE_SIZE) ||
                 !decode_fx(&r, &fx, ver))
                 return false;
             if (ver < 7u)
                 fx.reverb_decay_ms = mello_reverb_decay_from_tone(fx.reverb_decay_ms); /* as it sounded */
+            if (ver < 8u) { /* before Oliverb's knobs: Oliverb as it was */
+                MelloFxConfig d;
+                mello_fx_defaults(&d);
+                fx.olv_diffuse = d.olv_diffuse, fx.olv_swing = d.olv_swing, fx.olv_rate = d.olv_rate;
+                fx.olv_shimmer = d.olv_shimmer;
+            }
             sends_seen = ver >= 4u;
             if (apply && e) mello_engine_fx_set_config(e, &fx);
 #if MELLO_FEATURE_CHORD_MACHINE

@@ -2327,6 +2327,36 @@ C engine departs from the HTML on purpose (`make parity`'s reverb numbers no lon
   are written as the times they gave (AMBIENT 9 s is 3.0 s, DRONE 12 s 3.3 s, DUB 4 s 2.1 s, TECHNO 2 s 1.4 s, ...), so
   a STYLE roll sounds as it did; turning DECAY up now goes where the knob says.
 
+## Oliverb's knobs (2026-11-11)
+
+ROADMAP H6, agreed with the product owner: Oliverb's own knobs (diffusion, swing, shimmer) on FX > REVERB. The C
+engine's own: the HTML has no Oliverb.
+
+- **0.5-f122: a third layer, OLIVERB**, after ROOM and RETURNS on SELECT (both ways round), its knobs as Parasites'
+  Oliverb mode turns them. DIFFUSE 0..100% (Parasites' STEREO SPREAD): the allpasses' gain 0.3 .. 0.8. SWING
+  0..100% (its REVERB): how far nine slow random LFOs swing the delays, up to 300 samples at Clouds' 32 kHz (207
+  here). RATE 0..100% (its FEEDBACK): how fast, as RATE^6 (worked out without a divide: RATE^3 in Q30, squared).
+  SHIMMER -24..+24 semitones, OFF at 0 (its PITCH): the loop's feedback through the pitch shifter, whole from a
+  semitone as Parasites has it. A new project's knobs, and a project saved before them (the FX section's version
+  8 adds them; before, they load as these), are Parasites' Init, which f115-f121 had as constants: DIFFUSE 65%
+  (0.625), SWING 10% (30 samples at 32 kHz), RATE 50%, SHIMMER OFF; the same numbers to the bit (test
+  oliverb_knobs). With one core the reverb is V3 and the knobs are kept for two: the layer says ONLY WITH 2 CORES.
+  A STYLE roll leaves them; RNDMZR and the macros do not reach them.
+- **What they do to DECAY** (a noise burst's time to -60 dB, as reverb_decay measures it, at 1, 2.5 and 8 s):
+  the defaults 1.21, 2.60, 7.97 s. DIFFUSE 0: 1.07, 2.43, 7.79; 100%: 1.54, 2.88, 8.28 (the allpasses ring
+  longer). SWING 0 or RATE 0: 1.28, 2.86, 8.74; SWING 100%: 1.18, 2.46, 7.89; SWING and RATE at 100%: 1.10, 2.07,
+  4.34 (fast deep swings smear the loop's reads). The level within 0.9 dB of the defaults' at every one.
+- **SHIMMER shortens the tail, as in Parasites**: the shifter reads its line within its window (88 .. 2350 samples
+  with SIZE), a shorter loop than the delay's, its two grains' crossfade loses power, and each pass moves the tail
+  up into the low-pass (or down into the high-pass). At a loop gain of 1 the shimmer's tail falls 10 to 20 dB each
+  half second at -12, +7, +12 and +24 (without it, under 1 dB a second). So with SHIMMER on, the tail is about 1 to
+  2.4 s whatever DECAY says: at DECAY 8 s, +1 2.43 s, +7 1.75, +12 1.64, +24 1.54, -12 2.18, -24 1.49; at 2.5 s,
+  1.0 to 1.5. Parasites gives the shimmer more gain (its DENSITY up to 1.3, plus 0.15 at two octaves) and lets
+  SoftLimit hold it. Made up here to keep DECAY's time (its gain x 1.5 to 1.7 for its own loop), the loop ran away
+  into the limiter: at +1 from DECAY 5 s, at +24 from 5 or 10 s (the shifter loses little near unison). So it is left as Parasites' at our gains, which are
+  always under 1: it cannot run away. Test oliverb_knobs: every knob up and SHIMMER +24 at the default DECAY, the
+  twelfth second 60 dB or more under the first and nothing at full scale.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

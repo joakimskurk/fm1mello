@@ -26,8 +26,9 @@ evening, in this order:
 - [ ] H6. Oliverb (the product owner, 2026-11-11: preferred, as long as there is room; on the second core, and the
       reverb as it is when the FM-1 has one): Parasites' Oliverb in fixed point at the network's 22.05 kHz, in the
       reverb's own memory (0.5-f115); on the second core, V3 on one and from the chunk after it is lost (0.5-f116);
-      then its own knobs (diffusion, swing, shimmer) on FX > ROOM; A/B renders for the product owner to hear;
-      fm1-emu's CPU 2.
+      its memory and V3's lines 24-bit, DECAY in seconds (0.5-f117 to f119); its loop's high-pass without a dead
+      band (0.5-f121); its own knobs, FX > REVERB OLIVERB: DIFFUSE, SWING, RATE, SHIMMER (0.5-f122); A/B renders
+      for the product owner to hear; fm1-emu's CPU 2.
 - [ ] H7. Clouds' looping delay, timed as the delay is now (DIV): the tape-like glide, the pitch shifter and the
       diffuser on its repeats, FREEZE (and REVERSE); A/B renders and the load.
 - [ ] H4. Letting go, each with the product owner's yes and only what one core still carries: POLY as a new

@@ -324,6 +324,14 @@ typedef struct {
     /* TRIM (FX > REVERB RETURNS, K4): the whole output by -6..+6 dB, before the limiter; a STYLE roll sets it so the
      * styles sit at one level (DECISIONS "The styles' level") */
     int8_t trim_db;
+    /* Oliverb's own (FX > REVERB OLIVERB, ROADMAP H6, DECISIONS "Oliverb's knobs"), Parasites' knobs for it; with one
+     * core (V3) they are kept and do nothing. DIFFUSE 0..1000: the allpasses' gain 0.3 .. 0.8; SWING 0..1000: how far
+     * the LFOs swing the delays, 0 .. 300 samples at Clouds' 32 kHz; RATE 0..1000: how fast; SHIMMER -24..+24
+     * semitones, the pitch shifter in the loop's feedback (0: off). */
+    uint16_t olv_diffuse;
+    uint16_t olv_swing;
+    uint16_t olv_rate;
+    int8_t olv_shimmer;
 } MelloFxConfig;
 
 typedef struct {

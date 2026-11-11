@@ -396,6 +396,10 @@ static MelloFxConfig sanitize_fx_config(MelloFxConfig c)
     c.reverb_pre_ms = clamp_u16_range(c.reverb_pre_ms, 0u, 120u);
     c.reverb_tone = clamp_amount(c.reverb_tone);
     c.reverb_level = clamp_u16_range(c.reverb_level, 0u, 3000u);
+    c.olv_diffuse = clamp_amount(c.olv_diffuse);
+    c.olv_swing = clamp_amount(c.olv_swing);
+    c.olv_rate = clamp_amount(c.olv_rate);
+    c.olv_shimmer = clamp_i8(c.olv_shimmer, -24, 24);
     {
         uint8_t i;
         for (i = 0u; i < MELLO_SEND_PARTS; ++i) {
@@ -1430,6 +1434,11 @@ void mello_fx_defaults(MelloFxConfig *c)
     c->reverb_pre_ms = 12u;
     c->reverb_tone = 620u;
     c->reverb_level = 1150u;
+    c->olv_diffuse =
+        650u; /* Oliverb as Parasites' Init: diffusion 0.625, the swing 30 samples, its rate 0.5 */
+    c->olv_swing = 100u;
+    c->olv_rate = 500u;
+    c->olv_shimmer = 0;
     c->send_dly[MELLO_SEND_LEAD] = c->send_rev[MELLO_SEND_LEAD] = 1000u;
     c->send_dly[MELLO_SEND_BASS] =
         0u; /* a new project's bass stays out of the echoes, a little in the room */

@@ -336,7 +336,8 @@ static void open_page(MelloUi *ui, MelloUiPage page)
 
 /* The FX page's layers in three groups, the section's pages: DISTORTION (0), DELAY (1 send, 2 config), REVERB (3 room,
  * 4 returns). */
-static uint8_t fx_group(uint8_t sub)
+static uint8_t
+fx_group(uint8_t sub) /* DISTORTION 0; DELAY 1 SEND, 2 CONFIG; REVERB 3 ROOM, 4 RETURNS, 5 OLIVERB */
 {
     return sub == 0u ? 0u : sub <= 2u ? 1u : 2u;
 }
@@ -2942,7 +2943,7 @@ static void adjust_audio_fx(MelloUi *ui, uint8_t knob, int16_t delta)
             c.reverb_decay_ms = (uint16_t)clamp_i32((int32_t)c.reverb_decay_ms + delta * 100, 400, 60000);
         else
             c.reverb_tone = (uint16_t)clamp_i32((int32_t)c.reverb_tone + delta * 10, 0, 1000);
-    } else {
+    } else if (ui->fx_subpage == 4u) {
         if (knob == 0u)
             c.reverb_pre_ms = (uint16_t)clamp_i32((int32_t)c.reverb_pre_ms + delta, 0, 120);
         else if (knob == 1u)
@@ -2951,6 +2952,15 @@ static void adjust_audio_fx(MelloUi *ui, uint8_t knob, int16_t delta)
             c.dist_level = (uint16_t)clamp_i32((int32_t)c.dist_level + delta * 10, 200, 1400);
         else /* TRIM: the whole output, a dB a detent */
             c.trim_db = (int8_t)clamp_i32((int32_t)c.trim_db + (delta > 0 ? 1 : -1), -6, 6);
+    } else if (ui->fx_subpage == 5u) { /* OLIVERB: its own knobs (DECISIONS "Oliverb's knobs") */
+        if (knob == 0u)
+            c.olv_diffuse = (uint16_t)clamp_i32((int32_t)c.olv_diffuse + delta * 10, 0, 1000);
+        else if (knob == 1u)
+            c.olv_swing = (uint16_t)clamp_i32((int32_t)c.olv_swing + delta * 10, 0, 1000);
+        else if (knob == 2u)
+            c.olv_rate = (uint16_t)clamp_i32((int32_t)c.olv_rate + delta * 10, 0, 1000);
+        else /* SHIMMER: a semitone a detent, 0 off */
+            c.olv_shimmer = (int8_t)clamp_i32((int32_t)c.olv_shimmer + (delta > 0 ? 1 : -1), -24, 24);
     }
     mello_engine_fx_set_config(e, &c);
     mark_edit(ui);
@@ -3136,11 +3146,13 @@ static void adjust_algorithm(MelloUi *ui, int16_t delta)
             ui->sound_subpage = order[wrap_u8((int32_t)(i % 9u) + (delta > 0 ? 1 : -1), 9u)];
         }
         break;
-    case MELLO_UI_AUDIO_FX: { /* the layer within the FX page open (DELAY: send / config, REVERB: room / returns; DISTORTION has one) */
-        static const uint8_t lo[3] = {0u, 1u, 3u}, hi[3] = {0u, 2u, 4u};
+    case MELLO_UI_AUDIO_FX: { /* the layer within the FX page open (DELAY: send / config, REVERB: room / returns /
+                                * oliverb; DISTORTION has one) */
+        static const uint8_t lo[3] = {0u, 1u, 3u}, hi[3] = {0u, 2u, 5u};
         uint8_t g = fx_group(ui->fx_subpage);
         if (lo[g] == hi[g]) return;
-        ui->fx_subpage = ui->fx_subpage == lo[g] ? hi[g] : lo[g];
+        ui->fx_subpage = (uint8_t)(lo[g] + wrap_u8((int32_t)(ui->fx_subpage - lo[g]) + (delta > 0 ? 1 : -1),
+                                                   (uint8_t)(hi[g] - lo[g] + 1u)));
     } break;
     case MELLO_UI_SAMPLE_RESERVED:
         ui->sample_subpage = wrap_u8((int32_t)ui->sample_subpage + (delta > 0 ? 1 : -1), 4u);
@@ -6482,6 +6494,10 @@ static bool knob_norm_raw(MelloUi *ui, uint8_t k, uint16_t *val, uint16_t *max)
         case 17: v = f->reverb_level, m = 3000u; break;
         case 18: v = f->dist_level, m = 1400u; break;
         case 19: v = (uint32_t)(f->trim_db + 6), m = 12u; break;
+        case 20: v = f->olv_diffuse; break;
+        case 21: v = f->olv_swing; break;
+        case 22: v = f->olv_rate; break;
+        case 23: v = (uint32_t)(f->olv_shimmer + 24), m = 48u; break;
         default: return false;
         }
     } else if (ui->page == MELLO_UI_SEQ_STEP) { /* the ranges as each adjust_* clamps them */
@@ -7317,6 +7333,19 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
             value_ms(v[2], e->fx.reverb_decay_ms);
             l[3] = "TONE";
             value_pct(v[3], e->fx.reverb_tone);
+        } else if (ui->fx_subpage == 5u) {
+            l[0] = "DIFFUSE";
+            value_pct(v[0], e->fx.olv_diffuse);
+            l[1] = "SWING";
+            value_pct(v[1], e->fx.olv_swing);
+            l[2] = "RATE";
+            value_pct(v[2], e->fx.olv_rate);
+            l[3] = "SHIMMER";
+            if (e->fx.olv_shimmer) {
+                char *q = e->fx.olv_shimmer > 0 ? copy_s(v[3], "+") : v[3];
+                (void)copy_s(put_i32(q, e->fx.olv_shimmer), " ST");
+            } else
+                copy_s(v[3], "OFF");
         } else {
             l[0] = "PRE";
             value_ms(v[0], e->fx.reverb_pre_ms);
@@ -7777,6 +7806,8 @@ static void draw_layer_picture(MelloUi *ui, const MelloUiDrawOps *o, int16_t x, 
         default:
             pic_tail(o, x, y, w, h, e->fx.reverb_pre_ms, e->fx.reverb_decay_ms, e->fx.reverb_size, accent,
                      dim);
+            if (ui->fx_subpage == 5u && ui->cores != MELLO_UI_CORE_ON) /* one core: V3, these kept for two */
+                o->text(o->ctx, x, (int16_t)(y + h - 14), w, 0, "ONLY WITH 2 CORES", UI_GOLD, 1);
             break;
         }
         break;
@@ -8000,7 +8031,7 @@ static const char *layer_name(const MelloUi *ui)
         *glo[4] = {"CLOCK", "MIDI", "GROOVE", "SYSTEM"}, *mix[3] = {"LEVEL", "DELAY", "REVERB"},
                       *snd[10] = {"FILTER", "AMP ENV", "LFO",       "FOLLOWER", "OSC",
                                   "GRIT",   "OSC 2",   "CHARACTER", "MOD ENV",  "TRACKING"},
-                      *fx[5] = {0, "SEND", "CONFIG", "ROOM", "RETURNS"}, /* within the FX pages */
+                      *fx[6] = {0, "SEND", "CONFIG", "ROOM", "RETURNS", "OLIVERB"}, /* within the FX pages */
         *smp[4] = {"MAIN", "PITCH", "TRIM", "ENVELOPE"};
     if (ui->perform) return 0;
     switch (ui->page) {
@@ -8017,7 +8048,7 @@ static const char *layer_name(const MelloUi *ui)
     case MELLO_UI_GLOBAL: return glo[ui->global_subpage % 4u];
     case MELLO_UI_MIX: return mix[ui->mix_subpage % 3u];
     case MELLO_UI_SOUND_RESERVED: return ui->sound_subpage == 2u ? 0 : snd[ui->sound_subpage % 10u];
-    case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 5u];
+    case MELLO_UI_AUDIO_FX: return fx[ui->fx_subpage % 6u];
     case MELLO_UI_SAMPLE_RESERVED: return smp[ui->sample_subpage % 4u];
 #if MELLO_FEATURE_CHORD_MACHINE
     case MELLO_UI_CHORD: {
