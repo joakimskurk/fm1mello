@@ -2155,6 +2155,71 @@ static void dlyfx_set(MelloAudio *a)
     a->ps_step = shift ? (65536 - (int32_t)semi_ratio_q16(st * 256)) * 256 / DLYFX_PS_WIN : 0;
     a->dlyfx_diffuse = diffuse, a->dlyfx_shift = shift;
 }
+/* FREEZE (DECISIONS "The looping delay"): Clouds' looping delay, frozen, stops writing and plays a loop of what it
+ * holds; here the loop is the delay's own time (its DIV), the last of it before a crossfade's worth of the newest, so
+ * a pass may run on past either end while the next fades in (Clouds' tail). REV plays it backwards. Each pass takes
+ * the time anew, so a DIV turned while frozen sizes the next. Its output goes through DIFFUSE and PITCH and HI CUT as
+ * the repeats do; nothing is fed back. Turned off, the tap (and the writing) come back over a crossfade. */
+#define FRZ_XF 256u /* the crossfades, samples (5.8 ms) */
+static inline uint32_t frz_wrap(const MelloAudio *a, int32_t pos_q8)
+{
+    int32_t c = (int32_t)a->delay_capacity << 8;
+    if (pos_q8 < 0) pos_q8 += c;
+    if (pos_q8 >= c) pos_q8 -= c;
+    return (uint32_t)pos_q8;
+}
+static inline int32_t frz_at(const MelloAudio *a,
+                             int32_t pos_q8) /* the line at a place, Q8 slots, between two */
+{
+    uint32_t p = frz_wrap(a, pos_q8), i = p >> 8, j = i + 1u >= a->delay_capacity ? 0u : i + 1u;
+    int32_t d = a->delay_buffer[i];
+    return d + (((a->delay_buffer[j] - d) * (int32_t)(p & 0xFFu)) >> 8);
+}
+/* the loop's length from the time: its slots (the rate frozen at), and the pass in samples */
+static void frz_size(MelloAudio *a)
+{
+    uint32_t slots = a->frz_step == 256u ? a->delay_samples : a->delay_samples / 2u,
+             most = a->delay_capacity - 4u * FRZ_XF - 4u;
+    if (slots < FRZ_XF) slots = FRZ_XF;
+    if (slots > most) slots = most;
+    a->frz_len = slots;
+    a->frz_len_n = a->frz_step == 256u ? slots : slots * 2u;
+}
+static void frz_set(MelloAudio *a)
+{
+    uint8_t m = a->fx.delay_freeze > 2u ? 0u : a->fx.delay_freeze;
+    if (!a->delay_buffer || a->delay_capacity <= 8u * FRZ_XF) m = 0u;
+    if (m && !a->frz_play) { /* frozen: the loop ends a crossfade's worth before the newest */
+        a->frz_step = a->delay_hr ? 128u : 256u;
+        a->frz_end =
+            (uint32_t)(frz_wrap(a, (int32_t)(a->delay_pos << 8) - (int32_t)(FRZ_XF * a->frz_step)) >> 8);
+        frz_size(a);
+        a->frz_n = 0u, a->frz_first = true, a->frz_out = 0u, a->frz_play = true;
+    } else if (m && a->frz_play) {
+        if (a->frz_out) a->frz_out = 0u; /* (frozen again while it fades out: on with the loop) */
+        if (m != a->frz_mode && a->frz_mode)
+            a->frz_n = a->frz_len_n - 1u - a->frz_n; /* ON <-> REV, where it is */
+    } else if (!m && a->frz_play && !a->frz_out)
+        a->frz_out = FRZ_XF;
+    a->frz_mode = m ? m : a->frz_mode;
+}
+/* this sample of the loop; the tap's (tap) where the first pass fades in from it */
+static int32_t frz_loop(MelloAudio *a, int32_t tap)
+{
+    int32_t o = (int32_t)(a->frz_n * a->frz_step), end = (int32_t)(a->frz_end << 8),
+            start = end - (int32_t)(a->frz_len << 8), pos, tail, x;
+    bool rev = a->frz_mode == 2u;
+    pos = rev ? end - 256 - o : start + o;
+    x = frz_at(a, pos);
+    if (a->frz_n < FRZ_XF) { /* the pass fades in over the last one running on (or the tap) */
+        int32_t g = (int32_t)(a->frz_n << 7), t;
+        tail = rev ? start - 256 - o : end + o;
+        t = a->frz_first ? tap : frz_at(a, tail);
+        x = tz15_64((int64_t)x * g + (int64_t)t * (32768 - g));
+    }
+    if (++a->frz_n >= a->frz_len_n) a->frz_n = 0u, a->frz_first = false, frz_size(a);
+    return x;
+}
 /* PING (ROADMAP F25): the line is read at the time (left) and at twice it (right, at FDBK), and fed back from the
  * second at FDBK squared, so the echoes come left, right, left ... at 1, FDBK, FDBK^2 ...: the same series as without,
  * taking turns. Without PING the right is the left. */
@@ -2163,7 +2228,19 @@ static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t d
     int32_t d, fb_in, dl;
     *right = 0;
     if (!a->delay_buffer || a->delay_capacity <= 2u || !a->delay_samples) return 0;
+    if (a->frz_play && !a->frz_out) { /* FREEZE: the loop, nothing written */
+        d = frz_loop(a, a->frz_first ? delay_read(a, delay_q8, a->delay_lc) : 0);
+        if (a->dlyfx_diffuse | a->dlyfx_shift) d = delay_loop_fx(a, d);
+        dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
+        *right = dl;
+        return dl;
+    }
     d = delay_read(a, delay_q8, a->delay_lc);
+    if (a->frz_play) { /* FREEZE off: the tap back over the loop, the writing with it */
+        int32_t g = (int32_t)(FRZ_XF - a->frz_out) << 7;
+        d = tz15_64((int64_t)d * g + (int64_t)frz_loop(a, 0) * (32768 - g));
+        if (--a->frz_out == 0u) a->frz_play = false;
+    }
     if (!a->fx.delay_pingpong && (a->dlyfx_diffuse | a->dlyfx_shift)) d = delay_loop_fx(a, d);
     dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
     if (a->fx.delay_pingpong) {
@@ -2420,7 +2497,7 @@ static void apply_pending(MelloAudio *a)
     uint32_t g;
     uint16_t old_decay;
     bool sub_drive_changed, lfo_rate_changed, delay_changed, reverb_changed, dist_changed, reverb_wet_changed,
-        oliverb_changed, glide_changed, dlyfx_changed;
+        oliverb_changed, glide_changed, dlyfx_changed, freeze_changed;
     if (!a) return;
     g = a->config_generation;
     /* Odd means main-loop publication is in progress. Keep the last complete
@@ -2435,6 +2512,7 @@ static void apply_pending(MelloAudio *a)
     glide_changed = a->fx.delay_glide != a->pending_fx.delay_glide;
     dlyfx_changed =
         a->fx.delay_diffuse != a->pending_fx.delay_diffuse || a->fx.delay_pitch != a->pending_fx.delay_pitch;
+    freeze_changed = a->fx.delay_freeze != a->pending_fx.delay_freeze;
     reverb_changed = a->fx.reverb_pre_ms != a->pending_fx.reverb_pre_ms ||
                      a->fx.reverb_size != a->pending_fx.reverb_size ||
                      a->fx.reverb_decay_ms != a->pending_fx.reverb_decay_ms;
@@ -2517,6 +2595,7 @@ static void apply_pending(MelloAudio *a)
     }
     if (glide_changed || a->applied_generation == 0u) delay_glide_set(a);
     if (dlyfx_changed || a->applied_generation == 0u) dlyfx_set(a);
+    if (freeze_changed) frz_set(a);
     {
         /* the rest the per-sample path reads ready-made (mello_audio.h: "no divide") */
         const MelloSoundConfig *s = &a->config;

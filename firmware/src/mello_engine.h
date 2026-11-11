@@ -319,6 +319,9 @@ typedef struct {
      * the repeats, in the delay's loop, so each repeat is smeared or shifted further than the last */
     uint16_t delay_diffuse;
     int8_t delay_pitch;
+    /* FREEZE (FX > DELAY LOOP), Clouds' looping delay's: 0 OFF; 1 ON, the line's last DIV (its time) played round
+     * and round, nothing written; 2 REV, the same backwards. A performance's state: not saved. */
+    uint8_t delay_freeze;
     uint16_t reverb_wet;      /* 0..1000 */
     uint16_t reverb_size;     /* 0..1000 */
     uint16_t reverb_decay_ms; /* 400..60000: the time to -60 dB */

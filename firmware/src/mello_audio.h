@@ -384,6 +384,13 @@ typedef struct {
     uint16_t dfx_ap_pos[4], ps_wp;
     int32_t dfx_amount_q15, ps_step;
     uint32_t ps_phase;
+    /* FREEZE: the line's slots frz_end - frz_len .. frz_end (a crossfade's worth before the write point, so a pass
+     * can run on past either end), played at frz_step (Q8 slots a sample: the rate it was written at), frz_n samples
+     * into a pass of frz_len_n; frz_first: the first pass fades in from the tap; frz_out: back to the tap, counted */
+    bool frz_play, frz_first;
+    uint8_t frz_mode;
+    uint16_t frz_out;
+    uint32_t frz_end, frz_len, frz_n, frz_len_n, frz_step;
     /* Knob changes ramp as the HTML's rampTo calls do (lines 989-1077); the delay time too (read between samples). */
     /* The output stage (DECISIONS "The level, all of it"): the bus compressor's high-pass and follower (Q4) and its
      * gain (Q15, ramped over a block), then the look-ahead limiter's line, its gains' window and their sum */

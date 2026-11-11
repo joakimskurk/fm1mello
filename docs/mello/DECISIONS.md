@@ -2389,6 +2389,17 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   worked out whole and cut towards zero once: an allpass's y - g v with g v cut alone came out larger than the
   exact one, and with PITCH -12 and DIFFUSE a quiet repeat went round for ever (4 samples 39 s on). Test
   delay_loop_fx (FDBK 95%, every one up: bounded, nothing 39 s on). Off, the output is the same to the bit.
+- **FREEZE (0.5-f125)**: Clouds' looping delay, frozen, stops recording and plays a loop of what it holds (REVERSE
+  backwards), its length from SIZE or the tapped tempo. Here the loop is the delay's own time, its DIV: OFF, ON, REV.
+  Frozen, the line is not written (what is sent is not heard in the delay, the feedback stops) and its last DIV,
+  ending a crossfade's worth (256 samples, 5.8 ms) before the newest, plays round and round; each pass fades in over
+  the last one running on past its end (Clouds' tail), the first over the tap. A pass takes the time anew, so a DIV
+  or tempo turned while frozen sizes the next. ON and REV swap where the loop is. Its output goes through DIFFUSE,
+  PITCH and HI CUT as the repeats do. Turned off, the tap fades back in over the loop and the writing goes on from
+  where it stopped. It is a performance's state and is not saved. Test delay_freeze: the return repeats a pass
+  apart to the sample (outside the crossfades), what is sent after is not in it, no step bigger than the sine's own
+  in the loop or on the way out, REV plays a rising ramp falling, a time turned sizes the next pass, and never
+  frozen the delay is the same to the sample.
 
 ## Engineering process decisions
 

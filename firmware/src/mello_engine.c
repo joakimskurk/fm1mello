@@ -393,6 +393,7 @@ static MelloFxConfig sanitize_fx_config(MelloFxConfig c)
     c.delay_glide = clamp_amount(c.delay_glide);
     c.delay_diffuse = clamp_amount(c.delay_diffuse);
     c.delay_pitch = clamp_i8(c.delay_pitch, -24, 24);
+    if (c.delay_freeze > 2u) c.delay_freeze = 0u;
     c.reverb_wet = clamp_amount(c.reverb_wet);
     c.reverb_size = clamp_amount(c.reverb_size);
     c.reverb_decay_ms = clamp_u16_range(c.reverb_decay_ms, 400u, 60000u);
