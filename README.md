@@ -326,7 +326,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
 - **GLOBAL** (GLO > GLOBAL). Tempo (TAP), division, external sync, note out; the MIDI channels of lead and bass,
   the note length; the groove's swing. CLOCK shows the chip's measured audio load as CPU nn%. SYSTEM: CORE 2
   (OFF on a new FM-1; the next power-on uses what it is set to) and what runs, 1 CORE or 2 CORES. With two the
-  chords and the drums render on the second, the sound the same to the sample; it has not run on a real FM-1.
+  chords, the drums and the reverb (with PRE at 6 ms or more) render on the second, the sound the same to the
+  sample; it has not run on a real FM-1.
 - **KEY** (SEL). Root, scale, global octave, pitch span.
 - **RANDOM** (hold RNDMZR). Which targets a roll touches (MASK), which follow or mirror the pitch (LINKS), how much
   each moves (AMOUNTS); the intensity on K1. MUSICAL rolls a phrase, not noise; GROOVE the same phrase with rolls, ties, ghost

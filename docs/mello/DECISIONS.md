@@ -2203,9 +2203,25 @@ plan (ROADMAP H) was agreed the same evening; this is its ground.
   render starts (the FM-1's hands the job over and returns). fm1-emu 0.3.0, the worst case: one core 87.7% (the job
   costs it 1.2 points), two cores 65.3% (3.8 ms of 5.8), core 0's interrupt 63.9% -> 49.2% of the chip; a check
   build's 1009 chunks the same, STUTTER's memory included. RAM 3 KB more (the drums' chunk): 6.9 KB free.
-- **Still over the rule**: docs/RULES.md asks for under 2.9 ms in the worst case; the lead (unison, OSC 2) and the
-  reverb are what is left that is heavy, and each would take more than this (the lead's modulation is the render's;
-  a reverb a block late would change the sound).
+- **The reverb's network too (0.5-f113).** The product owner said yes to trying the reverb a block late; it did
+  not need to be. The reverb already has a pre-delay line before its network: with PRE at least a chunk (5.8 ms;
+  the default is 12), what the network reads was written a chunk or more before, so the reverb splits where that
+  line is. reverb_in (the render's, always): the input filtered down, every other sample into the line. reverb_out
+  (the parts' job's when split): the network, reading the line PRE behind at its own position, the filter back up,
+  revTone and the DC blocker (reverb_return); the render adds it at WET. Split only when nothing in the job needs
+  this chunk's input: WET up (the reverb runs every sample, whatever its tail), PRE at least a chunk, and no
+  diffuser waiting to move at the tail's end; else the render does both halves in turn, as before. The same to the
+  sample: nine scenes hashed on one core, and cpu1_split on the double (a mutation of the split's output fails 108
+  of its runs: every way of two cores goes through it). fm1-emu 0.3.0: the worst case on two cores 53.7% of its 5.8
+  ms (3.1 ms; 65.3% without the reverb, 88.2% on one core); the default pattern's interrupt 31.4% -> 23.6% of the
+  chip. A/B there: two packages with CORE 2 ON and `-DMELLO_FIXED_CLOCK` (the render's time counted in samples, not
+  read at each interrupt), one with `-DMELLO_CPU1_RENDER=0`: the default project's recordings the same to the byte
+  over 7.6 s. The worst case's drift apart a little after PLAY with that clock too: on one core its interrupt takes
+  88% of the chip, the main loop falls behind the transport's lookahead and an event comes late, by how much
+  depending on the load (the same drift came before the reverb was split, with the chords and drums proved exact).
+  RAM 2 KB more (the reverb's chunk): 93460 B, 4.8 KB free.
+- **Still over the rule**, just: docs/RULES.md asks for under 2.9 ms in the worst case; the lead (unison, OSC 2,
+  its modulation the render's) is what is left that is heavy.
 
 ## Engineering process decisions
 

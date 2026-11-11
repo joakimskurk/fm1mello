@@ -246,8 +246,9 @@ typedef struct {
     int32_t c_lfo;
     uint32_t rendered; /* the render's sample count (the drums' share is read every 16) */
     uint16_t buf_pos,
-        buf_pos0;       /* STUTTER's memory: where this sample goes, and where the chunk's first went */
-    bool chords, drums; /* what the chunk has */
+        buf_pos0; /* STUTTER's memory: where this sample goes, and where the chunk's first went */
+    bool chords, drums,
+        reverb; /* what the chunk has (the reverb's network and its way out: PRE >= a chunk) */
 } MelloPartsJob;
 
 typedef struct {
@@ -290,6 +291,9 @@ typedef struct {
      * sample once it is counted, and counts its memory written in heard_done. While the job runs only it touches the
      * chord and drum state (drum, drum_noise, drum_mod), the render only the memory (drum_buf, drum_buf_pos). */
     int32_t drum_out[3][MELLO_PARTS_CHUNK];
+    int32_t
+        rev_out[2]
+               [MELLO_PARTS_CHUNK]; /* the chunk's reverb (reverb_out, revTone, the DC blocker): before WET */
     volatile uint32_t parts_done, heard_done;
     MelloPartsJob parts_job;
     bool parts_on_core1;          /* this chunk's job is on the second core */
@@ -404,7 +408,9 @@ typedef struct {
     bool pluck_up;
     int16_t *reverb_buffer;
     uint32_t reverb_capacity;
-    uint32_t reverb_pos;
+    uint32_t reverb_pos;     /* the pre-delay line's write (reverb_in: the render's) */
+    uint32_t reverb_out_pos; /* and its read, PRE behind (reverb_out: the parts' job's when split) */
+    int32_t reverb_down;     /* the input filtered down, this network step (read at once with PRE 0) */
     uint32_t reverb_delay_a;
     uint32_t reverb_delay_b;
     int32_t reverb_lp; /* retained compatibility state */
@@ -436,7 +442,7 @@ typedef struct {
     int16_t reverb_hb_in[32];
     int16_t reverb_hb_out[2][16];
     uint8_t reverb_hb_in_pos, reverb_hb_out_pos;
-    bool reverb_odd;
+    bool reverb_odd, reverb_odd_out; /* the half rate: the input's step, and the network's */
     uint16_t reverb_send_permille;
     int16_t sub_dist_curve[257];
     int16_t pending_sub_dist_curve[257];

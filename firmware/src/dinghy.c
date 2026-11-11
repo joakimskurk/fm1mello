@@ -86,6 +86,18 @@ static void app_audio(int32_t *out, uint32_t n)
     static uint16_t worst, blocks;
     uint32_t t0 = fm1_micros(), took, share;
     if (!audio_ready) return;
+#ifdef MELLO_FIXED_CLOCK
+    { /* fm1-emu's A/B (DECISIONS "The second core"): the render's time counted in samples from its first block, not
+       * read at each interrupt, so two builds whose interrupts take different time place every event alike */
+        static uint32_t base, us, rem;
+        static bool started;
+        if (!started) base = t0, started = true;
+        t0 = base + us;
+        us += n * 1000000u / 44100u;
+        rem += n * 1000000u % 44100u;
+        if (rem >= 44100u) rem -= 44100u, us++;
+    }
+#endif
     mello_audio_render(&audio, out, n, t0, mello_transport_effective_bpm(&mt));
     took = fm1_micros() - t0;        /* us; the block is n / 44.1 us long */
     share = took * 441u / (n * 10u); /* permille */

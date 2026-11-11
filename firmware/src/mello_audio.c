@@ -1799,12 +1799,13 @@ static void reverb_configure(MelloAudio *a)
     for (i = 0u; i < 3u; ++i)
         if (a->reverb_ap_pos[i] >= a->reverb_ap_cap[i]) a->reverb_ap_pos[i] = 0u;
     if (a->reverb_pos >= a->reverb_pre_cap) a->reverb_pos = 0u;
+    if (a->reverb_out_pos >= a->reverb_pre_cap) a->reverb_out_pos = a->reverb_pos; /* (the same step count) */
     a->reverb_feedback_q15 = (uint16_t)(sum / 8u);
     a->reverb_delay_a = a->reverb_line_delay[0];
     a->reverb_delay_b = a->reverb_line_delay[7];
     /* A SIZE changed while the tail rings (a STYLE roll, a knob) moved every read at once: the tail broke, a click
      * that then went round the lines (DECISIONS "The reverb glides"). Now the lines glide to their new lengths
-     * (reverb_network_step) and the diffusers take theirs once the tail has died away; silent, at once. */
+     * (reverb_network) and the diffusers take theirs once the tail has died away; silent, at once. */
     for (i = 0u; i < 8u; ++i)
         if (!a->reverb_live || !a->reverb_line_dq8[i])
             a->reverb_line_dq8[i] = (uint32_t)a->reverb_line_delay[i] << 8;
@@ -1831,7 +1832,18 @@ static int32_t rv3_allpass(MelloAudio *a, uint16_t which, int32_t x, uint16_t g)
     a->reverb_ap_pos[which] = pos;
     return y;
 }
-static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int32_t *right)
+/* The network's input: the pre-delay line written at reverb_pos (the render's, reverb_in). */
+static void reverb_pre_write(MelloAudio *a, int32_t send)
+{
+    uint32_t p = a->reverb_pos;
+    a->reverb_buffer[p] = sat16(send);
+    if (++p >= a->reverb_pre_cap) p = 0u;
+    a->reverb_pos = p;
+}
+/* The network from its pre-delay on: the line read PRE behind its write (reverb_out_pos: the same step count), or
+ * with PRE 0 this step's input itself. With PRE at least a chunk, what it reads the render wrote a chunk before or
+ * earlier, so it can run a chunk ahead on the second core (parts_step). */
+static void reverb_network(MelloAudio *a, int32_t send, int32_t *left, int32_t *right)
 {
     static const int8_t inject_sign[8] = {1, 1, -1, -1, 1, -1, 1, -1};
     int32_t x, y[8], d[8], h[8], w, sum = 0, inj, rv_l, rv_r;
@@ -1841,17 +1853,16 @@ static void reverb_network_step(MelloAudio *a, int32_t send, int32_t *left, int3
     if (right) *right = 0;
     if (!a || !a->reverb_buffer || a->reverb_pre_cap < 2u) return;
 
-    p = a->reverb_pos;
+    p = a->reverb_out_pos;
     if (a->reverb_pre_samples) {
         uint32_t pr = p >= a->reverb_pre_samples ? p - a->reverb_pre_samples
                                                  : p + a->reverb_pre_cap - a->reverb_pre_samples;
         x = a->reverb_buffer[pr];
     } else
         x = send;
-    a->reverb_buffer[p] = sat16(send);
     p++;
     if (p >= a->reverb_pre_cap) p = 0u;
-    a->reverb_pos = p;
+    a->reverb_out_pos = p;
 
     x = rv3_allpass(a, 0u, x, 18022u);
     x = rv3_allpass(a, 1u, x, 20890u);
@@ -2017,18 +2028,31 @@ static int32_t perf_fb(const MelloAudio *a, int32_t fb)
 /* The half-band filter (31 taps, Kaiser 7.5): flat to 8 kHz within 0.03 dB, -48 dB from 14 kHz. Its centre tap is
  * 1/2 and every other tap 0; these are the odd ones, Q15, nearest the centre first. */
 static const int16_t RV_HB[8] = {10269, -3020, 1401, -668, 291, -105, 27, -3};
-static void reverb_step(MelloAudio *a, int32_t send, int32_t *left, int32_t *right)
+/* The reverb's way in, a sample (the render's, always): the input filtered down, every other sample into the
+ * pre-delay line. */
+static void reverb_in(MelloAudio *a, int32_t send)
 {
-    uint8_t ip = a->reverb_hb_in_pos, op, j;
+    uint8_t ip = a->reverb_hb_in_pos, j;
     a->reverb_hb_in[ip] = sat16(send);
     a->reverb_hb_in_pos = (uint8_t)((ip + 1u) & 31u);
     if (a->reverb_odd) {
         /* Down: the input filtered, centred 15 samples back, every other sample into the network. */
-        int32_t acc = (int32_t)a->reverb_hb_in[(ip - 15u) & 31u] * 16384, l, r;
+        int32_t acc = (int32_t)a->reverb_hb_in[(ip - 15u) & 31u] * 16384;
         for (j = 0u; j < 8u; ++j)
             acc += RV_HB[j] * ((int32_t)a->reverb_hb_in[(ip - 15u - (2u * j + 1u)) & 31u] +
                                a->reverb_hb_in[(ip - 15u + (2u * j + 1u)) & 31u]);
-        reverb_network_step(a, acc >> 15, &l, &r);
+        a->reverb_down = acc >> 15;
+        if (a->reverb_buffer && a->reverb_pre_cap >= 2u) reverb_pre_write(a, a->reverb_down);
+    }
+    a->reverb_odd = !a->reverb_odd;
+}
+/* And its way out, the same sample: the network every other sample, the filter back up. */
+static void reverb_out(MelloAudio *a, int32_t *left, int32_t *right)
+{
+    uint8_t op, j;
+    if (a->reverb_odd_out) {
+        int32_t l, r;
+        reverb_network(a, a->reverb_down, &l, &r);
         op = a->reverb_hb_out_pos;
         a->reverb_hb_out[0][op] = sat16(l);
         a->reverb_hb_out[1][op] = sat16(r);
@@ -2048,8 +2072,29 @@ static void reverb_step(MelloAudio *a, int32_t send, int32_t *left, int32_t *rig
         *left = al >> 14;
         *right = ar >> 14;
     }
-    a->reverb_odd = !a->reverb_odd;
+    a->reverb_odd_out = !a->reverb_odd_out;
 }
+/* The reverb's return: revTone, then a DC blocker, ~27 Hz: reverb_hp_y1 integrates the DC in Q8 and is subtracted.
+ * The old q15mul one-pole high-pass floored to a dead band and passed about -150 of DC forever, which kept the tail
+ * guard armed, so the unit never counted as silent (P1-1). */
+static void reverb_return(MelloAudio *a, int32_t rv_l, int32_t rv_r, int32_t *hp_l, int32_t *hp_r)
+{
+    const ToneSubBiquadCoeff *rt = &REVERB_TONE_BIQUAD_Q28[a->fx.reverb_tone / 10u];
+    int32_t tl = tone_lp24(rt, a->reverb_tone_s[0], rv_l), tr = tone_lp24(rt, a->reverb_tone_s[1], rv_r);
+    *hp_l = tl - (a->reverb_hp_y1 >> 8);
+    *hp_r = tr - (a->reverb_hp_y1_r >> 8);
+    a->reverb_hp_y1 += *hp_l;
+    a->reverb_hp_y1_r += *hp_r;
+}
+#if defined(MELLO_REVERB_TEST_HOOK) && MELLO_REVERB_TEST_HOOK
+/* One audio-rate sample of the reverb, the network at half the rate: the input averaged over two samples, the output
+ * interpolated back (the way in, then the way out, as the render does them: the probes' below) */
+static void reverb_step(MelloAudio *a, int32_t send, int32_t *left, int32_t *right)
+{
+    reverb_in(a, send);
+    reverb_out(a, left, right);
+}
+#endif
 
 #if defined(MELLO_REVERB_TEST_HOOK) && MELLO_REVERB_TEST_HOOK
 /* Host-only probes. Never compiled into target firmware. */
@@ -2789,6 +2834,11 @@ static void parts_step(MelloAudio *a)
         a->chord_out[1][s] = r;
     }
 #endif
+    if (j->reverb) { /* the reverb's network and its return, PRE behind what the render writes */
+        int32_t l = 0, r = 0;
+        reverb_out(a, &l, &r);
+        reverb_return(a, l, r, &a->rev_out[0][s], &a->rev_out[1][s]);
+    }
     if (j->drums) {
         int32_t o[3];
         drum_voices(a, s, o);
@@ -2811,6 +2861,19 @@ static void parts_job_entry(uint32_t arg)
     (void)arg;
     while (a->parts_done < a->parts_job.n) parts_step(a);
 }
+/* The reverb's network and return go with the chunk on two cores when nothing in them needs this chunk's input: WET
+ * up (the reverb runs every sample, whatever its tail), PRE at least a chunk (the network reads what the render wrote
+ * a chunk or more before), and no diffuser waiting to move (at the tail's end, the render's to see). Else here. */
+static bool parts_reverb(const MelloAudio *a)
+{
+    uint8_t k;
+    if (!a->cores || !a->reverb_buffer || a->reverb_capacity <= 1024u || !a->fx.reverb_wet ||
+        a->reverb_pre_cap < 2u || a->reverb_pre_samples < MELLO_PARTS_CHUNK / RV3_RATE_DIV)
+        return false;
+    for (k = 0u; k < 3u; ++k)
+        if (a->reverb_ap_now[k] != a->reverb_ap_delay[k]) return false;
+    return true;
+}
 /* a chunk of n samples from the render's sample at time t: to the second core, or here a sample at a time */
 static void parts_start(MelloAudio *a, uint32_t t, uint32_t terr, uint32_t n)
 {
@@ -2831,6 +2894,7 @@ static void parts_start(MelloAudio *a, uint32_t t, uint32_t terr, uint32_t n)
 #else
     j->chords = false;
 #endif
+    j->reverb = parts_reverb(a);
     j->lfo_drums = j->drums && a->config.lfo_on && lt >= 0 && lt < 4;
     j->ctl_phase = a->ctl_phase, j->lfo_phase = a->lfo_phase, j->c_lfo = a->c_lfo;
     j->rendered = a->rendered_frames;
@@ -3031,7 +3095,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
 #endif
         if (!(i % MELLO_PARTS_CHUNK)) { /* the parts' next chunk, from here, before this sample's events */
             parts_finish(a);
-            parts_on = a->drum_config.on;
+            parts_on = a->drum_config.on || parts_reverb(a);
 #if MELLO_FEATURE_CHORD_MACHINE
             parts_on = parts_on || a->chord_config.on;
 #endif
@@ -3521,23 +3585,17 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 (a->fx.reverb_wet || a->reverb_live || a->wash_q12)) {
                 int32_t send =
                             mul_q12(fx_rev, rev_send) + (a->wash_q12 ? mul_q12(fx_all, a->wash_q12) / 2 : 0),
-                        rv_l = 0, rv_r = 0; /* WASH: everything, at half */
-                const ToneSubBiquadCoeff *rt = &REVERB_TONE_BIQUAD_Q28[a->fx.reverb_tone / 10u];
-                int32_t tl, tr;
-                reverb_step(a, send, &rv_l, &rv_r);
-                tl = tone_lp24(rt, a->reverb_tone_s[0], rv_l);
-                tr = tone_lp24(rt, a->reverb_tone_s[1], rv_r);
-                {
-                    /* DC blocker, ~27 Hz: reverb_hp_y1 integrates the DC in Q8 and is subtracted. The old
-                     * q15mul one-pole high-pass floored to a dead band and passed about -150 of DC forever,
-                     * which kept the tail guard armed, so the unit never counted as silent (P1-1). */
-                    int32_t hp_l = tl - (a->reverb_hp_y1 >> 8);
-                    int32_t hp_r = tr - (a->reverb_hp_y1_r >> 8);
-                    a->reverb_hp_y1 += hp_l;
-                    a->reverb_hp_y1_r += hp_r;
-                    mix_l += mul_q12(hp_l, rev_level); /* reverbReturnGain's 1050/1000 is in it */
-                    mix_r += mul_q12(hp_r, rev_level);
+                        rv_l = 0, rv_r = 0, hp_l, hp_r; /* WASH: everything, at half */
+                reverb_in(a, send);
+                if (parts_on && a->parts_job.reverb) { /* its network and return: the parts' chunk */
+                    hp_l = a->rev_out[0][i - parts_at0];
+                    hp_r = a->rev_out[1][i - parts_at0];
+                } else {
+                    reverb_out(a, &rv_l, &rv_r);
+                    reverb_return(a, rv_l, rv_r, &hp_l, &hp_r);
                 }
+                mix_l += mul_q12(hp_l, rev_level); /* reverbReturnGain's 1050/1000 is in it */
+                mix_r += mul_q12(hp_r, rev_level);
                 /* Its own tail: with WET at 0 the network runs on only until what it holds has died away (the
                  * delay's tail guard used to keep it running for nothing). */
                 if (send > 8 || send < -8)
@@ -3545,7 +3603,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 else if (a->reverb_live &&
                          !--a->reverb_live) { /* the tail gone: the diffusers where SIZE put them */
                     uint8_t k;
-                    for (k = 0u; k < 3u; ++k) a->reverb_ap_now[k] = a->reverb_ap_delay[k];
+                    for (k = 0u; k < 3u; ++k) /* (split, they are already: parts_reverb) */
+                        if (a->reverb_ap_now[k] != a->reverb_ap_delay[k])
+                            a->reverb_ap_now[k] = a->reverb_ap_delay[k];
                 }
             }
             if (a->perf_fx & 3u || a->sweep_pos[0] | a->sweep_pos[1])
