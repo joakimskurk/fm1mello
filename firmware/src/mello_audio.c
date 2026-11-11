@@ -3157,9 +3157,17 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         ramp_to(&a->rp_delay, (int32_t)a->delay_samples, 50u, a->rendered_frames == 0u);
         if (a->rp_delay.left) a->ramps_moving = true;
     }
+    /* The routes' sums per destination, zeroed once a block: a sample clears only the entries the routes write (the
+     * block's routes, apply_pending above), as zeroing all of it each sample costs this chip a 72-byte loop. */
+    int32_t dmod[MELLO_DEST_COUNT] = {0};
+    uint8_t mod_at[2u * MELLO_DOT_MOD_LANES];
+    for (i = 0u; i < MELLO_DOT_MOD_LANES; ++i) {
+        mod_at[2u * i] = (uint8_t)(a->modr.dot_target[i] % MELLO_DEST_COUNT);
+        mod_at[2u * i + 1u] = (uint8_t)(a->modr.tm_dest[i] % MELLO_DEST_COUNT);
+    }
     for (i = 0u; i < frames; ++i) {
         int32_t lead = 0, sub = 0, sample_mix = 0, mix, mix_l = 0, mix_r = 0, lfo = 0, ampmod = 32767,
-                mod_env, dmod[MELLO_DEST_COUNT];
+                mod_env;
         bool mods = false;
 #if MELLO_FEATURE_CHORD_MACHINE
         int32_t chord_mix = 0, chord_l = 0, chord_r = 0;
@@ -3231,11 +3239,11 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         if (a->dot_lane[0].stage || a->dot_lane[1].stage || a->tm_value) {
             /* DOT's MOD lanes and EVOLVE's sound routes, summed per destination in permille of its range. */
             uint8_t l;
-            memset(dmod, 0, sizeof dmod);
+            for (l = 0u; l < 2u * MELLO_DOT_MOD_LANES; ++l) dmod[mod_at[l]] = 0;
             for (l = 0u; l < MELLO_DOT_MOD_LANES; ++l) {
                 dot_lane_tick(a, &a->dot_lane[l], l);
-                dmod[a->modr.dot_target[l] % MELLO_DEST_COUNT] += a->dot_lane[l].v >> 16;
-                dmod[a->modr.tm_dest[l] % MELLO_DEST_COUNT] += a->tm_value * a->modr.tm_depth[l] / 32768;
+                dmod[mod_at[2u * l]] += a->dot_lane[l].v >> 16;
+                dmod[mod_at[2u * l + 1u]] += shr_tz(a->tm_value * a->modr.tm_depth[l], 15u);
             }
             dmod[MELLO_DEST_OFF] = 0;
             mods = true;

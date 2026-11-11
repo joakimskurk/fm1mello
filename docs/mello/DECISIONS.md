@@ -2227,6 +2227,14 @@ plan (ROADMAP H) was agreed the same evening; this is its ground.
   permille; GLOBAL > SYSTEM shows it on K4 as CPU 2 beside the render's CPU. fm1-emu 0.3.0: the worst case CPU 54%,
   CPU 2 52%, the two cores about as busy (what the second core is given more raises the worst case); the default
   project CPU 27%, CPU 2 14%. (CPU's clock was also read from the counted time with MELLO_FIXED_CLOCK: no more.)
+- **Under the rule (0.5-f120).** The pi32v2 compiler makes a memset of a local a byte loop: the render zeroed the
+  routes' 18 sums (72 bytes, 4 instructions a byte) at every sample the lanes or EVOLVE move, and found each
+  route's destination with a divide (`% MELLO_DEST_COUNT`, a hardware divide on this chip). Now the sums are zeroed
+  once a block and a sample clears only the four the routes write, their destinations found once a block (the
+  routes only change between blocks); EVOLVE's share is a shift towards zero, as the divide by 32768 was. The same
+  output to the bit (the routes moved every quarter second to every destination, six runs; cpu1_split's hash).
+  fm1-emu 0.3.0, the worst case with CORE 2 ON: core 0's heaviest block 53.9% (f116) -> 48.2%, 2.80 ms of 5.8, so
+  under docs/RULES.md's 2.9 by instruction count; CPU 2 52% -> 46% (its wait on the render is shorter).
 
 ## Oliverb (2026-11-11)
 
