@@ -289,6 +289,15 @@ static void app_main(void)
     mello_audio_set_drum_config(&audio, &mt.engine.drums);
     mello_audio_set_bass_config(&audio, &mt.engine.bass);
     mello_transport_set_event_sink(&mt, mello_audio_event_sink, &audio);
+#ifndef DINGHY_HOST
+#ifndef MELLO_CPU1_RENDER
+#define MELLO_CPU1_RENDER 1 /* 0: the second core started as switched, the chords kept here (fm1-emu's A/B) */
+#endif
+    if (MELLO_CPU1_RENDER && cpu1_on()) { /* CORE 2 ON and running: the chords render there (ROADMAP H2) */
+        static const MelloAudioCores two_cores = {cpu1_run, cpu1_wait, cpu1_sync};
+        mello_audio_set_cores(&audio, &two_cores);
+    }
+#endif
     audio_ready = true;
     last_running = mt.running;
 
@@ -367,6 +376,8 @@ pass: /* the loop's body, once a call */
         mello_ui_set_held_notes(&ui, fm1_in.notes);
 #ifndef DINGHY_HOST
         mello_ui_set_audio_load(&ui, audio_load); /* (the host's clock has milliseconds: nothing to show) */
+        if (ui.cores != cpu1_state)
+            mello_ui_set_cores(&ui, cpu1_state, ui.second_core);   /* (given up: GAVE UP) */
         if (ui.second_core != (plat_settings.second_core != 0u)) { /* CORE 2 turned: for the next power-on */
             plat_settings.second_core = ui.second_core;
             settings_save(&plat_settings, sizeof plat_settings); /* (~50 ms: the flash sector's erase) */

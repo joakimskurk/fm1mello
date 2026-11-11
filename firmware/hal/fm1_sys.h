@@ -166,6 +166,10 @@ FM1_INLINE void fm1_cpu1_halt(void)
     __asm__ volatile("csync" ::: "memory");
 }
 
+/* a barrier between the two cores' writes and reads (they share the caches): what one wrote before it, the other
+ * reads after its own (SkurkyMello: the render's chord chunk, mello_audio.c chord_block) */
+FM1_INLINE void fm1_cpu1_sync(void) { __asm__ volatile("csync" ::: "memory"); }
+
 static void fm1_reboot(void)
 {
     __asm__ volatile("cli");

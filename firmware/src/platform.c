@@ -226,6 +226,7 @@ static uint32_t cpu1_timeouts;                 /* jobs core 1 did not finish in 
 static volatile uint32_t cpu1_test_out;
 
 static int cpu1_on(void) { return cpu1_state == CPU1_OK && fm1_c1_on; }
+static void cpu1_sync(void) { fm1_cpu1_sync(); } /* between the cores' writes and reads (the shared caches) */
 /* hand core 1 a job: 1 = it took it (cpu1_wait before touching what it works on); 0 = run it yourself */
 static int cpu1_run(cpu1_job_t fn, uint32_t arg) { return cpu1_state == CPU1_OK ? fm1_cpu1_run(fn, arg) : 0; }
 /* 0 = done; -1 = read wrong or late: core 1 is held until power-off, and the caller does the job itself */

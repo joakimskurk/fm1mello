@@ -2168,8 +2168,28 @@ plan (ROADMAP H) was agreed the same evening; this is its ground.
   lit, CORE 2, the chip's core 1, lit while it runs), and in gold ON or OFF AT NEXT POWER-ON while the switch
   differs from now. It is the FM-1's setting, in no project or slot. The
   host and the web player show one core, off. Test: system_layer.
-- **No work on it yet**: the render runs on core 0 as before. The split (the chords, then the drums, the same
-  output bit for bit with one core or two) is ROADMAP H2-H3.
+- **The chords a chunk at a time (0.5-f110).** The render's per-sample loop no longer renders the chords:
+  chord_block does up to 256 samples (a block on the FM-1) into a chunk of their own, ahead, counting each sample as
+  it is done, and the render reads them at the chords' place (LEVEL, the duck, the mutes and the sends as before).
+  What the chords needed from the rest a sample at a time the job does itself, on copies taken at the chunk's start:
+  the queue's events at its own read positions with the render's own times (so a chord note lands on its sample),
+  and the MOD lanes and EVOLVE's value for C.CUT. It writes only the chord state and the chunk. Whole renders hashed
+  before and after, five scenes in blocks of 256, 100, 512 and 1000: the same to the sample. One core pays about
+  1.5% for it (make bench), RAM 2.1 KB. Test: cpu1_split (a double of the second core: done at once, a thread, a
+  slow thread, a lost job, refused; ThreadSanitizer calls the count's handoff a race, a volatile and a barrier as
+  on the chip, not a C11 atomic).
+- **On the second core (0.5-f111).** With CORE 2 ON and running, the chunk goes to core 1 at each block; core 0
+  renders the rest and waits at a chord sample only while core 1 is behind. A job core 1 refuses, loses or brings
+  back late is finished on core 0 from its last sample, and core 1 is given up (GAVE UP on SYSTEM). fm1-emu 0.3.0,
+  the worst case (mello_engine_stress: POLY with chorus): the heaviest block 86.5% -> 79.8% of its 5.8 ms (5.0 ->
+  4.6 ms), core 0's interrupt 63.1% -> 58.5% of the chip by instruction count; the default pattern 38.1% either
+  way (its chords hardly sound). A check build (not kept) rendered each of core 1's 1009 chunks again on core 0
+  from a snapshot: every sample and the chord state the same. The recordings of the two do drift apart after a
+  while: the render's time is read from the clock at each interrupt, and when the interrupt takes less time the
+  main loop's work, and with it the interrupt's start, lands elsewhere, so an event may fall a sample later; two
+  packages that differ only in how they boot drift the same way. `MELLO_CFLAGS=-DMELLO_CPU1_RENDER=0` starts core
+  1 as switched but keeps the chords on core 0, the A/B for such runs.
+- **Still over the rule**: docs/RULES.md asks for under 2.9 ms in the worst case; the drums (ROADMAP H3) are next.
 
 ## Engineering process decisions
 
