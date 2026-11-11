@@ -2253,6 +2253,24 @@ the reverb as it is (V3) when the FM-1 has one core (ROADMAP H6). Measured first
   numbers: -39, -35 and -29 dB sample by sample, the energy of each tenth of a second within 0.5, 0.05 and 0.7 dB;
   the tail gone with no DC; bounded at decay 1.3; the shimmer at +12 puts 47 dB more on the octave, +7 on the fifth;
   the same seed, the same samples). Not yet in the render.
+- **On the second core (0.5-f116)**: at each chunk the render picks the reverb (reverb_choose). Oliverb while the
+  second core takes the parts' jobs; V3 with one core, from the chunk after the second refuses a job or loses one,
+  and with `mello_audio_set_oliverb(false)` (for FX > ROOM's choice to come). Both read the same pre-delay line and
+  share the memory after it (Oliverb's ring at 2688 of 24576), so a change empties it: the tail goes, the input runs
+  on (at power-on before the first sound; on a fault, once). The split is V3's (0.5-f113): the way in on core 0; the
+  network, the filter up and the return in the parts' job, whenever the reverb runs (WET up, its tail, WASH: the
+  render then feeds it the whole chunk). Oliverb's PRE is at least a chunk (128 network samples, 5.8 ms), so PRE
+  under 6 ms is 5.8 with it. Its settings: SIZE as Parasites' (0.05 + 0.94 x SIZE); DECAY as V3's lines (the loop's
+  gain a half for DECAY's RT60; a noise burst's T20 gives 2.36 s against V3's 2.54 at DECAY 6 s, 1.31 against 1.46
+  at 2 s, 3.34 against 3.62 at 15 s); TONE after it, as V3's; the rest Parasites' at rest (diffusion 0.625, TEXTURE
+  at noon, a small slow swing, no shimmer). The input is 6.1 dB under Parasites' 0.5, so the default project's
+  reverb is as loud as V3's (the burst's energy 0.0 dB; -0.8 to +1.7 dB at four other settings). For the chip, the
+  network has no divide but the shimmer's step: the pi32v2 toolchain divides even by a constant, and a 64-bit divide
+  is a library call. So powers of two are shifts that round towards zero, as the divide did (bit for bit the same
+  output), and the shimmer's step is 32-bit divides. Test cpu1_split, ten scenes: V3 on two cores is one core's in
+  every way; Oliverb is the same on a thread and on a slow one; refused, it is one core's from the first sample;
+  lost, a thread's until the lost job, then V3; with the job lost before WET goes up, the whole scene is one
+  core's.
 
 ## Engineering process decisions
 

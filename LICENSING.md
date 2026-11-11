@@ -55,9 +55,10 @@ the work itself, and they stay their author's.
 | Oliverb (`firmware/src/mello_oliverb.h`): a fixed-point C port of Parasites' `clouds/dsp/fx/oliverb.h`, Matthias Puech's reverb for Mutable Instruments Clouds, on Emilie Gillet's Clouds code (`fx_engine.h`, `random_oscillator.h`); the floating-point reference in `tests/mello/oliverb.c` follows it too | MIT | `firmware/src/mello_oliverb-LICENSE.txt`; <https://github.com/mqtthiqs/parasites> |
 | JieLi AC79 SDK: `uboot.boot`, `cfg_tool.bin`, `eq_cfg_hw.bin` are read from your SDK checkout at build time and placed in the package; no SDK files are in this tree | Apache-2.0 | <https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK> |
 
-A firmware package you share contains Kellogg's encoder and the Terminus font, so it goes with `LICENSE`,
-`firmware/src/screen_mirror-LICENSE.txt` and `assets/fonts/Terminus-LICENSE.txt`: a release attaches all three next
-to the package and links its source, as the GPL, MIT and OFL ask.
+A firmware package you share contains Kellogg's encoder, Oliverb and the Terminus font, so it goes with `LICENSE`,
+`firmware/src/screen_mirror-LICENSE.txt`, `firmware/src/mello_oliverb-LICENSE.txt` and
+`assets/fonts/Terminus-LICENSE.txt`: a release attaches all four next to the package and links its source, as the
+GPL, MIT and OFL ask.
 
 ## The logo
 

@@ -1685,6 +1685,8 @@ static uint16_t reverb_feedback_q15(uint32_t loop_samples, uint16_t decay_ms)
  * lost, and the network was half the sound's cost (32.7 of 68 M instructions a second on the FM-1). */
 #define RV3_RATE_DIV    2u
 #define RV3_LAYOUT_FULL 24166u
+/* network samples: the pre-delay a chunk or more, so the network can run a chunk ahead (parts_reverb; Oliverb's) */
+#define OLIVERB_PRE_MIN (MELLO_PARTS_CHUNK / RV3_RATE_DIV)
 #define RV3_PRE_FULL    5293u
 #define RV3_AP1_FULL    353u
 #define RV3_AP2_FULL    521u
@@ -1784,6 +1786,8 @@ static void reverb_configure(MelloAudio *a)
     }
 
     pre = ms_samples(a->fx.reverb_pre_ms) / RV3_RATE_DIV;
+    if (a->oliverb_on && pre < OLIVERB_PRE_MIN)
+        pre = OLIVERB_PRE_MIN; /* (a chunk ahead on the second core) */
     if (pre >= a->reverb_pre_cap) pre = a->reverb_pre_cap ? a->reverb_pre_cap - 1u : 0u;
     a->reverb_pre_samples = (uint16_t)pre;
     a->reverb_ap_delay[0] = rv3_tap(a->reverb_ap_cap[0], 430u, 790u, a->fx.reverb_size);
@@ -1811,6 +1815,51 @@ static void reverb_configure(MelloAudio *a)
             a->reverb_line_dq8[i] = (uint32_t)a->reverb_line_delay[i] << 8;
     for (i = 0u; i < 3u; ++i)
         if (!a->reverb_live || !a->reverb_ap_now[i]) a->reverb_ap_now[i] = a->reverb_ap_delay[i];
+}
+/* Oliverb's settings (DECISIONS "Oliverb"): SIZE as Parasites' (0.05 + 0.94 x SIZE), DECAY as V3's lines (the loop's
+ * gain a half for DECAY's time to -60 dB: a half is, on average, its two allpasses and its delay at SIZE), the rest
+ * Parasites' at rest (TEXTURE at noon, the swing and its rate low, no shimmer); TONE after it, as V3's. */
+#define OLIVERB_KAP 20480 /* diffusion 0.625 (Parasites' Init) */
+#define OLIVERB_IN_GAIN                                                                                      \
+    8118 /* the input's gain: Parasites' 0.5, -6.1 dB to V3's level at the default project's */
+#define OLIVERB_LP      32077   /* lp 0.93 at 32 kHz, the same corner here (1 - 0.07^(32000 / 22050)) */
+#define OLIVERB_HP      474     /* hp 0.01, the same */
+#define OLIVERB_MOD_Q16 1354752 /* the swing: 30 samples at 32 kHz (REVERB at 0.1), 20.7 here */
+#define OLIVERB_SLOPE   1902u   /* the LFOs' rate (FEEDBACK at 0.5): 0.5^6 / 200 x 32000 / 22050, Q24 */
+#define OLIVERB_HALF                                                                                         \
+    4844u /* a half of the loop at SIZE 1, network samples: (863+1198+2350+1043+939+3295) / 2 */
+static void oliverb_settings(MelloAudio *a)
+{
+    uint32_t size = a->fx.reverb_size > 1000u ? 1000u : a->fx.reverb_size, size_q16, half;
+    if (!a->oliverb_on) return;
+    size_q16 = 3277u + size * 61604u / 1000u;
+    half = (OLIVERB_HALF * size_q16) >> 16;
+    mello_oliverb_set(&a->oliverb, (int32_t)size_q16, OLIVERB_KAP,
+                      reverb_feedback_q15(half * RV3_RATE_DIV, a->fx.reverb_decay_ms), OLIVERB_IN_GAIN,
+                      OLIVERB_LP, OLIVERB_HP, OLIVERB_MOD_Q16, OLIVERB_SLOPE, 65536u, 0);
+}
+/* Which reverb (at a chunk's start): Oliverb while the second core takes the parts' jobs, V3 with one core, once the
+ * second is lost, or with Oliverb off. They share the memory after the pre-delay line, so a change empties it: the
+ * tail goes (once, at power-on or on a fault), the input runs on. */
+static void reverb_choose(MelloAudio *a)
+{
+    bool on = a->cores && !a->oliverb_off && a->reverb_buffer && a->reverb_capacity > 1024u &&
+              a->reverb_pre_cap > OLIVERB_PRE_MIN &&
+              a->reverb_pre_cap + MELLO_OLIVERB_RING <= a->reverb_capacity;
+    uint8_t k;
+    if (on == a->oliverb_on) return;
+    a->oliverb_on = on;
+    if (on)
+        mello_oliverb_init(&a->oliverb, a->reverb_buffer + a->reverb_pre_cap, 0u);
+    else if (a->reverb_buffer && a->reverb_capacity > a->reverb_pre_cap) {
+        memset(a->reverb_buffer + a->reverb_pre_cap, 0,
+               (a->reverb_capacity - a->reverb_pre_cap) * sizeof a->reverb_buffer[0]);
+        memset(a->reverb_mod_y, 0, sizeof a->reverb_mod_y);
+        for (k = 0u; k < 8u; ++k) a->reverb_line_dq8[k] = (uint32_t)a->reverb_line_delay[k] << 8;
+        for (k = 0u; k < 3u; ++k) a->reverb_ap_now[k] = a->reverb_ap_delay[k];
+    }
+    reverb_configure(a); /* (PRE: Oliverb's at least a chunk) */
+    oliverb_settings(a);
 }
 static int32_t rv3_allpass(MelloAudio *a, uint16_t which, int32_t x, uint16_t g)
 {
@@ -1863,6 +1912,13 @@ static void reverb_network(MelloAudio *a, int32_t send, int32_t *left, int32_t *
     p++;
     if (p >= a->reverb_pre_cap) p = 0u;
     a->reverb_out_pos = p;
+    if (a->oliverb_on) { /* Oliverb, from the same line (reverb_choose) */
+        int32_t ol, orr;
+        mello_oliverb_step(&a->oliverb, x, &ol, &orr, SINE_Q15);
+        if (left) *left = ol;
+        if (right) *right = orr;
+        return;
+    }
 
     x = rv3_allpass(a, 0u, x, 18022u);
     x = rv3_allpass(a, 1u, x, 20890u);
@@ -2290,6 +2346,7 @@ static void apply_pending(MelloAudio *a)
     }
     if (reverb_changed || a->applied_generation == 0u) {
         reverb_configure(a);
+        oliverb_settings(a);
 #if defined(MELLO_LIVE_EDIT_TEST_HOOK) && MELLO_LIVE_EDIT_TEST_HOOK
         a->test_reverb_reconfigs++;
 #endif
@@ -2869,9 +2926,12 @@ static void parts_job_entry(uint32_t arg)
 static bool parts_reverb(const MelloAudio *a)
 {
     uint8_t k;
-    if (!a->cores || !a->reverb_buffer || a->reverb_capacity <= 1024u || !a->fx.reverb_wet ||
-        a->reverb_pre_cap < 2u || a->reverb_pre_samples < MELLO_PARTS_CHUNK / RV3_RATE_DIV)
+    if (!a->cores || !a->reverb_buffer || a->reverb_capacity <= 1024u || a->reverb_pre_cap < 2u ||
+        a->reverb_pre_samples < OLIVERB_PRE_MIN)
         return false;
+    /* Oliverb: there, whenever the reverb runs (its tail, WASH; the render then feeds it the whole chunk) */
+    if (a->oliverb_on) return a->fx.reverb_wet || a->reverb_live || a->wash_q12;
+    if (!a->fx.reverb_wet) return false;
     for (k = 0u; k < 3u; ++k)
         if (a->reverb_ap_now[k] != a->reverb_ap_delay[k]) return false;
     return true;
@@ -2903,13 +2963,21 @@ static void parts_start(MelloAudio *a, uint32_t t, uint32_t terr, uint32_t n)
     j->buf_pos = j->buf_pos0 = a->drum_buf_pos;
     a->parts_done = a->heard_done = 0u;
     parts_job_audio = a;
-    if (a->cores) a->cores->sync();
-    a->parts_on_core1 = a->cores && a->cores->run(parts_job_entry, 0u);
+    a->parts_on_core1 = false;
+    if (a->cores) {
+        a->cores->sync();
+        a->parts_on_core1 = a->cores->run(parts_job_entry, 0u) != 0;
+        if (!a->parts_on_core1) { /* refused: the second core is off until power-off, so one core from here */
+            a->cores = 0;
+            reverb_choose(a); /* V3 before this chunk's first sample */
+            j->reverb = parts_reverb(a);
+        }
+    }
 }
 /* the job given up (late, or its core read it wrong and is held): from its last sample, here */
 static void parts_take_back(MelloAudio *a)
 {
-    (void)a->cores->wait();
+    if (a->cores->wait() < 0) a->cores = 0; /* lost: the core held until power-off; V3 from the next chunk */
     a->parts_on_core1 = false;
 }
 /* the render at the chunk's sample s: waits for it while the second core is behind, or does it here */
@@ -2947,6 +3015,10 @@ static void parts_finish(MelloAudio *a)
 void mello_audio_set_cores(MelloAudio *a, const MelloAudioCores *cores)
 {
     if (a) a->cores = cores && cores->run && cores->wait && cores->sync ? cores : 0;
+}
+void mello_audio_set_oliverb(MelloAudio *a, bool on)
+{
+    if (a) a->oliverb_off = !on; /* (taken at the next chunk: reverb_choose) */
 }
 void mello_audio_event_sink(void *ctx, const MelloEvent *e, uint32_t due)
 {
@@ -3097,6 +3169,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
 #endif
         if (!(i % MELLO_PARTS_CHUNK)) { /* the parts' next chunk, from here, before this sample's events */
             parts_finish(a);
+            reverb_choose(a);
             parts_on = a->drum_config.on || parts_reverb(a);
 #if MELLO_FEATURE_CHORD_MACHINE
             parts_on = parts_on || a->chord_config.on;
@@ -3584,7 +3657,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             mix_l += mul_q12(drums_l, 3441);
             mix_r += mul_q12(drums_r, 3441);
             if (a->reverb_buffer && a->reverb_capacity > 1024u &&
-                (a->fx.reverb_wet || a->reverb_live || a->wash_q12)) {
+                ((parts_on && a->parts_job.reverb) || a->fx.reverb_wet || a->reverb_live || a->wash_q12)) {
                 int32_t send =
                             mul_q12(fx_rev, rev_send) + (a->wash_q12 ? mul_q12(fx_all, a->wash_q12) / 2 : 0),
                         rv_l = 0, rv_r = 0, hp_l, hp_r; /* WASH: everything, at half */

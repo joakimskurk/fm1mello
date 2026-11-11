@@ -4,6 +4,7 @@
 #define MELLO_AUDIO_H
 
 #include "mello_engine.h"
+#include "mello_oliverb.h"
 #include "mello_sample.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -446,6 +447,11 @@ typedef struct {
     uint8_t reverb_hb_in_pos, reverb_hb_out_pos;
     bool reverb_odd, reverb_odd_out; /* the half rate: the input's step, and the network's */
     uint16_t reverb_send_permille;
+    /* Oliverb (ROADMAP H6): the reverb while the second core takes the parts' jobs (reverb_choose), V3 otherwise. Its
+     * ring is V3's memory after the pre-delay line; both read the same line. */
+    MelloOliverb oliverb;
+    bool oliverb_on;  /* Oliverb is the reverb now */
+    bool oliverb_off; /* mello_audio_set_oliverb(false): V3 whatever the cores */
     int16_t sub_dist_curve[257];
     int16_t pending_sub_dist_curve[257];
     /* Gain compensation for the drives (DECISIONS "Distortion keeps its level"), worked out on the main loop when
@@ -507,8 +513,11 @@ void mello_audio_event_sink(void *ctx, const MelloEvent *event, uint32_t due_us)
 void mello_audio_render(MelloAudio *a, int32_t *out_stereo, uint32_t frames, uint32_t block_start_us,
                         uint16_t bpm);
 void mello_audio_all_notes_off(MelloAudio *a);
-/* The second core for the render (MelloAudioCores), or NULL for one: the output is the same to the sample either way. */
+/* The second core for the render (MelloAudioCores), or NULL for one: the output is the same to the sample either way,
+ * but for the reverb: Oliverb with the second core, V3 with one (and from the chunk after the second is lost). */
 void mello_audio_set_cores(MelloAudio *a, const MelloAudioCores *cores);
+/* Oliverb where the second core runs it (true, the default), or V3 always */
+void mello_audio_set_oliverb(MelloAudio *a, bool on);
 bool mello_audio_queue_overflowed(const MelloAudio *a);
 bool mello_audio_is_silent(const MelloAudio *a);
 #if defined(MELLO_REVERB_TEST_HOOK) && MELLO_REVERB_TEST_HOOK

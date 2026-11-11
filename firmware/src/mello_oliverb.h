@@ -79,18 +79,28 @@ typedef struct {
     uint32_t ratio_q16;                                 /* the shimmer's pitch ratio */
 } MelloOliverb;
 
-static uint32_t olv_rand(MelloOliverb *o)
+static inline uint32_t olv_rand(MelloOliverb *o)
 {
     return o->rng = o->rng * 1664525u + 1013904223u;
 }
+/* x / 2^k towards zero, as C's divide, in shifts: the pi32v2 toolchain divides even by a constant (a 64-bit divide is
+ * a library call) */
+static inline int32_t olv_shr0(int32_t x, uint32_t k)
+{
+    return (x + ((x >> 31) & (int32_t)((1u << k) - 1u))) >> k;
+}
+static inline int64_t olv_shr0_64(int64_t x, uint32_t k)
+{
+    return (x + ((x >> 63) & (int64_t)((1u << k) - 1u))) >> k;
+}
 /* a x b, Q15, towards zero (as the render's mul_q12): a floor holds -1 LSB in a loop for ever, and the tail never
  * ends (DECISIONS "Room to run"); towards zero every loop's error makes it smaller */
-static int32_t olv_q15(int32_t a, int32_t b)
+static inline int32_t olv_q15(int32_t a, int32_t b)
 {
-    return (int32_t)(((int64_t)a * b) / 32768);
+    return (int32_t)olv_shr0_64((int64_t)a * b, 15u);
 }
 /* sin^2 (pi t / 2) = (1 - cos (pi t)) / 2, t Q16 (0 .. 65536): Parasites' raised cosine and grain window */
-static int32_t olv_raised_cos(int32_t t_q16, const int16_t sine_q15[256])
+static inline int32_t olv_raised_cos(int32_t t_q16, const int16_t sine_q15[256])
 {
     uint32_t p = (uint32_t)t_q16 * 128u + (64u << 16); /* pi t + pi / 2 in 256ths of a turn, Q16 */
     int32_t i = (int32_t)((p >> 16) & 255u), f = (int32_t)(p & 0xFFFFu) >> 1, s0 = sine_q15[i],
@@ -98,17 +108,17 @@ static int32_t olv_raised_cos(int32_t t_q16, const int16_t sine_q15[256])
     int32_t c = s0 + (int32_t)(((int64_t)(s1 - s0) * f) >> 15);
     return (32768 - c) >> 1;
 }
-static void olv_lfo_inc(MelloOliverb *o,
-                        MelloOliverbLfo *l) /* slope / |next - value| (the divide: a glide's start) */
+/* slope / |next - value| (the divide, 32-bit: a glide's start; slope_q24 is under 2^17) */
+static inline void olv_lfo_inc(MelloOliverb *o, MelloOliverbLfo *l)
 {
     int32_t d = l->next - l->value;
     uint32_t inc;
     if (d < 0) d = -d;
     if (d < 1) d = 1;
-    inc = (uint32_t)(((uint64_t)o->slope_q24 << 15) / (uint32_t)d);
+    inc = (o->slope_q24 << 15) / (uint32_t)d;
     l->inc = inc > (1u << 24) ? (1u << 24) : inc;
 }
-static int32_t olv_lfo_next(MelloOliverb *o, MelloOliverbLfo *l, const int16_t sine_q15[256])
+static inline int32_t olv_lfo_next(MelloOliverb *o, MelloOliverbLfo *l, const int16_t sine_q15[256])
 {
     l->phase += l->inc;
     if (l->phase > (1u << 24)) {
@@ -143,7 +153,7 @@ static const int16_t OLV_SOFT[257] = {
     8212, 8213, 8215, 8216, 8217, 8218, 8220, 8221, 8223, 8224, 8226, 8227, 8229, 8231, 8233, 8234, 8236,
     8238, 8240,
 };
-static int32_t olv_soft_limit(int32_t x) /* the accumulator's units in and out (OLV_ONE = 1.0) */
+static inline int32_t olv_soft_limit(int32_t x) /* the accumulator's units in and out (OLV_ONE = 1.0) */
 {
     uint32_t a = (uint32_t)(x < 0 ? -x : x), i = a >> 17, f = a & 0x1FFFFu; /* the table's step, 1/64: 2^17 */
     int32_t y;
@@ -159,31 +169,44 @@ static int32_t olv_soft_limit(int32_t x) /* the accumulator's units in and out (
  * a quiet tail is not cut short at every product: only the memory is 16-bit, as Clouds'. */
 #define OLV_ONE               (32768 * 256)
 #define OLV_RD(o, line, k)    ((int32_t)OLV_AT(o, line, k) * 256)
-#define OLV_WR(o, line, k, v) (OLV_AT(o, line, k) = olv_sat16((v) / 256))
+#define OLV_WR(o, line, k, v) (OLV_AT(o, line, k) = olv_sat16(olv_shr0((v), 8u)))
 /* Hermite between the line's samples at an offset of Q16 samples (it reads one before and two after, as Clouds') */
-static int32_t olv_hermite(const MelloOliverb *o, uint8_t line, int32_t off_q16)
+static inline int32_t olv_hermite(const MelloOliverb *o, uint8_t line, int32_t off_q16)
 {
     int32_t n = off_q16 >> 16, t = (off_q16 & 0xFFFF) >> 1; /* Q15 */
     int32_t xm1 = OLV_RD(o, line, n - 1), x0 = OLV_RD(o, line, n), x1 = OLV_RD(o, line, n + 1),
             x2 = OLV_RD(o, line, n + 2);
-    int32_t c = (x1 - xm1) / 2, v = x0 - x1, w = c + v, a = w + v + (x2 - x0) / 2, b_neg = w + a;
-    int64_t y = ((int64_t)a * t) / 32768;
-    y = ((y - b_neg) * t) / 32768;
-    y = ((y + c) * t) / 32768;
+    int32_t c = olv_shr0(x1 - xm1, 1u), v = x0 - x1, w = c + v, a = w + v + olv_shr0(x2 - x0, 1u),
+            b_neg = w + a;
+    int64_t y = olv_shr0_64((int64_t)a * t, 15u);
+    y = olv_shr0_64((y - b_neg) * t, 15u);
+    y = olv_shr0_64((y + c) * t, 15u);
     return (int32_t)y + x0;
 }
-static int32_t olv_linear(const MelloOliverb *o, uint8_t line, int32_t off_q16)
+static inline int32_t olv_linear(const MelloOliverb *o, uint8_t line, int32_t off_q16)
 {
     int32_t n = off_q16 >> 16, f = (off_q16 & 0xFFFF) >> 1, a = OLV_RD(o, line, n),
             b = OLV_RD(o, line, n + 1);
     return a + olv_q15(b - a, f);
 }
-static int16_t olv_sat16(int32_t x)
+/* n x 2^shift / den, floored, in 32-bit divides (no 64-bit one in the audio path): den under 2^28, 3 bits a step */
+static inline uint32_t olv_div_shl(uint32_t n, uint32_t den, uint32_t shift)
+{
+    uint32_t q = n / den, r = n - q * den;
+    while (shift) {
+        uint32_t k = shift < 3u ? shift : 3u, qk;
+        r <<= k;
+        qk = r / den;
+        q = (q << k) + qk, r -= qk * den, shift -= k;
+    }
+    return q;
+}
+static inline int16_t olv_sat16(int32_t x)
 {
     return (int16_t)(x > 32767 ? 32767 : x < -32768 ? -32768 : x);
 }
 /* a line's swung offset: (length - 1) x SIZE + lfo x the swing, within 1 .. length - 1 */
-static int32_t olv_offset(const MelloOliverb *o, uint8_t line, int32_t lfo)
+static inline int32_t olv_offset(const MelloOliverb *o, uint8_t line, int32_t lfo)
 {
     int32_t hi = (int32_t)(OLV_LEN[line] - 1u) << 16,
             off = (int32_t)((((int64_t)(OLV_LEN[line] - 1u) * o->smooth) >> 8) +
@@ -192,7 +215,7 @@ static int32_t olv_offset(const MelloOliverb *o, uint8_t line, int32_t lfo)
 }
 
 /* ring: MELLO_OLIVERB_RING samples. The settings after: mello_oliverb_set. */
-static void mello_oliverb_init(MelloOliverb *o, int16_t *ring, uint32_t seed)
+static inline void mello_oliverb_init(MelloOliverb *o, int16_t *ring, uint32_t seed)
 {
     uint8_t i;
     uint16_t b = 0u;
@@ -218,22 +241,24 @@ static void mello_oliverb_init(MelloOliverb *o, int16_t *ring, uint32_t seed)
 /* Parasites' settings, ours in: size, diffusion (kap), decay (the loop's gain each half, Q15, up to 1.3), the input's
  * gain, the loop's low-pass and high-pass (one-pole coefficients at this rate, Q15), the swing (samples Q16), the
  * LFOs' slope (Q24 a step), the shimmer's ratio (Q16) and amount (Q15). Out of the audio path: a divide each LFO. */
-static void mello_oliverb_set(MelloOliverb *o, int32_t size_q16, int32_t kap, int32_t decay, int32_t in_gain,
-                              int32_t lp, int32_t hp, int32_t mod_q16, uint32_t slope_q24, uint32_t ratio_q16,
-                              int32_t psa)
+static inline void mello_oliverb_set(MelloOliverb *o, int32_t size_q16, int32_t kap, int32_t decay,
+                                     int32_t in_gain, int32_t lp, int32_t hp, int32_t mod_q16,
+                                     uint32_t slope_q24, uint32_t ratio_q16, int32_t psa)
 {
     uint8_t i;
     o->size_q16 = size_q16, o->kap = kap, o->decay = decay, o->in_gain = in_gain, o->lp = lp, o->hp = hp;
+    slope_q24 = slope_q24 < 1u ? 1u : slope_q24 > 131071u ? 131071u : slope_q24; /* (olv_lfo_inc's 32 bits) */
+    ratio_q16 = ratio_q16 > (8u << 16) ? 8u << 16 : ratio_q16;                   /* (and the shimmer's) */
     o->mod_q16 = mod_q16, o->ratio_q16 = ratio_q16, o->psa = psa;
     if (slope_q24 != o->slope_q24) {
-        o->slope_q24 = slope_q24 ? slope_q24 : 1u;
+        o->slope_q24 = slope_q24;
         for (i = 0u; i < 9u; ++i) olv_lfo_inc(o, &o->lfo[i]);
     }
 }
 
 /* One step of the network (22.05 kHz): in, the input (mono, samples); *l, *r out. */
-static void mello_oliverb_step(MelloOliverb *o, int32_t in, int32_t *l, int32_t *r,
-                               const int16_t sine_q15[256])
+static inline void mello_oliverb_step(MelloOliverb *o, int32_t in, int32_t *l, int32_t *r,
+                                      const int16_t sine_q15[256])
 {
     int32_t acc, prev, apout, tri, ps_size, phase, half, g_main, g_ps;
     const int32_t kap = o->kap;
@@ -244,9 +269,10 @@ static void mello_oliverb_step(MelloOliverb *o, int32_t in, int32_t *l, int32_t 
     /* the shimmer's window: its length from SIZE (Parasites' 128 .. 3410 samples, scaled), its move worked out
      * every 16 steps (a divide), a raised cosine across it */
     ps_size = (88 << 16) + (int32_t)(((int64_t)(2350 - 88) * o->smooth) >> 8); /* Q16 samples */
-    if (!(o->tick++ & 15u)) {
-        int64_t num = ((int64_t)65536 - (int64_t)o->ratio_q16) * 16777216; /* (1 - ratio) / ps_size, Q24 */
-        o->ps_step = (int32_t)(num / ps_size);
+    if (!(o->tick++ & 15u)) { /* (1 - ratio) / ps_size, Q24, towards zero */
+        int32_t d = 65536 - (int32_t)o->ratio_q16;
+        uint32_t q = olv_div_shl((uint32_t)(d < 0 ? -d : d) << 12, (uint32_t)ps_size, 12u);
+        o->ps_step = d < 0 ? -(int32_t)q : (int32_t)q;
     }
     o->ps_phase = (o->ps_phase + (uint32_t)o->ps_step) & 0xFFFFFFu;
     {
@@ -254,7 +280,7 @@ static void mello_oliverb_step(MelloOliverb *o, int32_t in, int32_t *l, int32_t 
         int32_t t = (int32_t)((ph >= (1u << 23) ? (1u << 24) - ph : ph) >> 7); /* 2 (ph or 1 - ph), Q16 */
         tri = olv_raised_cos(t, sine_q15);
         phase = (int32_t)(((int64_t)ph * ps_size) >> 24);
-        half = phase + ps_size / 2;
+        half = phase + (ps_size >> 1); /* (ps_size > 0) */
         if (half >= ps_size) half -= ps_size;
     }
 
@@ -301,7 +327,7 @@ static void mello_oliverb_step(MelloOliverb *o, int32_t in, int32_t *l, int32_t 
     OLV_AP(OLV_DAP1A, 6, -kap);
     OLV_AP_FIXED(OLV_DAP1B, kap);
     OLV_WR(o, OLV_DEL1, 0, acc);
-    *l = acc / 128; /* x 2, in samples */
+    *l = olv_shr0(acc, 7u); /* x 2, in samples */
 
     /* the second half: del1, the same */
     acc = apout;
@@ -319,7 +345,7 @@ static void mello_oliverb_step(MelloOliverb *o, int32_t in, int32_t *l, int32_t 
     OLV_AP(OLV_DAP2A, 8, kap);
     OLV_AP_FIXED(OLV_DAP2B, -kap);
     OLV_WR(o, OLV_DEL2, 0, acc);
-    *r = acc / 128;
+    *r = olv_shr0(acc, 7u);
 #undef OLV_AP
 #undef OLV_AP_FIXED
 }
