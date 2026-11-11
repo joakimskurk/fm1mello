@@ -207,7 +207,7 @@ static void storage(void)
               e.fx.olv_shimmer == -7 && e.fx.trim_db == 2,
           "saved, loaded as DIFFUSE %u, SWING %u, RATE %u, SHIMMER %d, TRIM %d", e.fx.olv_diffuse,
           e.fx.olv_swing, e.fx.olv_rate, e.fx.olv_shimmer, e.fx.trim_db);
-    /* the same record, its FX section made version 7: its last 7 bytes (the knobs) go */
+    /* the same record, its FX section made version 7: its last 12 bytes go (version 8's 7, the knobs, and 9's 5) */
     if (get32(flash + MELLO_STORAGE_BANK0_ADDR) == MELLO_STORAGE_MAGIC) base = MELLO_STORAGE_BANK0_ADDR;
     if (get32(flash + MELLO_STORAGE_BANK1_ADDR) == MELLO_STORAGE_MAGIC) base = MELLO_STORAGE_BANK1_ADDR;
     CHECK(base != 0u, "no record");
@@ -218,13 +218,13 @@ static void storage(void)
         uint32_t id = pl[pos] | (uint32_t)pl[pos + 1u] << 8, ver = pl[pos + 2u] | (uint32_t)pl[pos + 3u] << 8,
                  len = get32(pl + pos + 4u);
         if (id == 5u) { /* SEC_FX */
-            const uint8_t *k = pl + pos + 8u + len - 7u;
-            CHECK(ver == 8u && (k[0] | k[1] << 8) == 230 && (k[2] | k[3] << 8) == 870 &&
+            const uint8_t *k = pl + pos + 8u + len - 12u;
+            CHECK(ver == 9u && (k[0] | k[1] << 8) == 230 && (k[2] | k[3] << 8) == 870 &&
                       (k[4] | k[5] << 8) == 40 && (int8_t)k[6] == -7,
-                  "the FX section is version %u, its last 7 bytes not the knobs", ver);
-            memmove(pl + pos + 8u + len - 7u, pl + pos + 8u + len, /* (the footer after the payload too) */
+                  "the FX section is version %u, the knobs not 12 bytes from its end", ver);
+            memmove(pl + pos + 8u + len - 12u, pl + pos + 8u + len, /* (the footer after the payload too) */
                     size - (pos + 8u + len) + MELLO_STORAGE_FOOTER_SIZE);
-            len -= 7u, size -= 7u;
+            len -= 12u, size -= 12u;
             put32(pl + pos + 4u, len);
             put32(flash + base + 8u, size);
             pl[pos + 2u] = 7u, patched = 1;
@@ -250,7 +250,7 @@ static void ui(void)
     static MelloTransport t;
     static MelloStorage st;
     static MelloUi u;
-    static const uint8_t fwd[4] = {3u, 4u, 5u, 3u}, back[4] = {3u, 5u, 4u, 3u};
+    static const uint8_t fwd[4] = {4u, 5u, 6u, 4u}, back[4] = {4u, 6u, 5u, 4u};
     int16_t enc[MELLO_UI_ENCODER_COUNT];
     uint32_t ms = 100u;
     uint8_t i;
@@ -259,7 +259,7 @@ static void ui(void)
     mello_storage_init(&st, 0, 0);
     mello_ui_init(&u, &t, &st);
     mello_ui_set_page(&u, MELLO_UI_AUDIO_FX);
-    u.fx_subpage = 3u;
+    u.fx_subpage = 4u;
     for (i = 1u; i < 4u; ++i) {
         memset(enc, 0, sizeof enc);
         enc[MELLO_UI_ENC_SELECT] = 1;
@@ -272,7 +272,7 @@ static void ui(void)
         mello_ui_input(&u, ms * 1000u, ms, 0u, 0u, 0u, 0u, enc), ms += 50u;
         CHECK(u.fx_subpage == back[i], "SELECT back: layer %u, want %u", u.fx_subpage, back[i]);
     }
-    u.fx_subpage = 5u;
+    u.fx_subpage = 6u;
     memset(enc, 0, sizeof enc);
     enc[MELLO_UI_ENC_KNOB1] = 3, enc[MELLO_UI_ENC_KNOB2] = -2, enc[MELLO_UI_ENC_KNOB3] = 5,
     enc[MELLO_UI_ENC_KNOB4] = 3;

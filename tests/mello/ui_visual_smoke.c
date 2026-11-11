@@ -234,7 +234,7 @@ int main(void)
         ui.sound_subpage = i;
         if (render_page(&ui, &ops, MELLO_UI_SOUND_RESERVED) || fills < 35 || texts < 12) return 14;
     }
-    for (i = 0u; i < 6u; ++i) {
+    for (i = 0u; i < 7u; ++i) {
         ui.fx_subpage = i;
         if (render_page(&ui, &ops, MELLO_UI_AUDIO_FX) || fills < 25 || texts < 16) return 15;
     }

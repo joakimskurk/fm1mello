@@ -2400,6 +2400,17 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   apart to the sample (outside the crossfades), what is sent after is not in it, no step bigger than the sine's own
   in the loop or on the way out, REV plays a rising ramp falling, a time turned sizes the next pass, and never
   frozen the delay is the same to the sample.
+- **FX > DELAY LOOP (0.5-f126)**: the DELAY page's third layer, after SEND and CONFIG on SELECT (both ways): GLIDE
+  (OFF, or its time constant in ms), PITCH (OFF, or +-n ST, a semitone a detent), DIFFUSE (%), FREEZE (OFF, ON, REV,
+  a step a detent). The REVERB layers are now 4 to 6 inside the FX page (ROOM, RETURNS, OLIVERB), the buttons and
+  SELECT as before. The FX section's version 9 saves GLIDE, DIFFUSE and PITCH (5 bytes); one saved before loads them
+  off. FREEZE is not saved: a project never loads frozen. A STYLE roll, RNDMZR and the macros leave them. The stress
+  build (the worst case) turns GLIDE, DIFFUSE and PITCH on, so the load it measures includes them. Test
+  delay_loop_ui. fm1-emu 0.3.0, the worst case with CORE 2 ON: core 0's heaviest block 54.7% (3.17 ms of 5.8)
+  with them on, 48.2% (f120) without: over docs/RULES.md's 2.9 ms again, by the diffuser and the shifter on core 0
+  (on the host they about double the delay's own time). A new project, with them off, is as before. Not yet
+  settled: lighter arithmetic, or the delay's tap and its loop on the second core as the reverb's network went
+  (f113).
 
 ## Engineering process decisions
 

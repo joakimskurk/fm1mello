@@ -29,8 +29,9 @@ evening, in this order:
       its memory and V3's lines 24-bit, DECAY in seconds (0.5-f117 to f119); its loop's high-pass without a dead
       band (0.5-f121); its own knobs, FX > REVERB OLIVERB: DIFFUSE, SWING, RATE, SHIMMER (0.5-f122); A/B renders
       for the product owner to hear; fm1-emu's CPU 2.
-- [ ] H7. Clouds' looping delay, timed as the delay is now (DIV): the tape-like glide, the pitch shifter and the
-      diffuser on its repeats, FREEZE (and REVERSE); A/B renders and the load.
+- [ ] H7. Clouds' looping delay, timed as the delay is now (DIV): the tape-like glide (GLIDE, 0.5-f123), the
+      pitch shifter and the diffuser on its repeats (PITCH, DIFFUSE, 0.5-f124), FREEZE (and REVERSE: REV,
+      0.5-f125), on FX > DELAY LOOP (0.5-f126); A/B renders and the load.
 - [ ] H4. Letting go, each with the product owner's yes and only what one core still carries: POLY as a new
       project's chords; per sample where an A/B shows a difference (the 4-sample control step, the 16-sample
       coefficients); -Os as the fallback build should USB-MIDI babble with -O2.

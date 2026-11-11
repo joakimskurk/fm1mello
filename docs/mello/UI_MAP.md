@@ -59,6 +59,7 @@ K1-K4's labels with their default values. The text rows are kept by hand with th
 | <img src="../screens/fx-distortion.png" width="96" alt="AUDIO FX DISTORTION"> | AUDIO FX | FX | DISTORTION | `PRE-DIST PING M UNDO RNDMZR P` | AMT 0% · MIX 100% · CHAR 35% · TONE 82% |
 | <img src="../screens/fx-delay-send.png" width="96" alt="AUDIO FX DELAY SEND"> | AUDIO FX | FX | DELAY SEND | `PRE-DIST PING M UNDO RNDMZR P` | WET 12% · FDBK 32% · LO CUT 120HZ · HI CUT 72% |
 | <img src="../screens/fx-delay-config.png" width="96" alt="AUDIO FX DELAY CONFIG"> | AUDIO FX | FX | DELAY CONFIG | `PRE-DIST PING M UNDO RNDMZR P` | SYNC ON · DIV 8N · TIME 250MS · LEVEL 75% |
+| <img src="../screens/fx-delay-loop.png" width="96" alt="AUDIO FX DELAY LOOP"> | AUDIO FX | FX | DELAY LOOP | `PRE-DIST PING M UNDO RNDMZR P` | GLIDE OFF · PITCH OFF · DIFFUSE 0% · FREEZE OFF |
 | <img src="../screens/fx-reverb-room.png" width="96" alt="AUDIO FX REVERB ROOM"> | AUDIO FX | FX | REVERB ROOM | `PRE-DIST PING M UNDO RNDMZR P` | WET 24% · SIZE 70% · DECAY 2.5S · TONE 62% |
 | <img src="../screens/fx-reverb-returns.png" width="96" alt="AUDIO FX REVERB RETURNS"> | AUDIO FX | FX | REVERB RETURNS | `PRE-DIST PING M UNDO RNDMZR P` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · TRIM 0 DB |
 | <img src="../screens/fx-reverb-oliverb.png" width="96" alt="AUDIO FX REVERB OLIVERB"> | AUDIO FX | FX | REVERB OLIVERB | `PRE-DIST PING M UNDO RNDMZR P` | DIFFUSE 65% · SWING 10% · RATE 50% · SHIMMER OFF |
