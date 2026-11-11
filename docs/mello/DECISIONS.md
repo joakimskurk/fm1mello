@@ -2297,6 +2297,13 @@ the reverb as it is (V3) when the FM-1 has one core (ROADMAP H6). Measured first
   products, the input diffusers' too, round towards zero. Level and decay are as before (2.53 s against 2.58 at
   the default), a burst 18 dB down rings as long, and the tail ends in silence (test wp_e3_reverb_v3_smoke; the old
   V3 fails it). It costs V3 16% more time on the host (the products in 64 bits).
+- **Its high-pass (0.5-f121)**: the loop's 10 Hz high-pass (in each half) rounded its step, so it stood still while
+  what it took in was within 1.4 samples of it. With the pitch shifted down at every pass (the shimmer under unison,
+  which nothing sets yet) the tail drifted down into it and left it standing off zero: a DC let into the loop for
+  ever, 2 samples on the output long after the tail. Now it keeps what each step leaves under a unit, so it never
+  stands still, and the tail ends in silence (test oliverb: -12 and -24, decay 0.95, nothing 13 s on; the rounded
+  one held 2). Without the shimmer it changes little: Oliverb's decay times within 0.02 s (test reverb_decay: 13.03
+  -> 13.02 s at 13 s, 30.98 -> 30.96 at 30), the float comparison and the levels as before.
 
 ## DECAY in seconds (2026-11-11)
 

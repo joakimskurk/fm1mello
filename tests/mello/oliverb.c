@@ -5,7 +5,8 @@
  * LFOs, its shimmer: MIT, Copyright 2014 Emilie Gillet; the notice in mello_oliverb-LICENSE.txt), on exact memory
  * (Clouds' is 16-bit, cut towards zero: the port keeps 8 bits more), the same scaled lengths and the same random
  * numbers: within -25 dB of each other sample by sample, and their energy within 1 dB. Then what a reverb must do:
- * its tail dies away (under 2 LSB and no DC held, long after the input stops), as long at any level as the floating
+ * its tail dies away (under 2 LSB and no DC held, long after the input stops; to nothing with the pitch shifted down
+ * at every pass), as long at any level as the floating
  * point's (with Clouds' memory a burst 36 dB down rang a third as long), it stays bounded at a decay past 1 (Parasites'
  * freeze: the soft limit's job), the shimmer moves the tail up (+12 to the octave, +7 to the fifth), and the same seed
  * gives the same samples. At the network's rate, 22.05 kHz. */
@@ -291,6 +292,31 @@ int main(void)
         }
         CHECK(peak <= 2, "13 s after the burst the tail is still %d", peak);
         CHECK(dc > -2 * FS && dc < 2 * FS, "a DC held in the tail: %ld over a second", dc);
+    }
+
+    /* shifted down at every pass (the shimmer at -12 and -24, the FM-1's 10 Hz high-pass, a long decay), the tail ends
+     * in silence: the high-pass keeps what each step leaves under a unit. Rounded, it stood still off zero and let a DC
+     * in for ever: 2 samples, 13 s on. */
+    {
+        static const float down[2] = {-12.0f, -24.0f};
+        unsigned q;
+        for (q = 0u; q < 2u; ++q) {
+            Settings sd = S[0];
+            int32_t peak = 0, l, r;
+            sd.hp = 93.0f / 32768.0f, sd.decay = 0.95f, sd.semis = down[q];
+            mello_oliverb_init(&a, ring_a, 13u);
+            set_both(&a, 0, &sd);
+            noise = 12345u;
+            for (n = 0; n < 14 * FS; ++n) {
+                mello_oliverb_step(&a, burst(n), &l, &r, SINE);
+                if (n >= 13 * FS) {
+                    int32_t m = (l < 0 ? -l : l) > (r < 0 ? -r : r) ? (l < 0 ? -l : l) : (r < 0 ? -r : r);
+                    if (m > peak) peak = m;
+                }
+            }
+            CHECK(peak == 0, "the shimmer at %+.0f: 13 s after the burst the tail is still %d", down[q],
+                  peak);
+        }
     }
 
     /* as long at any level: at full level, 18 and 36 dB down, the tail falls from -5 to -25 dB (the energy left,

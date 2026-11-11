@@ -73,6 +73,7 @@ typedef struct {
     uint16_t base[OLV_LINES];
     uint32_t wp; /* the write pointer: one down each step, so offset k of a line is k steps back */
     int32_t lp1, lp2, hp1, hp2; /* the accumulator's units */
+    int32_t hp1r, hp2r;         /* and what each high-pass's last step left under a unit, Q15 */
     int32_t smooth;             /* SIZE as it glides, Q24 (in Q16 it stopped short of SIZE) */
     uint32_t ps_phase;          /* the shimmer's window, Q24 of its length */
     int32_t ps_step;            /* its move a step, Q24 (worked out every 16 steps) */
@@ -174,6 +175,16 @@ static inline int32_t olv_soft_limit(int32_t x) /* the accumulator's units in an
 /* The accumulator carries 8 bits under a sample (OLV_ONE = 1.0 = 32768 x 256), as Parasites' floats carry theirs, and
  * so does the memory: a quiet tail is not cut short at a product or a write. */
 #define OLV_ONE (32768 * 256)
+/* the loop's high-pass: x less a one-pole's s (s += (x - s) k, Q15) that keeps what each step leaves under a unit.
+ * Rounded, at 10 Hz (k 93) it stood still while x - s was under 352 (1.4 samples), and a pitch shifted down at each
+ * pass (the shimmer under unison) left it standing off zero: a DC let in for ever, 2 samples that never went. */
+static inline int32_t olv_hp(int32_t *s, int32_t *rem, int32_t x, int32_t k)
+{
+    int64_t p = (int64_t)(x - *s) * k + *rem;
+    *s += (int32_t)(p >> 15);
+    *rem = (int32_t)(p & 32767);
+    return x - *s;
+}
 /* offset k of a line (from 0 to its length + 1; -1 for the shimmer's reads of DEL1 and DEL2, whose base is above 0):
  * wp + base + k is under twice the ring (wp < 10336, base + k <= 10329) */
 static inline uint32_t olv_at(const MelloOliverb *o, uint8_t line, uint32_t k)
@@ -250,7 +261,7 @@ static inline void mello_oliverb_init(MelloOliverb *o, int16_t *mem, uint32_t se
         for (k = 0u; k < MELLO_OLIVERB_LEN; ++k) o->hi[k] = 0, o->lo[k] = 0u;
     }
     o->wp = 0u;
-    o->lp1 = o->lp2 = o->hp1 = o->hp2 = 0;
+    o->lp1 = o->lp2 = o->hp1 = o->hp2 = o->hp1r = o->hp2r = 0;
     o->ps_phase = 0u, o->ps_step = 0, o->tick = 0u;
     o->rng = seed ? seed : 0x4F4C4956u; /* "OLIV" */
     o->slope_q24 = 1u;
@@ -345,8 +356,7 @@ static inline void mello_oliverb_step(MelloOliverb *o, int32_t in, int32_t *l, i
     }
     o->lp1 += olv_q15(acc - o->lp1, o->lp);
     acc = o->lp1;
-    o->hp1 += olv_q15(acc - o->hp1, o->hp);
-    acc -= o->hp1;
+    acc = olv_hp(&o->hp1, &o->hp1r, acc, o->hp);
     acc = olv_soft_limit(acc);
     OLV_AP(OLV_DAP1A, 6, -kap);
     OLV_AP_FIXED(OLV_DAP1B, kap);
@@ -363,8 +373,7 @@ static inline void mello_oliverb_step(MelloOliverb *o, int32_t in, int32_t *l, i
     }
     o->lp2 += olv_q15(acc - o->lp2, o->lp);
     acc = o->lp2;
-    o->hp2 += olv_q15(acc - o->hp2, o->hp);
-    acc -= o->hp2;
+    acc = olv_hp(&o->hp2, &o->hp2r, acc, o->hp);
     acc = olv_soft_limit(acc);
     OLV_AP(OLV_DAP2A, 8, kap);
     OLV_AP_FIXED(OLV_DAP2B, -kap);
