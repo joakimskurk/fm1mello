@@ -2480,6 +2480,30 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   plays; PLAY's first second stays 0.02 ms over, and is left so. (fm1-emu counts instructions; the FM-1's own CPU
   readout is the ground truth, not taken yet.)
 
+## SEED (2026-11-12)
+
+The product owner: "Følger randmizer en seed? Det blir lik rekke med ttemaeer hver gang jeg booter". It did: dinghy.c
+started the engine with one fixed seed (0x4D454C4C, "MELL"), and nothing moved it, so the same presses rolled the
+same styles at every power-on; EVOLVE's mutations and the drums' chance and rolls the same (the lead's noise is an
+LCG from a fixed start too, a texture, left so). Asked whether to use a true random source, and to keep a way to get
+a set again, the product owner chose the chip's register and the first press's time, with "SEED under GLOBAL >
+SYSTEM. autoo soom standard".
+
+- **SEED (0.5-f134)**: GLOBAL > SYSTEM's K2, AUTO (a new FM-1's) or 1..999, a detent a step. AUTO: at power-on the
+  engine's three streams (rng: RNDMZR, the rolls, the per-pulse chance; gen_rng: EVOLVE; drum_rng: the drums) are
+  moved by the WL82's random number register (JL_RAND, R64L and R64H: the AC79 SDK's rand32(), which JieLi's firmware
+  takes its Bluetooth keys from; hal/fm1_rand.h) and TIMER4's 24 MHz count, and again by the count at the first press
+  or key, a person's time to the tick, so even a register that gave nothing (fm1-emu's may be 0; what it holds on an
+  FM-1 is not proven here) leaves no two power-ons alike. A number: the three seeded from it, the same at every
+  power-on. Turned, it is taken at once (the next roll is the new seed's) and saved in the platform's settings 2 s
+  after the last detent (an erase a detent would be too many), with CORE 2 in the bytes that were spare: settings
+  saved before load as AUTO. It is the FM-1's, not the project's: what a roll gave is in the project and comes back
+  as saved whatever SEED says. The boot itself (the default project, a loaded one) is as before: the seed moves only
+  after it. On a computer (the host build, the web player, the tests) none of it: the pictures and renders stay as
+  they were. SYSTEM's NOW gave its knob to SEED; what runs is in the picture (CORE 2 lit while it runs, NO REPLY or
+  GAVE UP in it when it failed). Tests seed (the same number the same rolls, another others, mixing 0 nothing) and
+  system_layer.
+
 ## Engineering process decisions
 
 - GitHub repo state is the durable source of truth between chats.

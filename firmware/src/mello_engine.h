@@ -1302,6 +1302,14 @@ bool mello_event_overflowed(const MelloEngine *engine);
 
 uint32_t mello_prng_next_u32(MelloPrng *rng);
 void mello_prng_seed(MelloPrng *rng, uint32_t seed);
+/* SEED (GLOBAL > SYSTEM): the engine's random numbers (RNDMZR and the rolls, EVOLVE, the drums' chance and rolls) from
+ * seed, as mello_engine_init seeds them; mello_engine_mix_seed moves all three by entropy (a press's time, the chip's
+ * random register: 0 changes nothing); mello_seed_of is SEED n's seed (n 1..MELLO_SEED_MAX; 0 is AUTO's, the
+ * platform's). */
+#define MELLO_SEED_MAX 999u
+void mello_engine_reseed(MelloEngine *e, uint32_t seed);
+void mello_engine_mix_seed(MelloEngine *e, uint32_t entropy);
+uint32_t mello_seed_of(uint16_t n);
 
 uint32_t mello_pulse_ticks(const MelloProject *project);
 uint8_t mello_resolve_step_midi(const MelloProject *project, const MelloStep *step);

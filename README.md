@@ -335,10 +335,13 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   chords and the drums do not.
 - **GLOBAL** (GLO > GLOBAL). Tempo (TAP), division, external sync, note out; the MIDI channels of lead and bass,
   the note length; the groove's swing. CLOCK shows the chip's measured audio load as CPU nn%. SYSTEM: CORE 2
-  (OFF on a new FM-1; the next power-on uses what it is set to) and what runs, 1 CORE or 2 CORES. With two the
+  (OFF on a new FM-1; the next power-on uses what it is set to), the picture lit when the second runs. With two the
   chords and the drums render on the second, the sound the same to the sample; the reverb renders there too and
   is then Oliverb, a room of its own (PRE at 6 ms or more; FX > REVERB OLIVERB). CPU 2 says how busy it is. It has
-  not run on a real FM-1.
+  not run on a real FM-1. SEED (K2) is where RNDMZR's rolls, EVOLVE's and the drums' dice come from: AUTO (a new
+  FM-1's) takes the chip's random numbers and the moment of your first press, so every power-on rolls its own way;
+  a number (1..999) rolls the same way at every power-on, to play a set again. What a roll gave is in the project
+  either way: save it and it comes back as it was.
 - **KEY** (SEL). Root, scale, global octave, pitch span.
 - **RANDOM** (hold RNDMZR). Which targets a roll touches (MASK), which follow or mirror the pitch (LINKS), how much
   each moves (AMOUNTS); the intensity on K1. MUSICAL rolls a phrase, not noise; GROOVE the same phrase with rolls, ties, ghost
@@ -393,7 +396,7 @@ K1-K4 with their default values.
 | GLOBAL | GLO | CLOCK | `TAP RST2 MUT UNDO RNDMZR PERF` | BPM 80 · DIV 1 · SYNC OFF · NOTEOUT OFF |
 | GLOBAL | GLO | MIDI | `TAP RST2 MUT UNDO RNDMZR PERF` | LEAD 1 · SUB 2 · NOTE STEP · LENGTH 180MS |
 | GLOBAL | GLO | GROOVE | `TAP RST2 MUT UNDO RNDMZR PERF` | SWING 0% · LEAD GLOBAL · BASS GLOBAL · DRUMS GLOBAL |
-| GLOBAL | GLO | SYSTEM | `TAP RST2 MUT UNDO RNDMZR PERF` | CORE 2 OFF · NOW 1 CORE · CPU nn% · CPU 2 nn% |
+| GLOBAL | GLO | SYSTEM | `TAP RST2 MUT UNDO RNDMZR PERF` | CORE 2 OFF · SEED AUTO · CPU nn% · CPU 2 nn% |
 | SOUND | ENV | FILTER | `INIT MUT UNDO RNDMZR PERF` | CUT 3264HZ · RES 20% · DECAY 180MS · LEVEL 100% |
 | SOUND | ENV | OSC | `INIT MUT UNDO RNDMZR PERF` | WAVE SAW · PWM 50% · SLIDE 50MS · MASTER 75% |
 | SOUND | ENV | AMP ENV | `INIT MUT UNDO RNDMZR PERF` | ATTACK 5MS · DECAY 180MS · SUSTAIN 40% · RELEASE 120MS |

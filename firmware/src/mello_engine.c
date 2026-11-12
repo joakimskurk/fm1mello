@@ -250,6 +250,30 @@ void mello_prng_seed(MelloPrng *rng, uint32_t seed)
     rng->state = seed ? seed : MELLO_ZERO_SEED_REMAP;
 }
 
+void mello_engine_reseed(MelloEngine *e, uint32_t seed)
+{
+    if (!e) return;
+    mello_prng_seed(&e->drum_rng, seed ^ 0x44524D53u); /* (as mello_engine_init) */
+    mello_prng_seed(&e->rng, seed);
+    mello_prng_seed(&e->gen_rng, seed ^ 0x9E3779B9u);
+}
+void mello_engine_mix_seed(MelloEngine *e, uint32_t entropy)
+{
+    uint32_t h = entropy;
+    if (!e || !entropy) return;
+    h ^= h >> 16, h *= 0x7FEB352Du, h ^= h >> 15, h *= 0x846CA68Bu,
+        h ^= h >> 16; /* (every bit into every bit) */
+    e->rng.state ^= h, e->gen_rng.state ^= h * 0x9E3779B9u, e->drum_rng.state ^= h * 0x44524D53u;
+    if (!e->rng.state) e->rng.state = MELLO_ZERO_SEED_REMAP; /* (xorshift's one dead state) */
+    if (!e->gen_rng.state) e->gen_rng.state = MELLO_ZERO_SEED_REMAP;
+    if (!e->drum_rng.state) e->drum_rng.state = MELLO_ZERO_SEED_REMAP;
+}
+uint32_t mello_seed_of(uint16_t n)
+{
+    uint32_t s = 0x4D454C4Cu ^ ((uint32_t)n * 2654435761u); /* (n 0 is the old fixed one, "MELL") */
+    return s ? s : MELLO_ZERO_SEED_REMAP;
+}
+
 uint32_t mello_prng_next_u32(MelloPrng *rng)
 {
     uint32_t x;

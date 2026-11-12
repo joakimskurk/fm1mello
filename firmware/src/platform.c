@@ -40,6 +40,7 @@ enum { ENC_SELECT = 0, ENC_ALGORITHM = 1, ENC_KNOB1 = 2, ENC_KNOB2 = 3, ENC_KNOB
 #else
 #include <stdint.h>
 #include "fm1_time.h"
+#include "fm1_rand.h"                             /* the chip's random register: SEED AUTO (dinghy.c) */
 #include "fm1_sys.h"
 #include "fm1_irq.h"
 #include "fm1_guard.h"
@@ -219,7 +220,8 @@ typedef void (*cpu1_job_t)(uint32_t);
 #define PLAT_SETTINGS_MAGIC 0x534B4D31u /* "SKM1": the platform's own settings, in the sector above */
 static struct {
     uint32_t magic;
-    uint8_t second_core, spare[3];
+    uint8_t second_core, spare;
+    uint16_t seed; /* GLOBAL > SYSTEM's SEED (dinghy.c): 0 AUTO, else that number (was spare, 0: AUTO) */
 } plat_settings;
 static uint8_t cpu1_state = CPU1_OFF;
 static uint32_t cpu1_timeouts;                 /* jobs core 1 did not finish in time, or read wrong */

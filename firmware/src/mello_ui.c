@@ -3069,10 +3069,13 @@ static void adjust_global(MelloUi *ui, uint8_t knob, int16_t delta, uint32_t now
         else if (knob == 3u)
             mello_transport_set_midi_note_out(t, delta > 0);
     } else if (ui->global_subpage ==
-               3u) { /* SYSTEM: CORE 2, the FM-1's (dinghy.c saves it), not the project's */
+               3u) { /* SYSTEM: CORE 2 and SEED, the FM-1's (dinghy.c saves them), not the project's */
         if (knob == 0u && ui->second_core != (delta > 0)) {
             ui->second_core = delta > 0;
             ui->dirty |= MELLO_UI_DIRTY_ALL;
+        } else if (knob == 1u) { /* SEED: AUTO (0), then 1 .. MELLO_SEED_MAX */
+            uint16_t n = (uint16_t)clamp_i32((int32_t)ui->seed + delta, 0, (int32_t)MELLO_SEED_MAX);
+            if (n != ui->seed) ui->seed = n, ui->dirty |= MELLO_UI_DIRTY_BODY | MELLO_UI_DIRTY_FOOTER;
         }
         return;
     } else if (ui->global_subpage ==
@@ -4252,6 +4255,12 @@ void mello_ui_set_cores(MelloUi *ui, uint8_t cores, bool second_core)
     if (!ui) return;
     ui->cores = cores;
     ui->second_core = second_core;
+    if (ui->page == MELLO_UI_GLOBAL) ui->dirty |= MELLO_UI_DIRTY_ALL;
+}
+void mello_ui_set_seed(MelloUi *ui, uint16_t seed)
+{
+    if (!ui) return;
+    ui->seed = seed > MELLO_SEED_MAX ? 0u : seed; /* (a number past the range: AUTO) */
     if (ui->page == MELLO_UI_GLOBAL) ui->dirty |= MELLO_UI_DIRTY_ALL;
 }
 void mello_ui_set_held_notes(MelloUi *ui, uint32_t notes)
@@ -7166,12 +7175,16 @@ static void footer_texts_raw(MelloUi *ui, const char *l[4], char v[4][24])
             copy_s(v[2], sync_name(ui->transport->sync_mode));
             l[3] = "NOTEOUT";
             copy_s(v[3], ui->transport->midi_note_out_enabled ? "ON" : "OFF");
-        } else if (ui->global_subpage == 3u) { /* SYSTEM: the switch, what runs now, the audio's load */
-            static const char *now[4] = {"1 CORE", "NO REPLY", "GAVE UP", "2 CORES"};
+        } else if (ui->global_subpage ==
+                   3u) {     /* SYSTEM: the switch, SEED, the audio's load (what runs now: the
+                                                * picture) */
             l[0] = "CORE 2"; /* the second core's switch ("2ND CORE" is 64 px: the footer has 56) */
             copy_s(v[0], ui->second_core ? "ON" : "OFF");
-            l[1] = "NOW";
-            copy_s(v[1], now[ui->cores & 3u]);
+            l[1] = "SEED"; /* RNDMZR's, EVOLVE's and the drums' random numbers: AUTO new at each power-on */
+            if (ui->seed)
+                value_u(v[1], "", ui->seed);
+            else
+                copy_s(v[1], "AUTO");
             l[2] = "CPU";
             if (ui->audio_load)
                 value_pct(v[2], ui->audio_load);
@@ -7714,8 +7727,8 @@ static void pic_ticks(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, 
     }
 }
 /* SYSTEM: the two cores side by side as frames, counted as a player does (CORE 1 the chip's core 0, always lit; CORE 2
- * lit while it runs, dim while off); under them
- * what the switch will do at the next power-on, when it differs from now */
+ * lit while it runs, dim while off, and NO REPLY or GAVE UP in it when it failed: SYSTEM's NOW before SEED took its
+ * knob); under them what the switch will do at the next power-on, when it differs from now */
 static void pic_frame(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c)
 {
     o->fill(o->ctx, x, y, w, 2, c);
@@ -7724,7 +7737,7 @@ static void pic_frame(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, 
     o->fill(o->ctx, (int16_t)(x + w - 2), y, 2, h, c);
 }
 static void pic_cores(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, int16_t h, bool second_runs,
-                      bool pending_on, bool pending_off, uint16_t col, uint16_t dim)
+                      bool pending_on, bool pending_off, const char *failed, uint16_t col, uint16_t dim)
 {
     int16_t bw = (int16_t)(w * 3 / 8), bh = (int16_t)(h - 18), x0 = (int16_t)(x + w / 12),
             x1 = (int16_t)(x + w - w / 12 - bw);
@@ -7734,6 +7747,7 @@ static void pic_cores(const MelloUiDrawOps *o, int16_t x, int16_t y, int16_t w, 
     pic_frame(o, x1, y, bw, bh, c1);
     o->text(o->ctx, x0, (int16_t)(y + bh / 2 - 6), bw, 0, "CORE 1", col, 1);
     o->text(o->ctx, x1, (int16_t)(y + bh / 2 - 6), bw, 0, "CORE 2", c1, 1);
+    if (failed) o->text(o->ctx, x1, (int16_t)(y + bh / 2 + 10), bw, 0, failed, UI_GOLD, 1);
     if ((pending_on || pending_off) && bh < h)
         o->text(o->ctx, x, (int16_t)(y + h - 14), w, 0,
                 pending_on ? "ON AT NEXT POWER-ON" : "OFF AT NEXT POWER-ON", UI_GOLD, 1);
@@ -7867,7 +7881,11 @@ static void draw_layer_picture(MelloUi *ui, const MelloUiDrawOps *o, int16_t x, 
             break; /* GROOVE: the odd ones late */
         case 3u: { /* SYSTEM: the cores; what CORE 2 will do at the next power-on */
             bool runs = ui->cores == MELLO_UI_CORE_ON, asked = ui->cores != MELLO_UI_CORE_OFF;
-            pic_cores(o, x, y, w, h, runs, ui->second_core && !asked, !ui->second_core && asked, accent, dim);
+            pic_cores(o, x, y, w, h, runs, ui->second_core && !asked, !ui->second_core && asked,
+                      ui->cores == MELLO_UI_CORE_NO_REPLY  ? "NO REPLY"
+                      : ui->cores == MELLO_UI_CORE_GAVE_UP ? "GAVE UP"
+                                                           : 0,
+                      accent, dim);
         } break;
         default: break;
         }

@@ -210,6 +210,26 @@ static void sync_audio_config(void)
     }
 }
 
+#ifndef DINGHY_HOST
+/* SEED (GLOBAL > SYSTEM; DECISIONS "SEED"): the engine's random numbers, RNDMZR's and the rolls', EVOLVE's, the drums'.
+ * AUTO (0, the default): moved at power-on by the chip's random register and TIMER4, and again by the time of the
+ * first press or key (a person's, to the 24 MHz tick), so no two power-ons roll the same; a number: that number's, the
+ * same at every power-on. Turned, it is taken at once and saved once it rests (a flash erase a detent is too many).
+ * On a computer none of this: the host build and its pictures stay as they were. */
+static bool seed_first_press; /* AUTO: the first press still to come */
+static uint32_t seed_save_ms; /* SEED turned: saved at this time (0: nothing to save) */
+static void seed_take(uint16_t n)
+{
+    if (n) {
+        mello_engine_reseed(&mt.engine, mello_seed_of(n));
+        seed_first_press = false;
+    } else {
+        mello_engine_mix_seed(&mt.engine, fm1_rand32() ^ fm1_ticks());
+        seed_first_press = true;
+    }
+}
+#endif
+
 /* In a browser (web/app/web_host.c) the page's sound asks for its frames, and app_main runs a pass a call: the start
  * in the first, then the splash's passes, then the loop's, its state kept between them. */
 static void app_main(void)
@@ -293,6 +313,9 @@ static void app_main(void)
     mello_ui_set_mod_view(&ui, audio.mod_view); /* F14: the second thumbs */
 #ifndef DINGHY_HOST
     mello_ui_set_cores(&ui, cpu1_state, plat_settings.second_core != 0u); /* GLOBAL > SYSTEM (platform.c) */
+    mello_ui_set_seed(&ui, plat_settings.seed);
+    seed_take(ui.seed); /* (a saved number past the range is AUTO: mello_ui_set_seed) */
+    plat_settings.seed = ui.seed;
 #endif
     mello_audio_init(&audio, audio_delay_pool, MELLO_AUDIO_DELAY_SAMPLES, audio_reverb_pool,
                      MELLO_AUDIO_REVERB_SAMPLES);
@@ -398,9 +421,27 @@ pass: /* the loop's body, once a call */
         if (ui.second_core != (plat_settings.second_core != 0u)) { /* CORE 2 turned: for the next power-on */
             plat_settings.second_core = ui.second_core;
             settings_save(&plat_settings, sizeof plat_settings); /* (~50 ms: the flash sector's erase) */
+            seed_save_ms = 0u;                                   /* (SEED went with it) */
+        }
+        if (seed_first_press &&
+            (pressed || notes)) { /* SEED AUTO: the first press's time in them, before it acts */
+            mello_engine_mix_seed(&mt.engine, fm1_ticks());
+            seed_first_press = false;
         }
 #endif
         mello_ui_input(&ui, now_us, fm1_ms, pressed, released, fm1_in.buttons, notes, enc);
+#ifndef DINGHY_HOST
+        if (ui.seed != plat_settings.seed) { /* SEED turned: from now, and saved 2 s after the last detent */
+            plat_settings.seed = ui.seed;
+            seed_take(ui.seed);
+            seed_save_ms = fm1_ms + 2000u;
+            if (!seed_save_ms) seed_save_ms = 1u;
+        }
+        if (seed_save_ms && (int32_t)(fm1_ms - seed_save_ms) >= 0) {
+            settings_save(&plat_settings, sizeof plat_settings);
+            seed_save_ms = 0u;
+        }
+#endif
         mello_transport_poll_ahead(&mt, now_us, MELLO_TRANSPORT_LOOKAHEAD_US);
         if (last_running && !mt.running) mello_audio_all_notes_off(&audio);
         last_running = mt.running;

@@ -147,6 +147,8 @@ typedef struct {
     uint8_t cores; /* mello_ui_set_cores: the second core now (MELLO_UI_CORE_*; GLOBAL > SYSTEM shows it) */
     bool
         second_core; /* GLOBAL > SYSTEM's CORE 2: the switch; the platform saves it, the next power-on uses it */
+    uint16_t
+        seed; /* GLOBAL > SYSTEM's SEED: 0 AUTO, 1..MELLO_SEED_MAX that number's; dinghy.c takes and saves it */
     uint16_t held_black; /* HOME: the black keys held now (bit = B0..B10), for the strip's names */
     /* PERFORM (G4, ROADMAP F4): B5 PERF tapped opens it until PERF or a page button (1), held while held (2); the
      * white keys are then 16 performance actions on every part */
@@ -319,6 +321,7 @@ void mello_ui_set_audio_load2(MelloUi *ui, uint16_t permille);
  * for the next power-on. The host keeps OFF, one core. */
 enum { MELLO_UI_CORE_OFF, MELLO_UI_CORE_NO_REPLY, MELLO_UI_CORE_GAVE_UP, MELLO_UI_CORE_ON };
 void mello_ui_set_cores(MelloUi *ui, uint8_t cores, bool second_core);
+void mello_ui_set_seed(MelloUi *ui, uint16_t seed); /* (dinghy.c, at power-on: the saved SEED) */
 /* What modulation does to each MelloModDest now (MelloAudio.mod_view): the value rows' second thumbs (ROADMAP F14). */
 void mello_ui_set_mod_view(MelloUi *ui, const int16_t *view);
 void mello_ui_input(MelloUi *ui, uint32_t now_us, uint32_t now_ms, uint32_t pressed_buttons,
