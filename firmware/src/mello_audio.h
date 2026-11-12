@@ -21,9 +21,12 @@ extern "C" {
 #define MELLO_AUDIO_DELAY_SAMPLES  65536u
 #define MELLO_AUDIO_REVERB_SAMPLES 24576u
 /* The delay's diffuser and pitch shifter at the end of the reverb's memory: V3 uses 18404 of it, Oliverb 18192
- * (test delay_loop_fx) */
-#define MELLO_AUDIO_DLYFX_WORDS 3456u
-#define MELLO_AUDIO_DLYFX_AT    (MELLO_AUDIO_REVERB_SAMPLES - MELLO_AUDIO_DLYFX_WORDS)
+ * (test delay_loop_fx); before them the delay's reads for a chunk from the second core (the left's tap and PING's
+ * right, 32 bits a sample). The reverbs stop at MELLO_AUDIO_DLYCHUNK_AT. */
+#define MELLO_AUDIO_DLYFX_WORDS    3456u
+#define MELLO_AUDIO_DLYFX_AT       (MELLO_AUDIO_REVERB_SAMPLES - MELLO_AUDIO_DLYFX_WORDS)
+#define MELLO_AUDIO_DLYCHUNK_WORDS (2u * 2u * MELLO_PARTS_CHUNK)
+#define MELLO_AUDIO_DLYCHUNK_AT    (MELLO_AUDIO_DLYFX_AT - MELLO_AUDIO_DLYCHUNK_WORDS)
 
 #define MELLO_PERF_BUF 6144u /* PERFORM's record of the mix: frames at half the rate, ~0.28 s (24 KB) */
 #define MELLO_LA_N     64u   /* the output limiter's look-ahead: 1.45 ms */
@@ -255,6 +258,12 @@ typedef struct {
         buf_pos0; /* STUTTER's memory: where this sample goes, and where the chunk's first went */
     bool chords, drums,
         reverb; /* what the chunk has (the reverb's network and its way out: PRE >= a chunk) */
+    /* the delay's reads (its time at least a chunk: they read what the render wrote before the chunk), from where the
+     * write point and the time's ramp stood at the chunk's start, moved as the render moves its own */
+    bool delay;
+    uint8_t dly_phase;
+    uint32_t dly_pos;
+    MelloRamp dly_ramp;
 } MelloPartsJob;
 
 typedef struct {
@@ -378,8 +387,10 @@ typedef struct {
      * grains over a line) on the tap that feeds back, in the reverb's memory after what either reverb uses
      * (MELLO_AUDIO_DLYFX_AT; none with a smaller reverb memory) */
     int16_t *dlyfx;
-    uint32_t
-        reverb_room; /* what of the reverb's memory a reverb may use: all of it, or up to MELLO_AUDIO_DLYFX_AT */
+    /* what of the reverb's memory a reverb may use: all of it, or up to MELLO_AUDIO_DLYCHUNK_AT */
+    uint32_t reverb_room;
+    int32_t
+        *dly_chunk; /* the delay's reads for the chunk: [0] the left's tap, [1] PING's right (NULL: none) */
     bool dlyfx_diffuse, dlyfx_shift;
     uint16_t dfx_ap_pos[3], ps_wp; /* the diffuser's three allpasses (DLYFX_AP_N) */
     int32_t dfx_amount_q15, ps_step;

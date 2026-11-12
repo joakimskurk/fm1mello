@@ -31,8 +31,9 @@ evening, in this order:
       for the product owner to hear; fm1-emu's CPU 2.
 - [ ] H7. Clouds' looping delay, timed as the delay is now (DIV): the tape-like glide (GLIDE, 0.5-f123), the
       pitch shifter and the diffuser on its repeats (PITCH, DIFFUSE, 0.5-f124), FREEZE (and REVERSE: REV,
-      0.5-f125), on FX > DELAY LOOP (0.5-f126), its arithmetic lighter (0.5-f127, f128); A/B renders and the load
-      (every one on: 3.07 ms, over 2.9).
+      0.5-f125), on FX > DELAY LOOP (0.5-f126), its arithmetic lighter (0.5-f127, f128), into the reverb (DELAY
+      ROUTE, 0.5-f129), lighter again and its reads on the second core (0.5-f130..f133); A/B renders and the load
+      (every one on: 2.86..2.90 ms in steady play, 2.92 in PLAY's first second).
 - [ ] H4. Letting go, each with the product owner's yes and only what one core still carries: POLY as a new
       project's chords; per sample where an A/B shows a difference (the 4-sample control step, the 16-sample
       coefficients); -Os as the fallback build should USB-MIDI babble with -O2.

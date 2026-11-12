@@ -15,7 +15,9 @@
  * The reverb (ROADMAP H6): V3 on two cores (mello_audio_set_oliverb(false)) is one core's to the sample, in every
  * way. Oliverb, the reverb with the second core: the same on a thread and on a slow one; refused, V3 from the first
  * sample (one core's); lost, Oliverb's until the lost job, then V3 from the chunk after. A tenth scene, the default
- * project with WET up only after a second: the job lost before it, so the whole of it is one core's. */
+ * project with WET up only after a second: the job lost before it, so the whole of it is one core's. The delay's reads
+ * (H7, DECISIONS "The looping delay") go on the second core in every scene; an eleventh has the looping delay moving:
+ * GLIDE with the DIV turned every 0.4 s, PING, PITCH and DIFFUSE, FREEZE on at 1 s, REV at 1.5, off at 2. */
 #define _POSIX_C_SOURCE 200809L
 #include <pthread.h>
 #include <stdio.h>
@@ -162,6 +164,10 @@ static uint32_t scene(int which, uint32_t blk)
         mello_engine_drums_set_config(&t.engine, &d);
     }
     if (which == 9) t.engine.fx.reverb_wet = 0u; /* up after a second */
+    if (which == 10) {                           /* the looping delay, moving */
+        t.engine.fx.delay_wet = 700u, t.engine.fx.delay_feedback = 650u, t.engine.fx.delay_pingpong = true;
+        t.engine.fx.delay_glide = 500u, t.engine.fx.delay_pitch = 5, t.engine.fx.delay_diffuse = 400u;
+    }
     mello_audio_init(&a, delay_pool, MELLO_AUDIO_DELAY_SAMPLES, reverb_pool, MELLO_AUDIO_REVERB_SAMPLES);
     if (reverb_kind == V3) mello_audio_set_oliverb(&a, false);
     mello_audio_set_config(&a, &t.engine.sound, &t.engine.fx, &t.engine.sub, &t.engine.sample);
@@ -191,6 +197,13 @@ static uint32_t scene(int which, uint32_t blk)
             d.voice[MELLO_DRUM_GLITCH].tone = kinds[(b / (11025u / blk + 1u)) % 5u];
             mello_engine_drums_set_config(&t.engine, &d);
             mello_audio_set_drum_config(&a, &t.engine.drums);
+        }
+        if (which == 10 && at / 17640u != (at + blk) / 17640u) { /* every 0.4 s: the DIV, FREEZE */
+            static const uint8_t divs[4] = {0u, 2u, 3u, 6u};
+            uint32_t q = (at + blk) / 17640u;
+            t.engine.fx.delay_div = divs[q % 4u];
+            t.engine.fx.delay_freeze = q == 2u ? 1u : q == 4u ? 2u : q == 5u ? 0u : t.engine.fx.delay_freeze;
+            mello_audio_set_config(&a, &t.engine.sound, &t.engine.fx, &t.engine.sub, &t.engine.sample);
         }
         if (which == 9 && at < MELLO_AUDIO_FS && at + blk >= MELLO_AUDIO_FS) {
             t.engine.fx.reverb_wet = 240u;
@@ -223,7 +236,7 @@ int main(void)
     uint32_t sum = 0u;
     pthread_create(&worker, 0, work, 0);
     for (k = 0u; k < 3u; ++k)
-        for (s = 0; s < 10; ++s) {
+        for (s = 0; s < 11; ++s) {
             uint32_t ref, olv, h, b, blk = blks[k];
             reverb_kind = V3;
             ref = in_mode(ONE_CORE, s, blk, 0);
@@ -265,6 +278,6 @@ int main(void)
     pthread_mutex_unlock(&mu);
     pthread_join(worker, 0);
     if (fails) return 1;
-    printf("PASS: cpu1_split (10 scenes x 3 block sizes: V3 %d ways, Oliverb 4, %08x)\n", MODES, sum);
+    printf("PASS: cpu1_split (11 scenes x 3 block sizes: V3 %d ways, Oliverb 4, %08x)\n", MODES, sum);
     return 0;
 }

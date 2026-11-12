@@ -2459,6 +2459,22 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
 - **GLIDE's step skipped once it is there (0.5-f132)**: with GLIDE on, the glide's 64-bit step ran every sample;
   once the time has reached its target the step moves nothing (its remainder is under a unit, so it stays), and now
   none is taken. The same to the bit. (Measured with f133.)
+- **The delay's reads on the second core (0.5-f133)**: the whole tap on core 1 (tried before f127: the reads, LO
+  CUT, DIFFUSE and PITCH, HI CUT, FREEZE) made core 1 the heavier, 57%. Now only the reads go with the parts' chunk:
+  the left's tap and PING's right, each through its LO CUT, and with PING the left's HI CUT (all it goes through),
+  about 170 instructions a sample. The render does the rest (the loop's DIFFUSE and PITCH on the tap that feeds back,
+  the right's HI CUT, the write). As the reverb's split (f113), it goes when nothing in it needs this chunk: the time
+  a chunk and 8 samples or more all through it (the ramp's or the glide's way; PING reads twice that), so what it
+  reads the render wrote before the chunk began, however far ahead the job runs (HALF RATE: slots of two samples,
+  still four slots clear); and nothing frozen (FREEZE's loop and its way out stay the render's). The job keeps its own
+  copy of the time's ramp and the write point and moves them as the render moves its own; it owns LO CUT's states,
+  the left's HI CUT and the glide for the chunk. The reads for a chunk (2 x 256 32-bit samples) lie in the reverb's
+  memory before the looping delay's (MELLO_AUDIO_DLYCHUNK_AT, where the reverbs now stop: V3 and Oliverb end before
+  it at any PRE). The same to the bit with one core or two (cpu1_split, an eleventh scene with the looping delay
+  moving: GLIDE, the DIV every 0.4 s, PING, PITCH, DIFFUSE, FREEZE ON, REV and off; a read a sample out is caught).
+  fm1-emu 0.3.0, the worst case with CORE 2 ON, with f132: core 0's heaviest block 49.3..50.0% in steady play (2.86 ..
+  2.90 ms), 50.3% in PLAY's first second (2.92 ms); core 1's real work 49.5% (45.7% before). Both cores near half
+  each, so that is about all a split gives.
 
 ## Engineering process decisions
 

@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (C) 2026 joakimskurk */
 /* DIFFUSE and PITCH (FX > DELAY LOOP, ROADMAP H7, DECISIONS "The looping delay"): Clouds' diffuser and pitch shifter
- * on the delay's repeats, in its loop. Their memory is the reverb's after what either reverb uses (V3 and Oliverb at
- * every PRE end before it); off on a new project; PITCH +12 puts the first echo an octave up and the second two; -7 a
- * fifth down; DIFFUSE spreads a click's echo over tens of milliseconds at about its energy; with FDBK at 95% and
+ * on the delay's repeats, in its loop. Their memory, and the delay's reads for a chunk from the second core, are the
+ * reverb's after what either reverb uses (V3 and Oliverb at every PRE end before them); off on a new project; PITCH
+ * +12 puts the first echo an octave up and the second two; -7 a fifth down; DIFFUSE spreads a click's echo over tens of milliseconds at about its energy; with FDBK at 95% and
  * every one up the repeats stay bounded and die away to nothing (an allpass's output cut a product at a time went
  * round for ever at -12); and with a smaller reverb memory there is none, and the delay is as it was. */
 #include <math.h>
@@ -100,7 +100,8 @@ int main(void)
     {
         uint16_t pre;
         start(MELLO_AUDIO_REVERB_SAMPLES);
-        CHECK(a.dlyfx == reverb_buf + MELLO_AUDIO_DLYFX_AT && a.reverb_room == MELLO_AUDIO_DLYFX_AT,
+        CHECK(a.dlyfx == reverb_buf + MELLO_AUDIO_DLYFX_AT && a.reverb_room == MELLO_AUDIO_DLYCHUNK_AT &&
+                  MELLO_AUDIO_DLYCHUNK_AT + MELLO_AUDIO_DLYCHUNK_WORDS <= MELLO_AUDIO_DLYFX_AT,
               "the delay's memory at %ld, the reverbs' room %u", (long)(a.dlyfx ? a.dlyfx - reverb_buf : -1),
               a.reverb_room);
         CHECK(!a.dlyfx_diffuse && !a.dlyfx_shift, "a new project's DIFFUSE or PITCH on");
@@ -109,13 +110,13 @@ int main(void)
             fx.reverb_pre_ms = pre;
             start(MELLO_AUDIO_REVERB_SAMPLES);
             end = a.reverb_line_offset[7] + a.reverb_line_cap[7];
-            CHECK(a.reverb_pre_cap && end + (end + 1u) / 2u <= MELLO_AUDIO_DLYFX_AT,
-                  "PRE %u: V3 ends at %u, past %u", pre, end + (end + 1u) / 2u, MELLO_AUDIO_DLYFX_AT);
+            CHECK(a.reverb_pre_cap && end + (end + 1u) / 2u <= MELLO_AUDIO_DLYCHUNK_AT,
+                  "PRE %u: V3 ends at %u, past %u", pre, end + (end + 1u) / 2u, MELLO_AUDIO_DLYCHUNK_AT);
             mello_audio_set_cores(&a, &CORES);
             mello_audio_reverb_choose_probe(&a);
-            CHECK(a.oliverb_on && a.reverb_pre_cap + MELLO_OLIVERB_WORDS <= MELLO_AUDIO_DLYFX_AT,
+            CHECK(a.oliverb_on && a.reverb_pre_cap + MELLO_OLIVERB_WORDS <= MELLO_AUDIO_DLYCHUNK_AT,
                   "PRE %u: Oliverb ends at %u, past %u", pre, a.reverb_pre_cap + MELLO_OLIVERB_WORDS,
-                  MELLO_AUDIO_DLYFX_AT);
+                  MELLO_AUDIO_DLYCHUNK_AT);
         }
         fx.reverb_pre_ms = 12u;
     }

@@ -2021,9 +2021,9 @@ static void delay_fit(MelloAudio *a)
 }
 /* GLIDE (DECISIONS "The looping delay"): the time this sample, gliding to the ramp's target as Clouds' looping delay
  * does (its 0.0005 a sample at 32 kHz is GLIDE 16%), the step's remainder kept. */
-static inline int32_t delay_glide(MelloAudio *a)
+static inline int32_t delay_glide(MelloAudio *a, int32_t target)
 {
-    int64_t p = (int64_t)(a->rp_delay.target - a->dly_glide_q8) * a->dly_glide_k + a->dly_glide_rem;
+    int64_t p = (int64_t)(target - a->dly_glide_q8) * a->dly_glide_k + a->dly_glide_rem;
     a->dly_glide_q8 += (int32_t)(p >> 24);
     a->dly_glide_rem = (uint32_t)(p & 0xFFFFFF);
     return a->dly_glide_q8;
@@ -2042,17 +2042,18 @@ static void delay_glide_set(MelloAudio *a)
     }
     a->dly_glide_k = k;
 }
-/* The line at delay_q8 (a time in samples, Q8), between two slots, through LO CUT (states lc). */
-static int32_t delay_read(MelloAudio *a, int32_t delay_q8, int32_t lc[2])
+/* The line at delay_q8 (a time in samples, Q8) before the write point pos (HALF RATE: and its phase), between two
+ * slots, through LO CUT (states lc). */
+static int32_t delay_read(MelloAudio *a, int32_t delay_q8, uint32_t pos, uint8_t phase, int32_t lc[2])
 {
     uint32_t di, fr, rp, rp1;
     int32_t d;
     if (a->delay_hr) /* HALF RATE: the line's slots are two samples each; the read point counted in half slots */
-        delay_q8 = (int32_t)(((uint32_t)delay_q8 - ((uint32_t)a->delay_hr_phase << 8)) >> 1);
+        delay_q8 = (int32_t)(((uint32_t)delay_q8 - ((uint32_t)phase << 8)) >> 1);
     di = (uint32_t)delay_q8 >> 8, fr = (uint32_t)delay_q8 & 0xFFu;
     if (di < 1u) di = 1u;
     if (di > a->delay_capacity - 2u) di = a->delay_capacity - 2u;
-    rp = a->delay_pos >= di ? a->delay_pos - di : a->delay_pos + a->delay_capacity - di;
+    rp = pos >= di ? pos - di : pos + a->delay_capacity - di;
     d = a->delay_buffer[rp];
     if (fr) {
         rp1 = rp ? rp - 1u : a->delay_capacity - 1u;
@@ -2225,36 +2226,52 @@ static int32_t frz_loop(MelloAudio *a, int32_t tap)
 }
 /* PING (ROADMAP F25): the line is read at the time (left) and at twice it (right, at FDBK), and fed back from the
  * second at FDBK squared, so the echoes come left, right, left ... at 1, FDBK, FDBK^2 ...: the same series as without,
- * taking turns. Without PING the right is the left. */
-static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t delay_q8, int32_t *right)
+ * taking turns. Without PING the right is the left.
+ * A sample of the delay is its reads (delay_taps: here, or a chunk ahead on the second core, parts_delay) and the
+ * rest (delay_write: the loop's DIFFUSE and PITCH on the tap that feeds back, HI CUT, the write), DECISIONS "The
+ * looping delay". */
+static inline bool delay_runs(const MelloAudio *a)
 {
-    int32_t d, fb_in, dl;
-    *right = 0;
-    if (!a->delay_buffer || a->delay_capacity <= 2u || !a->delay_samples) return 0;
-    if (a->frz_play && !a->frz_out) { /* FREEZE: the loop, nothing written */
-        d = frz_loop(a, a->frz_first ? delay_read(a, delay_q8, a->delay_lc) : 0);
-        if (a->dlyfx_diffuse | a->dlyfx_shift) d = delay_loop_fx(a, d);
-        dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
-        *right = dl;
-        return dl;
-    }
-    d = delay_read(a, delay_q8, a->delay_lc);
-    if (a->frz_play) { /* FREEZE off: the tap back over the loop, the writing with it */
-        int32_t g = (int32_t)(FRZ_XF - a->frz_out) << 7;
-        d = tz15_64((int64_t)d * g + (int64_t)frz_loop(a, 0) * (32768 - g));
-        if (--a->frz_out == 0u) a->frz_play = false;
-    }
-    if (!a->fx.delay_pingpong && (a->dlyfx_diffuse | a->dlyfx_shift)) d = delay_loop_fx(a, d);
-    dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
+    return a->delay_buffer && a->delay_capacity > 2u && a->delay_samples;
+}
+/* the reads at the write point pos (and HALF RATE's phase): the left's tap (with PING through its HI CUT, all it
+ * goes through), and PING's right tap into *r */
+static int32_t delay_taps(MelloAudio *a, int32_t delay_q8, uint32_t pos, uint8_t phase, int32_t *r)
+{
+    int32_t d = delay_read(a, delay_q8, pos, phase, a->delay_lc);
+    *r = 0;
     if (a->fx.delay_pingpong) {
-        int32_t d2 = delay_read(a, delay_q8 * 2, a->delay_lc_r);
-        if (a->dlyfx_diffuse | a->dlyfx_shift)
-            d2 = delay_loop_fx(a, d2); /* (PING: the tap that feeds back) */
-        fb_in = mul_q12_fb(d2, mul_q12(dly_fb, dly_fb));
+        *r = delay_read(a, delay_q8 * 2, pos, phase, a->delay_lc_r);
+        d = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
+    }
+    return d;
+}
+/* the write point after a sample's write, as delay_write moves it (the reads on the second core follow it) */
+static inline void delay_pos_step(const MelloAudio *a, uint32_t *pos, uint8_t *phase)
+{
+    if (a->delay_hr) {
+        if (!*phase) {
+            *phase = 1u;
+            return;
+        }
+        *phase = 0u;
+    }
+    if (++*pos >= a->delay_capacity) *pos = 0u;
+}
+/* the rest, from the reads: l the left's tap (with PING through HI CUT already), r PING's right tap */
+static int32_t delay_write(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t l, int32_t r, int32_t *right)
+{
+    int32_t fb_in, dl;
+    if (a->fx.delay_pingpong) {
+        dl = l;
+        if (a->dlyfx_diffuse | a->dlyfx_shift) r = delay_loop_fx(a, r); /* (PING: the tap that feeds back) */
+        fb_in = mul_q12_fb(r, mul_q12(dly_fb, dly_fb));
         *right =
-            mul_q12(tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_r_s, d2), dly_fb);
+            mul_q12(tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_r_s, r), dly_fb);
     } else {
-        fb_in = mul_q12_fb(d, dly_fb);
+        if (a->dlyfx_diffuse | a->dlyfx_shift) l = delay_loop_fx(a, l);
+        dl = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, l);
+        fb_in = mul_q12_fb(l, dly_fb);
         *right = dl;
     }
     if (a->delay_hr) { /* HALF RATE: two samples averaged into a slot */
@@ -2270,6 +2287,34 @@ static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t d
         a->delay_buffer[a->delay_pos] = sat16(send + fb_in);
     if (++a->delay_pos >= a->delay_capacity) a->delay_pos = 0u;
     return dl;
+}
+/* a sample of the delay, all of it here */
+static int32_t delay_tick(MelloAudio *a, int32_t send, int32_t dly_fb, int32_t delay_q8, int32_t *right)
+{
+    int32_t d, r = 0;
+    *right = 0;
+    if (!delay_runs(a)) return 0;
+    if (a->frz_play && !a->frz_out) { /* FREEZE: the loop, nothing written */
+        d = frz_loop(a, a->frz_first ? delay_read(a, delay_q8, a->delay_pos, a->delay_hr_phase, a->delay_lc)
+                                     : 0);
+        if (a->dlyfx_diffuse | a->dlyfx_shift) d = delay_loop_fx(a, d);
+        d = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
+        *right = d;
+        return d;
+    }
+    if (!a->frz_play)
+        d = delay_taps(a, delay_q8, a->delay_pos, a->delay_hr_phase, &r);
+    else { /* FREEZE off: the tap back over the loop (before HI CUT), the writing with it */
+        int32_t g = (int32_t)(FRZ_XF - a->frz_out) << 7;
+        d = delay_read(a, delay_q8, a->delay_pos, a->delay_hr_phase, a->delay_lc);
+        d = tz15_64((int64_t)d * g + (int64_t)frz_loop(a, 0) * (32768 - g));
+        if (--a->frz_out == 0u) a->frz_play = false;
+        if (a->fx.delay_pingpong) {
+            r = delay_read(a, delay_q8 * 2, a->delay_pos, a->delay_hr_phase, a->delay_lc_r);
+            d = tone_lp24(&DELAY_TONE_BIQUAD_Q28[a->fx.delay_tone / 10u], a->delay_tone_s, d);
+        }
+    }
+    return delay_write(a, send, dly_fb, d, r, right);
 }
 /* THROW raises the delay's feedback towards 70% as it slides in */
 static int32_t perf_fb(const MelloAudio *a, int32_t fb)
@@ -2680,7 +2725,11 @@ void mello_audio_init(MelloAudio *a, int16_t *db, uint32_t dc, int16_t *rb, uint
     a->reverb_capacity = rc;
     /* the delay's diffuser and pitch shifter after what either reverb uses, in a reverb memory of the FM-1's size */
     a->dlyfx = rb && rc == MELLO_AUDIO_REVERB_SAMPLES ? rb + MELLO_AUDIO_DLYFX_AT : 0;
-    a->reverb_room = a->dlyfx ? MELLO_AUDIO_DLYFX_AT : rc;
+    a->reverb_room = a->dlyfx ? MELLO_AUDIO_DLYCHUNK_AT : rc;
+    /* and the delay's reads for a chunk before them, 32-bit (none if the memory is not on a 4-byte boundary) */
+    a->dly_chunk = a->dlyfx && !((uintptr_t)(rb + MELLO_AUDIO_DLYCHUNK_AT) & 3u)
+                       ? (int32_t *)(void *)(rb + MELLO_AUDIO_DLYCHUNK_AT)
+                       : 0;
     a->silent = true;
     a->config_generation = 2u;
     apply_pending(a);
@@ -3130,6 +3179,13 @@ static void parts_step(MelloAudio *a)
         a->chord_out[1][s] = r;
     }
 #endif
+    if (j->delay) { /* the delay's reads: what they read the render wrote a chunk or more before; the render writes */
+        int32_t q = ramp_q8(&j->dly_ramp), *o = a->dly_chunk + s;
+        if (a->dly_glide_k) /* (as the render's own, from the same place: the job has the glide for the chunk) */
+            q = a->dly_glide_q8 == j->dly_ramp.target ? a->dly_glide_q8 : delay_glide(a, j->dly_ramp.target);
+        o[0] = delay_taps(a, q, j->dly_pos, j->dly_phase, &o[MELLO_PARTS_CHUNK]);
+        delay_pos_step(a, &j->dly_pos, &j->dly_phase);
+    }
     if (j->reverb) { /* the reverb's network and its return, PRE behind what the render writes */
         int32_t l = 0, r = 0;
         reverb_out(a, &l, &r);
@@ -3175,6 +3231,19 @@ static bool parts_reverb(const MelloAudio *a)
         if (a->reverb_ap_now[k] != a->reverb_ap_delay[k]) return false;
     return true;
 }
+/* The delay's reads go with the chunk on two cores (DECISIONS "The looping delay") when its time is a chunk and more
+ * all through it (the ramp's or the glide's way, from where it is to where it goes; PING reads twice that), so what
+ * they read the render wrote before the chunk began however far ahead the job runs, and nothing is frozen (FREEZE's
+ * loop and its way out are the render's). The rest of the delay, and its write, stay the render's. */
+#define DLY_SPLIT_MIN (MELLO_PARTS_CHUNK + 8u)
+static bool parts_delay(const MelloAudio *a)
+{
+    int32_t lo;
+    if (!a->cores || !a->dly_chunk || !delay_runs(a) || a->frz_play) return false;
+    lo = a->rp_delay.cur < a->rp_delay.target ? a->rp_delay.cur : a->rp_delay.target;
+    if (a->dly_glide_k && a->dly_glide_q8 < lo) lo = a->dly_glide_q8;
+    return lo >= (int32_t)(DLY_SPLIT_MIN << 8);
+}
 /* a chunk of n samples from the render's sample at time t: to the second core, or here a sample at a time */
 static void parts_start(MelloAudio *a, uint32_t t, uint32_t terr, uint32_t n)
 {
@@ -3196,6 +3265,8 @@ static void parts_start(MelloAudio *a, uint32_t t, uint32_t terr, uint32_t n)
     j->chords = false;
 #endif
     j->reverb = parts_reverb(a);
+    j->delay = parts_delay(a);
+    j->dly_pos = a->delay_pos, j->dly_phase = a->delay_hr_phase, j->dly_ramp = a->rp_delay;
     j->lfo_drums = j->drums && a->config.lfo_on && lt >= 0 && lt < 4;
     j->ctl_phase = a->ctl_phase, j->lfo_phase = a->lfo_phase, j->c_lfo = a->c_lfo;
     j->rendered = a->rendered_frames;
@@ -3210,6 +3281,7 @@ static void parts_start(MelloAudio *a, uint32_t t, uint32_t terr, uint32_t n)
             a->cores = 0;
             reverb_choose(a); /* V3 before this chunk's first sample */
             j->reverb = parts_reverb(a);
+            j->delay = false; /* (the render's, from this sample) */
         }
     }
 }
@@ -3245,6 +3317,15 @@ static void parts_heard(MelloAudio *a, uint32_t s, int32_t music)
     a->drum_buf_pos = (uint16_t)((a->drum_buf_pos + 1u) & (MELLO_DRUM_BUF - 1u));
     if (a->parts_on_core1) a->cores->sync();
     a->heard_done = s + 1u;
+}
+/* the render's sample of the delay: with its reads in the chunk (parts_at has waited for sample s), the rest here;
+ * else all of it here */
+static int32_t delay_sample(MelloAudio *a, bool split, uint32_t s, int32_t send, int32_t dly_fb,
+                            int32_t delay_q8, int32_t *right)
+{
+    if (split)
+        return delay_write(a, send, dly_fb, a->dly_chunk[s], a->dly_chunk[MELLO_PARTS_CHUNK + s], right);
+    return delay_tick(a, send, dly_fb, delay_q8, right);
 }
 /* the chunk done: the second core free for the next */
 static void parts_finish(MelloAudio *a)
@@ -3422,7 +3503,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         if (!(i % MELLO_PARTS_CHUNK)) { /* the parts' next chunk, from here, before this sample's events */
             parts_finish(a);
             reverb_choose(a);
-            parts_on = a->drum_config.on || parts_reverb(a);
+            parts_on = a->drum_config.on || parts_reverb(a) || parts_delay(a);
 #if MELLO_FEATURE_CHORD_MACHINE
             parts_on = parts_on || a->chord_config.on;
 #endif
@@ -3446,7 +3527,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             a->ramps_moving = false; /* all arrived: the ramps are read as they stand until the next change */
         if (a->dly_glide_k) /* GLIDE: the time a tape's way (the ramp runs on under it); there, a step moves nothing
                              * (its remainder is under a unit), so none is taken (0.5-f132) */
-            delay_q8 = a->dly_glide_q8 == a->rp_delay.target ? a->dly_glide_q8 : delay_glide(a);
+            delay_q8 = parts_on && a->parts_job.delay          ? delay_q8 /* (the job's, with the reads) */
+                       : a->dly_glide_q8 == a->rp_delay.target ? a->dly_glide_q8
+                                                               : delay_glide(a, a->rp_delay.target);
         if (q_any && audio_time_due(t, q_next)) { /* this sample's events, all of them */
             MelloAudioQueuedEvent q;
             while (audio_pop_due(a, t, &q)) apply_event(a, &q.event);
@@ -3852,7 +3935,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             int32_t dr, dl;
             in = mul_q12(in, dly_send);
             if (a->throw_q12) in += mul_q12(mix + bass + drums, a->throw_q12) / 2; /* THROW */
-            dl = delay_tick(a, in, perf_fb(a, dly_fb), delay_q8, &dr);
+            dl = delay_sample(a, parts_on && a->parts_job.delay, i - parts_at0, in, perf_fb(a, dly_fb),
+                              delay_q8, &dr);
             /* the distortion is one channel: PING's two taps go in together, its echoes in the middle */
             dly_heard = mul_q12(a->fx.delay_pingpong ? dl + dr : dl, dly_level);
             mix += dly_heard;
@@ -3901,7 +3985,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (!a->fx.delay_pre_dist) {
                 int32_t dr, dl, in = mul_q12(fx_dly, dly_send);
                 if (a->throw_q12) in += mul_q12(fx_all, a->throw_q12) / 2; /* THROW: everything, at half */
-                dl = delay_tick(a, in, perf_fb(a, dly_fb), delay_q8, &dr);
+                dl = delay_sample(a, parts_on && a->parts_job.delay, i - parts_at0, in, perf_fb(a, dly_fb),
+                                  delay_q8, &dr);
                 dl = mul_q12(dl, dly_level);
                 mix_l += dl;
                 dr = a->fx.delay_pingpong ? mul_q12(dr, dly_level) : dl; /* without PING the same */
