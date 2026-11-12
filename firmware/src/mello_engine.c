@@ -5388,6 +5388,17 @@ static void chord_drift(MelloEngine *e)
     }
 }
 
+/* HOLD holds its chord until the next one lets it go. When the chords are no longer HOLD, or off (a roll, RNDMZR, UNDO,
+ * a STYLE's own chords, a knob), nothing else would: they are let go at the next pulse (0.5-f135; they hung until STOP,
+ * under the new style's stabs or arpeggio). */
+static void chord_let_go(MelloEngine *e, const MelloPulseEntry *pe)
+{
+    uint8_t i;
+    for (i = 0u; i < e->chord_last_count; ++i)
+        emit_chord_note(e, MELLO_EVENT_CHORD_NOTE_OFF, e->now_tick, pe->step_index, pe->pulse_index,
+                        pe->total_pulses, e->chord_last_notes[i], 0u, i);
+    e->chord_last_count = 0u;
+}
 static void chord_trigger(MelloEngine *e, const MelloPulseEntry *pe, bool advance_chain)
 {
     MelloChordConfig *c = &e->chord;
@@ -5710,6 +5721,7 @@ bool mello_engine_advance_pulse(MelloEngine *e)
     {
         bool step_start = pe.pulse_index == 0u;
         bool fire;
+        if (e->chord_last_count && (!e->chord.on || e->chord.mode != MELLO_CHORD_HOLD)) chord_let_go(e, &pe);
         if (e->chord.trigger == MELLO_CHORD_TRIGGER_GRID)
             fire = chord_grid_hit(e, step_start);
         else if (e->chord.mode == MELLO_CHORD_ARP_UP || e->chord.mode == MELLO_CHORD_ARP_DOWN ||

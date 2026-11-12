@@ -2480,6 +2480,23 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   plays; PLAY's first second stays 0.02 ms over, and is left so. (fm1-emu counts instructions; the FM-1's own CPU
   readout is the ground truth, not taken yet.)
 
+## A chord left hanging (2026-11-12)
+
+The product owner: "chord blir hengende igjen. altså at en akkord henger når jeg trtykker randomize og forblir i
+bakgruinn til jeg stopper og starter igjen Det skjer ofte."
+
+- **HOLD's chord let go when the chords stop being HOLD (0.5-f135)**: HOLD (the pads) holds its chord until the next
+  chord lets it go (chord_trigger sends the offs of the one before). A roll that turned the chords to STAB, an ARP,
+  PATTERN or WALK (a style with stabs or an arpeggio after one with pads: RNDMZR, a STYLE roll, UNDO, a knob) or
+  off left nothing to let it go: its notes sounded on under the new style until STOP sent everything off (the audio
+  kills its chord voices when the chords go off, so it was the HOLD -> another mode case that was heard; in the take
+  the first DEEP stabs stole the voices). Now, at each pulse, a HOLD chord still held when the chords are no
+  longer HOLD, or off, is let go (chord_let_go: its offs at that pulse). Test chord_roll_release: the band rolls into
+  a new style every bar, mid-bar as a hand would, eight seeds, 48 bars: before, a pulse after leaving HOLD four chord
+  notes were never released; now none (352 rolls), and in HOLD never more than a chord's four. The take's first 49 s
+  are the same up to its first roll (9.02 s), TRIPHOP's pad let go under DEEP's stabs (the difference -39 dB in that
+  second, -75 after).
+
 ## SEED (2026-11-12)
 
 The product owner: "Følger randmizer en seed? Det blir lik rekke med ttemaeer hver gang jeg booter". It did: dinghy.c
