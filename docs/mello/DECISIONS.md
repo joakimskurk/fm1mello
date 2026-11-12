@@ -2456,6 +2456,9 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   instead of 0.15, 136 samples over -30 dB in its first 60 ms instead of 186. Two allpasses (each pair tried, and
   higher gains) gave 28..45 ms and 70 or so samples: too sparse, a flutter, so three. About 30 instructions a sample
   fewer on the FM-1's core: core 0's heaviest block 51.8..52.1% in steady play (53.2% in PLAY's first second).
+- **GLIDE's step skipped once it is there (0.5-f132)**: with GLIDE on, the glide's 64-bit step ran every sample;
+  once the time has reached its target the step moves nothing (its remainder is under a unit, so it stays), and now
+  none is taken. The same to the bit. (Measured with f133.)
 
 ## Engineering process decisions
 

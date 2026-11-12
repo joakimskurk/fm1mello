@@ -3444,8 +3444,9 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                     a->rp_dist_level.left | a->rp_sub_level.left | a->rp_fsub_level.left | a->rp_delay.left |
                     a->rp_lead_level.left | a->rp_dly_rev.left))
             a->ramps_moving = false; /* all arrived: the ramps are read as they stand until the next change */
-        if (a->dly_glide_k)
-            delay_q8 = delay_glide(a); /* GLIDE: the time a tape's way (the ramp runs on under it) */
+        if (a->dly_glide_k) /* GLIDE: the time a tape's way (the ramp runs on under it); there, a step moves nothing
+                             * (its remainder is under a unit), so none is taken (0.5-f132) */
+            delay_q8 = a->dly_glide_q8 == a->rp_delay.target ? a->dly_glide_q8 : delay_glide(a);
         if (q_any && audio_time_due(t, q_next)) { /* this sample's events, all of them */
             MelloAudioQueuedEvent q;
             while (audio_pop_due(a, t, &q)) apply_event(a, &q.event);
