@@ -23,7 +23,6 @@
 #define UI_RED     UI_RGB(255, 68, 68)
 #define UI_LINE    UI_RGB(38, 38, 38)    /* the hairline between the zones, borders, slider tracks' edge */
 #define UI_TRACK   UI_RGB(20, 20, 20)    /* slider tracks, inactive pills */
-#define UI_NOTE    UI_RGB(190, 255, 220) /* note names in the step bars */
 #define UI_BRIGHT  UI_RGB(153, 255, 204) /* values, the playing step's top line */
 #define UI_CHORD   UI_RGB(148, 126, 255) /* harmonic layer */
 
@@ -5025,12 +5024,10 @@ static void draw_random_skyline(MelloUi *ui, const MelloUiDrawOps *o)
 }
 
 /* One HOME lane, as the HTML's step lanes: a dark panel with a cap in the segment's colour, the bar rising by pitch
- * in a gradient with the note's letter in it (a mark beside it for a sharp), the playing step brighter, the
- * selected one framed, three dots under it (accent, sub, slide / ratchet). */
+ * in a gradient, the playing step brighter, the selected one framed, three dots under it (accent, sub, slide /
+ * ratchet). No letter in the bar (2026-11-12, the product owner: the picked step's note is under the bars, S1 C4). */
 static void draw_home_step(MelloUi *ui, const MelloUiDrawOps *o, uint8_t i)
 {
-    static const char letters[12] = {'C', 'C', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'A', 'A', 'B'};
-    static const uint8_t sharp[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
     MelloEngine *e = eng(ui);
     MelloStep *s;
     uint8_t lo, hi, midi, active, selected, segment;
@@ -5076,22 +5073,8 @@ static void draw_home_step(MelloUi *ui, const MelloUiDrawOps *o, uint8_t i)
          * a white top line and cap, so the playhead is white and never a brighter green */
         top = active ? seg : ui_mix(seg, UI_BLACK, 200);
         bottom = active ? ui_mix(seg, UI_BLACK, 180) : ui_mix(seg, UI_BLACK, 140);
-        if (h >= 30 &&
-            w >= 10) { /* the letter's band solid, so it sits on its own colour; the gradient below */
-            o->fill(o->ctx, (int16_t)(x + 1), top_y, (int16_t)(w - 2), 19, top);
-            ui_vgrad(o, (int16_t)(x + 1), (int16_t)(top_y + 19), (int16_t)(w - 2), (int16_t)(h - 19),
-                     ui_mix(top, bottom, 60), bottom);
-        } else
-            ui_vgrad(o, (int16_t)(x + 1), top_y, (int16_t)(w - 2), h, top, bottom);
+        ui_vgrad(o, (int16_t)(x + 1), top_y, (int16_t)(w - 2), h, top, bottom);
         o->fill(o->ctx, (int16_t)(x + 1), top_y, (int16_t)(w - 2), 1, active ? UI_BRIGHT : seg);
-    }
-    if (w >= 10) { /* the note's letter, in the bar when it is tall enough, else over it */
-        char t[2] = {letters[midi % 12u], 0};
-        int16_t ty = h >= 30 ? (int16_t)(top_y + 2) : (int16_t)(top_y - 17);
-        uint16_t tc = s->skip ? UI_DIM : (h >= 30 ? UI_NOTE : UI_MID);
-        if (ty < lane_y + 1) ty = (int16_t)(lane_y + 1);
-        o->text(o->ctx, (int16_t)(x + (w - 8) / 2), ty, 8, 0, t, tc, 0);
-        if (sharp[midi % 12u]) o->fill(o->ctx, (int16_t)(x + (w - 8) / 2 + 8), (int16_t)(ty + 3), 2, 2, tc);
     }
     { /* the HTML's three dots: accent, sub, slide (ratchet magenta) */
         int16_t dx = (int16_t)(x + w / 2 - 5);

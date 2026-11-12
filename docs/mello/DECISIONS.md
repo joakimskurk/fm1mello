@@ -2501,6 +2501,10 @@ only with RNDMZR held and white key 1).
   control_context_contract,
   control_authoritative_mapping (125 active keys with the chords, 114 without); the README's and UI_MAP's strips are
   the renderer's.
+- **No letters in HOME's bars (0.5-f137)**: the product owner (2026-11-12): "Vi fjerner bokstavene som er tonene
+  inni søylene. Det står under rpå aktivt step". Each step's bar had its note's letter in it (or over it, when short),
+  a dot beside a sharp, on a solid band at the top for it to sit on. Gone, and the band with it: the bar is its
+  gradient all the way, the cap line on top as before. The picked step's note stays under the bars (S1 C4).
 
 ## A chord left hanging (2026-11-12)
 
