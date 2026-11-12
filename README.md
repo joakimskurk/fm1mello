@@ -244,7 +244,7 @@ Each section is a button. Press it again (or turn ALGORITHM) for its next page; 
 | **SEQ** | STEP · SEGMENT · LOOP CYCLE · SLOT SEQ | STEP: TRIG, NOTE, FLAGS, SEQ · LOOP CYCLE: STEP, HARM, LOOP |
 | **ENV** | SOUND · SAMPLE | SOUND: FILTER, OSC, OSC 2, CHARACTER, GRIT, MOD ENV, TRACKING, AMP ENV, FOLLOWER, LFO · SAMPLE: MAIN, PITCH, TRIM, ENVELOPE |
 | **LFO** | LFO · DOT · EVOLVE | DOT: the five matrices ACCENT, MOD 1, MOD 2, RATCHET, SUB · EVOLVE: MAIN, ROUTES, DEPTH, SOUND |
-| **FX** | DISTORTION · DELAY · REVERB | DELAY: SEND, CONFIG, LOOP · REVERB: ROOM, RETURNS, OLIVERB |
+| **FX** | DISTORTION · DELAY · REVERB | DELAY: SEND, CONFIG, LOOP, ROUTE · REVERB: ROOM, RETURNS, OLIVERB |
 | **ARP** | BASS · DRUMS · CHORD | BASS: PLAY, SEQ, STEP, VOICE, TONE, FILTER · DRUMS: VOICE, STEP, VARY, KIT, DIST · CHORD: PLAY, CHORD, VOICING, GRID, PATTERN, TONE, FILTER, MOTION, AMP |
 | **SEL** | KEY / SCALE | |
 | **GLO** | MIX · GLOBAL | GLOBAL: CLOCK, MIDI, GROOVE, SYSTEM |
@@ -291,7 +291,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   time is reached as a tape's would be, the echoes' pitch bending on the way; OFF is the usual 50 ms), PITCH
   (-24..+24 semitones on every repeat, so +12 climbs an octave each time), DIFFUSE (each repeat smeared further)
   and FREEZE (ON: the last DIV of the line played round and round, nothing new recorded; REV the same backwards;
-  not saved with the project). Then a reverb with size, decay (the tail's time to -60 dB, 0.4 to 60 s), pre-delay and
+  not saved with the project). DELAY ROUTE's REVERB sends the echoes, as you hear them, into the reverb too (0 on a
+  new project: the two side by side, as before), so a climbing PITCH rings in the room. Then a reverb with size, decay (the tail's time to -60 dB, 0.4 to 60 s), pre-delay and
   tone. TRIM (REVERB RETURNS, K4) sets the whole output by -6..+6 dB; a STYLE roll sets it so every style plays at
   about the same level. With CORE 2 on, the reverb is Oliverb (from Mutable Instruments Clouds' Parasites firmware),
   and REVERB OLIVERB has its own knobs: DIFFUSE (how smeared the reflections are), SWING and RATE (how far and how
@@ -407,6 +408,7 @@ K1-K4 with their default values.
 | AUDIO FX | FX | DELAY SEND | `PRE-DIST PING M UNDO RNDMZR P` | WET 12% · FDBK 32% · LO CUT 120HZ · HI CUT 72% |
 | AUDIO FX | FX | DELAY CONFIG | `PRE-DIST PING M UNDO RNDMZR P` | SYNC ON · DIV 8N · TIME 250MS · LEVEL 75% |
 | AUDIO FX | FX | DELAY LOOP | `PRE-DIST PING M UNDO RNDMZR P` | GLIDE OFF · PITCH OFF · DIFFUSE 0% · FREEZE OFF |
+| AUDIO FX | FX | DELAY ROUTE | `PRE-DIST PING M UNDO RNDMZR P` | REVERB 0% · - · - · - |
 | AUDIO FX | FX | REVERB ROOM | `PRE-DIST PING M UNDO RNDMZR P` | WET 24% · SIZE 70% · DECAY 2.5S · TONE 62% |
 | AUDIO FX | FX | REVERB RETURNS | `PRE-DIST PING M UNDO RNDMZR P` | PRE 12MS · LEVEL 115% · D.LEVEL 90% · TRIM 0 DB |
 | AUDIO FX | FX | REVERB OLIVERB | `PRE-DIST PING M UNDO RNDMZR P` | DIFFUSE 65% · SWING 10% · RATE 50% · SHIMMER OFF |

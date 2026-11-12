@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (C) 2026 joakimskurk */
 /* FX > DELAY LOOP (ROADMAP H7, DECISIONS "The looping delay"): GLIDE, PITCH, DIFFUSE and FREEZE on the DELAY page's
- * third layer, after SEND and CONFIG on SELECT, both ways round; the knobs a step a detent (PITCH a semitone, FREEZE
- * OFF, ON, REV); saved and loaded (the FX section's version 9) but FREEZE, a performance's state; a project saved
+ * third layer, after SEND and CONFIG on SELECT (ROUTE after it), both ways round; the knobs a step a detent (PITCH a semitone, FREEZE
+ * OFF, ON, REV); saved and loaded (the FX section's version 9 on) but FREEZE, a performance's state; a project saved
  * before them loads them off, so it sounds as it did. */
 #include <stdio.h>
 #include <string.h>
@@ -98,7 +98,7 @@ static void storage(void)
           "saved, loaded as GLIDE %u, DIFFUSE %u, PITCH %d, FREEZE %u (want 430, 610, -5 and not saved), "
           "RATE %u",
           e.fx.delay_glide, e.fx.delay_diffuse, e.fx.delay_pitch, e.fx.delay_freeze, e.fx.olv_rate);
-    /* the same record, its FX section made version 8: its last 5 bytes go */
+    /* the same record, its FX section made version 8: its last 7 bytes go (version 9's 5, 10's 2) */
     if (get32(flash + MELLO_STORAGE_BANK0_ADDR) == MELLO_STORAGE_MAGIC) base = MELLO_STORAGE_BANK0_ADDR;
     if (get32(flash + MELLO_STORAGE_BANK1_ADDR) == MELLO_STORAGE_MAGIC) base = MELLO_STORAGE_BANK1_ADDR;
     CHECK(base != 0u, "no record");
@@ -109,12 +109,12 @@ static void storage(void)
         uint32_t id = pl[pos] | (uint32_t)pl[pos + 1u] << 8, ver = pl[pos + 2u] | (uint32_t)pl[pos + 3u] << 8,
                  len = get32(pl + pos + 4u);
         if (id == 5u) { /* SEC_FX */
-            const uint8_t *k = pl + pos + 8u + len - 5u;
-            CHECK(ver == 9u && (k[0] | k[1] << 8) == 430 && (k[2] | k[3] << 8) == 610 && (int8_t)k[4] == -5,
-                  "the FX section is version %u, its last 5 bytes not the loop's", ver);
-            memmove(pl + pos + 8u + len - 5u, pl + pos + 8u + len, /* (the footer after the payload too) */
+            const uint8_t *k = pl + pos + 8u + len - 7u;
+            CHECK(ver == 10u && (k[0] | k[1] << 8) == 430 && (k[2] | k[3] << 8) == 610 && (int8_t)k[4] == -5,
+                  "the FX section is version %u, the loop's not 7 bytes from its end", ver);
+            memmove(pl + pos + 8u + len - 7u, pl + pos + 8u + len, /* (the footer after the payload too) */
                     size - (pos + 8u + len) + MELLO_STORAGE_FOOTER_SIZE);
-            len -= 5u, size -= 5u;
+            len -= 7u, size -= 7u;
             put32(pl + pos + 4u, len);
             put32(flash + base + 8u, size);
             pl[pos + 2u] = 8u, patched = 1;
@@ -136,7 +136,7 @@ static void ui(void)
     static MelloTransport t;
     static MelloStorage st;
     static MelloUi u;
-    static const uint8_t fwd[4] = {1u, 2u, 3u, 1u}, back[4] = {1u, 3u, 2u, 1u};
+    static const uint8_t fwd[5] = {1u, 2u, 3u, 4u, 1u}, back[5] = {1u, 4u, 3u, 2u, 1u};
     int16_t enc[MELLO_UI_ENCODER_COUNT];
     uint32_t ms = 100u;
     uint8_t i;
@@ -146,13 +146,13 @@ static void ui(void)
     mello_ui_init(&u, &t, &st);
     mello_ui_set_page(&u, MELLO_UI_AUDIO_FX);
     u.fx_subpage = 1u;
-    for (i = 1u; i < 4u; ++i) {
+    for (i = 1u; i < 5u; ++i) {
         memset(enc, 0, sizeof enc);
         enc[MELLO_UI_ENC_SELECT] = 1;
         mello_ui_input(&u, ms * 1000u, ms, 0u, 0u, 0u, 0u, enc), ms += 50u;
         CHECK(u.fx_subpage == fwd[i], "SELECT on: DELAY's layer %u, want %u", u.fx_subpage, fwd[i]);
     }
-    for (i = 1u; i < 4u; ++i) {
+    for (i = 1u; i < 5u; ++i) {
         memset(enc, 0, sizeof enc);
         enc[MELLO_UI_ENC_SELECT] = -1;
         mello_ui_input(&u, ms * 1000u, ms, 0u, 0u, 0u, 0u, enc), ms += 50u;

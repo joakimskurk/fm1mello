@@ -394,6 +394,7 @@ static MelloFxConfig sanitize_fx_config(MelloFxConfig c)
     c.delay_diffuse = clamp_amount(c.delay_diffuse);
     c.delay_pitch = clamp_i8(c.delay_pitch, -24, 24);
     if (c.delay_freeze > 2u) c.delay_freeze = 0u;
+    c.delay_to_reverb = clamp_amount(c.delay_to_reverb);
     c.reverb_wet = clamp_amount(c.reverb_wet);
     c.reverb_size = clamp_amount(c.reverb_size);
     c.reverb_decay_ms = clamp_u16_range(c.reverb_decay_ms, 400u, 60000u);
@@ -6051,6 +6052,7 @@ void mello_engine_stress(MelloEngine *e)
     fx.reverb_decay_ms = 8000u;
     fx.delay_pingpong = true; /* PING: the second tap's read and filters */
     fx.delay_glide = 300u, fx.delay_diffuse = 800u, fx.delay_pitch = 7; /* the looping delay's, all of it */
+    fx.delay_to_reverb = 500u;                                          /* and its return into the reverb */
     mello_engine_fx_set_config(e, &fx);
     sub = e->sub;
     sub.on = true;

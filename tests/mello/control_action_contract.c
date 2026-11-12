@@ -157,7 +157,7 @@ static void verify_sample_navigation(void)
     buttons(&u, 560u, bit_u32(MELLO_UI_BTN_FX), 0u);
     if (u.fx_subpage != 1u) fail("FX", "DISTORTION did not go on to DELAY");
     buttons(&u, 570u, bit_u32(MELLO_UI_BTN_FX), 0u);
-    if (u.fx_subpage != 4u) fail("FX", "DELAY did not go on to REVERB");
+    if (u.fx_subpage != 5u) fail("FX", "DELAY did not go on to REVERB");
     buttons(&u, 580u, bit_u32(MELLO_UI_BTN_FX), 0u);
     if (u.fx_subpage != 0u) fail("FX", "REVERB did not go back to DISTORTION");
 }

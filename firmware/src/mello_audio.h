@@ -400,9 +400,10 @@ typedef struct {
     int16_t la_g[MELLO_LA_N];
     int32_t la_sum, la_min;
     MelloRamp rp_cut, rp_res, rp_master, rp_rev_send, rp_rev_level, rp_dly_send, rp_dly_level, rp_dly_fb,
-        rp_dist_level, rp_sub_level, rp_fsub_level, rp_delay, rp_lead_level;
-    int32_t delay_tone_s[2][4];                  /* dlyTone */
-    int32_t delay_lc[2];                         /* LO CUT: two one-pole low-passes, taken away */
+        rp_dist_level, rp_sub_level, rp_fsub_level, rp_delay, rp_lead_level,
+        rp_dly_rev;             /* FX > DELAY ROUTE's REVERB: the delay's return into the reverb */
+    int32_t delay_tone_s[2][4]; /* dlyTone */
+    int32_t delay_lc[2];        /* LO CUT: two one-pole low-passes, taken away */
     int32_t delay_lc_r[2], delay_tone_r_s[2][4]; /* PING's second tap: its own LO CUT and HI CUT */
     /* PERFORM's sound (mello_audio_set_perf_fx, MELLO_PERF_FX_*): the sweeps' places (Q20, 0 open) and their state
      * variable filters (per channel: low, band), THROW's and WASH's sends (Q12, sliding), and a tail kept running */

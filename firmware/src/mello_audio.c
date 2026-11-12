@@ -2584,6 +2584,7 @@ static void apply_pending(MelloAudio *a)
         ramp_to(&a->rp_rev_level, permille_q12((int32_t)a->fx.reverb_level * 1050 / 1000), 80u, j);
         ramp_to(&a->rp_dly_send, permille_q12(a->fx.delay_wet), 100u, j);
         ramp_to(&a->rp_dly_level, permille_q12(a->fx.delay_level), 80u, j);
+        ramp_to(&a->rp_dly_rev, permille_q12(a->fx.delay_to_reverb), 80u, j);
         ramp_to(&a->rp_dly_fb, permille_q12(a->fx.delay_feedback), 50u, j);
         ramp_to(&a->rp_dist_level, permille_q12(a->fx.dist_level), 80u, j);
         ramp_to(&a->rp_sub_level, permille_q12(a->sub_config.level), 50u, j);
@@ -3408,7 +3409,7 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (parts_on)
                 parts_start(a, t, terr, frames - i < MELLO_PARTS_CHUNK ? frames - i : MELLO_PARTS_CHUNK);
         }
-        int32_t drums = 0, drums_l = 0, drums_r = 0, bass = 0;
+        int32_t drums = 0, drums_l = 0, drums_r = 0, bass = 0, dly_heard = 0;
         bool rm = a->ramps_moving;
         uint16_t cut = (uint16_t)(RAMP(a, rm, rp_cut) >> 8), res = (uint16_t)(RAMP(a, rm, rp_res) >> 8);
         int32_t master = RAMP(a, rm, rp_master) >> 8, rev_send = RAMP(a, rm, rp_rev_send) >> 8,
@@ -3416,11 +3417,11 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 dly_level = RAMP(a, rm, rp_dly_level) >> 8, dly_fb = RAMP(a, rm, rp_dly_fb) >> 8,
                 dist_level = RAMP(a, rm, rp_dist_level) >> 8, sub_level = RAMP(a, rm, rp_sub_level) >> 8,
                 fsub_level = RAMP(a, rm, rp_fsub_level) >> 8, delay_q8 = RAMP(a, rm, rp_delay),
-                lead_level = RAMP(a, rm, rp_lead_level) >> 8;
+                lead_level = RAMP(a, rm, rp_lead_level) >> 8, dly_rev = RAMP(a, rm, rp_dly_rev) >> 8;
         if (rm && !(a->rp_cut.left | a->rp_res.left | a->rp_master.left | a->rp_rev_send.left |
                     a->rp_rev_level.left | a->rp_dly_send.left | a->rp_dly_level.left | a->rp_dly_fb.left |
                     a->rp_dist_level.left | a->rp_sub_level.left | a->rp_fsub_level.left | a->rp_delay.left |
-                    a->rp_lead_level.left))
+                    a->rp_lead_level.left | a->rp_dly_rev.left))
             a->ramps_moving = false; /* all arrived: the ramps are read as they stand until the next change */
         if (a->dly_glide_k)
             delay_q8 = delay_glide(a); /* GLIDE: the time a tape's way (the ramp runs on under it) */
@@ -3831,7 +3832,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             if (a->throw_q12) in += mul_q12(mix + bass + drums, a->throw_q12) / 2; /* THROW */
             dl = delay_tick(a, in, perf_fb(a, dly_fb), delay_q8, &dr);
             /* the distortion is one channel: PING's two taps go in together, its echoes in the middle */
-            mix += mul_q12(a->fx.delay_pingpong ? dl + dr : dl, dly_level);
+            dly_heard = mul_q12(a->fx.delay_pingpong ? dl + dr : dl, dly_level);
+            mix += dly_heard;
         }
         {
             /* HTML: Tone.Distortion is always in the path (wet = distMix, 1 by default). At AMT 0 its curve is
@@ -3880,8 +3882,13 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
                 dl = delay_tick(a, in, perf_fb(a, dly_fb), delay_q8, &dr);
                 dl = mul_q12(dl, dly_level);
                 mix_l += dl;
-                mix_r += a->fx.delay_pingpong ? mul_q12(dr, dly_level) : dl; /* without PING the same */
+                dr = a->fx.delay_pingpong ? mul_q12(dr, dly_level) : dl; /* without PING the same */
+                mix_r += dr;
+                dly_heard = a->fx.delay_pingpong ? dl + dr : dl; /* (PING: each echo once, left or right) */
             }
+            /* REVERB (FX > DELAY ROUTE): the delay as it is heard, with the parts' sends into the reverb (with PRE
+             * DIST the lead's send carries it too, in the lead) */
+            if (dly_rev) fx_rev += mul_q12(dly_heard, dly_rev);
 #if MELLO_FEATURE_CHORD_MACHINE
             mix_l += mul_q12(chord_l, 2753); /* 0.672: 800 x 840 as the lead's dry */
             mix_r += mul_q12(chord_r, 2753);

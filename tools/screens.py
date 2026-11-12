@@ -157,11 +157,11 @@ def the_tour():
     t.btn(LFO)
     layers(t, "evolve", "EVOLVE", ["MAIN", "ROUTES", "DEPTH", "SOUND"])
 
-    # FX: DISTORTION, DELAY (send, config, loop), REVERB (room, returns, oliverb)
+    # FX: DISTORTION, DELAY (send, config, loop, route), REVERB (room, returns, oliverb)
     t.btn(FX)
     t.shot("fx-distortion", "AUDIO FX", "DISTORTION")
     t.btn(FX)
-    layers(t, "fx", "AUDIO FX", ["DELAY SEND", "DELAY CONFIG", "DELAY LOOP"])
+    layers(t, "fx", "AUDIO FX", ["DELAY SEND", "DELAY CONFIG", "DELAY LOOP", "DELAY ROUTE"])
     t.btn(FX)
     layers(t, "fx", "AUDIO FX", ["REVERB ROOM", "REVERB RETURNS", "REVERB OLIVERB"])
 

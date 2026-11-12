@@ -2429,6 +2429,15 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   and the bounds hold (delay_loop_fx). fm1-emu 0.3.0, the worst case with CORE 2 ON, core 0's heaviest block a second
   in steady play: 54.5..55.1% at f126 (55.7% in PLAY's first second), 54.0..54.6% at f127, 52.7..53.3% now (53.8%):
   3.07 ms, still over docs/RULES.md's 2.9. Core 1's real work 45.7% (as before).
+- **The delay into the reverb (0.5-f129)**: the product owner (2026-11-12), "passe på at delayen kan sendes til
+  reverb også". The HTML has the two side by side (the distortion's output into each, both returns into the mix), and
+  so had the C engine: the echoes never reached the room. FX > DELAY ROUTE, the DELAY page's fourth layer after LOOP
+  (the product owner's choice of where, K2..K4 free), has REVERB 0..100%: the delay's return as it is heard (after
+  its LEVEL; with PING each echo once, left or right) into the reverb with the parts' MIX sends, then the reverb's WET,
+  ramped as the other gains. With PRE DIST the echoes were in the lead's signal and its send already; REVERB adds to
+  that. 0 on a new project and on one saved before (the FX section's version 10 saves it, 2 bytes), so nothing sounds
+  different until it is turned: the take's first 49 s are the same to the byte as at f128. The REVERB layers are now 5
+  to 7 inside the FX page. The stress build turns it to 50%. Test delay_route.
 
 ## Engineering process decisions
 

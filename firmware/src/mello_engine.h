@@ -322,6 +322,10 @@ typedef struct {
     /* FREEZE (FX > DELAY LOOP), Clouds' looping delay's: 0 OFF; 1 ON, the line's last DIV (its time) played round
      * and round, nothing written; 2 REV, the same backwards. A performance's state: not saved. */
     uint8_t delay_freeze;
+    /* REVERB (FX > DELAY ROUTE) 0..1000: the delay's return, as it is heard, into the reverb with the parts' sends
+     * (then the reverb's WET), so the echoes ring in the room. 0 on a new project (the HTML has the two side by
+     * side); the C engine's own (DECISIONS "The looping delay"). */
+    uint16_t delay_to_reverb;
     uint16_t reverb_wet;      /* 0..1000 */
     uint16_t reverb_size;     /* 0..1000 */
     uint16_t reverb_decay_ms; /* 400..60000: the time to -60 dB */

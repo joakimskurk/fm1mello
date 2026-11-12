@@ -166,12 +166,12 @@ static void old_project(void)
         uint32_t id = pl[pos] | (uint32_t)pl[pos + 1u] << 8, ver = pl[pos + 2u] | (uint32_t)pl[pos + 3u] << 8,
                  len = get32(pl + pos + 4u);
         if (id == 5u) { /* SEC_FX: DECAY at byte 26 (after DIST's five, the delay's seven, WET and SIZE) */
-            CHECK(ver == 9u && (pl[pos + 8u + 26u] | pl[pos + 8u + 27u] << 8) == 6000,
+            CHECK(ver == 10u && (pl[pos + 8u + 26u] | pl[pos + 8u + 27u] << 8) == 6000,
                   "the FX section is version %u, DECAY at byte 26 %u", ver,
                   pl[pos + 8u + 26u] | pl[pos + 8u + 27u] << 8);
-            memmove(pl + pos + 8u + len - 12u, pl + pos + 8u + len, /* (the footer after the payload too) */
+            memmove(pl + pos + 8u + len - 14u, pl + pos + 8u + len, /* (the footer after the payload too) */
                     size - (pos + 8u + len) + MELLO_STORAGE_FOOTER_SIZE);
-            len -= 12u, size -= 12u; /* (version 8's 7 bytes and 9's 5) */
+            len -= 14u, size -= 14u; /* (version 8's 7 bytes, 9's 5 and 10's 2) */
             put32(pl + pos + 4u, len);
             put32(flash + base + 8u, size);
             pl[pos + 2u] = 6u, patched = 1;

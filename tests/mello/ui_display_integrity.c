@@ -126,7 +126,7 @@ static int subcount(MelloUiPage p)
 #endif
     case MELLO_UI_GLOBAL: return 4; /* CLOCK, MIDI, GROOVE, SYSTEM */
     case MELLO_UI_SOUND_RESERVED: return 10;
-    case MELLO_UI_AUDIO_FX: return 7;
+    case MELLO_UI_AUDIO_FX: return 8;
     case MELLO_UI_SAMPLE_RESERVED: return 4;
     case MELLO_UI_DRUMS: return 5;
     default: return 1;
