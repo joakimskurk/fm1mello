@@ -2480,6 +2480,28 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   plays; PLAY's first second stays 0.02 ms over, and is left so. (fm1-emu counts instructions; the FM-1's own CPU
   readout is the ground truth, not taken yet.)
 
+## ROLL on B5 (2026-11-12)
+
+The product owner: "Jeg skulle også ønske jeg kunne ha en roll på sort tangent for hoved-melodi også ett stted slik
+som alt det andre, så jeg slipper maske utt alt for å bare endre melodi", and then "Jeg har også sett at roll ikke
+alltid er på samme svarte tangent. Dette skulle være så globalt som mulig der den er tilstede". It was not: DOT's and
+EVOLVE's RND on B1, BASS's ROLL on B2, DRUMS' on B3, none on HOME, the SEQ pages, CHORD or SOUND (the melody alone
+only with RNDMZR held and white key 1).
+
+- **B5 is ROLL (0.5-f136)** on every page with a part to roll, one place as MUT, UNDO and RNDMZR have theirs (R3 "One
+  thread": B5 was free on every page): HOME and the SEQ pages roll the lead's melody alone, in the style that plays
+  (as RNDMZR held and white key 1); BASS the bass line, DRUMS the beat (as their ROLL keys did); CHORD the chords
+  (key 5's roll; they fit what the bass plays, so in some styles they come out as they were); SOUND the lead's sound;
+  DOT the picked matrix, EVOLVE its figure (their RND). B1 on DOT and EVOLVE, B2 on BASS and B3 on DRUMS are free now.
+  Where the strip is full, ROLL shortens to RL, then R, before UNLOCK does to UNL and U (HOME keeps UNLOCK whole while
+  a part is locked: ROLL is RL there then); with it STEP, LOOP CYCLE, SLOT SEQ,
+  EVOLVE and SOUND show the compact strip (M, P) as HOME and DRUMS did. Locks hold as with RNDMZR (a locked part is
+  not rolled). Tests roll_key (each page's B5 rolls its part and nothing else; CHORD's is the chords' own roll to
+  the byte; GLOBAL, FX and MIX: nothing), unlock_key (UNLOCK still whole on HOME), control_action_contract,
+  control_context_contract,
+  control_authoritative_mapping (125 active keys with the chords, 114 without); the README's and UI_MAP's strips are
+  the renderer's.
+
 ## A chord left hanging (2026-11-12)
 
 The product owner: "chord blir hengende igjen. altså at en akkord henger når jeg trtykker randomize og forblir i

@@ -718,8 +718,11 @@ typedef enum {
     MELLO_CTX_DRUM_ROLL,   /* roll the drums (undoable) */
     MELLO_CTX_DRUM_FEED,   /* RNDMZR rolls the drums too */
     MELLO_CTX_BASS_ROLL,   /* roll a bass line under the sequence (undoable) */
-    MELLO_CTX_DELAY_PRE,   /* FX: the delay before the distortion */
-    MELLO_CTX_DELAY_PING,  /* FX: the echoes left and right in turn (F25) */
+    MELLO_CTX_LEAD_ROLL, /* B5 ROLL on HOME and SEQ: the lead's melody alone, as RNDMZR held and white key 1 */
+    MELLO_CTX_CHORD_ROLL, /* B5 ROLL on CHORD: the chords alone (RNDMZR held, key 5) */
+    MELLO_CTX_SOUND_ROLL, /* B5 ROLL on SOUND: the lead's sound alone (RNDMZR held, key 6) */
+    MELLO_CTX_DELAY_PRE,  /* FX: the delay before the distortion */
+    MELLO_CTX_DELAY_PING, /* FX: the echoes left and right in turn (F25) */
     MELLO_CTX_SAMPLE_TOGGLE,
     MELLO_CTX_HOME_RANDOM, /* reroll now, at the intensity ALGORITHM sets */
     MELLO_CTX_RNDMZR,      /* every page's B10, the last: tap = reroll (undoable), hold = the RANDOM page */
@@ -748,19 +751,23 @@ typedef struct {
 /* WP-C5 authoritative contextual-action mapping. The physical B0-B10 slot,
  * rendered label and handler verb are defined together here. */
 /* R3 (DECISIONS.md "One thread"): the black keys have fixed places on every page. B0 is ON for the page's part
- * where there is one (G1), B1-B4 are the page's own, B6 MUTATE on every page, B5 and B7 free for the pages; at the
- * right end (2026-11-04, the product owner: "UNDO - RNDMZR - - P") B8 UNDO, B9 RNDMZR and B10 PERF (the PERFORM
- * page, G4), the last key of all. The strip shows HOME's held keys' full names. */
+ * where there is one (G1), B1-B4 are the page's own, B5 ROLL where the page has a part to roll (2026-11-12: the
+ * lead's melody on HOME and SEQ, the bass, the chords, the drums, DOT's matrix, EVOLVE's figure, the lead's sound; they
+ * were on B1, B2 or B3, or none), B6 MUTATE on every page, B7 free for the pages; at the right end (2026-11-04, the
+ * product owner: "UNDO - RNDMZR - - P") B8 UNDO, B9 RNDMZR and B10 PERF (the PERFORM page, G4), the last key of all.
+ * The strip shows HOME's held keys' full names. */
 static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
     [MELLO_UI_HOME] = {[0] = {MELLO_CTX_TRANSPOSE_DOWN, "-"},
                        [1] = {MELLO_CTX_TRANSPOSE_UP, "+"},
                        [3] = {MELLO_CTX_PERF_RESTART, "RST"},
                        [4] = {MELLO_CTX_RANDOM_CLEAR, "CLR"},
+                       [5] = {MELLO_CTX_LEAD_ROLL, "ROLL"},
                        [10] = {MELLO_CTX_PERF, "PERF"},
                        [6] = {MELLO_CTX_MUTATE, "MUT"},
                        [8] = {MELLO_CTX_UNDO, "UNDO"},
                        [9] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_SEQ_STEP] = {[1] = {MELLO_CTX_STEP_SKIP, "SKIP"},
+                           [5] = {MELLO_CTX_LEAD_ROLL, "ROLL"},
                            [10] = {MELLO_CTX_PERF, "PERF"},
                            [6] = {MELLO_CTX_MUTATE, "MUT"},
                            [8] = {MELLO_CTX_UNDO, "UNDO"},
@@ -770,17 +777,20 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
                               [2] = {MELLO_CTX_SEG_B, "B"},
                               [3] = {MELLO_CTX_SEG_C, "C"},
                               [4] = {MELLO_CTX_SEG_D, "D"},
+                              [5] = {MELLO_CTX_LEAD_ROLL, "ROLL"},
                               [10] = {MELLO_CTX_PERF, "PERF"},
                               [6] = {MELLO_CTX_MUTATE, "MUT"},
                               [8] = {MELLO_CTX_UNDO, "UNDO"},
                               [9] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_SEQ_LOOP] = {[0] = {MELLO_CTX_LOOP_TOGGLE, "ON"},
                            [1] = {MELLO_CTX_LOOP_RESET, "RST"},
+                           [5] = {MELLO_CTX_LEAD_ROLL, "ROLL"},
                            [10] = {MELLO_CTX_PERF, "PERF"},
                            [6] = {MELLO_CTX_MUTATE, "MUT"},
                            [8] = {MELLO_CTX_UNDO, "UNDO"},
                            [9] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_SEQ_SLOTSEQ] = {[0] = {MELLO_CTX_SLOTSEQ_TOGGLE, "ON"},
+                              [5] = {MELLO_CTX_LEAD_ROLL, "ROLL"},
                               [10] = {MELLO_CTX_PERF, "PERF"},
                               [6] = {MELLO_CTX_MUTATE, "MUT"},
                               [8] = {MELLO_CTX_UNDO, "UNDO"},
@@ -801,28 +811,28 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
                         [8] = {MELLO_CTX_UNDO, "UNDO"},
                         [9] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_DOT] = {[0] = {MELLO_CTX_DOT_TOGGLE, "ON"},
-                      [1] = {MELLO_CTX_DOT_REROLL, "RND"},
                       [2] = {MELLO_CTX_DOT_RESET, "RST"},
                       [3] = {MELLO_CTX_DOT_FOLLOW, "FLW"},
                       [4] = {MELLO_CTX_DOT_REVERSE, "REV"},
+                      [5] = {MELLO_CTX_DOT_REROLL, "ROLL"},
                       [10] = {MELLO_CTX_PERF, "PERF"},
                       [6] = {MELLO_CTX_MUTATE, "MUT"},
                       [8] = {MELLO_CTX_UNDO, "UNDO"},
                       [9] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_TURING] = {[0] = {MELLO_CTX_TURING_TOGGLE, "ON"},
-                         [1] = {MELLO_CTX_TURING_REROLL, "RND"},
                          [2] = {MELLO_CTX_TURING_LOOP, "LOOP"},
+                         [5] = {MELLO_CTX_TURING_REROLL, "ROLL"},
                          [10] = {MELLO_CTX_PERF, "PERF"},
                          [6] = {MELLO_CTX_MUTATE, "MUT"},
                          [8] = {MELLO_CTX_UNDO, "UNDO"},
                          [9] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_SUB] = {[0] = {MELLO_CTX_SUB_TOGGLE, "ON"},
                       [1] = {MELLO_CTX_BASS_SEQ, "SEQ"},
-                      [2] = {MELLO_CTX_BASS_ROLL, "ROLL"},
 #if MELLO_FEATURE_CHORD_MACHINE
                       [3] = {MELLO_CTX_CHORD_SUB_ROOT,
                              "CHD"}, /* the bass on the chords' root: CHORD's BASS */
 #endif
+                      [5] = {MELLO_CTX_BASS_ROLL, "ROLL"},
                       [10] = {MELLO_CTX_PERF, "PERF"},
                       [6] = {MELLO_CTX_MUTATE, "MUT"},
                       [8] = {MELLO_CTX_UNDO, "UNDO"},
@@ -832,6 +842,7 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
                         [1] = {MELLO_CTX_CHORD_SUB_ROOT, "BASS"},
                         [2] = {MELLO_CTX_CHORD_POLY, "POLY"},
                         [3] = {MELLO_CTX_CHORD_FIT, "FIT"},
+                        [5] = {MELLO_CTX_CHORD_ROLL, "ROLL"},
                         [10] = {MELLO_CTX_PERF, "PERF"},
                         [6] = {MELLO_CTX_MUTATE, "MUT"},
                         [8] = {MELLO_CTX_UNDO, "UNDO"},
@@ -844,6 +855,7 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
                          [8] = {MELLO_CTX_UNDO, "UNDO"},
                          [9] = {MELLO_CTX_RNDMZR, "RNDMZR"}},
     [MELLO_UI_SOUND_RESERVED] = {[1] = {MELLO_CTX_SOUND_INIT, "INIT"},
+                                 [5] = {MELLO_CTX_SOUND_ROLL, "ROLL"},
                                  [10] = {MELLO_CTX_PERF, "PERF"},
                                  [6] = {MELLO_CTX_MUTATE, "MUT"},
                                  [8] = {MELLO_CTX_UNDO, "UNDO"},
@@ -862,7 +874,7 @@ static const MelloContextAction context_actions[MELLO_UI_MIX + 1u][11] = {
     [MELLO_UI_DRUMS] = {[0] = {MELLO_CTX_DRUM_ON, "ON"},
                         [1] = {MELLO_CTX_DRUM_VOICE, "VOX"},
                         [2] = {MELLO_CTX_DRUM_ACCENT, "ACC"},
-                        [3] = {MELLO_CTX_DRUM_ROLL, "ROLL"},
+                        [5] = {MELLO_CTX_DRUM_ROLL, "ROLL"},
                         [10] = {MELLO_CTX_PERF, "PERF"},
                         [6] = {MELLO_CTX_MUTATE, "MUT"},
                         [8] = {MELLO_CTX_UNDO, "UNDO"},
@@ -3752,6 +3764,20 @@ static void run_action(MelloUi *ui, uint32_t now_ms, const MelloContextAction *a
         persistent_dirty(ui, now_ms);
         mark_edit(ui);
         break;
+    case MELLO_CTX_LEAD_ROLL: /* B5 ROLL: the page's part alone, as RNDMZR held and its white key */
+    case MELLO_CTX_SOUND_ROLL:
+#if MELLO_FEATURE_CHORD_MACHINE
+    case MELLO_CTX_CHORD_ROLL:
+#endif
+        ui_roll_part(ui, e,
+                     a->verb == MELLO_CTX_LEAD_ROLL    ? 0u
+                     : a->verb == MELLO_CTX_SOUND_ROLL ? 5u
+                                                       : 4u,
+                     now_ms);
+        rebuild(ui);
+        persistent_dirty(ui, now_ms);
+        mark_edit(ui);
+        break;
     case MELLO_CTX_SEG_EVEN:
         mello_segment_even(&e->project);
         rebuild(ui);
@@ -6325,6 +6351,16 @@ static void draw_control_hint(MelloUi *ui, const MelloUiDrawOps *o)
                 if (i == 6u && lab[i]) lab[i] = "M";
                 w[i] = lab[i] ? (int16_t)(ui_text_len(lab[i]) * 8u) : 2;
                 need = (int16_t)(need + w[i]);
+            }
+            /* B5's ROLL as short as the room asks: RL, then R; before UNLOCK, so HOME keeps UNLOCK whole */
+            if (lab[5] && ui_text_eq(lab[5], "ROLL")) {
+                static const char *const shorter[2] = {"RL", "R"};
+                uint8_t s;
+                for (s = 0u; s < 2u && need + 4 * gap_group > 236; ++s) {
+                    lab[5] = shorter[s];
+                    need = (int16_t)(need - w[5] + (int16_t)(ui_text_len(shorter[s]) * 8u));
+                    w[5] = (int16_t)(ui_text_len(shorter[s]) * 8u);
+                }
             }
             if (lab[UNLOCK_KEY] == UNLOCK_ACTION.label) { /* UNLOCK as short as the room asks: UNL, then U */
                 static const char *const shorter[2] = {"UNL", "U"};

@@ -197,12 +197,12 @@ static void verify_context_actions(void)
 
     setup(&p, &t, &st, &u, MELLO_UI_DOT);
     before = t.engine;
-    black(&u, 100u, 1u);
-    if (!memcmp(&before, &t.engine, sizeof before)) fail("DOT B1", "reroll not migrated");
+    black(&u, 100u, 5u);
+    if (!memcmp(&before, &t.engine, sizeof before)) fail("DOT B5", "ROLL not migrated");
     setup(&p, &t, &st, &u, MELLO_UI_TURING);
     before = t.engine;
-    black(&u, 100u, 1u);
-    if (!memcmp(&before, &t.engine, sizeof before)) fail("TURING B1", "reroll not migrated");
+    black(&u, 100u, 5u);
+    if (!memcmp(&before, &t.engine, sizeof before)) fail("TURING B5", "ROLL not migrated");
 
     setup(&p, &t, &st, &u, MELLO_UI_SUB);
     b = t.engine.sub.on;
