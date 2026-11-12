@@ -3014,6 +3014,23 @@ static bool audio_pop_due(MelloAudio *a, uint32_t now, MelloAudioQueuedEvent *ou
 {
     return queue_pop_due(a, a->q_head, now, out);
 }
+/* The earliest event the queue holds, into *due (each lane is in due order, so it is a lane's head); false when it
+ * is empty. The render looks at that one time a sample instead of the four lanes (0.5-f130: 42 instructions a sample
+ * on the FM-1's core), as the parts' job does (parts_job_next). It holds until the render pops: nothing is pushed while
+ * a block renders (app_main appends between blocks, the audio interrupt only pops). */
+static bool audio_next_due(const MelloAudio *a, uint32_t *due)
+{
+    uint8_t lane;
+    bool any = false;
+    for (lane = 0u; lane < MELLO_AUDIO_EVENT_LANES; ++lane) {
+        uint32_t d;
+        if (a->q_head[lane] == a->q_tail[lane]) continue;
+        d = a->queue[audio_lane_slot(lane, a->q_head[lane])].due_us;
+        if (!any || audio_due_before(d, *due)) *due = d;
+        any = true;
+    }
+    return any;
+}
 
 /* The chords and the drums a chunk at a time (ROADMAP H2-H3, DECISIONS "The second core"): on the second core a
  * chunk ahead, beside the rest of the render, or here a sample at a time where the render needs it: the same samples
@@ -3391,6 +3408,8 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
         mod_at[2u * i] = (uint8_t)(a->modr.dot_target[i] % MELLO_DEST_COUNT);
         mod_at[2u * i + 1u] = (uint8_t)(a->modr.tm_dest[i] % MELLO_DEST_COUNT);
     }
+    uint32_t q_next = 0u;
+    bool q_any = audio_next_due(a, &q_next); /* the queue's earliest event (audio_next_due) */
     for (i = 0u; i < frames; ++i) {
         int32_t lead = 0, sub = 0, sample_mix = 0, mix, mix_l = 0, mix_r = 0, lfo = 0, ampmod = 32767,
                 mod_env;
@@ -3425,10 +3444,10 @@ void mello_audio_render(MelloAudio *a, int32_t *out, uint32_t frames, uint32_t s
             a->ramps_moving = false; /* all arrived: the ramps are read as they stand until the next change */
         if (a->dly_glide_k)
             delay_q8 = delay_glide(a); /* GLIDE: the time a tape's way (the ramp runs on under it) */
-        while (1) {
+        if (q_any && audio_time_due(t, q_next)) { /* this sample's events, all of them */
             MelloAudioQueuedEvent q;
-            if (!audio_pop_due(a, t, &q)) break;
-            apply_event(a, &q.event);
+            while (audio_pop_due(a, t, &q)) apply_event(a, &q.event);
+            q_any = audio_next_due(a, &q_next);
         }
         if (a->lead.env_stage == MELLO_ENV_ATTACK) {
             (void)env_tick(&a->lead.env_q24, a->lead.env_step_q24, a->lead.env_target_q24,

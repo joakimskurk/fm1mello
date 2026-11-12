@@ -2438,6 +2438,18 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   that. 0 on a new project and on one saved before (the FX section's version 10 saves it, 2 bytes), so nothing sounds
   different until it is turned: the take's first 49 s are the same to the byte as at f128. The REVERB layers are now 5
   to 7 inside the FX page. The stress build turns it to 50%. Test delay_route.
+- **The worst case, a CPU pass (0.5-f130 on)**: the product owner (2026-11-12), "lete etter CPU". A profile of
+  core 0 in the stress build (fm1-emu's instruction trace of 538 samples, the -g build's source lines; tools in
+  ~/fm1-emu-0.3.0/work/tools): about 2670 instructions a sample, of them the delay 540 (its two reads with LO CUT
+  112, the looping delay's diffuser and shifter 212, the four HI CUT biquads with PING and the rest 215), the
+  distortion 196, the end (PERFORM's checks, MASTER, the compressor, the limiter) 167, the lead's unison 152 and
+  its oscillators 134, the chords' and samples' mix 153; the rest flat. f129's REVERB at 50% in the stress build
+  costs 0.2%. Tried and dropped: the FX tone filters' biquad with its coefficients read from the table (they were
+  copied into an array at each call): the compiler had inlined them without the copy already, and the build came out
+  0.3% heavier. f130: the render looked at the event queue's four lanes every sample (42 instructions); now it keeps
+  the earliest event's time and looks at that, as the parts' job does, and the lanes only when one is due (nothing is
+  pushed while a block renders). The same to the bit (the take's 49 s, every test). Core 0's heaviest block in steady
+  play 52.9..53.5% at f129, 52.3..52.7% now (53.6% in PLAY's first second): 3.05 ms.
 
 ## Engineering process decisions
 
