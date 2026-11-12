@@ -2074,8 +2074,9 @@ static int32_t delay_read(MelloAudio *a, int32_t delay_q8, int32_t lc[2])
 }
 /* DIFFUSE and PITCH (DECISIONS "The looping delay"): Clouds' looping delay puts its diffuser and its pitch shifter on
  * what it plays and feeds back, so each repeat is smeared and shifted further than the last. In the delay's memory
- * (dlyfx): the shifter's line, then the diffuser's four. The diffuser is Clouds' left one (126, 180, 269 and 444
- * samples at 32 kHz, here x 44.1 / 32), allpasses of 0.625; the shifter Clouds' (two grains over its line, a raised
+ * (dlyfx): the shifter's line, then the diffuser's three. The diffuser is Clouds' left one (126, 180, 269 and 444
+ * samples at 32 kHz, here x 44.1 / 32), allpasses of 0.625, without its first (0.5-f131, the core's time: three are
+ * about as smeared, a little less dense); the shifter Clouds' (two grains over its line, a raised
  * cosine between them; each read between two points, not Clouds' four), its window fixed at 45 ms (Clouds' takes it
  * from SIZE: at 32 kHz 4 .. 64 ms). Each output worked out whole and then cut towards zero once, so it is never larger
  * than the exact one: an allpass's y - g v with g v cut alone, or the grains' sum cut a grain at a time, came out
@@ -2086,7 +2087,8 @@ static inline int32_t tz15_64(int64_t p) /* p / 2^15 towards zero */
 }
 #define DLYFX_PS_LEN 2048u /* the shifter's line, a power of two */
 #define DLYFX_PS_WIN 2000  /* its window, samples */
-static const uint16_t DLYFX_AP_LEN[4] = {174u, 248u, 371u, 612u};
+#define DLYFX_AP_N   3u
+static const uint16_t DLYFX_AP_LEN[DLYFX_AP_N] = {248u, 371u, 612u}; /* (Clouds' 174 gone, 0.5-f131) */
 /* The allpasses' 0.625 is 5 / 8, so y g and y - v g, Q15 and cut towards zero, are 5 y and 8 y - 5 v cut by 2^3: the
  * same to the bit in 32 bits (0.5-f127; the core's 64-bit products cost it a third more). */
 static inline int32_t dlyfx_diffuse(MelloAudio *a, int32_t x)
@@ -2094,7 +2096,7 @@ static inline int32_t dlyfx_diffuse(MelloAudio *a, int32_t x)
     int16_t *m = a->dlyfx + DLYFX_PS_LEN;
     int32_t acc = x;
     uint8_t k;
-    for (k = 0u; k < 4u; ++k) {
+    for (k = 0u; k < DLYFX_AP_N; ++k) {
         uint16_t p = a->dfx_ap_pos[k];
         int32_t y = m[p], v = acc + shr_tz(5 * y, 3u); /* (the line's oldest: its length back) */
         m[p] = sat16(v);

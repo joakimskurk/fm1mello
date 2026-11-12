@@ -381,7 +381,7 @@ typedef struct {
     uint32_t
         reverb_room; /* what of the reverb's memory a reverb may use: all of it, or up to MELLO_AUDIO_DLYFX_AT */
     bool dlyfx_diffuse, dlyfx_shift;
-    uint16_t dfx_ap_pos[4], ps_wp;
+    uint16_t dfx_ap_pos[3], ps_wp; /* the diffuser's three allpasses (DLYFX_AP_N) */
     int32_t dfx_amount_q15, ps_step;
     uint32_t ps_phase;
     /* FREEZE: the line's slots frz_end - frz_len .. frz_end (a crossfade's worth before the write point, so a pass

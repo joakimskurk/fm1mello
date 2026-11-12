@@ -2450,6 +2450,12 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   the earliest event's time and looks at that, as the parts' job does, and the lanes only when one is due (nothing is
   pushed while a block renders). The same to the bit (the take's 49 s, every test). Core 0's heaviest block in steady
   play 52.9..53.5% at f129, 52.3..52.7% now (53.6% in PLAY's first second): 3.05 ms.
+- **The diffuser three allpasses (0.5-f131)**: the product owner, of the ways on (2026-11-12): "Lettere
+  looping-delay". The diffuser loses Clouds' first allpass (126 samples at 32 kHz, 174 here). A click through the
+  delay at DIFFUSE 100% (the host): 90% of its echo in 53.1 ms instead of 57.1, its peak 0.24 of the echo without
+  instead of 0.15, 136 samples over -30 dB in its first 60 ms instead of 186. Two allpasses (each pair tried, and
+  higher gains) gave 28..45 ms and 70 or so samples: too sparse, a flutter, so three. About 30 instructions a sample
+  fewer on the FM-1's core: core 0's heaviest block 51.8..52.1% in steady play (53.2% in PLAY's first second).
 
 ## Engineering process decisions
 
