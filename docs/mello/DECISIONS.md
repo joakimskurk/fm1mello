@@ -2475,6 +2475,10 @@ repeats, and FREEZE. The C engine's own: the HTML has none of it.
   fm1-emu 0.3.0, the worst case with CORE 2 ON, with f132: core 0's heaviest block 49.3..50.0% in steady play (2.86 ..
   2.90 ms), 50.3% in PLAY's first second (2.92 ms); core 1's real work 49.5% (45.7% before). Both cores near half
   each, so that is about all a split gives.
+- **The worst case, settled (2026-11-12)**: the product owner, of 2.86..2.90 ms in steady play and 2.92 ms in PLAY's
+  first second with every one on (the stress build, fm1-emu): "Godt nok". docs/RULES.md's 2.9 ms holds while it
+  plays; PLAY's first second stays 0.02 ms over, and is left so. (fm1-emu counts instructions; the FM-1's own CPU
+  readout is the ground truth, not taken yet.)
 
 ## Engineering process decisions
 
