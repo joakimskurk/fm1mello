@@ -333,7 +333,8 @@ if (fm1) {
       } else if (m.type === 'error') say(`It did not start: ${m.message}`);
     };
     const wasm = wasmBytes.slice(0);
-    node.port.postMessage({ type: 'boot', wasm, store }, store ? [wasm, store.buffer] : [wasm]);
+    const seed = crypto.getRandomValues(new Uint32Array(1))[0]; // SEED AUTO: a roll of its own each time the page starts
+    node.port.postMessage({ type: 'boot', wasm, store, seed }, store ? [wasm, store.buffer] : [wasm]);
   }
   async function start() {
     if (booting) return;

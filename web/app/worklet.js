@@ -28,6 +28,7 @@ class SkurkyMello extends AudioWorkletProcessor {
         const x = instance.exports;
         if (m.store && m.store.length === x.web_store_size())   // the flash the page kept, before the app reads it
           new Uint8Array(x.memory.buffer, x.web_store(), m.store.length).set(m.store);
+        if (x.web_seed) x.web_seed(m.seed >>> 0);                 // SEED AUTO: the page's random numbers
         x.web_init();
         this.storeRev = x.web_store_rev();
         this.x = x;

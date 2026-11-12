@@ -2546,6 +2546,14 @@ SYSTEM. autoo soom standard".
   they were. SYSTEM's NOW gave its knob to SEED; what runs is in the picture (CORE 2 lit while it runs, NO REPLY or
   GAVE UP in it when it failed). Tests seed (the same number the same rolls, another others, mixing 0 nothing) and
   system_layer.
+- **In the web player too (0.5-f138)**: the product owner (2026-11-12): "Er denne også på page-spilleren nå? Jeg
+  får fortsatt. den samme rekka med genererttte melodier over flere modes, både medium og grove ++". It was not: the
+  player is the host build in WebAssembly (web/app), and SEED's AUTO was the FM-1's only, so the page rolled the same
+  every time it opened. Now the page draws a random word (crypto.getRandomValues) and gives it to the player before it
+  starts (web_seed, a new export; the worklet passes it); AUTO moves the three streams by it and the player's clock,
+  and again by the first press's time, as the chip's register and TIMER4 do on the FM-1. A SEED number lasts as long
+  as the page (nothing saves it there). The host build (screens, mirror, tests) stays as it was. The player's wasm in
+  Node: the same word, the same rolls; another, others (two RNDMZR taps, the screen's hash).
 
 ## Engineering process decisions
 

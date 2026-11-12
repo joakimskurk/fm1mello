@@ -210,21 +210,40 @@ static void sync_audio_config(void)
     }
 }
 
-#ifndef DINGHY_HOST
+#if !defined(DINGHY_HOST) || defined(DINGHY_WEB)
 /* SEED (GLOBAL > SYSTEM; DECISIONS "SEED"): the engine's random numbers, RNDMZR's and the rolls', EVOLVE's, the drums'.
  * AUTO (0, the default): moved at power-on by the chip's random register and TIMER4, and again by the time of the
  * first press or key (a person's, to the 24 MHz tick), so no two power-ons roll the same; a number: that number's, the
  * same at every power-on. Turned, it is taken at once and saved once it rests (a flash erase a detent is too many).
- * On a computer none of this: the host build and its pictures stay as they were. */
+ * In a browser (0.5-f138) the page's random numbers (crypto, web_seed) stand for the register and its clock for
+ * TIMER4, and a number lasts as long as the page (nothing saves it there). On a computer otherwise none of this: the
+ * host build and its pictures stay as they were. */
+#define SEED_LIVE 1
 static bool seed_first_press; /* AUTO: the first press still to come */
+static uint16_t seed_now;     /* the SEED taken */
+#ifndef DINGHY_HOST
 static uint32_t seed_save_ms; /* SEED turned: saved at this time (0: nothing to save) */
+#endif
+static uint32_t seed_tick(void) /* a press's time, as fine as the clock counts */
+{
+#ifdef DINGHY_WEB
+    return fm1_micros();
+#else
+    return fm1_ticks();
+#endif
+}
 static void seed_take(uint16_t n)
 {
+    seed_now = n;
     if (n) {
         mello_engine_reseed(&mt.engine, mello_seed_of(n));
         seed_first_press = false;
     } else {
+#ifdef DINGHY_WEB
+        mello_engine_mix_seed(&mt.engine, web_entropy ^ (seed_tick() * 2654435761u));
+#else
         mello_engine_mix_seed(&mt.engine, fm1_rand32() ^ fm1_ticks());
+#endif
         seed_first_press = true;
     }
 }
@@ -316,6 +335,8 @@ static void app_main(void)
     mello_ui_set_seed(&ui, plat_settings.seed);
     seed_take(ui.seed); /* (a saved number past the range is AUTO: mello_ui_set_seed) */
     plat_settings.seed = ui.seed;
+#elif defined(DINGHY_WEB)
+    seed_take(ui.seed); /* AUTO, from the page's random numbers (web_seed) */
 #endif
     mello_audio_init(&audio, audio_delay_pool, MELLO_AUDIO_DELAY_SAMPLES, audio_reverb_pool,
                      MELLO_AUDIO_REVERB_SAMPLES);
@@ -423,20 +444,27 @@ pass: /* the loop's body, once a call */
             settings_save(&plat_settings, sizeof plat_settings); /* (~50 ms: the flash sector's erase) */
             seed_save_ms = 0u;                                   /* (SEED went with it) */
         }
+#endif
+#ifdef SEED_LIVE
         if (seed_first_press &&
             (pressed || notes)) { /* SEED AUTO: the first press's time in them, before it acts */
-            mello_engine_mix_seed(&mt.engine, fm1_ticks());
+            mello_engine_mix_seed(&mt.engine, seed_tick());
             seed_first_press = false;
         }
 #endif
         mello_ui_input(&ui, now_us, fm1_ms, pressed, released, fm1_in.buttons, notes, enc);
-#ifndef DINGHY_HOST
-        if (ui.seed != plat_settings.seed) { /* SEED turned: from now, and saved 2 s after the last detent */
-            plat_settings.seed = ui.seed;
+#ifdef SEED_LIVE
+        if (ui.seed !=
+            seed_now) { /* SEED turned: from now (and on the FM-1 saved 2 s after the last detent) */
             seed_take(ui.seed);
+#ifndef DINGHY_HOST
+            plat_settings.seed = ui.seed;
             seed_save_ms = fm1_ms + 2000u;
             if (!seed_save_ms) seed_save_ms = 1u;
+#endif
         }
+#endif
+#ifndef DINGHY_HOST
         if (seed_save_ms && (int32_t)(fm1_ms - seed_save_ms) >= 0) {
             settings_save(&plat_settings, sizeof plat_settings);
             seed_save_ms = 0u;

@@ -214,6 +214,10 @@ static void platform_poll(void) /* one call = one millisecond, as on the host */
     }
 }
 
+/* SEED AUTO in a browser (dinghy.c seed_take): the page's random numbers (crypto.getRandomValues), given before
+ * web_init; none given (0), only the clock's, the same at every start */
+static uint32_t web_entropy;
+WEB_EXPORT(web_seed) void web_seed(uint32_t r) { web_entropy = r; }
 WEB_EXPORT(web_init) void web_init(void)
 {
     static int started;

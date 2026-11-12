@@ -339,7 +339,8 @@ Levels and amounts read in %, times in ms (or s), cutoffs in Hz, pitch in semito
   chords and the drums render on the second, the sound the same to the sample; the reverb renders there too and
   is then Oliverb, a room of its own (PRE at 6 ms or more; FX > REVERB OLIVERB). CPU 2 says how busy it is. It has
   not run on a real FM-1. SEED (K2) is where RNDMZR's rolls, EVOLVE's and the drums' dice come from: AUTO (a new
-  FM-1's) takes the chip's random numbers and the moment of your first press, so every power-on rolls its own way;
+  FM-1's) takes the chip's random numbers (in the web player, the browser's) and the moment of your first press, so
+  every power-on, and every time the player's page opens, rolls its own way;
   a number (1..999) rolls the same way at every power-on, to play a set again. What a roll gave is in the project
   either way: save it and it comes back as it was.
 - **KEY** (SEL). Root, scale, global octave, pitch span.
