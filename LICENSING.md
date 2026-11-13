@@ -14,8 +14,8 @@ and the design record in this repository are not free: see "Not free" below.
 | The second core: `firmware/hal/fm1_cpu1.h`, `fm1_cpu1.S`, and the hold and the supplies in `fm1_sys.h` and `fm1_guard.h` | Copyright (C) 2026 Charles Vestal ([X0X](https://github.com/charlesvestal/fm1-x0x)), after Kerem Kilic's dual-core audio ([Melodee](https://github.com/keremimo/melodee)) and Leo Kuroshita's hold (Felucca 1.6.1), as SLOOP 2.8.3 carries them; GPL-3.0 |
 | The second core's start, self-test and calls in `platform.c` (`cpu1_boot`, `cpu1_run`, `cpu1_wait`), and the way the render hands it work | after Andre Rezemini's SLOOP dualcore branch ([sloop-lab](https://github.com/andrerezemini/sloop-lab)), GPL-3.0-only |
 | The wiring `platform.c`, the host mode `tests/host.c` and `tests/run_host.sh`, Dinghy's docs, the app skeleton `firmware/src/dinghy.c` | zvenson |
-| SkurkyMello: `firmware/src/mello_*`, the app in `firmware/src/dinghy.c`, `tests/mello/`, `tests/bench/`, `tests/parity/`, `tools/fm1_samples.py`, `tools/screens.py`, `tools/readme_art.py`, `tools/gen_*.py`, the website `web/index.html`, `web/make_site.py`, `web/make_og.py`, `web/take.c`, its player `web/app/` (after Star Distroyer's, also joakimskurk's and GPL-3.0) with its test `tests/web_test.mjs`, `tools/emu_cpu.sh`, and its changes to Dinghy's files | Copyright (C) 2026 joakimskurk, GPL-3.0-only |
-| The original instrument `reference/skurkymello.html`, the design record and manual pages in `docs/mello/` and `docs/review-2026-10/`, the name SkurkyMello | Copyright (C) 2026 joakimskurk, **not** under the GPL: see "Not free" below |
+| SkurkyMello: `firmware/src/mello_*`, the app in `firmware/src/dinghy.c`, `tests/mello/`, `tests/bench/`, `tests/parity/`, `tools/fm1_samples.py`, `tools/screens.py`, `tools/readme_art.py`, `tools/gen_*.py`, the website `web/index.html`, `web/make_site.py`, `web/make_og.py`, `web/take.c`, its player `web/app/` (after Star Distroyer's, also joakimskurk's and GPL-3.0) with its test `tests/web_test.mjs`, `tools/emu_cpu.sh`, and its changes to Dinghy's files (each of those files says so at its top) | Copyright (C) 2026 joakimskurk, GPL-3.0-only |
+| The original instrument `reference/skurkymello.html`, the design record and manual pages in `docs/mello/` and `docs/review-2026-10/` (the name SkurkyMello: see "The name" below) | Copyright (C) 2026 joakimskurk, **not** under the GPL: see "Not free" below |
 
 Every file of SkurkyMello's carries its SPDX line and copyright line at the top; keep them when you copy a file.
 
@@ -64,8 +64,17 @@ GPL, MIT and OFL ask.
 
 Dinghy's logo (the designburg signet) is not in this fork: it marks Dinghy itself.
 
+## The name
+
+"SkurkyMello" is the name of this firmware, and it is its author's (joakimskurk). The GPL covers the code, not the
+name: under section 7(e) of the GPL, this licence gives no right to use "SkurkyMello", or a name that can be taken for
+it, as the name of another work. A changed version, a fork that is passed on, or a firmware built on this one takes a
+name of its own, and does not call itself SkurkyMello on its screens, in its package or on its page. Saying where it
+comes from ("based on SkurkyMello by joakimskurk") is welcome, and is what the notices above ask for anyway. A copy
+passed on unchanged keeps the name. A fork that changes the sound or the pages is a changed version
+(`docs/MAKE-IT-YOURS.md`).
+
 ## Trademarks
 
 "Felucca" and "Hügelton Instruments" are names of Hügelton Instruments; "M-VAVE" and "FM-1" belong to their
-owners. SkurkyMello and Dinghy are not made or endorsed by them. "SkurkyMello" is joakimskurk's name for this
-instrument: a fork that changes the sound or the pages takes another name (see `docs/MAKE-IT-YOURS.md`).
+owners. SkurkyMello and Dinghy are not made or endorsed by them.
