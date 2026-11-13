@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 joakimskurk
 """Holds the C port's renders (build/golden-c) against the HTML's (tests/golden/html), stimulus by stimulus.
 
   python3 tools/tone-ref/compare.py [--json OUT] [name ...]

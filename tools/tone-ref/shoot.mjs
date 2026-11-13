@@ -1,3 +1,4 @@
+// Copyright (C) 2026 joakimskurk
 // Screenshots of reference/skurkymello.html (the look the FM-1's screen should borrow): the whole page, stopped and
 // playing. node tools/tone-ref/shoot.mjs OUT_DIR
 import puppeteer from "puppeteer-core";

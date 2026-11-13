@@ -1,3 +1,4 @@
+// Copyright (C) 2026 joakimskurk
 // Renders every stimulus in stimuli.json through the HTML's sound chain (chain.js, Tone 14.9.17) in headless
 // Chromium and writes 32-bit float WAVs to tests/golden/html/. The browser: $CHROME, else a Chrome, Chromium or
 // Brave found in the usual places. Run: npm ci && npm run render [-- name ...]

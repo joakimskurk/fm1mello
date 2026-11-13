@@ -1,3 +1,4 @@
+// Copyright (C) 2026 joakimskurk
 /* The sound chain of reference/skurkymello.html, for Tone.Offline. buildChain() is buildSynth() (lines 1246-1368)
  * with the React refs replaced by a plain parameter object; the helpers are lines 1125-1146 and the triggers
  * follow triggerNote() (1582-1669, SINGLE gate, no ratchets) and triggerSub() (1671-1678). Keep this a copy:

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 joakimskurk
 # SkurkyMello: the everyday commands. The firmware itself is built by ./build.sh (see README.md).
 .PHONY: test sanitize bench host screens art web site parity reference emu format format-check clean
 test:            ## Mello host tests (tests/mello), Dinghy's installer and loader screen, the Big screen check; no FM-1 or toolchain
