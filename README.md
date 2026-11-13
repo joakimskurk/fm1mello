@@ -606,8 +606,11 @@ The code was written with Claude (Anthropic) as a coding assistant; the commits 
 IN, the newer FM-1s' flash chip, the flash map, the installer, the USB buffers and the update loader's screen.
 `firmware/hal/` is 0.5's but for the SMK-37's `smk_input.h`; not taken are the SMK-37 port, Dinghy's blobs and slots
 (SkurkyMello has its own storage), `LCD_IDLE` and `-Os` ([docs/mello/DINGHY_0_4.md](docs/mello/DINGHY_0_4.md)).
-`git remote upstream` points there. The Mello changes to Dinghy's own files are small and listed in
-`git log -- firmware/src/platform.c firmware/src/lcd.c firmware/src/usb.c firmware/src/gfx.c tools/build.py`. Package
+`git remote upstream` points there. The Mello changes to Dinghy's own files are small; each of those files says so
+at its top, and `git log -- firmware/app.ld firmware/hal/fm1_guard.h firmware/hal/fm1_irq.h firmware/hal/fm1_sys.h
+firmware/loader/loader.c firmware/src/gfx.c firmware/src/lcd.c firmware/src/platform.c firmware/src/recovery.c
+firmware/src/usb.c tests/host.c tools/build.py` has them (`fm1_guard.h` and `fm1_sys.h` carry the second core's hold
+from X0X, as LICENSING.md says). Package
 identity: `FM-1_987` (it was `FM-1_970` up to 0.5-f97: docs/mello/PRODUCT_IDENTITY.md).
 
 The firmware is GPL-3.0-only, as Dinghy: ship it, and ship its source. The original instrument

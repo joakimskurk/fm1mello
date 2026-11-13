@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
+/* Changed for SkurkyMello by joakimskurk, 2026-11; README.md lists the files (Upstream and licence). */
 /* FM-1 interrupt / exception HAL.
  *
  *   fm1_irq_init()        first thing in cstart: all ICFG off, pendings and

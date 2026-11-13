@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
+/* Changed for SkurkyMello by joakimskurk, 2026-11; README.md lists the files (Upstream and licence). */
 /* Felucca update loader (device side). Runs from RAM, started by the SPL from
  * an update record, with interrupts off: USB is polled from the main loop.
  * It is a USB-MIDI device "Felucca Update" (1209:0002) that answers the

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
+/* Changed for SkurkyMello by joakimskurk, 2026-11; README.md lists the files (Upstream and licence). */
 /* A fake FM-1 on a computer: the app (firmware/src/dinghy.c) runs unchanged on it. platform.c includes
  * this file instead of the hardware when DINGHY_HOST is set. A script presses keys over time; out come
  * the screen (PPM, at the times SHOT asks) and the sound (WAV, as the FM-1 sends it over USB).

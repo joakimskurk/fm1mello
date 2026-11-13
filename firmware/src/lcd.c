@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
+/* Changed for SkurkyMello by joakimskurk, 2026-11; README.md lists the files (Upstream and licence). */
 /* ST7789-class 240x240 panel on SPI1: PC9 CLK, PC10 DO, PC7 CS, PC8 D/C,
  * backlight PA2 active low. Polled DMA transfers; every source buffer must be
  * in RAM. A pixel transfer is left running (lcd_busy): the next LCD access, or

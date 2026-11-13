@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
+/* Changed for SkurkyMello by joakimskurk, 2026-11; README.md lists the files (Upstream and licence). */
 /* Application-level recovery, not a second firmware bank. The intact app's
  * startup, RAM flash driver and USB stack are still required. TIMER5, audio,
  * settings, samples, projects, editor and normal UI are never started here. */

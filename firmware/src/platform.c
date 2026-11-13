@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
+/* Changed for SkurkyMello by joakimskurk, 2026-11; README.md lists the files (Upstream and licence). */
 /* Dinghy's platform: everything an FM-1 firmware needs before it can be fun, taken unchanged from
  * SLOOP / Felucca / sloopDX and wired up here. You should not need to touch this file.
  *

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
+/* Changed for SkurkyMello by joakimskurk, 2026-11; README.md lists the files (Upstream and licence). */
 /* FM-1 hardware guards. Every violation raises the CPU exception (vector 1) and
  * ends in the fault report of fm1_irq.h, so install that first.
  *

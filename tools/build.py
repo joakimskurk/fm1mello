@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
+# Changed for SkurkyMello by joakimskurk, 2026-11; README.md lists the files (Upstream and licence).
 """Build Dinghy (on Felucca / SLOOP's platform): the app, the update loader and an installable .fwsc package.
 
   tools/build.py [--release X.Y[-suffix]]
